@@ -1,0 +1,64 @@
+<wxs src="../../utils/filters.wxs" module="f" />
+<view class="page-container">
+  <!-- 事件头部 -->
+  <view class="event-header-section">
+    <view class="event-date-badge">
+      <text class="event-year">{{event.year}}</text>
+      <text class="event-month-day">{{event.month}}月{{event.day}}日</text>
+    </view>
+    <view class="event-title-section">
+      <text class="event-title">{{event.title}}</text>
+      <view class="event-tag {{event.type}}">{{event.typeName}}</view>
+    </view>
+  </view>
+
+  <!-- 事件详情 -->
+  <view class="info-card">
+    <view class="card-title">事件详情</view>
+    <text class="event-description">{{event.description}}</text>
+    <view class="event-details" wx:if="{{event.details}}">
+      <view class="detail-row" wx:for="{{event.details}}" wx:key="label">
+        <text class="detail-label">{{item.label}}</text>
+        <text class="detail-value">{{item.value}}</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 相关成员 -->
+  <view class="info-card" wx:if="{{event.relatedMembers.length > 0}}">
+    <view class="card-title">相关成员</view>
+    <view class="members-list">
+      <view class="member-item" wx:for="{{event.relatedMembers}}" wx:key="id" bindtap="viewMember" data-id="{{item.id}}">
+        <view class="member-avatar {{item.gender === 'female' ? 'female' : ''}}">
+          <text>{{f.firstChar(item.name)}}</text>
+        </view>
+        <view class="member-info">
+          <text class="member-name">{{item.name}}</text>
+          <text class="member-relation">{{item.relation}}</text>
+        </view>
+        <text class="member-arrow">›</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 相关照片 -->
+  <view class="info-card" wx:if="{{event.photos && event.photos.length > 0}}">
+    <view class="card-title">相关照片</view>
+    <view class="photo-grid">
+      <image class="photo-item" wx:for="{{event.photos}}" wx:key="*this" src="{{item}}" mode="aspectFill" data-src="{{item}}" bindtap="previewPhoto"/>
+    </view>
+  </view>
+
+  <!-- 底部操作 -->
+  <view class="bottom-actions safe-bottom">
+    <view class="action-btn danger" bindtap="deleteEvent">
+      <text>删除</text>
+    </view>
+    <view class="action-btn secondary" bindtap="editEvent">
+      <text>编辑</text>
+    </view>
+    <button class="action-btn primary share-btn" open-type="share">
+      <text>分享</text>
+    </button>
+  </view>
+</view>

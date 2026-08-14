@@ -1,0 +1,41 @@
+<view class="page-container">
+  <!-- 分类标签 -->
+  <view class="category-tabs">
+    <scroll-view scroll-x show-scrollbar="{{false}}">
+      <view class="tabs-wrapper">
+        <view class="tab-item {{activeCategory === item.id ? 'active' : ''}}" 
+              wx:for="{{categories}}" 
+              wx:key="id" 
+              bindtap="switchCategory" 
+              data-id="{{item.id}}">
+          <text>{{item.name}}</text>
+        </view>
+      </view>
+    </scroll-view>
+  </view>
+
+  <!-- 资料列表 -->
+  <view class="docs-list">
+    <view class="doc-card" wx:for="{{documents}}" wx:key="id" bindtap="viewDoc" data-id="{{item.id}}">
+      <view class="doc-cover">
+        <view class="doc-cover-inner">
+          <text class="doc-cover-title">{{item.name}}</text>
+          <text class="doc-cover-volume">{{item.volume}}</text>
+        </view>
+      </view>
+      <view class="doc-info">
+        <text class="doc-name">{{item.name}}</text>
+        <text class="doc-desc">{{item.description}}</text>
+        <view class="doc-meta">
+          <text class="doc-date">{{item.updateTime}}</text>
+          <text class="doc-pages">{{item.pages}}页</text>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 添加资料按钮 -->
+  <view class="fab-add" bindtap="addDocument">
+    <text>+</text>
+  </view>
+</view>

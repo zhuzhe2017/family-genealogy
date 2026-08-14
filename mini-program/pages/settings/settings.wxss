@@ -1,0 +1,60 @@
+.page-container {
+  padding: 24rpx;
+  background: #F5F5F5;
+  min-height: 100vh;
+  box-sizing: border-box;
+}
+
+.settings-group {
+  background: #FFFFFF;
+  border-radius: 24rpx;
+  margin-bottom: 24rpx;
+  overflow: hidden;
+  box-shadow: 0 2rpx 12rpx rgba(0,0,0,0.04);
+}
+
+.settings-title {
+  font-size: 24rpx;
+  color: #999;
+  padding: 24rpx 24rpx 12rpx;
+  display: block;
+}
+
+.settings-item {
+  display: flex;
+  align-items: center;
+  padding: 28rpx 24rpx;
+  border-bottom: 1rpx solid #F5F5F5;
+}
+
+.settings-item:last-child {
+  border-bottom: none;
+}
+
+.settings-icon {
+  font-size: 40rpx;
+  margin-right: 20rpx;
+  width: 48rpx;
+  text-align: center;
+}
+
+.settings-text {
+  flex: 1;
+  font-size: 28rpx;
+  color: #333;
+}
+
+.settings-arrow {
+  font-size: 32rpx;
+  color: #CCC;
+}
+
+.settings-value {
+  font-size: 26rpx;
+  color: #999;
+  margin-right: 12rpx;
+}
+
+.switch-control {
+  transform: scale(0.8);
+}

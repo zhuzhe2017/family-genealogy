@@ -1,0 +1,58 @@
+<view class="page-container">
+  <!-- 大图展示 -->
+  <view class="photo-viewer">
+    <image class="photo-large" src="{{photo.url}}" mode="aspectFit"/>
+  </view>
+
+  <!-- 照片信息 -->
+  <view class="photo-info-card">
+    <view class="info-header">
+      <text class="photo-title">{{photo.title}}</text>
+      <text class="photo-year">{{photo.year}}年</text>
+    </view>
+    <text class="photo-desc">{{photo.description}}</text>
+    <view class="photo-meta">
+      <view class="meta-item">
+        <text class="meta-icon">📷</text>
+        <text>{{photo.categoryName}}</text>
+      </view>
+      <view class="meta-item">
+        <text class="meta-icon">👤</text>
+        <text>上传者：{{photo.uploader}}</text>
+      </view>
+      <view class="meta-item">
+        <text class="meta-icon">📅</text>
+        <text>{{photo.uploadTime}}</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 相关照片 -->
+  <view class="related-section">
+    <text class="section-title">相关照片</text>
+    <scroll-view class="related-scroll" scroll-x show-scrollbar="{{false}}">
+      <view class="related-list">
+        <view class="related-item" wx:for="{{relatedPhotos}}" wx:key="id" bindtap="viewRelated" data-id="{{item.id}}">
+          <image class="related-img" src="{{item.url}}" mode="aspectFill"/>
+          <text class="related-title">{{item.title}}</text>
+        </view>
+      </view>
+    </scroll-view>
+  </view>
+
+  <!-- 底部操作 -->
+  <view class="bottom-actions safe-bottom">
+    <view class="action-btn" bindtap="downloadPhoto">
+      <text>⬇️</text>
+      <text>下载</text>
+    </view>
+    <view class="action-btn" bindtap="sharePhoto">
+      <text>🔗</text>
+      <text>分享</text>
+    </view>
+    <view class="action-btn" bindtap="deletePhoto">
+      <text>🗑️</text>
+      <text>删除</text>
+    </view>
+  </view>
+</view>

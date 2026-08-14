@@ -1,0 +1,75 @@
+# ============================================================
+# 根级 .gitignore - 适用于整个 monorepo
+# ============================================================
+
+# ---- 通用 ----
+.DS_Store
+Thumbs.db
+*.log
+logs/
+*.pid
+*.seed
+*.pid.lock
+
+# ---- Node.js ----
+node_modules/
+.npm/
+.pnpm-store/
+.yarn/
+package-lock.json
+yarn.lock
+
+# ---- 构建产物 ----
+dist/
+dist-ssr/
+build/
+out/
+*.tsbuildinfo
+tsconfig.tsbuildinfo
+
+# ---- 测试覆盖率 ----
+coverage/
+.nyc_output/
+
+# ---- 环境变量(含密钥,严禁提交) ----
+.env
+.env.local
+.env.*.local
+.env.development.local
+.env.test.local
+.env.production.local
+# 允许提交 .env.example / .env.prod / .env.test 等模板
+!.env.example
+!.env.prod
+!.env.test
+
+# ---- 编辑器/IDE ----
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+!.vscode/launch.json
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# ---- 操作系统 ----
+.VSCodeCounter
+
+# ---- 缓存 ----
+.cache/
+.eslintcache
+*.cache
+
+# ---- 小程序 ----
+mini-program/project.private.config.json
+mini-program/miniprogram_npm/
+
+# ---- Tauri ----
+src-tauri/target/
+
+# ---- Cypress ----
+/cypress/videos/
+/cypress/screenshots/

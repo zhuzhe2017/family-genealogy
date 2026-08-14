@@ -1,0 +1,70 @@
+.page-container {
+  min-height: 100vh;
+  background: #F5F5F5;
+  box-sizing: border-box;
+  padding-bottom: 40rpx;
+}
+
+/* Tab 栏 */
+.tab-bar {
+  display: flex;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: #FFFFFF;
+  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.05);
+}
+
+.tab-item {
+  flex: 1;
+  text-align: center;
+  padding: 28rpx 0;
+  font-size: 28rpx;
+  color: #666;
+  border-bottom: 4rpx solid transparent;
+}
+
+.tab-item.active {
+  color: #8B1A1A;
+  font-weight: 600;
+  border-bottom-color: #8B1A1A;
+}
+
+/* 文档内容 */
+.doc-content {
+  padding: 24rpx;
+}
+
+.section {
+  background: #FFFFFF;
+  border-radius: 16rpx;
+  padding: 28rpx;
+  margin-bottom: 20rpx;
+  box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.04);
+}
+
+.section-title {
+  display: block;
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 16rpx;
+}
+
+.section-body {
+  display: block;
+  font-size: 27rpx;
+  line-height: 1.8;
+  color: #555;
+}
+
+/* 底部 */
+.doc-footer {
+  text-align: center;
+  padding: 20rpx 0;
+}
+
+.footer-text {
+  font-size: 24rpx;
+  color: #AAA;
+}

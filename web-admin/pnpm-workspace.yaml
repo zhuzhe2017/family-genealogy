@@ -1,0 +1,11 @@
+packages:
+  - 'packages/*'
+  - 'server'
+allowBuilds:
+  '@parcel/watcher': false
+  esbuild: false
+  simple-git-hooks: false
+  vue-demi: false
+shamefullyHoist: true
+ignoreWorkspaceRootCheck: true
+linkWorkspacePackages: true

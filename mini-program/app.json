@@ -1,0 +1,72 @@
+{
+  "pages": [
+    "pages/index/index",
+    "pages/home/home",
+    "pages/family-tree/family-tree",
+    "pages/family-tree-detail/family-tree-detail",
+    "pages/member-list/member-list",
+    "pages/member-detail/member-detail",
+    "pages/add-member/add-member",
+    "pages/family-docs/family-docs",
+    "pages/doc-detail/doc-detail",
+    "pages/timeline/timeline",
+    "pages/event-detail/event-detail",
+    "pages/add-event/add-event",
+    "pages/album/album",
+    "pages/photo-detail/photo-detail",
+    "pages/worship/worship",
+    "pages/dynamic/dynamic",
+    "pages/profile/profile",
+    "pages/create-family/create-family",
+    "pages/family-manage/family-manage",
+    "pages/permission/permission",
+    "pages/backup/backup",
+    "pages/publish-dynamic/publish-dynamic",
+    "pages/dynamic-detail/dynamic-detail",
+    "pages/settings/settings",
+    "pages/privacy/privacy"
+  ],
+  "entryPagePath": "pages/index/index",
+  "window": {
+    "backgroundTextStyle": "light",
+    "navigationBarBackgroundColor": "#8B1A1A",
+    "navigationBarTitleText": "数字家谱",
+    "navigationBarTextStyle": "white",
+    "backgroundColor": "#F5F5F5"
+  },
+  "tabBar": {
+    "color": "#999999",
+    "selectedColor": "#8B1A1A",
+    "backgroundColor": "#FFFFFF",
+    "borderStyle": "black",
+    "list": [
+      {
+        "pagePath": "pages/home/home",
+        "text": "首页",
+        "iconPath": "images/tab-home.png",
+        "selectedIconPath": "images/tab-home-active.png"
+      },
+      {
+        "pagePath": "pages/family-tree/family-tree",
+        "text": "家谱",
+        "iconPath": "images/tab-tree.png",
+        "selectedIconPath": "images/tab-tree-active.png"
+      },
+      {
+        "pagePath": "pages/dynamic/dynamic",
+        "text": "动态",
+        "iconPath": "images/tab-dynamic.png",
+        "selectedIconPath": "images/tab-dynamic-active.png"
+      },
+      {
+        "pagePath": "pages/profile/profile",
+        "text": "我的",
+        "iconPath": "images/tab-profile.png",
+        "selectedIconPath": "images/tab-profile-active.png"
+      }
+    ]
+  },
+  "style": "v2",
+  "sitemapLocation": "sitemap.json",
+  "lazyCodeLoading": "requiredComponents"
+}

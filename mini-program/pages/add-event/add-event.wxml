@@ -1,0 +1,84 @@
+<view class="page-container">
+  <!-- 基本信息 -->
+  <view class="form-card">
+    <view class="form-row">
+      <text class="form-label">标题</text>
+      <input class="form-input" placeholder="事件标题" value="{{form.title}}" bindinput="onTitleInput" maxlength="100" />
+    </view>
+
+    <!-- 事件时间:年/月/日 -->
+    <view class="form-row">
+      <text class="form-label">时间</text>
+      <view class="date-pickers">
+        <picker class="date-picker" mode="selector" range="{{yearRange}}" bindchange="onYearChange">
+          <view class="picker-box {{form.year ? '' : 'placeholder'}}">{{form.year ? form.year + '年' : '选择年份'}}</view>
+        </picker>
+        <picker class="date-picker" mode="selector" range="{{monthRange}}" value="{{form.month}}" bindchange="onMonthChange">
+          <view class="picker-box {{form.month ? '' : 'placeholder'}}">{{monthRange[form.month] ? (form.month ? form.month + '月' : '月份不详') : '选择月份'}}</view>
+        </picker>
+        <picker class="date-picker" mode="selector" range="{{dayRange}}" value="{{form.day}}" bindchange="onDayChange">
+          <view class="picker-box {{form.day ? '' : 'placeholder'}}">{{dayRange[form.day] ? (form.day ? form.day + '日' : '日期不详') : '选择日期'}}</view>
+        </picker>
+      </view>
+    </view>
+
+    <!-- 事件类型 -->
+    <view class="form-row">
+      <text class="form-label">类型</text>
+      <view class="type-options">
+        <view
+          wx:for="{{typeOptions}}"
+          wx:key="value"
+          class="type-option {{form.type === item.value ? 'active' : ''}}"
+          data-value="{{item.value}}"
+          bindtap="selectType"
+        >{{item.label}}</view>
+      </view>
+    </view>
+
+    <!-- 描述 -->
+    <view class="form-row">
+      <text class="form-label">描述</text>
+      <textarea class="form-textarea" placeholder="事件描述(选填)" value="{{form.description}}" bindinput="onDescInput" maxlength="1000" auto-height />
+    </view>
+  </view>
+
+  <!-- 关联成员 -->
+  <view class="form-card" wx:if="{{members.length > 0}}">
+    <view class="card-title">关联成员 <text class="card-sub">可多选</text></view>
+    <view class="member-list">
+      <view
+        wx:for="{{members}}"
+        wx:key="id"
+        class="member-item {{selectedMemberIds.indexOf('' + item.id) >= 0 ? 'selected' : ''}}"
+        data-id="{{item.id}}"
+        bindtap="toggleMember"
+      >
+        <view class="member-avatar {{item.gender === 'female' ? 'female' : ''}}">
+          <text>{{item.name ? item.name[0] : ''}}</text>
+        </view>
+        <text class="member-name">{{item.name}}</text>
+        <text class="member-check">{{selectedMemberIds.indexOf('' + item.id) >= 0 ? '✓' : ''}}</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 相关照片 -->
+  <view class="form-card">
+    <view class="card-title">相关照片 <text class="card-sub">最多9张</text></view>
+    <view class="photo-grid">
+      <view class="photo-item" wx:for="{{form.photos}}" wx:key="*this">
+        <image class="photo-img" src="{{item}}" mode="aspectFill" data-index="{{index}}" bindtap="previewPhoto" />
+        <view class="photo-del" data-index="{{index}}" catchtap="deletePhoto">×</view>
+      </view>
+      <view class="photo-add" wx:if="{{form.photos.length < 9}}" bindtap="choosePhoto">
+        <text class="photo-add-icon">+</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 提交 -->
+  <view class="submit-bar safe-bottom">
+    <button class="submit-btn" bindtap="submitForm">{{isEdit ? '保存修改' : '添加事件'}}</button>
+  </view>
+</view>

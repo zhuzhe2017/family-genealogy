@@ -1,0 +1,162 @@
+<wxs src="../../utils/filters.wxs" module="f" />
+<view class="page-container">
+  <!-- 顶部家族信息卡片 -->
+  <view class="family-header">
+    <view class="family-bg">
+      <view class="family-pattern"></view>
+    </view>
+    <view class="family-info">
+      <view class="family-selector" bindtap="switchFamily">
+        <view class="family-logo">
+          <text class="family-logo-text">{{f.firstChar(currentFamily.name)}}</text>
+        </view>
+        <view class="family-name-section">
+          <text class="family-name">{{currentFamily.name}}</text>
+          <text class="family-origin">{{currentFamily.origin}}</text>
+          <text class="family-generation-names" wx:if="{{currentFamily.generationNames}}">字辈：{{currentFamily.generationNames}}</text>
+        </view>
+        <text class="switch-icon">▼</text>
+      </view>
+
+      <view class="family-stats">
+        <view class="stat-item">
+          <text class="stat-number">{{currentFamily.memberCount}}</text>
+          <text class="stat-label">家族成员</text>
+        </view>
+        <view class="stat-divider"></view>
+        <view class="stat-item">
+          <text class="stat-number">{{currentFamily.generationCount}}</text>
+          <text class="stat-label">传承代数</text>
+        </view>
+        <view class="stat-divider"></view>
+        <view class="stat-item">
+          <text class="stat-number">{{currentFamily.founder}}</text>
+          <text class="stat-label">始祖</text>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 开发模式模拟数据角标 -->
+  <view class="mock-banner" wx:if="{{isMock}}">当前为模拟数据,连接后端后展示真实内容</view>
+
+  <!-- 快捷功能入口 -->
+  <view class="quick-actions">
+    <view class="action-grid">
+      <view class="action-item" wx:for="{{quickActions}}" wx:key="id" bindtap="navigateTo" data-url="{{item.url}}">
+        <view class="action-icon" style="background: {{item.bgColor}}">
+          <text class="action-icon-text">{{item.icon}}</text>
+        </view>
+        <text class="action-name">{{item.name}}</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 最近动态 -->
+  <view class="section-card">
+    <view class="section-header">
+      <text class="section-title">家族动态</text>
+      <text class="section-more" bindtap="navigateTo" data-url="/pages/dynamic/dynamic">查看更多 ></text>
+    </view>
+
+    <!-- 加载中 -->
+    <view class="home-state" wx:if="{{loadingDynamics}}">
+      <text class="home-state-text">加载中...</text>
+    </view>
+
+    <!-- 未登录:引导登录,不展示假数据 -->
+    <view class="home-state" wx:elif="{{needLogin}}">
+      <text class="home-state-text">登录后可查看家族动态</text>
+      <text class="home-state-btn" bindtap="doLogin">立即登录</text>
+    </view>
+
+    <!-- 加载失败:清空列表并提示重试 -->
+    <view class="home-state" wx:elif="{{dynamicsFailed}}">
+      <text class="home-state-text">加载失败,请稍后重试</text>
+      <text class="home-state-btn" bindtap="loadDynamics">重新加载</text>
+    </view>
+
+    <!-- 空态:已登录但暂无动态 -->
+    <view class="home-state" wx:elif="{{dynamicsEmpty}}">
+      <text class="home-state-text">还没有动态</text>
+    </view>
+
+    <!-- 动态列表 -->
+    <view class="dynamic-list" wx:elif="{{recentDynamics.length > 0}}">
+      <view class="dynamic-item" wx:for="{{recentDynamics}}" wx:key="id" data-id="{{item.id}}" bindtap="goDynamicDetail">
+        <view class="dynamic-avatar">
+          <text>{{f.firstChar(item.userName)}}</text>
+        </view>
+        <view class="dynamic-content">
+          <view class="dynamic-header">
+            <text class="dynamic-user">{{item.userName}}</text>
+            <text class="dynamic-time">{{item.time}}</text>
+          </view>
+          <text class="dynamic-text">{{item.content}}</text>
+          <!-- 平铺模式:不超过3张直接展示 -->
+          <view class="dynamic-images" wx:if="{{item.images.length > 0 && item.images.length <= 3}}">
+            <image class="dynamic-img" wx:for="{{item.images}}" wx:for-item="img" wx:key="*this" src="{{img}}" mode="aspectFill" data-srcs="{{item.images}}" data-current="{{img}}" catchtap="previewDynamicImage"/>
+          </view>
+          <!-- 滑动模式:超过3张时左右滑动浏览全部,右上角页码指示 -->
+          <view class="dynamic-swiper-wrap" wx:elif="{{item.images.length > 3}}">
+            <swiper class="dynamic-swiper" current="{{item.imageCurrent}}" data-id="{{item.id}}" bindchange="onImageSwiperChange">
+              <swiper-item wx:for="{{item.imagePages}}" wx:for-item="page" wx:key="key">
+                <view class="dynamic-images swiper-slide">
+                  <image class="dynamic-img" wx:for="{{page.images}}" wx:for-item="img" wx:key="*this" src="{{img}}" mode="aspectFill" data-srcs="{{item.images}}" data-current="{{img}}" catchtap="previewDynamicImage"/>
+                </view>
+              </swiper-item>
+            </swiper>
+            <view class="image-indicator">{{item.imageCurrent + 1}}/{{item.imagePages.length}}</view>
+          </view>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 最近活动 -->
+  <view class="section-card">
+    <view class="section-header">
+      <text class="section-title">最近活动</text>
+      <text class="section-more" bindtap="goTimeline">查看更多 ></text>
+    </view>
+    <view class="activity-list" wx:if="{{recentActivities.length > 0}}">
+      <view class="activity-item" wx:for="{{recentActivities}}" wx:key="id" data-id="{{item.id}}" bindtap="goEventDetail">
+        <view class="activity-date">
+          <text class="activity-day">{{item.day}}</text>
+          <text class="activity-month">{{item.month}}</text>
+        </view>
+        <view class="activity-info">
+          <text class="activity-title">{{item.title}}</text>
+          <text class="activity-desc">{{item.desc}}</text>
+        </view>
+      </view>
+    </view>
+    <!-- 无真实数据源时显示空态,不展示假数据 -->
+    <view class="home-state" wx:else>
+      <text class="home-state-text">暂无活动记录</text>
+    </view>
+  </view>
+
+  <!-- 家族名人 -->
+  <view class="section-card">
+    <view class="section-header">
+      <text class="section-title">家族名人</text>
+      <text class="section-more">查看更多 ></text>
+    </view>
+    <scroll-view class="famous-scroll" scroll-x enhanced show-scrollbar="{{false}}" wx:if="{{famousMembers.length > 0}}">
+      <view class="famous-list">
+        <view class="famous-item" wx:for="{{famousMembers}}" wx:key="id">
+          <view class="famous-avatar">
+            <text>{{f.firstChar(item.name)}}</text>
+          </view>
+          <text class="famous-name">{{item.name}}</text>
+          <text class="famous-title">{{item.title}}</text>
+        </view>
+      </view>
+    </scroll-view>
+    <!-- 无真实数据源时显示空态,不展示假数据 -->
+    <view class="home-state" wx:else>
+      <text class="home-state-text">暂无名人数据</text>
+    </view>
+  </view>
+</view>

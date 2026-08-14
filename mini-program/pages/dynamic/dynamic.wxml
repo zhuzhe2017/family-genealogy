@@ -1,0 +1,106 @@
+<wxs src="../../utils/filters.wxs" module="f" />
+<view class="page-container">
+  <!-- 发布动态入口 -->
+  <view class="publish-bar" bindtap="publishDynamic">
+    <view class="publish-avatar">
+      <text>我</text>
+    </view>
+    <view class="publish-input">
+      <text>分享家族新鲜事...</text>
+    </view>
+    <view class="publish-icons">
+      <text class="publish-icon">📷</text>
+      <text class="publish-icon">🎥</text>
+    </view>
+  </view>
+
+  <!-- 加载中 -->
+  <view class="state-box" wx:if="{{loading}}">
+    <view class="state-loading-spinner"></view>
+    <text class="state-text">加载中...</text>
+  </view>
+
+  <block wx:elif="{{!loading}}">
+    <!-- 未登录:引导登录,不展示假数据 -->
+    <view class="state-box" wx:if="{{needLogin}}">
+      <text class="state-icon">🔒</text>
+      <text class="state-text">登录后才能查看家族动态</text>
+      <button class="state-btn" size="mini" bindtap="doLogin">立即登录</button>
+    </view>
+
+    <!-- 加载失败:清空列表并提示重试 -->
+    <view class="state-box" wx:elif="{{loadFailed}}">
+      <text class="state-icon">⚠️</text>
+      <text class="state-text">加载失败,请稍后重试</text>
+      <button class="state-btn" size="mini" bindtap="loadDynamics">重新加载</button>
+    </view>
+
+    <!-- 空态:已登录但暂无动态 -->
+    <view class="state-box" wx:elif="{{showEmpty}}">
+      <text class="state-icon">📭</text>
+      <text class="state-text">还没有动态,快来发布第一条吧</text>
+    </view>
+
+    <!-- 开发模式模拟数据角标 -->
+    <view class="mock-banner" wx:if="{{isMock}}">当前为模拟数据,连接后端后展示真实动态</view>
+
+    <!-- 动态列表 -->
+    <view class="dynamic-list" wx:if="{{dynamics.length > 0}}">
+    <view class="dynamic-card" wx:for="{{dynamics}}" wx:key="id" bindtap="goDetail" data-id="{{item.id}}">
+      <!-- 发布者信息 -->
+      <view class="dynamic-header">
+        <view class="publisher-avatar {{item.gender === 'female' ? 'female' : ''}}">
+          <text>{{f.firstChar(item.userName)}}</text>
+        </view>
+        <view class="publisher-info">
+          <text class="publisher-name">{{item.userName}}</text>
+          <text class="publish-time">{{item.time}}</text>
+        </view>
+        <view class="more-btn" catchtap="showMore" data-id="{{item.id}}">
+          <text>···</text>
+        </view>
+      </view>
+
+      <!-- 动态内容 -->
+      <view class="dynamic-body">
+        <text class="dynamic-text">{{item.content}}</text>
+        <view class="dynamic-images {{item.images.length === 1 ? 'single' : ''}}" wx:if="{{item.images.length > 0}}">
+          <image class="dynamic-img" wx:for="{{item.images}}" wx:for-item="img" wx:key="*this" src="{{img}}" mode="aspectFill"/>
+        </view>
+      </view>
+
+      <!-- 动态操作 -->
+      <view class="dynamic-footer">
+        <view class="action-item" catchtap="likeDynamic" data-id="{{item.id}}">
+          <text class="action-icon {{item.isLiked ? 'liked' : ''}}">❤️</text>
+          <text class="action-count {{item.isLiked ? 'liked' : ''}}">{{item.likeCount}}</text>
+        </view>
+        <view class="action-item" catchtap="commentDynamic" data-id="{{item.id}}">
+          <text class="action-icon">💬</text>
+          <text class="action-count">{{item.commentCount}}</text>
+        </view>
+        <button class="action-item share-btn" open-type="share" catchtap="onShareTap" data-id="{{item.id}}">
+          <text class="action-icon">🔗</text>
+          <text class="action-count">分享</text>
+        </button>
+      </view>
+
+      <!-- 评论列表 -->
+      <view class="comments-section" wx:if="{{item.showComments}}" catchtap="noop">
+        <view class="comment-item" wx:for="{{item.comments}}" wx:for-item="comment" wx:key="id">
+          <text class="comment-user">{{comment.userName}}：</text>
+          <text class="comment-text">{{comment.content}}</text>
+        </view>
+        <view class="view-more-comments" wx:if="{{item.commentCount > 2}}" catchtap="viewAllComments" data-id="{{item.id}}">
+          <text>查看全部 {{item.commentCount}} 条评论</text>
+        </view>
+        <!-- 评论输入框 -->
+        <view class="comment-input-bar">
+          <input class="comment-input" placeholder="写下您的评论..." value="{{item.commentDraft}}" data-index="{{index}}" bindinput="onCommentInput" confirm-type="send" bindconfirm="submitComment" data-id="{{item.id}}" />
+          <view class="comment-send" catchtap="submitComment" data-id="{{item.id}}" data-index="{{index}}">发送</view>
+        </view>
+      </view>
+    </view>
+    </view>
+  </block>
+</view>

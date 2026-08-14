@@ -1,0 +1,17 @@
+<view class="container">
+  <view class="form">
+    <textarea class="content-input" placeholder="分享家族新鲜事..." bindinput="onInput" value="{{content}}" maxlength="500"></textarea>
+    <view class="image-list">
+      <view class="preview-wrap" wx:for="{{images}}" wx:key="*this">
+        <image class="preview" src="{{item}}" mode="aspectFill" data-index="{{index}}" bindtap="previewImage"></image>
+        <view class="preview-del" data-index="{{index}}" catchtap="deleteImage">×</view>
+      </view>
+      <view class="add-image" bindtap="chooseImage" wx:if="{{images.length < 9}}">+</view>
+    </view>
+  </view>
+
+  <!-- 底部固定发布栏,与全局表单页统一 -->
+  <view class="submit-bar safe-bottom">
+    <button class="submit-btn {{canSubmit ? '' : 'disabled'}}" bindtap="submit" disabled="{{!canSubmit}}">{{submitting ? '发布中...' : '发布'}}</button>
+  </view>
+</view>

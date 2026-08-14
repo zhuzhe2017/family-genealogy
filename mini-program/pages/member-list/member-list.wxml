@@ -1,0 +1,63 @@
+<wxs src="../../utils/filters.wxs" module="f" />
+<view class="page-container">
+  <!-- 搜索和筛选 -->
+  <view class="search-filter-bar">
+    <view class="search-box">
+      <text class="search-icon">🔍</text>
+      <input class="search-input" placeholder="搜索成员姓名" placeholder-class="placeholder" bindinput="onSearch"/>
+    </view>
+    <view class="filter-btn" bindtap="showFilter">
+      <text>筛选</text>
+    </view>
+  </view>
+
+  <!-- 统计信息 -->
+  <view class="stats-bar">
+    <view class="stat-pill">
+      <text class="stat-num">{{totalMembers}}</text>
+      <text class="stat-label">总人数</text>
+    </view>
+    <view class="stat-pill">
+      <text class="stat-num">{{maleCount}}</text>
+      <text class="stat-label">男性</text>
+    </view>
+    <view class="stat-pill">
+      <text class="stat-num">{{femaleCount}}</text>
+      <text class="stat-label">女性</text>
+    </view>
+  </view>
+
+  <!-- 成员列表 -->
+  <view class="member-list">
+    <view class="member-group" wx:for="{{groupedMembers}}" wx:for-item="group" wx:key="generation">
+      <view class="group-header">
+        <text class="group-title">第{{group.generation}}代</text>
+        <text class="group-count">{{group.members.length}}人</text>
+      </view>
+      <view class="group-members">
+        <view class="member-card" wx:for="{{group.members}}" wx:for-item="member" wx:key="id" bindtap="viewMember" data-id="{{member.id}}">
+          <view class="member-avatar {{member.gender === 'female' ? 'female' : ''}}">
+            <text>{{f.firstChar(member.name)}}</text>
+          </view>
+          <view class="member-info">
+            <view class="member-name-row">
+              <text class="member-name">{{member.name}}</text>
+              <text class="member-generation" wx:if="{{member.generationName}}">{{member.generationName}}字辈</text>
+              <text class="member-gender">{{member.gender === 'female' ? '女' : '男'}}</text>
+            </view>
+            <text class="member-birth">{{member.birthYear || '未知'}}年生</text>
+            <text class="member-spouse" wx:if="{{member.spouseInfo && member.spouseInfo.name}}">配偶：{{member.spouseInfo.name}}</text>
+          </view>
+          <view class="member-actions">
+            <text class="action-icon">›</text>
+          </view>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 添加按钮 -->
+  <view class="fab-add" bindtap="addMember">
+    <text>+</text>
+  </view>
+</view>

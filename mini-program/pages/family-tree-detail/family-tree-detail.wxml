@@ -1,0 +1,147 @@
+<wxs src="../../utils/filters.wxs" module="f" />
+<view class="page-container">
+  <!-- 顶部工具栏 -->
+  <view class="tree-toolbar">
+    <view class="toolbar-left">
+      <view class="generation-filter">
+        <text class="filter-label">显示代数：</text>
+        <view class="filter-options">
+          <view class="filter-item {{selectedGen === 'all' ? 'active' : ''}}" bindtap="filterGen" data-gen="all">全部</view>
+          <view class="filter-item {{selectedGen === '3' ? 'active' : ''}}" bindtap="filterGen" data-gen="3">3代</view>
+          <view class="filter-item {{selectedGen === '5' ? 'active' : ''}}" bindtap="filterGen" data-gen="5">5代</view>
+        </view>
+      </view>
+    </view>
+    <view class="toolbar-right">
+      <view class="tool-btn" bindtap="toggleView">
+        <text>{{viewMode === 'tree' ? '列表' : '树状'}}</text>
+      </view>
+      <view class="tool-btn" bindtap="showSearch">
+        <text>🔍</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 树状视图 -->
+  <view class="tree-view" wx:if="{{viewMode === 'tree'}}">
+    <scroll-view class="tree-scroll" scroll-x scroll-y enhanced show-scrollbar="{{false}}">
+      <view class="tree-canvas" style="width: {{treeWidth}}rpx; height: {{treeHeight}}rpx;">
+        <!-- 递归渲染家族树节点 -->
+        <view class="tree-level" wx:for="{{treeLevels}}" wx:for-index="levelIndex" wx:key="*this">
+          <view class="tree-level-label">第{{levelIndex + 1}}代</view>
+          <view class="tree-nodes-row">
+            <view class="tree-node-wrapper {{node.spouseInfo && node.spouseInfo.name ? 'has-spouse' : ''}}" 
+                  wx:for="{{item}}" 
+                  wx:for-item="node" 
+                  wx:key="id"
+                  bindtap="showNodeDetail"
+                  data-id="{{node.id}}">
+              <!-- 连接线 -->
+              <view class="connect-line up" wx:if="{{levelIndex > 0}}"></view>
+              <view class="connect-line down" wx:if="{{node.hasChildren}}"></view>
+
+              <!-- 配偶节点 -->
+              <view class="spouse-connector" wx:if="{{node.spouseInfo && node.spouseInfo.name}}"></view>
+
+              <view class="node-card {{node.gender === 'female' ? 'female' : ''}}">
+                <view class="node-avatar">
+                  <text>{{f.firstChar(node.name)}}</text>
+                </view>
+                <view class="node-info">
+                  <text class="node-name">{{node.name}}</text>
+                  <text class="node-title" wx:if="{{node.title}}">{{node.title}}</text>
+                  <view class="node-tags">
+                    <text class="node-tag" wx:if="{{node.generationName}}">{{node.generationName}}字辈</text>
+                    <text class="node-tag" wx:if="{{node.isAlive === false}}">已逝</text>
+                    <text class="node-tag tag-generation">{{node.generation}}代</text>
+                  </view>
+                </view>
+              </view>
+
+              <!-- 配偶卡片 -->
+              <view class="node-card spouse-card {{node.gender === 'female' ? 'female' : ''}}" wx:if="{{node.spouseInfo && node.spouseInfo.name}}">
+                <view class="node-avatar">
+                  <text>{{f.firstChar(node.spouseInfo.name)}}</text>
+                </view>
+                <view class="node-info">
+                  <text class="node-name">{{node.spouseInfo.name}}</text>
+                </view>
+              </view>
+            </view>
+          </view>
+        </view>
+      </view>
+    </scroll-view>
+  </view>
+
+  <!-- 列表视图 -->
+  <view class="list-view" wx:if="{{viewMode === 'list'}}">
+    <view class="member-list-item" wx:for="{{memberList}}" wx:key="id" bindtap="showNodeDetail" data-id="{{item.id}}">
+      <view class="list-avatar {{item.gender === 'female' ? 'female' : ''}}">
+        <text>{{f.firstChar(item.name)}}</text>
+      </view>
+      <view class="list-info">
+        <view class="list-name-row">
+          <text class="list-name">{{item.name}}</text>
+          <text class="list-relation" wx:if="{{item.generationName}}">{{item.generationName}}字辈</text>
+          <text class="list-relation" wx:elif="{{item.relation}}">{{item.relation}}</text>
+        </view>
+        <text class="list-desc">{{item.generation}}代 | {{item.birthYear || '未知'}}年生</text>
+      </view>
+      <text class="list-arrow">›</text>
+    </view>
+  </view>
+
+  <!-- 底部操作栏 -->
+  <view class="bottom-actions">
+    <view class="action-btn" bindtap="addMember">
+      <text class="btn-icon">+</text>
+      <text>添加成员</text>
+    </view>
+    <view class="action-btn" bindtap="exportTree">
+      <text class="btn-icon">📤</text>
+      <text>导出</text>
+    </view>
+  </view>
+</view>
+
+<!-- 节点详情弹窗 -->
+<view class="modal-mask" wx:if="{{showModal}}" bindtap="closeModal"></view>
+<view class="modal-content" wx:if="{{showModal}}" animation="{{modalAnimation}}">
+  <view class="modal-header">
+    <view class="modal-avatar">
+      <text>{{f.firstChar(selectedNode.name)}}</text>
+    </view>
+    <view class="modal-title">
+      <text class="modal-name">{{selectedNode.name}}</text>
+      <text class="modal-subtitle">{{selectedNode.generationName ? selectedNode.generationName + '字辈 | ' : ''}}{{selectedNode.generation}}代 | {{selectedNode.birthYear || '未知'}}年</text>
+    </view>
+    <view class="modal-close" bindtap="closeModal">×</view>
+  </view>
+  <view class="modal-body">
+    <view class="modal-info-row" wx:if="{{selectedNode.generationName}}">
+      <text class="info-label">字辈</text>
+      <text class="info-value">{{selectedNode.generationName}}字辈</text>
+    </view>
+    <view class="modal-info-row">
+      <text class="info-label">性别</text>
+      <text class="info-value">{{selectedNode.gender === 'female' ? '女' : '男'}}</text>
+    </view>
+    <view class="modal-info-row" wx:if="{{selectedNode.spouseInfo && selectedNode.spouseInfo.name}}">
+      <text class="info-label">配偶</text>
+      <text class="info-value">{{selectedNode.spouseInfo.name}}</text>
+    </view>
+    <view class="modal-info-row">
+      <text class="info-label">子女</text>
+      <text class="info-value">{{selectedNode.childrenCount || 0}}人</text>
+    </view>
+    <view class="modal-info-row" wx:if="{{selectedNode.title}}">
+      <text class="info-label">头衔</text>
+      <text class="info-value">{{selectedNode.title}}</text>
+    </view>
+  </view>
+  <view class="modal-footer">
+    <view class="modal-btn" bindtap="viewDetail">查看详情</view>
+    <view class="modal-btn primary" bindtap="editNode">编辑</view>
+  </view>
+</view>

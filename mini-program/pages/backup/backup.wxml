@@ -1,0 +1,22 @@
+<view class="page-container">
+  <!-- 备份操作区 -->
+  <view class="backup-card">
+    <view class="backup-icon">💾</view>
+    <text class="backup-title">数据备份</text>
+    <text class="backup-desc">备份家族数据到云端，防止数据丢失</text>
+    <button class="backup-btn" bindtap="backupData">立即备份</button>
+    <button class="restore-btn" bindtap="restoreData">恢复数据</button>
+  </view>
+
+  <!-- 备份记录 -->
+  <view class="record-list">
+    <text class="record-title">备份记录</text>
+    <view class="record-item" wx:for="{{records}}" wx:key="id">
+      <view class="record-info">
+        <text class="record-name">{{item.name}}</text>
+        <text class="record-time">{{item.time}}</text>
+      </view>
+      <text class="record-status">{{item.status}}</text>
+    </view>
+  </view>
+</view>

@@ -1,0 +1,71 @@
+<view class="page-container">
+  <!-- 相册分类 -->
+  <view class="album-categories">
+    <scroll-view scroll-x show-scrollbar="{{false}}">
+      <view class="categories-wrapper">
+        <view class="category-item {{activeCategory === item.id ? 'active' : ''}}" 
+              wx:for="{{categories}}" 
+              wx:key="id" 
+              bindtap="switchCategory" 
+              data-id="{{item.id}}">
+          <view class="category-cover">
+            <text>{{item.icon}}</text>
+          </view>
+          <text class="category-name">{{item.name}}</text>
+          <text class="category-count">{{item.count}}张</text>
+        </view>
+      </view>
+    </scroll-view>
+  </view>
+
+  <!-- 影像瀑布流 -->
+  <view class="waterfall-section">
+    <view class="section-header">
+      <text class="section-title">{{currentCategoryName}}</text>
+      <text class="section-count">共 {{photoCount}} 张</text>
+    </view>
+
+    <!-- 首屏骨架屏 -->
+    <view class="wf-skeleton" wx:if="{{loading}}">
+      <view class="wf-skeleton-col" wx:for="{{skeletonCols}}" wx:for-item="col" wx:key="*this">
+        <view class="wf-skeleton-item shimmer" wx:for="{{col}}" wx:key="*this" style="height: {{item}}px;"></view>
+      </view>
+    </view>
+
+    <!-- 瀑布流列: 图片按真实比例流入最短列, 高度错落 -->
+    <view class="waterfall" wx:if="{{!loading}}">
+      <view class="wf-col" wx:for="{{columns}}" wx:for-item="col" wx:key="key">
+        <view class="wf-item {{item.loaded ? 'is-loaded' : ''}}"
+              wx:for="{{col.items}}" wx:for-item="item" wx:for-index="ii" wx:key="id"
+              style="height: {{item.height}}px; animation-delay: {{item.delay}}ms;"
+              bindtap="viewPhoto" data-index="{{item.rawIndex}}">
+          <image class="wf-img {{item.loaded ? 'loaded' : ''}}"
+                 src="{{item.url}}" mode="aspectFill"
+                 data-key="{{item.rawIndex}}"
+                 bindload="onImageLoad" binderror="onImageError"/>
+          <view class="wf-meta" wx:if="{{item.title || item.year}}">
+            <text class="wf-title" wx:if="{{item.title}}">{{item.title}}</text>
+            <text class="wf-year" wx:if="{{item.year}}">{{item.year}}</text>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 空态 -->
+    <view class="wf-empty" wx:if="{{!loading && showEmpty}}">
+      <text class="wf-empty-icon">📷</text>
+      <text class="wf-empty-text">还没有照片,点击右下角上传第一张</text>
+    </view>
+
+    <!-- 加载更多 / 到底提示 -->
+    <view class="wf-footer" wx:if="{{!loading && photoCount > 0}}">
+      <text wx:if="{{loadingMore}}" class="wf-footer-loading">加载中...</text>
+      <text wx:elif="{{!hasMore}}" class="wf-footer-end">— 已经到底啦 —</text>
+    </view>
+  </view>
+
+  <!-- 添加照片按钮 -->
+  <view class="fab-add" bindtap="addPhoto">
+    <text>+</text>
+  </view>
+</view>

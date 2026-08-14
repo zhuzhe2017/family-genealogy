@@ -1,0 +1,124 @@
+import { type DataRow, type QueryValues, type PaginationResult, type IdResult, type SuccessResult } from '../../common/types/common';
+
+/** 家族成员表记录 */
+export interface FamilyMemberRow extends DataRow {
+  id: string;
+  family_id: number;
+  name: string;
+  gender: string;
+  generation: number;
+  generation_name: string;
+  birth_date: string;
+  birth_place: string;
+  is_alive: number;
+  death_date: string;
+  death_place: string;
+  longitude: number | null;
+  latitude: number | null;
+  bio: string | null;
+  father_id: string;
+  mother_id: string;
+  spouse_info: string | null;
+  sort_order: number;
+  status: number;
+  create_time: string;
+  update_time: string;
+  /** 成员照片URL数组（getById 附加，来源于成员照片分表） */
+  photos?: string[];
+}
+
+/** 家族成员创建数据 */
+export interface FamilyMemberCreateData {
+  name: string;
+  gender?: string;
+  generation?: number;
+  generationName?: string;
+  birthDate?: string;
+  birthPlace?: string;
+  isAlive?: number;
+  deathDate?: string;
+  deathPlace?: string;
+  longitude?: number;
+  latitude?: number;
+  bio?: string;
+  fatherId?: string;
+  motherId?: string;
+  spouseInfo?: unknown;
+  sortOrder?: number;
+  /** 成员照片URL数组 */
+  photos?: string[];
+}
+
+/** 家族成员更新数据 */
+export interface FamilyMemberUpdateData {
+  name?: string;
+  gender?: string;
+  generation?: number;
+  generationName?: string;
+  birthDate?: string;
+  birthPlace?: string;
+  isAlive?: number;
+  deathDate?: string;
+  deathPlace?: string;
+  longitude?: number;
+  latitude?: number;
+  bio?: string;
+  fatherId?: string;
+  motherId?: string;
+  spouseInfo?: unknown;
+  sortOrder?: number;
+  status?: number;
+  /** 成员照片URL数组（传入即整体替换） */
+  photos?: string[];
+}
+
+/** 家族成员列表查询参数 */
+export interface FamilyMemberQueryParams {
+  page: number;
+  pageSize: number;
+  keyword?: string;
+  generation?: number;
+  gender?: string;
+  status?: number;
+}
+
+/** 父亲候选成员，携带配偶（母亲）姓名摘要用于辅助选择 */
+export interface FatherCandidate {
+  id: string;
+  name: string;
+  gender: string;
+  generation: number;
+  generation_name: string;
+  /** 配偶姓名列表，按 JSON 数组顺序拼接，如 "张氏、李氏" */
+  spouse_names?: string;
+}
+
+/** 父亲配偶（候选母亲） */
+export interface FatherSpouse {
+  rank: number;
+  name: string;
+  birthDate?: string;
+  deathDate?: string;
+  deathPlace?: string;
+  bio?: string;
+  isAlive?: number;
+}
+
+/** 家族成员批量导入数据（不含父/母关系，导入后可在编辑中补充） */
+export interface FamilyMemberImportItem {
+  name: string;
+  gender?: string;
+  generation?: number;
+  generationName?: string;
+  birthDate?: string;
+  birthPlace?: string;
+  isAlive?: number;
+  deathDate?: string;
+  deathPlace?: string;
+  longitude?: number;
+  latitude?: number;
+  bio?: string;
+  sortOrder?: number;
+}
+
+export type { DataRow, QueryValues, PaginationResult, IdResult, SuccessResult };

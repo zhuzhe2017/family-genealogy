@@ -1,0 +1,104 @@
+<wxs src="../../utils/filters.wxs" module="f" />
+<view class="page-container">
+  <!-- 当前家族信息 -->
+  <view class="family-info-card">
+    <view class="family-header">
+      <view class="family-logo">
+        <text>{{currentFamily.name ? f.firstChar(currentFamily.name) : '张'}}</text>
+      </view>
+      <view class="family-detail">
+        <text class="family-name">{{currentFamily.name || '张氏家族'}}</text>
+        <text class="family-meta">{{currentFamily.memberCount || 126}}人 · {{currentFamily.generationCount || 8}}代</text>
+      </view>
+    </view>
+    <view class="family-stats">
+      <view class="stat-item">
+        <text class="stat-num">{{currentFamily.memberCount || 126}}</text>
+        <text class="stat-label">成员</text>
+      </view>
+      <view class="stat-item">
+        <text class="stat-num">{{currentFamily.generationCount || 8}}</text>
+        <text class="stat-label">代数</text>
+      </view>
+      <view class="stat-item">
+        <text class="stat-num">48</text>
+        <text class="stat-label">照片</text>
+      </view>
+      <view class="stat-item">
+        <text class="stat-num">5</text>
+        <text class="stat-label">文档</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 管理功能 -->
+  <view class="manage-section">
+    <view class="manage-group">
+      <view class="manage-title">成员管理</view>
+      <view class="manage-item" bindtap="navigateTo" data-url="/pages/member-list/member-list">
+        <view class="manage-icon">👥</view>
+        <view class="manage-info">
+          <text class="manage-name">家族成员</text>
+          <text class="manage-desc">管理家族成员信息</text>
+        </view>
+        <text class="manage-arrow">›</text>
+      </view>
+      <view class="manage-item" bindtap="navigateTo" data-url="/pages/family-tree-detail/family-tree-detail">
+        <view class="manage-icon">🌳</view>
+        <view class="manage-info">
+          <text class="manage-name">家族树</text>
+          <text class="manage-desc">查看和编辑家族树</text>
+        </view>
+        <text class="manage-arrow">›</text>
+      </view>
+    </view>
+
+    <view class="manage-group">
+      <view class="manage-title">内容管理</view>
+      <view class="manage-item" bindtap="navigateTo" data-url="/pages/family-docs/family-docs">
+        <view class="manage-icon">📚</view>
+        <view class="manage-info">
+          <text class="manage-name">家族资料</text>
+          <text class="manage-desc">管理族谱、文档等</text>
+        </view>
+        <text class="manage-arrow">›</text>
+      </view>
+      <view class="manage-item" bindtap="navigateTo" data-url="/pages/album/album">
+        <view class="manage-icon">📷</view>
+        <view class="manage-info">
+          <text class="manage-name">相册影像</text>
+          <text class="manage-desc">管理家族照片</text>
+        </view>
+        <text class="manage-arrow">›</text>
+      </view>
+      <view class="manage-item" bindtap="navigateTo" data-url="/pages/timeline/timeline">
+        <view class="manage-icon">📅</view>
+        <view class="manage-info">
+          <text class="manage-name">事件时间线</text>
+          <text class="manage-desc">管理家族历史事件</text>
+        </view>
+        <text class="manage-arrow">›</text>
+      </view>
+    </view>
+
+    <view class="manage-group">
+      <view class="manage-title">设置</view>
+      <view class="manage-item" bindtap="navigateTo" data-url="/pages/permission/permission">
+        <view class="manage-icon">🔐</view>
+        <view class="manage-info">
+          <text class="manage-name">权限管理</text>
+          <text class="manage-desc">设置成员权限</text>
+        </view>
+        <text class="manage-arrow">›</text>
+      </view>
+      <view class="manage-item" bindtap="navigateTo" data-url="/pages/backup/backup">
+        <view class="manage-icon">💾</view>
+        <view class="manage-info">
+          <text class="manage-name">数据备份</text>
+          <text class="manage-desc">备份和恢复数据</text>
+        </view>
+        <text class="manage-arrow">›</text>
+      </view>
+    </view>
+  </view>
+</view>

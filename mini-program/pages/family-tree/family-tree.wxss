@@ -1,0 +1,215 @@
+.page-container {
+  padding: 24rpx;
+  padding-bottom: 120rpx;
+}
+
+/* 搜索栏 */
+.search-bar {
+  margin-bottom: 24rpx;
+}
+
+.search-input-wrap {
+  display: flex;
+  align-items: center;
+  background: #FFFFFF;
+  border-radius: 16rpx;
+  padding: 20rpx 24rpx;
+  box-shadow: 0 2rpx 8rpx rgba(0,0,0,0.04);
+}
+
+.search-icon {
+  font-size: 32rpx;
+  margin-right: 16rpx;
+  color: #999;
+}
+
+.search-input {
+  flex: 1;
+  font-size: 28rpx;
+  color: #333;
+}
+
+.placeholder {
+  color: #999;
+}
+
+/* 家族列表 */
+.family-list {
+  display: flex;
+  flex-direction: column;
+  gap: 24rpx;
+}
+
+.family-card {
+  background: #FFFFFF;
+  border-radius: 24rpx;
+  padding: 32rpx;
+  box-shadow: 0 4rpx 16rpx rgba(0,0,0,0.06);
+  border: 2rpx solid transparent;
+  transition: all 0.3s;
+}
+
+.family-card.active {
+  border-color: #8B1A1A;
+  background: linear-gradient(135deg, #FFF5F5 0%, #FFFFFF 100%);
+}
+
+.family-card-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 24rpx;
+}
+
+.family-logo-large {
+  width: 96rpx;
+  height: 96rpx;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #8B1A1A, #B22222);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 24rpx;
+  flex-shrink: 0;
+}
+
+.family-logo-large text {
+  font-size: 40rpx;
+  color: #FFFFFF;
+  font-weight: bold;
+  font-family: 'KaiTi', serif;
+}
+
+.family-info-section {
+  flex: 1;
+  min-width: 0;
+}
+
+.family-name-row {
+  display: flex;
+  align-items: center;
+  margin-bottom: 8rpx;
+}
+
+.family-card-name {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: #333;
+  margin-right: 16rpx;
+}
+
+.family-tag {
+  font-size: 20rpx;
+  padding: 4rpx 12rpx;
+  border-radius: 8rpx;
+}
+
+.tag-admin {
+  background: rgba(139, 26, 26, 0.1);
+  color: #8B1A1A;
+}
+
+.tag-member {
+  background: #F0F0F0;
+  color: #666;
+}
+
+.family-origin-text {
+  font-size: 24rpx;
+  color: #999;
+}
+
+.family-check {
+  width: 40rpx;
+  height: 40rpx;
+  border-radius: 50%;
+  border: 2rpx solid #DDD;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 16rpx;
+  flex-shrink: 0;
+}
+
+.family-check.checked {
+  background: #8B1A1A;
+  border-color: #8B1A1A;
+  color: #FFFFFF;
+  font-size: 24rpx;
+}
+
+/* 卡片统计 */
+.family-card-stats {
+  display: flex;
+  justify-content: space-around;
+  padding: 20rpx 0;
+  border-top: 1rpx solid #F5F5F5;
+  border-bottom: 1rpx solid #F5F5F5;
+  margin-bottom: 20rpx;
+}
+
+.card-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.card-stat-num {
+  font-size: 32rpx;
+  font-weight: bold;
+  color: #8B1A1A;
+  margin-bottom: 4rpx;
+}
+
+.card-stat-label {
+  font-size: 22rpx;
+  color: #999;
+}
+
+/* 卡片底部 */
+.family-card-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.create-time {
+  font-size: 22rpx;
+  color: #999;
+}
+
+.enter-btn {
+  display: flex;
+  align-items: center;
+  color: #8B1A1A;
+  font-size: 26rpx;
+  font-weight: 500;
+}
+
+.arrow {
+  margin-left: 8rpx;
+  font-size: 32rpx;
+}
+
+/* 创建按钮 */
+.create-family-btn {
+  position: fixed;
+  left: 24rpx;
+  right: 24rpx;
+  bottom: 40rpx;
+  height: 96rpx;
+  background: linear-gradient(135deg, #8B1A1A 0%, #B22222 100%);
+  border-radius: 48rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #FFFFFF;
+  font-size: 30rpx;
+  font-weight: 500;
+  box-shadow: 0 8rpx 24rpx rgba(139, 26, 26, 0.3);
+}
+
+.plus-icon {
+  font-size: 36rpx;
+  margin-right: 12rpx;
+  font-weight: 300;
+}

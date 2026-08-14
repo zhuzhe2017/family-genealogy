@@ -1,0 +1,95 @@
+.container {
+  padding: 24rpx 24rpx 160rpx;
+  background: #F5F5F5;
+  min-height: 100vh;
+}
+
+.form {
+  background: #FFFFFF;
+  border-radius: 16rpx;
+  padding: 24rpx;
+}
+
+.content-input {
+  width: 100%;
+  min-height: 240rpx;
+  font-size: 30rpx;
+  line-height: 1.6;
+  box-sizing: border-box;
+}
+
+.image-list {
+  display: flex;
+  flex-wrap: wrap;
+  margin-top: 20rpx;
+  gap: 16rpx;
+}
+
+/* 图片项(带删除角标) */
+.preview-wrap {
+  position: relative;
+}
+
+.preview {
+  width: 200rpx;
+  height: 200rpx;
+  border-radius: 12rpx;
+}
+
+.preview-del {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 44rpx;
+  height: 44rpx;
+  line-height: 40rpx;
+  text-align: center;
+  background: rgba(0, 0, 0, 0.5);
+  color: #FFFFFF;
+  font-size: 32rpx;
+  border-bottom-left-radius: 12rpx;
+}
+
+.add-image {
+  width: 200rpx;
+  height: 200rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #F5F5F5;
+  color: #CCC;
+  font-size: 60rpx;
+  border-radius: 12rpx;
+  border: 2rpx dashed #CCC;
+  box-sizing: border-box;
+}
+
+/* 底部固定发布栏(与 add-event / event-detail 全局统一) */
+.submit-bar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 16rpx 24rpx;
+  background: #FFFFFF;
+  box-shadow: 0 -2rpx 12rpx rgba(0, 0, 0, 0.05);
+}
+
+.submit-btn {
+  height: 88rpx;
+  line-height: 88rpx;
+  background: linear-gradient(135deg, #8B1A1A, #B22222);
+  color: #FFFFFF;
+  font-size: 30rpx;
+  border-radius: 44rpx;
+  margin: 0;
+  padding: 0;
+}
+
+.submit-btn::after {
+  border: none;
+}
+
+.submit-btn.disabled {
+  background: #D8B9B9;
+}

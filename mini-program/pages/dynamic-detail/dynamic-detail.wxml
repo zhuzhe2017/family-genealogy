@@ -1,0 +1,102 @@
+<wxs src="../../utils/filters.wxs" module="f" />
+<view class="page-container">
+  <!-- 加载中 -->
+  <view class="state-box" wx:if="{{loading}}">
+    <view class="state-loading-spinner"></view>
+    <text class="state-text">加载中...</text>
+  </view>
+
+  <!-- 未登录 -->
+  <view class="state-box" wx:elif="{{needLogin}}">
+    <text class="state-icon">🔒</text>
+    <text class="state-text">登录后才能查看动态详情</text>
+    <button class="state-btn" size="mini" bindtap="doLogin">立即登录</button>
+  </view>
+
+  <!-- 加载失败 -->
+  <view class="state-box" wx:elif="{{loadFailed}}">
+    <text class="state-icon">⚠️</text>
+    <text class="state-text">动态不存在或已下架</text>
+    <button class="state-btn" size="mini" bindtap="goBack">返回</button>
+  </view>
+
+  <!-- 详情内容 -->
+  <block wx:elif="{{detail}}">
+    <!-- 发布者信息 -->
+    <view class="detail-header">
+      <view class="publisher-avatar {{detail.gender === 'female' ? 'female' : ''}}">
+        <text>{{f.firstChar(detail.userName)}}</text>
+      </view>
+      <view class="publisher-info">
+        <text class="publisher-name">{{detail.userName}}</text>
+        <text class="publish-time">{{detail.time}}</text>
+      </view>
+    </view>
+
+    <!-- 动态内容 -->
+    <view class="detail-body">
+      <text class="detail-text">{{detail.content}}</text>
+      <view class="detail-images {{detail.images.length === 1 ? 'single' : ''}}" wx:if="{{detail.images.length > 0}}">
+        <image
+          class="detail-img"
+          wx:for="{{detail.images}}"
+          wx:for-item="img"
+          wx:key="*this"
+          src="{{img}}"
+          mode="aspectFill"
+          data-src="{{img}}"
+          bindtap="previewImage"
+        />
+      </view>
+    </view>
+
+    <!-- 点赞与评论计数 -->
+    <view class="detail-stats">
+      <view class="stat-item {{detail.isLiked ? 'liked' : ''}}" bindtap="toggleLike">
+        <text class="stat-icon">{{detail.isLiked ? '❤️' : '🤍'}}</text>
+        <text class="stat-count">{{detail.likeCount}} 赞</text>
+      </view>
+      <view class="stat-item">
+        <text class="stat-icon">💬</text>
+        <text class="stat-count">{{commentTotal}} 评论</text>
+      </view>
+    </view>
+
+    <!-- 评论列表 -->
+    <view class="comments-section">
+      <view class="comments-title">全部评论</view>
+      <view class="comment-item" wx:for="{{comments}}" wx:key="id">
+        <view class="comment-avatar">
+          <text>{{f.firstChar(item.userName)}}</text>
+        </view>
+        <view class="comment-info">
+          <text class="comment-user">{{item.userName}}</text>
+          <text class="comment-text">{{item.content}}</text>
+        </view>
+      </view>
+      <view class="no-comments" wx:if="{{comments.length === 0}}">
+        <text>还没有评论,快来抢沙发</text>
+      </view>
+      <!-- 分页加载状态 -->
+      <view class="comments-loadmore" wx:if="{{commentsLoading}}">
+        <text>加载中...</text>
+      </view>
+      <view class="comments-loadmore" wx:elif="{{commentsAllLoaded && commentTotal > 0}}">
+        <text>已加载全部 {{commentTotal}} 条评论</text>
+      </view>
+    </view>
+
+    <!-- 底部评论输入栏 -->
+    <view class="comment-bar">
+      <input
+        class="comment-input"
+        placeholder="写下您的评论..."
+        value="{{commentDraft}}"
+        bindinput="onCommentInput"
+        confirm-type="send"
+        bindconfirm="submitComment"
+      />
+      <view class="comment-send" bindtap="submitComment">发送</view>
+    </view>
+  </block>
+</view>

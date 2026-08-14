@@ -1,0 +1,29 @@
+<view class="splash-container">
+  <view class="splash-bg">
+    <view class="mountain-layer layer-1"></view>
+    <view class="mountain-layer layer-2"></view>
+    <view class="mountain-layer layer-3"></view>
+  </view>
+
+  <view class="splash-content">
+    <view class="logo-section">
+      <view class="logo-ring">
+        <view class="logo-inner">
+          <text class="logo-text">张</text>
+        </view>
+      </view>
+      <view class="brand-name">数字家谱</view>
+      <view class="brand-slogan">传承家族记忆 延续血脉亲情</view>
+    </view>
+
+    <view class="splash-footer">
+      <button class="start-btn" bindtap="enterApp">开始探索家谱</button>
+      <view class="version-info">版本 1.0.0</view>
+    </view>
+  </view>
+
+  <!-- 水墨粒子效果 -->
+  <view class="ink-particles">
+    <view class="particle" wx:for="{{8}}" wx:key="*this" style="animation-delay: {{index * 0.5}}s"></view>
+  </view>
+</view>

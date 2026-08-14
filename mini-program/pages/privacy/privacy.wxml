@@ -1,0 +1,27 @@
+<view class="page-container">
+  <!-- Tab 切换 -->
+  <view class="tab-bar">
+    <view class="tab-item {{activeTab === 'agreement' ? 'active' : ''}}" bindtap="switchTab" data-tab="agreement">用户协议</view>
+    <view class="tab-item {{activeTab === 'privacy' ? 'active' : ''}}" bindtap="switchTab" data-tab="privacy">隐私政策</view>
+  </view>
+
+  <!-- 用户协议 -->
+  <view class="doc-content" wx:if="{{activeTab === 'agreement'}}">
+    <view class="section" wx:for="{{agreement}}" wx:key="title">
+      <text class="section-title">{{item.title}}</text>
+      <text class="section-body">{{item.body}}</text>
+    </view>
+  </view>
+
+  <!-- 隐私政策 -->
+  <view class="doc-content" wx:if="{{activeTab === 'privacy'}}">
+    <view class="section" wx:for="{{privacy}}" wx:key="title">
+      <text class="section-title">{{item.title}}</text>
+      <text class="section-body">{{item.body}}</text>
+    </view>
+  </view>
+
+  <view class="doc-footer">
+    <text class="footer-text">数字家谱 v1.0.0 · 最后更新：2026年8月</text>
+  </view>
+</view>

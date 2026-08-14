@@ -1,0 +1,25 @@
+/**
+ * WXS 滤镜:WXML {{}} 中不支持 JS 方法调用(如 .charAt),
+ * 通过 WXS 提供等价函数,在所有页面中复用。
+ *
+ * 用法:
+ *   <wxs src="../../utils/filters.wxs" module="f" />
+ *   <text>{{f.firstChar(item.name)}}</text>
+ */
+
+/** 取字符串首字符,空值返回空串 */
+var firstChar = function (str) {
+  if (!str) return '';
+  return str.substring(0, 1);
+};
+
+/** 取字符串前 n 个字符 */
+var firstN = function (str, n) {
+  if (!str) return '';
+  return str.substring(0, n);
+};
+
+module.exports = {
+  firstChar: firstChar,
+  firstN: firstN
+};

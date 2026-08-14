@@ -1,0 +1,66 @@
+<wxs src="../../utils/filters.wxs" module="f" />
+<view class="page-container">
+  <!-- 搜索栏 -->
+  <view class="search-bar">
+    <view class="search-input-wrap">
+      <text class="search-icon">🔍</text>
+      <input class="search-input" placeholder="搜索家族名称" placeholder-class="placeholder" bindinput="onSearch"/>
+    </view>
+  </view>
+
+  <!-- 家族列表 -->
+  <view class="family-list">
+    <view class="family-card {{currentFamily.id === item.id ? 'active' : ''}}" 
+          wx:for="{{familyList}}" 
+          wx:key="id" 
+          bindtap="selectFamily" 
+          data-id="{{item.id}}">
+      <view class="family-card-header">
+        <view class="family-logo-large">
+          <text>{{f.firstChar(item.name)}}</text>
+        </view>
+        <view class="family-info-section">
+          <view class="family-name-row">
+            <text class="family-card-name">{{item.name}}</text>
+            <view class="family-tag {{item.isAdmin ? 'tag-admin' : 'tag-member'}}">
+              {{item.isAdmin ? '管理员' : '成员'}}
+            </view>
+          </view>
+          <text class="family-origin-text">发源地：{{item.origin}}</text>
+        </view>
+        <view class="family-check {{currentFamily.id === item.id ? 'checked' : ''}}">
+          <text wx:if="{{currentFamily.id === item.id}}">✓</text>
+        </view>
+      </view>
+
+      <view class="family-card-stats">
+        <view class="card-stat">
+          <text class="card-stat-num">{{item.memberCount}}</text>
+          <text class="card-stat-label">成员</text>
+        </view>
+        <view class="card-stat">
+          <text class="card-stat-num">{{item.generationCount}}</text>
+          <text class="card-stat-label">代数</text>
+        </view>
+        <view class="card-stat">
+          <text class="card-stat-num">{{item.founder}}</text>
+          <text class="card-stat-label">始祖</text>
+        </view>
+      </view>
+
+      <view class="family-card-footer">
+        <text class="create-time">创建于 {{item.createTime}}</text>
+        <view class="enter-btn" catchtap="enterFamily" data-id="{{item.id}}">
+          <text>进入家谱</text>
+          <text class="arrow">›</text>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 创建新家族按钮 -->
+  <view class="create-family-btn" bindtap="createFamily">
+    <text class="plus-icon">+</text>
+    <text>创建新家族</text>
+  </view>
+</view>

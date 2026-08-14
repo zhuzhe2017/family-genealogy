@@ -1,0 +1,152 @@
+.page-container {
+  padding-bottom: 140rpx;
+  background: #1a1a2e;
+  min-height: 100vh;
+}
+
+/* 照片查看器 */
+.photo-viewer {
+  width: 100%;
+  height: 60vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #0f0f1a;
+}
+
+.photo-large {
+  width: 100%;
+  height: 100%;
+}
+
+/* 照片信息 */
+.photo-info-card {
+  margin: 24rpx;
+  background: #FFFFFF;
+  border-radius: 24rpx;
+  padding: 32rpx;
+}
+
+.info-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16rpx;
+}
+
+.photo-title {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: #333;
+}
+
+.photo-year {
+  font-size: 24rpx;
+  color: #8B1A1A;
+  background: rgba(139, 26, 26, 0.08);
+  padding: 6rpx 16rpx;
+  border-radius: 20rpx;
+}
+
+.photo-desc {
+  font-size: 26rpx;
+  color: #666;
+  line-height: 1.6;
+  display: block;
+  margin-bottom: 24rpx;
+}
+
+.photo-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16rpx;
+}
+
+.meta-item {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+  background: #F8F8F8;
+  padding: 12rpx 20rpx;
+  border-radius: 12rpx;
+  font-size: 24rpx;
+  color: #666;
+}
+
+.meta-icon {
+  font-size: 28rpx;
+}
+
+/* 相关照片 */
+.related-section {
+  padding: 24rpx;
+}
+
+.section-title {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #FFFFFF;
+  margin-bottom: 20rpx;
+  display: block;
+}
+
+.related-scroll {
+  width: 100%;
+}
+
+.related-list {
+  display: flex;
+  gap: 16rpx;
+  padding: 4rpx;
+}
+
+.related-item {
+  display: flex;
+  flex-direction: column;
+  min-width: 200rpx;
+}
+
+.related-img {
+  width: 200rpx;
+  height: 200rpx;
+  border-radius: 16rpx;
+  background: #333;
+  margin-bottom: 8rpx;
+}
+
+.related-title {
+  font-size: 22rpx;
+  color: rgba(255,255,255,0.7);
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 底部操作 */
+.bottom-actions {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: space-around;
+  padding: 24rpx 32rpx;
+  padding-bottom: calc(24rpx + env(safe-area-inset-bottom));
+  background: rgba(255,255,255,0.95);
+  border-top: 1rpx solid rgba(0,0,0,0.1);
+  backdrop-filter: blur(10rpx);
+}
+
+.action-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8rpx;
+  font-size: 24rpx;
+  color: #333;
+}
+
+.action-btn text:first-child {
+  font-size: 40rpx;
+}

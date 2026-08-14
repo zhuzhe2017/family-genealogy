@@ -1,0 +1,76 @@
+<view class="page-container">
+  <view class="form-card">
+    <view class="form-section">
+      <view class="section-title">基本信息</view>
+
+      <view class="form-group">
+        <text class="form-label required">家族名称</text>
+        <input class="form-input" placeholder="请输入家族名称，如：张氏家族" value="{{form.name}}" bindinput="inputChange" data-field="name"/>
+      </view>
+
+      <view class="form-group">
+        <text class="form-label">家族发源地</text>
+        <input class="form-input" placeholder="请输入家族发源地" value="{{form.origin}}" bindinput="inputChange" data-field="origin"/>
+      </view>
+
+      <view class="form-group">
+        <text class="form-label">始祖姓名</text>
+        <input class="form-input" placeholder="请输入家族始祖姓名" value="{{form.founder}}" bindinput="inputChange" data-field="founder"/>
+      </view>
+
+      <view class="form-group">
+        <text class="form-label">家族字辈</text>
+        <input class="form-input" placeholder="请输入字辈序列，如：德、文、永、世、兴" value="{{form.generationNames}}" bindinput="inputChange" data-field="generationNames" maxlength="200"/>
+        <text class="form-tip">多个字辈用顿号或逗号分隔</text>
+      </view>
+
+      <view class="form-group">
+        <text class="form-label">家族简介</text>
+        <textarea class="form-textarea" placeholder="请输入家族简介" value="{{form.description}}" bindinput="inputChange" data-field="description"/>
+      </view>
+    </view>
+
+    <view class="form-section">
+      <view class="section-title">家族标识</view>
+
+      <view class="form-group">
+        <text class="form-label">家族Logo</text>
+        <view class="logo-uploader">
+          <view class="upload-area" bindtap="chooseLogo" wx:if="{{!form.logo}}">
+            <text class="upload-icon">📷</text>
+            <text class="upload-text">点击上传Logo</text>
+          </view>
+          <view class="logo-preview" wx:if="{{form.logo}}">
+            <image src="{{form.logo}}" mode="aspectFit"/>
+            <view class="logo-delete" bindtap="deleteLogo">×</view>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <view class="form-section">
+      <view class="section-title">隐私设置</view>
+
+      <view class="form-group switch-group">
+        <view class="switch-label">
+          <text class="form-label">公开家族</text>
+          <text class="switch-desc">允许其他用户搜索到该家族</text>
+        </view>
+        <switch checked="{{form.isPublic}}" bindchange="togglePublic" color="#8B1A1A"/>
+      </view>
+
+      <view class="form-group switch-group">
+        <view class="switch-label">
+          <text class="form-label">允许申请加入</text>
+          <text class="switch-desc">其他用户可以申请加入家族</text>
+        </view>
+        <switch checked="{{form.allowJoin}}" bindchange="toggleAllowJoin" color="#8B1A1A"/>
+      </view>
+    </view>
+  </view>
+
+  <!-- 底部按钮 -->
+  <view class="form-footer safe-bottom">
+    <button class="submit-btn" bindtap="submitForm">创建家族</button>
+  </view>
+</view>

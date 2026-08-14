@@ -1,0 +1,29 @@
+<wxs src="../../utils/filters.wxs" module="f" />
+<view class="page-container">
+  <!-- 当前家族成员权限 -->
+  <view class="permission-card">
+    <text class="card-title">成员权限</text>
+    <view class="member-list" wx:if="{{members.length > 0}}">
+      <view class="member-item" wx:for="{{members}}" wx:key="id">
+        <view class="member-avatar">{{f.firstChar(item.name)}}</view>
+        <view class="member-info">
+          <text class="member-name">{{item.name}}</text>
+          <text class="member-role">{{item.desc}}</text>
+        </view>
+        <view class="role-tag {{item.role === 'admin' ? 'role-admin' : ''}}" bindtap="switchRole" data-id="{{item.id}}">
+          {{item.role === 'admin' ? '管理员' : '成员'}}
+        </view>
+      </view>
+    </view>
+    <view class="empty-state" wx:else>
+      <text class="empty-text">暂无成员</text>
+    </view>
+  </view>
+
+  <!-- 权限说明 -->
+  <view class="permission-desc">
+    <text class="desc-title">权限说明</text>
+    <text class="desc-item">管理员：可编辑家族树、管理成员、备份数据、设置权限</text>
+    <text class="desc-item">普通成员：可查看家族信息、发布动态、上传照片</text>
+  </view>
+</view>

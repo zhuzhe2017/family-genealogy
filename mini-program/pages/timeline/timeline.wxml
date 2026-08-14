@@ -1,0 +1,45 @@
+<view class="page-container">
+  <!-- 时间线筛选 -->
+  <view class="timeline-filter">
+    <view class="filter-item {{activeFilter === 'all' ? 'active' : ''}}" bindtap="filterEvents" data-type="all">全部</view>
+    <view class="filter-item {{activeFilter === 'birth' ? 'active' : ''}}" bindtap="filterEvents" data-type="birth">出生</view>
+    <view class="filter-item {{activeFilter === 'marriage' ? 'active' : ''}}" bindtap="filterEvents" data-type="marriage">婚嫁</view>
+    <view class="filter-item {{activeFilter === 'death' ? 'active' : ''}}" bindtap="filterEvents" data-type="death">逝世</view>
+    <view class="filter-item {{activeFilter === 'other' ? 'active' : ''}}" bindtap="filterEvents" data-type="other">其他</view>
+  </view>
+
+  <!-- 时间线 -->
+  <view class="timeline">
+    <view class="timeline-year" wx:for="{{groupedEvents}}" wx:for-item="yearGroup" wx:key="year">
+      <view class="year-marker">
+        <view class="year-dot"></view>
+        <text class="year-text">{{yearGroup.year}}年</text>
+      </view>
+      <view class="year-events">
+        <view class="event-card" wx:for="{{yearGroup.events}}" wx:for-item="event" wx:key="id" bindtap="viewEvent" data-id="{{event.id}}">
+          <view class="event-date">
+            <text class="event-month">{{event.month}}月</text>
+            <text class="event-day">{{event.day}}日</text>
+          </view>
+          <view class="event-content">
+            <view class="event-header">
+              <text class="event-title">{{event.title}}</text>
+              <view class="event-tag {{event.type}}">{{event.typeName}}</view>
+            </view>
+            <text class="event-desc">{{event.description}}</text>
+            <view class="event-members" wx:if="{{event.relatedMembers.length > 0}}">
+              <view class="member-tag" wx:for="{{event.relatedMembers}}" wx:for-item="member" wx:key="id">
+                <text>{{member.name}}</text>
+              </view>
+            </view>
+          </view>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 添加事件按钮 -->
+  <view class="fab-add" bindtap="addEvent">
+    <text>+</text>
+  </view>
+</view>

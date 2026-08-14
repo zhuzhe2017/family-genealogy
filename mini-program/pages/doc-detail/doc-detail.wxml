@@ -1,0 +1,56 @@
+<view class="page-container">
+  <!-- 文档封面 -->
+  <view class="doc-cover-section">
+    <view class="doc-cover-large">
+      <view class="cover-spine"></view>
+      <view class="cover-content">
+        <text class="cover-title">{{document.name}}</text>
+        <text class="cover-volume">{{document.volume}}</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 文档信息 -->
+  <view class="info-card">
+    <view class="doc-title">{{document.name}}</view>
+    <text class="doc-description">{{document.description}}</text>
+    <view class="doc-meta-list">
+      <view class="meta-item">
+        <text class="meta-label">页数</text>
+        <text class="meta-value">{{document.pages}}页</text>
+      </view>
+      <view class="meta-item">
+        <text class="meta-label">更新日期</text>
+        <text class="meta-value">{{document.updateTime}}</text>
+      </view>
+      <view class="meta-item">
+        <text class="meta-label">分类</text>
+        <text class="meta-value">{{document.categoryName}}</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 文档目录 -->
+  <view class="info-card">
+    <view class="card-title">文档目录</view>
+    <view class="toc-list">
+      <view class="toc-item" wx:for="{{document.chapters}}" wx:key="id" bindtap="viewChapter" data-index="{{index}}">
+        <view class="toc-number">{{item.number}}</view>
+        <view class="toc-info">
+          <text class="toc-name">{{item.title}}</text>
+          <text class="toc-pages">第 {{item.startPage}}-{{item.endPage}} 页</text>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 底部操作 -->
+  <view class="bottom-actions safe-bottom">
+    <view class="action-btn secondary" bindtap="shareDoc">
+      <text>分享</text>
+    </view>
+    <view class="action-btn primary" bindtap="readDoc">
+      <text>阅读文档</text>
+    </view>
+  </view>
+</view>

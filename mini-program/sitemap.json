@@ -1,0 +1,7 @@
+{
+  "desc": "数字家谱小程序",
+  "rules": [{
+    "action": "allow",
+    "page": "*"
+  }]
+}

@@ -1,0 +1,80 @@
+<wxs src="../../utils/filters.wxs" module="f" />
+<view class="page-container">
+  <!-- 祭祀场景 -->
+  <view class="worship-scene">
+    <view class="scene-bg">
+      <view class="incense-smoke"></view>
+      <view class="incense-smoke smoke-2"></view>
+    </view>
+    <view class="altar">
+      <view class="altar-table">
+        <view class="incense-burner">
+          <view class="incense-stick left"></view>
+          <view class="incense-stick center"></view>
+          <view class="incense-stick right"></view>
+        </view>
+        <view class="offerings">
+          <view class="offering-item">🍎</view>
+          <view class="offering-item">🍊</view>
+          <view class="offering-item">🍇</view>
+        </view>
+      </view>
+      <view class="ancestor-portrait">
+        <view class="portrait-frame">
+          <text class="portrait-text">张</text>
+        </view>
+        <text class="ancestor-name">张氏先祖</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 祈福操作 -->
+  <view class="worship-actions">
+    <view class="action-row">
+      <view class="worship-btn" bindtap="burnIncense">
+        <view class="btn-icon">🙏</view>
+        <text class="btn-label">上香</text>
+        <text class="btn-count">今日 {{incenseCount}} 人</text>
+      </view>
+      <view class="worship-btn" bindtap="pray">
+        <view class="btn-icon">🕯️</view>
+        <text class="btn-label">祈福</text>
+        <text class="btn-count">今日 {{prayCount}} 人</text>
+      </view>
+    </view>
+    <view class="action-row">
+      <view class="worship-btn" bindtap="offerGift">
+        <view class="btn-icon">🎁</view>
+        <text class="btn-label">献祭</text>
+        <text class="btn-count">今日 {{offerCount}} 人</text>
+      </view>
+      <view class="worship-btn" bindtap="writeWish">
+        <view class="btn-icon">✍️</view>
+        <text class="btn-label">许愿</text>
+        <text class="btn-count">今日 {{wishCount}} 人</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 祈福记录 -->
+  <view class="worship-records">
+    <view class="records-header">
+      <text class="records-title">祈福记录</text>
+      <text class="records-more">查看更多 ></text>
+    </view>
+    <view class="records-list">
+      <view class="record-item" wx:for="{{records}}" wx:key="id">
+        <view class="record-avatar">
+          <text>{{f.firstChar(item.userName)}}</text>
+        </view>
+        <view class="record-info">
+          <view class="record-header">
+            <text class="record-user">{{item.userName}}</text>
+            <text class="record-time">{{item.time}}</text>
+          </view>
+          <text class="record-content">{{item.content}}</text>
+        </view>
+      </view>
+    </view>
+  </view>
+</view>

@@ -1,0 +1,239 @@
+.page-container {
+  padding: 24rpx 24rpx 160rpx;
+  background: #F5F5F5;
+  min-height: 100vh;
+}
+
+.form-card {
+  background: #FFFFFF;
+  border-radius: 16rpx;
+  padding: 24rpx;
+  margin-bottom: 20rpx;
+}
+
+.card-title {
+  font-size: 28rpx;
+  color: #333;
+  font-weight: 600;
+  margin-bottom: 20rpx;
+}
+
+.card-sub {
+  font-size: 22rpx;
+  color: #999;
+  font-weight: normal;
+  margin-left: 8rpx;
+}
+
+.form-row {
+  display: flex;
+  align-items: flex-start;
+  padding: 16rpx 0;
+}
+
+.form-label {
+  width: 100rpx;
+  font-size: 28rpx;
+  color: #333;
+  line-height: 72rpx;
+  flex-shrink: 0;
+}
+
+.form-input {
+  flex: 1;
+  height: 72rpx;
+  line-height: 72rpx;
+  background: #F8F8F8;
+  border-radius: 12rpx;
+  padding: 0 20rpx;
+  font-size: 28rpx;
+}
+
+.form-textarea {
+  flex: 1;
+  min-height: 120rpx;
+  background: #F8F8F8;
+  border-radius: 12rpx;
+  padding: 16rpx 20rpx;
+  font-size: 28rpx;
+  box-sizing: border-box;
+}
+
+/* 日期选择 */
+.date-pickers {
+  flex: 1;
+  display: flex;
+  gap: 12rpx;
+}
+
+.date-picker {
+  flex: 1;
+  min-width: 0;
+}
+
+.picker-box {
+  height: 72rpx;
+  line-height: 72rpx;
+  background: #F8F8F8;
+  border-radius: 12rpx;
+  padding: 0 16rpx;
+  font-size: 26rpx;
+  color: #333;
+  text-align: center;
+}
+
+.picker-box.placeholder {
+  color: #999;
+}
+
+/* 类型选择 */
+.type-options {
+  flex: 1;
+  display: flex;
+  gap: 12rpx;
+}
+
+.type-option {
+  flex: 1;
+  height: 64rpx;
+  line-height: 64rpx;
+  text-align: center;
+  font-size: 26rpx;
+  color: #666;
+  background: #F5F5F5;
+  border-radius: 32rpx;
+  border: 2rpx solid transparent;
+}
+
+.type-option.active {
+  color: #8B1A1A;
+  background: #FDF0F0;
+  border-color: #8B1A1A;
+}
+
+/* 关联成员 */
+.member-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16rpx;
+}
+
+.member-item {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  padding: 12rpx 20rpx;
+  background: #F5F5F5;
+  border-radius: 36rpx;
+  border: 2rpx solid transparent;
+}
+
+.member-item.selected {
+  background: #FDF0F0;
+  border-color: #8B1A1A;
+}
+
+.member-avatar {
+  width: 52rpx;
+  height: 52rpx;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #8B1A1A, #B22222);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.member-avatar.female {
+  background: linear-gradient(135deg, #FF6B9D, #FFB6C1);
+}
+
+.member-avatar text {
+  font-size: 22rpx;
+  color: #FFFFFF;
+  font-weight: 500;
+}
+
+.member-name {
+  font-size: 26rpx;
+  color: #333;
+}
+
+.member-check {
+  color: #8B1A1A;
+  font-size: 26rpx;
+  font-weight: bold;
+}
+
+/* 照片九宫格 */
+.photo-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16rpx;
+}
+
+.photo-item,
+.photo-add {
+  width: 200rpx;
+  height: 200rpx;
+  border-radius: 12rpx;
+  overflow: hidden;
+  position: relative;
+}
+
+.photo-img {
+  width: 100%;
+  height: 100%;
+}
+
+.photo-del {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 44rpx;
+  height: 44rpx;
+  line-height: 40rpx;
+  text-align: center;
+  background: rgba(0, 0, 0, 0.5);
+  color: #FFF;
+  font-size: 32rpx;
+  border-bottom-left-radius: 12rpx;
+}
+
+.photo-add {
+  background: #F5F5F5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2rpx dashed #CCC;
+}
+
+.photo-add-icon {
+  font-size: 60rpx;
+  color: #CCC;
+}
+
+/* 提交 */
+.submit-bar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 16rpx 24rpx;
+  background: #FFFFFF;
+  box-shadow: 0 -2rpx 12rpx rgba(0, 0, 0, 0.05);
+}
+
+.submit-btn {
+  height: 88rpx;
+  line-height: 88rpx;
+  background: #8B1A1A;
+  color: #FFFFFF;
+  font-size: 30rpx;
+  border-radius: 44rpx;
+  margin: 0;
+}
+
+.submit-btn::after {
+  border: none;
+}

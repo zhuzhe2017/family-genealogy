@@ -1,0 +1,176 @@
+<wxs src="../../utils/filters.wxs" module="f" />
+<view class="page-container">
+  <!-- 头部背景 -->
+  <view class="detail-header">
+    <view class="header-bg">
+      <view class="header-pattern"></view>
+    </view>
+    <view class="header-content">
+      <view class="member-avatar-large {{member.gender === 'female' ? 'female' : ''}}">
+        <text>{{f.firstChar(member.name)}}</text>
+      </view>
+      <view class="member-header-info">
+        <text class="member-header-name">{{member.name}}</text>
+        <view class="member-header-tags">
+          <text class="header-tag" wx:if="{{member.generationName}}">{{member.generationName}}字辈</text>
+          <text class="header-tag">{{member.generation}}代</text>
+          <text class="header-tag">{{member.gender === 'female' ? '女性' : '男性'}}</text>
+          <text class="header-tag tag-alive">{{member.isAlive ? '在世' : '已逝'}}</text>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 基本信息 -->
+  <view class="info-card">
+    <view class="card-title">基本信息</view>
+    <view class="info-rows">
+      <view class="info-row">
+        <text class="row-label">姓名</text>
+        <text class="row-value">{{member.name}}</text>
+      </view>
+      <view class="info-row" wx:if="{{member.generationName}}">
+        <text class="row-label">字辈</text>
+        <text class="row-value">{{member.generationName}}字辈</text>
+      </view>
+      <view class="info-row">
+        <text class="row-label">性别</text>
+        <text class="row-value">{{member.gender === 'female' ? '女' : '男'}}</text>
+      </view>
+      <view class="info-row">
+        <text class="row-label">出生年月</text>
+        <text class="row-value">{{member.birthDate || '未知'}}</text>
+      </view>
+      <view class="info-row" wx:if="{{member.deathDate}}">
+        <text class="row-label">逝世日期</text>
+        <text class="row-value">{{member.deathDate}}</text>
+      </view>
+      <view class="info-row">
+        <text class="row-label">出生地</text>
+        <text class="row-value">{{member.birthPlace || '未知'}}</text>
+      </view>
+      <view class="info-row" wx:if="{{member.title}}">
+        <text class="row-label">头衔/称号</text>
+        <text class="row-value">{{member.title}}</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 配偶信息 -->
+  <view class="info-card" wx:if="{{member.spouseInfo.name}}">
+    <view class="card-title">配偶信息</view>
+    <view class="info-rows">
+      <view class="info-row">
+        <text class="row-label">姓名</text>
+        <text class="row-value">{{member.spouseInfo.name}}</text>
+      </view>
+      <view class="info-row" wx:if="{{member.spouseInfo.birthDate}}">
+        <text class="row-label">出生日期</text>
+        <text class="row-value">{{member.spouseInfo.birthDate}}</text>
+      </view>
+      <view class="info-row" wx:if="{{member.spouseInfo.rank}}">
+        <text class="row-label">排行</text>
+        <text class="row-value">{{member.spouseInfo.rank}}</text>
+      </view>
+      <view class="info-row" wx:if="{{member.spouseInfo.deathDate}}">
+        <text class="row-label">逝世日期</text>
+        <text class="row-value">{{member.spouseInfo.deathDate}}</text>
+      </view>
+      <view class="info-row" wx:if="{{member.spouseInfo.deathPlace}}">
+        <text class="row-label">安葬地点</text>
+        <text class="row-value">{{member.spouseInfo.deathPlace}}</text>
+      </view>
+      <view class="info-row" wx:if="{{member.spouseInfo.longitude && member.spouseInfo.latitude}}">
+        <text class="row-label">墓茔坐标</text>
+        <text class="row-value">{{member.spouseInfo.longitude}}, {{member.spouseInfo.latitude}}</text>
+      </view>
+      <view class="info-row" wx:if="{{member.spouseInfo.bio}}">
+        <text class="row-label">简介</text>
+        <text class="row-value">{{member.spouseInfo.bio}}</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 家庭关系 -->
+  <view class="info-card">
+    <view class="card-title">家庭关系</view>
+    <view class="relation-section">
+      <!-- 配偶 -->
+      <view class="relation-block" wx:if="{{member.spouseInfo.name || member.spouseId}}">
+        <text class="relation-label">配偶</text>
+        <view class="relation-person" bindtap="viewSpouse">
+          <view class="relation-avatar {{member.gender === 'male' ? 'female' : ''}}">
+            <text>{{f.firstChar(member.spouseInfo.name || '配')}}</text>
+          </view>
+          <view class="relation-info">
+            <text class="relation-name">{{member.spouseInfo.name || '本族成员'}}</text>
+            <text class="relation-desc">{{member.spouseInfo.birthDate ? '生于' + member.spouseInfo.birthDate : ''}}</text>
+          </view>
+          <text class="relation-arrow">›</text>
+        </view>
+      </view>
+
+      <!-- 父母 -->
+      <view class="relation-block" wx:if="{{member.father || member.mother}}">
+        <text class="relation-label">父母</text>
+        <view class="relation-person" wx:if="{{member.father}}" bindtap="viewParent" data-id="{{member.fatherId}}">
+          <view class="relation-avatar">
+            <text>{{f.firstChar(member.father)}}</text>
+          </view>
+          <view class="relation-info">
+            <text class="relation-name">{{member.father}}</text>
+            <text class="relation-desc">父亲</text>
+          </view>
+          <text class="relation-arrow">›</text>
+        </view>
+        <view class="relation-person" wx:if="{{member.mother}}" bindtap="viewParent" data-id="{{member.motherId}}">
+          <view class="relation-avatar female">
+            <text>{{f.firstChar(member.mother)}}</text>
+          </view>
+          <view class="relation-info">
+            <text class="relation-name">{{member.mother}}</text>
+            <text class="relation-desc">母亲</text>
+          </view>
+          <text class="relation-arrow">›</text>
+        </view>
+      </view>
+
+      <!-- 子女 -->
+      <view class="relation-block" wx:if="{{member.children && member.children.length > 0}}">
+        <text class="relation-label">子女 ({{member.children.length}}人)</text>
+        <view class="children-grid">
+          <view class="child-item" wx:for="{{member.children}}" wx:key="id" bindtap="viewChild" data-id="{{item.id}}">
+            <view class="child-avatar {{item.gender === 'female' ? 'female' : ''}}">
+              <text>{{f.firstChar(item.name)}}</text>
+            </view>
+            <text class="child-name">{{item.name}}</text>
+          </view>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 个人简介 -->
+  <view class="info-card" wx:if="{{member.bio}}">
+    <view class="card-title">个人简介</view>
+    <text class="bio-text">{{member.bio}}</text>
+  </view>
+
+  <!-- 相关照片 -->
+  <view class="info-card" wx:if="{{member.photos && member.photos.length > 0}}">
+    <view class="card-title">相关照片</view>
+    <view class="photo-grid">
+      <image class="photo-item" wx:for="{{member.photos}}" wx:key="*this" src="{{item}}" mode="aspectFill" bindtap="previewPhoto"/>
+    </view>
+  </view>
+
+  <!-- 底部操作 -->
+  <view class="bottom-actions safe-bottom">
+    <view class="action-btn secondary" bindtap="editMember">
+      <text>编辑</text>
+    </view>
+    <view class="action-btn primary" bindtap="shareMember">
+      <text>分享</text>
+    </view>
+  </view>
+</view>

@@ -1,0 +1,274 @@
+.page-container {
+  padding-bottom: 140rpx;
+  background: #F5F5F5;
+  min-height: 100vh;
+}
+
+/* 事件头部 */
+.event-header-section {
+  background: linear-gradient(135deg, #8B1A1A 0%, #6B0F0F 100%);
+  padding: 48rpx 32rpx;
+  border-radius: 0 0 40rpx 40rpx;
+  display: flex;
+  align-items: center;
+  gap: 32rpx;
+}
+
+.event-date-badge {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: rgba(255,255,255,0.15);
+  border-radius: 20rpx;
+  padding: 24rpx 32rpx;
+  min-width: 140rpx;
+}
+
+.event-year {
+  font-size: 24rpx;
+  color: rgba(255,255,255,0.8);
+  margin-bottom: 8rpx;
+}
+
+.event-month-day {
+  font-size: 32rpx;
+  color: #FFFFFF;
+  font-weight: 600;
+}
+
+.event-title-section {
+  flex: 1;
+}
+
+.event-title {
+  font-size: 36rpx;
+  color: #FFFFFF;
+  font-weight: 600;
+  display: block;
+  margin-bottom: 16rpx;
+}
+
+.event-tag {
+  display: inline-block;
+  font-size: 22rpx;
+  padding: 6rpx 16rpx;
+  border-radius: 20rpx;
+}
+
+.event-tag.birth {
+  background: rgba(76, 175, 80, 0.3);
+  color: #A5D6A7;
+}
+
+.event-tag.marriage {
+  background: rgba(255, 152, 0, 0.3);
+  color: #FFCC80;
+}
+
+.event-tag.death {
+  background: rgba(255,255,255,0.2);
+  color: rgba(255,255,255,0.8);
+}
+
+.event-tag.other {
+  background: rgba(33, 150, 243, 0.3);
+  color: #90CAF9;
+}
+
+/* 信息卡片 */
+.info-card {
+  margin: 24rpx;
+  background: #FFFFFF;
+  border-radius: 24rpx;
+  padding: 32rpx;
+  box-shadow: 0 2rpx 12rpx rgba(0,0,0,0.04);
+}
+
+.card-title {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 24rpx;
+  position: relative;
+  padding-left: 20rpx;
+}
+
+.card-title::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 6rpx;
+  height: 28rpx;
+  background: #8B1A1A;
+  border-radius: 3rpx;
+}
+
+.event-description {
+  font-size: 28rpx;
+  color: #666;
+  line-height: 1.8;
+  display: block;
+  margin-bottom: 24rpx;
+}
+
+.event-details {
+  display: flex;
+  flex-direction: column;
+  gap: 16rpx;
+}
+
+.detail-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 16rpx 0;
+  border-bottom: 1rpx solid #F5F5F5;
+}
+
+.detail-row:last-child {
+  border-bottom: none;
+}
+
+.detail-label {
+  font-size: 26rpx;
+  color: #999;
+}
+
+.detail-value {
+  font-size: 26rpx;
+  color: #333;
+  font-weight: 500;
+}
+
+/* 成员列表 */
+.members-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.member-item {
+  display: flex;
+  align-items: center;
+  padding: 20rpx 0;
+  border-bottom: 1rpx solid #F5F5F5;
+}
+
+.member-item:last-child {
+  border-bottom: none;
+}
+
+.member-avatar {
+  width: 72rpx;
+  height: 72rpx;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #8B1A1A, #B22222);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 20rpx;
+  flex-shrink: 0;
+}
+
+.member-avatar.female {
+  background: linear-gradient(135deg, #FF6B9D, #FFB6C1);
+}
+
+.member-avatar text {
+  font-size: 28rpx;
+  color: #FFFFFF;
+  font-weight: bold;
+  font-family: 'KaiTi', serif;
+}
+
+.member-info {
+  flex: 1;
+}
+
+.member-name {
+  font-size: 28rpx;
+  color: #333;
+  font-weight: 500;
+  display: block;
+  margin-bottom: 4rpx;
+}
+
+.member-relation {
+  font-size: 22rpx;
+  color: #999;
+}
+
+.member-arrow {
+  font-size: 32rpx;
+  color: #CCC;
+  margin-left: 16rpx;
+}
+
+/* 照片网格 */
+.photo-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12rpx;
+}
+
+.photo-item {
+  width: 100%;
+  height: 200rpx;
+  border-radius: 12rpx;
+  background: #F5F5F5;
+}
+
+/* 底部操作 */
+.bottom-actions {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  gap: 24rpx;
+  padding: 24rpx 32rpx;
+  padding-bottom: calc(24rpx + env(safe-area-inset-bottom));
+  background: #FFFFFF;
+  border-top: 1rpx solid #F0F0F0;
+}
+
+.action-btn {
+  flex: 1;
+  height: 88rpx;
+  border-radius: 44rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 30rpx;
+  font-weight: 500;
+}
+
+.action-btn.secondary {
+  background: #F5F5F5;
+  color: #333;
+}
+
+.action-btn.danger {
+  background: #FFF1F0;
+  color: #E64340;
+}
+
+.action-btn.primary {
+  background: linear-gradient(135deg, #8B1A1A, #B22222);
+  color: #FFFFFF;
+}
+
+/* 分享按钮(open-type=share)去默认样式,与相邻操作项一致 */
+.share-btn {
+  background: linear-gradient(135deg, #8B1A1A, #B22222);
+  color: #FFFFFF;
+  padding: 0;
+  margin: 0;
+  line-height: 1;
+  font-weight: 500;
+  border-radius: 44rpx;
+}
+
+.share-btn::after {
+  border: none;
+}

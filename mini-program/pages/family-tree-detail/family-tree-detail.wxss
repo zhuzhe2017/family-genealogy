@@ -1,0 +1,458 @@
+.page-container {
+  padding-bottom: 120rpx;
+  background: #F8F6F3;
+  min-height: 100vh;
+}
+
+/* 工具栏 */
+.tree-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20rpx 24rpx;
+  background: #FFFFFF;
+  border-bottom: 1rpx solid #F0F0F0;
+}
+
+.generation-filter {
+  display: flex;
+  align-items: center;
+}
+
+.filter-label {
+  font-size: 24rpx;
+  color: #666;
+  margin-right: 16rpx;
+}
+
+.filter-options {
+  display: flex;
+  gap: 12rpx;
+}
+
+.filter-item {
+  font-size: 24rpx;
+  padding: 8rpx 20rpx;
+  border-radius: 24rpx;
+  background: #F5F5F5;
+  color: #666;
+}
+
+.filter-item.active {
+  background: #8B1A1A;
+  color: #FFFFFF;
+}
+
+.toolbar-right {
+  display: flex;
+  gap: 16rpx;
+}
+
+.tool-btn {
+  width: 64rpx;
+  height: 64rpx;
+  border-radius: 16rpx;
+  background: #F5F5F5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24rpx;
+  color: #666;
+}
+
+/* 树状视图 */
+.tree-view {
+  padding: 24rpx;
+}
+
+.tree-scroll {
+  width: 100%;
+  height: calc(100vh - 300rpx);
+}
+
+.tree-canvas {
+  padding: 40rpx;
+  min-width: 100%;
+  box-sizing: border-box;
+}
+
+.tree-level {
+  margin-bottom: 60rpx;
+  position: relative;
+}
+
+.tree-level-label {
+  font-size: 24rpx;
+  color: #8B1A1A;
+  font-weight: 500;
+  margin-bottom: 24rpx;
+  padding-left: 16rpx;
+  border-left: 4rpx solid #8B1A1A;
+}
+
+.tree-nodes-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 40rpx;
+  justify-content: center;
+}
+
+.tree-node-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+}
+
+.tree-node-wrapper.has-spouse {
+  gap: 32rpx;
+}
+
+/* 连接线 */
+.connect-line {
+  position: absolute;
+  background: #D4A574;
+}
+
+.connect-line.up {
+  width: 2rpx;
+  height: 40rpx;
+  top: -40rpx;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.connect-line.down {
+  width: 2rpx;
+  height: 40rpx;
+  bottom: -40rpx;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.spouse-connector {
+  width: 40rpx;
+  height: 2rpx;
+  background: #D4A574;
+}
+
+/* 节点卡片 */
+.node-card {
+  background: #FFFFFF;
+  border-radius: 20rpx;
+  padding: 24rpx;
+  box-shadow: 0 4rpx 16rpx rgba(0,0,0,0.08);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 160rpx;
+  border: 2rpx solid transparent;
+  position: relative;
+}
+
+.node-card.female {
+  border-color: #FFB6C1;
+  background: linear-gradient(135deg, #FFF0F3 0%, #FFFFFF 100%);
+}
+
+.node-card.spouse-card {
+  opacity: 0.85;
+  transform: scale(0.95);
+}
+
+.node-avatar {
+  width: 80rpx;
+  height: 80rpx;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #8B1A1A, #B22222);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 12rpx;
+}
+
+.node-avatar text {
+  font-size: 32rpx;
+  color: #FFFFFF;
+  font-weight: bold;
+  font-family: 'KaiTi', serif;
+}
+
+.female .node-avatar {
+  background: linear-gradient(135deg, #FF6B9D, #FFB6C1);
+}
+
+.node-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.node-name {
+  font-size: 26rpx;
+  color: #333;
+  font-weight: 500;
+  margin-bottom: 4rpx;
+}
+
+.node-title {
+  font-size: 20rpx;
+  color: #D4A574;
+  margin-bottom: 8rpx;
+}
+
+.node-tags {
+  display: flex;
+  gap: 8rpx;
+  margin-top: 4rpx;
+}
+
+.node-tag {
+  font-size: 18rpx;
+  padding: 2rpx 10rpx;
+  border-radius: 6rpx;
+  background: #F5F5F5;
+  color: #999;
+}
+
+.node-tag.tag-generation {
+  background: rgba(139, 26, 26, 0.1);
+  color: #8B1A1A;
+}
+
+.node-tag.tag-generation-name {
+  background: rgba(201, 169, 110, 0.15);
+  color: #C9A96E;
+}
+
+/* 列表视图 */
+.list-view {
+  padding: 24rpx;
+}
+
+.member-list-item {
+  display: flex;
+  align-items: center;
+  background: #FFFFFF;
+  border-radius: 20rpx;
+  padding: 24rpx;
+  margin-bottom: 16rpx;
+  box-shadow: 0 2rpx 8rpx rgba(0,0,0,0.04);
+}
+
+.list-avatar {
+  width: 80rpx;
+  height: 80rpx;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #8B1A1A, #B22222);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 24rpx;
+  flex-shrink: 0;
+}
+
+.list-avatar.female {
+  background: linear-gradient(135deg, #FF6B9D, #FFB6C1);
+}
+
+.list-avatar text {
+  font-size: 32rpx;
+  color: #FFFFFF;
+  font-weight: bold;
+  font-family: 'KaiTi', serif;
+}
+
+.list-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.list-name-row {
+  display: flex;
+  align-items: center;
+  margin-bottom: 8rpx;
+}
+
+.list-name {
+  font-size: 30rpx;
+  color: #333;
+  font-weight: 500;
+  margin-right: 16rpx;
+}
+
+.list-relation {
+  font-size: 22rpx;
+  color: #8B1A1A;
+  background: rgba(139, 26, 26, 0.08);
+  padding: 4rpx 12rpx;
+  border-radius: 8rpx;
+}
+
+.list-desc {
+  font-size: 24rpx;
+  color: #999;
+}
+
+.list-arrow {
+  font-size: 36rpx;
+  color: #CCC;
+  margin-left: 16rpx;
+}
+
+/* 底部操作栏 */
+.bottom-actions {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  background: #FFFFFF;
+  border-top: 1rpx solid #F0F0F0;
+  padding: 16rpx 32rpx;
+  padding-bottom: calc(16rpx + env(safe-area-inset-bottom));
+  gap: 24rpx;
+}
+
+.action-btn {
+  flex: 1;
+  height: 80rpx;
+  border-radius: 40rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #F5F5F5;
+  color: #333;
+  font-size: 28rpx;
+}
+
+.action-btn:first-child {
+  background: linear-gradient(135deg, #8B1A1A, #B22222);
+  color: #FFFFFF;
+}
+
+.btn-icon {
+  margin-right: 8rpx;
+  font-size: 32rpx;
+}
+
+/* 弹窗 */
+.modal-mask {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0,0,0,0.5);
+  z-index: 100;
+}
+
+.modal-content {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: #FFFFFF;
+  border-radius: 40rpx 40rpx 0 0;
+  z-index: 101;
+  padding: 40rpx;
+  padding-bottom: calc(40rpx + env(safe-area-inset-bottom));
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 32rpx;
+}
+
+.modal-avatar {
+  width: 100rpx;
+  height: 100rpx;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #8B1A1A, #B22222);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 24rpx;
+}
+
+.modal-avatar text {
+  font-size: 40rpx;
+  color: #FFFFFF;
+  font-weight: bold;
+  font-family: 'KaiTi', serif;
+}
+
+.modal-title {
+  flex: 1;
+}
+
+.modal-name {
+  font-size: 36rpx;
+  color: #333;
+  font-weight: 600;
+  display: block;
+  margin-bottom: 8rpx;
+}
+
+.modal-subtitle {
+  font-size: 24rpx;
+  color: #999;
+}
+
+.modal-close {
+  width: 56rpx;
+  height: 56rpx;
+  border-radius: 50%;
+  background: #F5F5F5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 36rpx;
+  color: #999;
+}
+
+.modal-body {
+  margin-bottom: 32rpx;
+}
+
+.modal-info-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 20rpx 0;
+  border-bottom: 1rpx solid #F5F5F5;
+}
+
+.info-label {
+  font-size: 28rpx;
+  color: #666;
+}
+
+.info-value {
+  font-size: 28rpx;
+  color: #333;
+  font-weight: 500;
+}
+
+.modal-footer {
+  display: flex;
+  gap: 24rpx;
+}
+
+.modal-btn {
+  flex: 1;
+  height: 88rpx;
+  border-radius: 44rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #F5F5F5;
+  color: #333;
+  font-size: 28rpx;
+  font-weight: 500;
+}
+
+.modal-btn.primary {
+  background: linear-gradient(135deg, #8B1A1A, #B22222);
+  color: #FFFFFF;
+}
