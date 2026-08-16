@@ -24,7 +24,9 @@
     "pages/publish-dynamic/publish-dynamic",
     "pages/dynamic-detail/dynamic-detail",
     "pages/settings/settings",
-    "pages/privacy/privacy"
+    "pages/privacy/privacy",
+    "pages/login/login",
+    "pages/member-center/member-center"
   ],
   "entryPagePath": "pages/index/index",
   "window": {

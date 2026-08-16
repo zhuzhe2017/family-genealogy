@@ -6,6 +6,18 @@ const auth = {
   wxLogin: function (code) {
     return request({ url: '/user/wx-login', method: 'POST', data: { code: code } });
   },
+  /** 发送手机号短信验证码(scene: login-登录 / bind-绑定手机号) */
+  sendSmsCode: function (phone, scene) {
+    return request({ url: '/user/sms/send', method: 'POST', data: { phone: phone, scene: scene || 'login' } });
+  },
+  /** 手机号验证码登录(未注册自动注册) */
+  phoneLogin: function (phone, code) {
+    return request({ url: '/user/phone-login', method: 'POST', data: { phone: phone, code: code } });
+  },
+  /** 绑定手机号(需登录,作为多端统一锚点) */
+  bindPhone: function (phone, code) {
+    return request({ url: '/user/bind-phone', method: 'POST', data: { phone: phone, code: code } });
+  },
   /** 获取当前用户信息 */
   getProfile: function () {
     return request({ url: '/user/profile' });
@@ -100,4 +112,24 @@ const content = {
   }
 };
 
-module.exports = { auth, family, familyMember, content };
+/** 订阅/会员相关接口 */
+const subscription = {
+  /** 当前家族订阅状态（套餐+存储用量+按次额度消耗），会员中心展示用 */
+  getCurrent: function (familyId) {
+    return request({ url: '/user/subscription/current', data: { familyId: familyId } });
+  },
+  /** 套餐列表（含免费版），会员中心展示用 */
+  getPlans: function () {
+    return request({ url: '/user/subscription/plans' });
+  },
+  /** 订阅下单:返回 wx.requestPayment 参数;模拟模式(未配置商户)返回 { mock: true } */
+  prepay: function (data) {
+    return request({ url: '/user/subscription/prepay', method: 'POST', data: data || {} });
+  },
+  /** 申请退款(订单支付人本人) */
+  refund: function (data) {
+    return request({ url: '/user/subscription/refund', method: 'POST', data: data || {} });
+  }
+};
+
+module.exports = { auth, family, familyMember, content, subscription };

@@ -267,6 +267,7 @@ export class FamilyService {
         \`longitude\`     DECIMAL(10, 7) DEFAULT NULL COMMENT '墓茔经度',
         \`latitude\`      DECIMAL(10, 7) DEFAULT NULL COMMENT '墓茔纬度',
         \`bio\`           TEXT          COMMENT '生平简介',
+        \`avatar_url\`    VARCHAR(500)  NOT NULL DEFAULT '' COMMENT '头像URL（/uploads/xxx 或 http(s) 完整地址，最多500字符）',
         \`father_id\`     VARCHAR(32)   DEFAULT '' COMMENT '父亲成员ID',
         \`mother_id\`     VARCHAR(32)   DEFAULT '' COMMENT '母亲成员ID',
         \`spouse_info\`   JSON          DEFAULT NULL COMMENT '配偶信息JSON数组：[{name,birthDate,rank,bio,deathDate,deathPlace,longitude,latitude}]',

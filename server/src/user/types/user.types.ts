@@ -30,4 +30,24 @@ export interface UserLoginResult {
   userInfo: UserInfo;
 }
 
+/** 用户认证绑定表记录（多端账号统一） */
+export interface UserAuthIdentityRow extends DataRow {
+  id: number;
+  user_id: string;
+  provider: string;
+  provider_uid: string;
+  unionid: string;
+  extra: string | null;
+  status: number;
+  create_time: string;
+  update_time: string;
+}
+
+/** 发送短信验证码响应 */
+export interface SendSmsCodeResult {
+  success: boolean;
+  /** 开发模式(mock)下返回验证码，生产环境为空串 */
+  devCode?: string;
+}
+
 export type { DataRow, QueryValues };

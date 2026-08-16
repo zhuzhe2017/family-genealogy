@@ -63,6 +63,12 @@
   font-family: 'KaiTi', serif;
 }
 
+.member-avatar-img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+}
+
 .member-header-info {
   flex: 1;
 }

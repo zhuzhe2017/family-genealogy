@@ -88,6 +88,7 @@ function normalizeMember(row) {
     deathPlace: row.death_place || '',
     bio: row.bio || '',
     title: row.title || '',
+    avatar: resolveImageUrl(row.avatar_url),
     fatherId: row.father_id || '',
     motherId: row.mother_id || '',
     spouseInfo: parseSpouseInfo(row.spouse_info),

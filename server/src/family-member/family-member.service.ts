@@ -1,6 +1,7 @@
 import { Injectable, HttpException, HttpStatus } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { randomBytes } from 'crypto';
+import { EntitlementService } from '../membership/membership.service';
 import { getSafeMemberTableName, getSafeMemberPhotoTableName } from '../common/utils/family-member-table';
 import {
   type FamilyMemberRow,
@@ -15,11 +16,33 @@ import { type QueryValues } from '../common/types/common';
 
 @Injectable()
 export class FamilyMemberService {
-  constructor(private readonly dataSource: DataSource) {}
+  constructor(
+    private readonly dataSource: DataSource,
+    private readonly entitlementService: EntitlementService
+  ) {}
 
   /** 生成 32 位成员ID（小写十六进制） */
   private generateMemberId(): string {
     return randomBytes(16).toString('hex');
+  }
+
+  /**
+   * 校验并归一化头像URL：
+   * - 空值/空白 → 空串（清除头像）
+   * - 长度 ≤ 500 字符
+   * - 仅允许 /uploads/ 相对路径或 http(s) 完整地址（与上传接口返回格式一致）
+   */
+  private validateAvatarUrl(url: string | undefined | null): string {
+    if (url === undefined || url === null) return '';
+    const trimmed = String(url).trim();
+    if (!trimmed) return '';
+    if (trimmed.length > 500) {
+      throw new HttpException('头像URL长度不能超过 500 字符', HttpStatus.BAD_REQUEST);
+    }
+    if (!/^(\/uploads\/|https?:\/\/)/.test(trimmed)) {
+      throw new HttpException('头像URL必须以 /uploads/ 或 http(s):// 开头', HttpStatus.BAD_REQUEST);
+    }
+    return trimmed;
   }
 
   /** 确保家族成员分表存在 */
@@ -102,7 +125,7 @@ export class FamilyMemberService {
     const list = await this.dataSource.query<FamilyMemberRow[]>(
       `SELECT \`id\`, \`family_id\`, \`name\`, \`gender\`, \`generation\`, \`generation_name\`,
               \`birth_date\`, \`birth_place\`, \`is_alive\`, \`death_date\`, \`death_place\`,
-              \`longitude\`, \`latitude\`, \`bio\`, \`father_id\`, \`mother_id\`,
+              \`longitude\`, \`latitude\`, \`bio\`, \`avatar_url\`, \`father_id\`, \`mother_id\`,
               \`spouse_info\`, \`sort_order\`, \`status\`, \`create_time\`, \`update_time\`
        FROM \`${tableName}\`
        ${whereClause}
@@ -384,19 +407,21 @@ export class FamilyMemberService {
 
     const memberId = this.generateMemberId();
     const sortOrder = typeof data.sortOrder === 'number' ? data.sortOrder : 0;
+    const avatarUrl = this.validateAvatarUrl(data.avatarUrl);
 
     await this.dataSource.query(
       `INSERT INTO \`${tableName}\`
         (\`id\`, \`family_id\`, \`name\`, \`gender\`, \`generation\`, \`generation_name\`,
          \`birth_date\`, \`birth_place\`, \`is_alive\`, \`death_date\`, \`death_place\`,
-         \`longitude\`, \`latitude\`, \`bio\`, \`father_id\`, \`mother_id\`,
+         \`longitude\`, \`latitude\`, \`bio\`, \`avatar_url\`, \`father_id\`, \`mother_id\`,
          \`spouse_info\`, \`sort_order\`, \`status\`)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         memberId, familyId, data.name.trim(), gender, data.generation, data.generationName || '',
         data.birthDate || '', data.birthPlace || '', data.isAlive ?? 1,
         data.deathDate || '', data.deathPlace || '',
         data.longitude ?? null, data.latitude ?? null, data.bio || '',
+        avatarUrl,
         fatherId, motherId,
         data.spouseInfo ? JSON.stringify(data.spouseInfo) : JSON.stringify([]),
         sortOrder, 1
@@ -426,14 +451,15 @@ export class FamilyMemberService {
       throw new HttpException('成员ID不能为空', HttpStatus.BAD_REQUEST);
     }
 
-    const [exists] = await this.dataSource.query<{ id: string; status: number; generation: number }[]>(
-      `SELECT \`id\`, \`status\`, \`generation\` FROM \`${tableName}\` WHERE \`id\` = ?`,
+    const [exists] = await this.dataSource.query<{ id: string; status: number; generation: number; avatar_url: string }[]>(
+      `SELECT \`id\`, \`status\`, \`generation\`, \`avatar_url\` FROM \`${tableName}\` WHERE \`id\` = ?`,
       [memberId]
     );
     if (!exists) {
       throw new HttpException('成员不存在', HttpStatus.NOT_FOUND);
     }
     const oldStatus = exists.status;
+    const oldAvatarUrl = exists.avatar_url || '';
 
     if (data.name !== undefined && !data.name.trim()) {
       throw new HttpException('成员姓名不能为空', HttpStatus.BAD_REQUEST);
@@ -490,6 +516,7 @@ export class FamilyMemberService {
     if (data.longitude !== undefined) { fields.push('`longitude` = ?'); values.push(data.longitude ?? null); }
     if (data.latitude !== undefined) { fields.push('`latitude` = ?'); values.push(data.latitude ?? null); }
     if (data.bio !== undefined) { fields.push('`bio` = ?'); values.push(data.bio || ''); }
+    if (data.avatarUrl !== undefined) { fields.push('`avatar_url` = ?'); values.push(this.validateAvatarUrl(data.avatarUrl)); }
     if (data.fatherId !== undefined) { fields.push('`father_id` = ?'); values.push(fatherId); }
     if (data.motherId !== undefined) { fields.push('`mother_id` = ?'); values.push(motherId); }
     if (data.spouseInfo !== undefined) { fields.push('`spouse_info` = ?'); values.push(data.spouseInfo ? JSON.stringify(data.spouseInfo) : JSON.stringify([])); }
@@ -507,6 +534,11 @@ export class FamilyMemberService {
         `UPDATE \`${tableName}\` SET ${fields.join(', ')} WHERE \`id\` = ?`,
         values
       );
+    }
+
+    // 头像更换即释放旧头像占用的家族存储（幂等；空值/未变化不处理）
+    if (data.avatarUrl !== undefined && oldAvatarUrl && oldAvatarUrl !== this.validateAvatarUrl(data.avatarUrl)) {
+      await this.entitlementService.releaseStorage(oldAvatarUrl);
     }
 
     // 成员照片整体替换（传入即覆盖）
@@ -535,8 +567,8 @@ export class FamilyMemberService {
     await this.ensureTable(familyId);
     const tableName = getSafeMemberTableName(familyId);
 
-    const [exists] = await this.dataSource.query<{ id: string }[]>(
-      `SELECT \`id\` FROM \`${tableName}\` WHERE \`id\` = ? AND \`status\` = ?`,
+    const [exists] = await this.dataSource.query<{ id: string; avatar_url: string }[]>(
+      `SELECT \`id\`, \`avatar_url\` FROM \`${tableName}\` WHERE \`id\` = ? AND \`status\` = ?`,
       [memberId, 1]
     );
     if (!exists) {
@@ -556,6 +588,14 @@ export class FamilyMemberService {
          WHERE \`id\` = ?`,
         [-1, familyId]
       );
+      // 删除即释放：成员头像与照片解除家族存储占用（幂等）
+      if (exists.avatar_url) {
+        await this.entitlementService.releaseStorage(exists.avatar_url);
+      }
+      const photos = await this.getPhotos(familyId, memberId);
+      for (const url of photos) {
+        await this.entitlementService.releaseStorage(url);
+      }
     }
 
     return { affected };

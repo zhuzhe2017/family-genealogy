@@ -1,0 +1,80 @@
+<view class="login-page">
+  <!-- 品牌区 -->
+  <view class="brand">
+    <view class="brand-logo">族</view>
+    <text class="brand-title">数字家谱</text>
+    <text class="brand-subtitle">{{mode === 'bind' ? '绑定手机号，多端数据同步更安心' : '传承家族记忆，延续血脉亲情'}}</text>
+  </view>
+
+  <!-- 手机号登录 / 绑定表单 -->
+  <view class="login-form">
+    <view class="form-tip" wx:if="{{mode === 'bind'}}">
+      当前账号：{{userInfo.nickName || '未登录'}}<text wx:if="{{bindPhone}}">（已绑定 {{bindPhone}}）</text>
+    </view>
+
+    <!-- 手机号 -->
+    <view class="input-row">
+      <text class="input-prefix">+86</text>
+      <input
+        class="input-main"
+        type="number"
+        maxlength="11"
+        placeholder="请输入手机号"
+        value="{{phone}}"
+        bindinput="onPhoneInput"
+      />
+    </view>
+
+    <!-- 验证码 -->
+    <view class="input-row">
+      <text class="input-prefix">验证码</text>
+      <input
+        class="input-main"
+        type="number"
+        maxlength="6"
+        placeholder="请输入6位验证码"
+        value="{{code}}"
+        bindinput="onCodeInput"
+      />
+      <button
+        class="code-btn {{counting || !agreed ? 'code-btn-disabled' : ''}}"
+        size="mini"
+        bindtap="sendCode"
+        disabled="{{counting || !agreed}}"
+      >{{counting ? countdown + 's后重发' : '获取验证码'}}</button>
+    </view>
+
+    <!-- 协议 -->
+    <view class="agreement">
+      <view class="agree-box {{agreed ? 'agree-box-active' : ''}}" bindtap="toggleAgree">
+        <text wx:if="{{agreed}}" class="agree-check">✓</text>
+      </view>
+      <text class="agree-text">我已阅读并同意</text>
+      <text class="agree-link" bindtap="showAgreement" data-type="service">《用户服务协议》</text>
+      <text class="agree-text">和</text>
+      <text class="agree-link" bindtap="showAgreement" data-type="privacy">《隐私政策》</text>
+    </view>
+
+    <!-- 手机号登录 / 确认绑定 -->
+    <button class="primary-btn {{!agreed ? 'primary-btn-disabled' : ''}}" bindtap="submitPhoneLogin">
+      {{mode === 'bind' ? '确认绑定' : '手机号快捷登录'}}
+    </button>
+  </view>
+
+  <!-- 分隔线 -->
+  <view class="divider" wx:if="{{mode !== 'bind'}}">
+    <view class="divider-line"></view>
+    <text class="divider-text">其他登录方式</text>
+    <view class="divider-line"></view>
+  </view>
+
+  <!-- 微信一键登录 -->
+  <button class="wx-btn" wx:if="{{mode !== 'bind'}}" bindtap="submitWxLogin">
+    <text class="wx-icon">微</text>
+    <text>微信一键登录</text>
+  </button>
+
+  <view class="login-footer" wx:if="{{mode === 'bind'}}">
+    <text class="footer-tip">绑定手机号后，可用手机号在微信小程序、APP 等平台登录同一账号</text>
+  </view>
+</view>

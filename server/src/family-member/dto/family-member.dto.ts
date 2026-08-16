@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsNumber, IsIn, Min, Length } from 'class-validator';
+import { IsString, IsOptional, IsNumber, IsIn, Min, Length, MaxLength, Matches } from 'class-validator';
 
 export class CreateFamilyMemberDto {
   @IsString({ message: '姓名必须是字符串' })
@@ -51,6 +51,12 @@ export class CreateFamilyMemberDto {
   @IsOptional()
   @IsString({ message: '生平简介必须是字符串' })
   bio?: string;
+
+  @IsOptional()
+  @IsString({ message: '头像必须是字符串' })
+  @MaxLength(500, { message: '头像URL长度不能超过 500 字符' })
+  @Matches(/^(\/uploads\/|https?:\/\/|$)/, { message: '头像URL必须以 /uploads/ 或 http(s):// 开头' })
+  avatarUrl?: string;
 
   @IsOptional()
   @IsString({ message: '父亲ID必须是字符串' })

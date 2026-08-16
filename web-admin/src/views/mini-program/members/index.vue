@@ -17,6 +17,7 @@ import {
   checkDuplicateMember
 } from '@/service/api';
 import type { FamilyMemberItem, FatherCandidate, FatherSpouse } from '@/service/api';
+import { resolveImageUrl } from '@/utils/image-url';
 
 const message = useMessage();
 const dialog = useDialog();
@@ -90,6 +91,21 @@ const statusOptions = [
 ];
 
 const columns: DataTableColumn<FamilyMemberItem>[] = [
+  {
+    title: '头像', key: 'avatar_url', width: 64, align: 'center',
+    render: row => {
+      const url = resolveImageUrl(row.avatar_url);
+      if (url) {
+        return h('img', {
+          src: url,
+          style: 'width:36px;height:36px;border-radius:50%;object-fit:cover;display:block;margin:0 auto;'
+        });
+      }
+      return h('div', {
+        style: `width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:14px;flex-shrink:0;background:${row.gender === 'female' ? '#f56c6c' : '#409eff'};margin:0 auto;`
+      }, (row.name || '?').charAt(0));
+    }
+  },
   { title: '姓名', key: 'name', width: 100, fixed: 'left' },
   {
     title: '性别', key: 'gender', width: 65, align: 'center',
@@ -182,17 +198,17 @@ async function loadData() {
   } catch {
     message.warning('后端未连接，显示模拟数据');
     const allMockMembers: FamilyMemberItem[] = [
-      { id: 'a1b2c3d4', family_id: selectedFamilyId.value!, name: '张伯言', gender: 'male', generation: 1, generation_name: '伯', birth_date: '1880-03-15', birth_place: '浙江绍兴', is_alive: 0, death_date: '1955-07-20', death_place: '浙江绍兴', longitude: 120.58, latitude: 30.03, bio: '一世祖', father_id: '', mother_id: '', spouse_info: '[{"name":"王氏","birthDate":"1882"}]', sort_order: 1, status: 1, create_time: '2024-01-01 10:00:00', update_time: '2024-01-01 10:00:00' },
-      { id: 'b2c3d4e5', family_id: selectedFamilyId.value!, name: '张仲德', gender: 'male', generation: 2, generation_name: '仲', birth_date: '1905-09-10', birth_place: '浙江绍兴', is_alive: 0, death_date: '1978-12-03', death_place: '浙江绍兴', longitude: null, latitude: null, bio: '二世', father_id: 'a1b2c3d4', mother_id: '', spouse_info: null, sort_order: 1, status: 1, create_time: '2024-01-02 10:00:00', update_time: '2024-01-02 10:00:00' },
-      { id: 'c3d4e5f6', family_id: selectedFamilyId.value!, name: '张叔和', gender: 'male', generation: 2, generation_name: '叔', birth_date: '1908-05-20', birth_place: '浙江绍兴', is_alive: 0, death_date: '1985-02-14', death_place: '浙江杭州', longitude: null, latitude: null, bio: '二世次子', father_id: 'a1b2c3d4', mother_id: '', spouse_info: null, sort_order: 2, status: 1, create_time: '2024-01-03 10:00:00', update_time: '2024-01-03 10:00:00' },
-      { id: 'd4e5f6a7', family_id: selectedFamilyId.value!, name: '张季芳', gender: 'female', generation: 2, generation_name: '季', birth_date: '1912-11-08', birth_place: '浙江绍兴', is_alive: 0, death_date: '1990-08-22', death_place: '浙江绍兴', longitude: null, latitude: null, bio: '二世长女', father_id: 'a1b2c3d4', mother_id: '', spouse_info: null, sort_order: 3, status: 1, create_time: '2024-01-04 10:00:00', update_time: '2024-01-04 10:00:00' },
-      { id: 'e5f6a7b8', family_id: selectedFamilyId.value!, name: '张文远', gender: 'male', generation: 3, generation_name: '文', birth_date: '1935-06-01', birth_place: '浙江绍兴', is_alive: 1, death_date: '', death_place: '', longitude: null, latitude: null, bio: '三世长孙', father_id: 'b2c3d4e5', mother_id: '', spouse_info: null, sort_order: 1, status: 1, create_time: '2024-02-01 10:00:00', update_time: '2024-02-01 10:00:00' },
-      { id: 'f6a7b8c9', family_id: selectedFamilyId.value!, name: '张文华', gender: 'male', generation: 3, generation_name: '文', birth_date: '1938-03-12', birth_place: '浙江杭州', is_alive: 1, death_date: '', death_place: '', longitude: null, latitude: null, bio: '', father_id: 'c3d4e5f6', mother_id: '', spouse_info: null, sort_order: 1, status: 1, create_time: '2024-02-02 10:00:00', update_time: '2024-02-02 10:00:00' },
-      { id: 'a7b8c9d0', family_id: selectedFamilyId.value!, name: '张文静', gender: 'female', generation: 3, generation_name: '文', birth_date: '1940-08-20', birth_place: '浙江绍兴', is_alive: 1, death_date: '', death_place: '', longitude: null, latitude: null, bio: '', father_id: 'b2c3d4e5', mother_id: '', spouse_info: null, sort_order: 2, status: 1, create_time: '2024-02-03 10:00:00', update_time: '2024-02-03 10:00:00' },
-      { id: 'b8c9d0e1', family_id: selectedFamilyId.value!, name: '张建国', gender: 'male', generation: 4, generation_name: '建', birth_date: '1965-04-10', birth_place: '浙江杭州', is_alive: 1, death_date: '', death_place: '', longitude: null, latitude: null, bio: '工程师', father_id: 'e5f6a7b8', mother_id: '', spouse_info: '[{"name":"李氏","birthDate":"1967","isAlive":1},{"name":"周氏","birthDate":"1970","isAlive":0,"deathDate":"2005"}]', sort_order: 1, status: 1, create_time: '2024-03-01 10:00:00', update_time: '2024-03-01 10:00:00' },
-      { id: 'c9d0e1f2', family_id: selectedFamilyId.value!, name: '张建民', gender: 'male', generation: 4, generation_name: '建', birth_date: '1968-07-15', birth_place: '浙江绍兴', is_alive: 1, death_date: '', death_place: '', longitude: null, latitude: null, bio: '教师', father_id: 'f6a7b8c9', mother_id: '', spouse_info: null, sort_order: 1, status: 1, create_time: '2024-03-02 10:00:00', update_time: '2024-03-02 10:00:00' },
-      { id: 'd0e1f2a3', family_id: selectedFamilyId.value!, name: '张小明', gender: 'male', generation: 5, generation_name: '小', birth_date: '1995-01-20', birth_place: '浙江杭州', is_alive: 1, death_date: '', death_place: '', longitude: null, latitude: null, bio: '', father_id: 'b8c9d0e1', mother_id: '', spouse_info: null, sort_order: 1, status: 1, create_time: '2024-04-01 10:00:00', update_time: '2024-04-01 10:00:00' },
-      { id: 'e1f2a3b4', family_id: selectedFamilyId.value!, name: '张小红', gender: 'female', generation: 5, generation_name: '小', birth_date: '1998-06-30', birth_place: '浙江杭州', is_alive: 1, death_date: '', death_place: '', longitude: null, latitude: null, bio: '', father_id: 'b8c9d0e1', mother_id: '', spouse_info: null, sort_order: 2, status: 1, create_time: '2024-04-02 10:00:00', update_time: '2024-04-02 10:00:00' }
+      { id: 'a1b2c3d4', family_id: selectedFamilyId.value!, name: '张伯言', gender: 'male', generation: 1, generation_name: '伯', birth_date: '1880-03-15', birth_place: '浙江绍兴', is_alive: 0, death_date: '1955-07-20', death_place: '浙江绍兴', longitude: 120.58, latitude: 30.03, bio: '一世祖', avatar_url: '', father_id: '', mother_id: '', spouse_info: '[{"name":"王氏","birthDate":"1882"}]', sort_order: 1, status: 1, create_time: '2024-01-01 10:00:00', update_time: '2024-01-01 10:00:00' },
+      { id: 'b2c3d4e5', family_id: selectedFamilyId.value!, name: '张仲德', gender: 'male', generation: 2, generation_name: '仲', birth_date: '1905-09-10', birth_place: '浙江绍兴', is_alive: 0, death_date: '1978-12-03', death_place: '浙江绍兴', longitude: null, latitude: null, bio: '二世', avatar_url: '', father_id: 'a1b2c3d4', mother_id: '', spouse_info: null, sort_order: 1, status: 1, create_time: '2024-01-02 10:00:00', update_time: '2024-01-02 10:00:00' },
+      { id: 'c3d4e5f6', family_id: selectedFamilyId.value!, name: '张叔和', gender: 'male', generation: 2, generation_name: '叔', birth_date: '1908-05-20', birth_place: '浙江绍兴', is_alive: 0, death_date: '1985-02-14', death_place: '浙江杭州', longitude: null, latitude: null, bio: '二世次子', avatar_url: '', father_id: 'a1b2c3d4', mother_id: '', spouse_info: null, sort_order: 2, status: 1, create_time: '2024-01-03 10:00:00', update_time: '2024-01-03 10:00:00' },
+      { id: 'd4e5f6a7', family_id: selectedFamilyId.value!, name: '张季芳', gender: 'female', generation: 2, generation_name: '季', birth_date: '1912-11-08', birth_place: '浙江绍兴', is_alive: 0, death_date: '1990-08-22', death_place: '浙江绍兴', longitude: null, latitude: null, bio: '二世长女', avatar_url: '', father_id: 'a1b2c3d4', mother_id: '', spouse_info: null, sort_order: 3, status: 1, create_time: '2024-01-04 10:00:00', update_time: '2024-01-04 10:00:00' },
+      { id: 'e5f6a7b8', family_id: selectedFamilyId.value!, name: '张文远', gender: 'male', generation: 3, generation_name: '文', birth_date: '1935-06-01', birth_place: '浙江绍兴', is_alive: 1, death_date: '', death_place: '', longitude: null, latitude: null, bio: '三世长孙', avatar_url: '', father_id: 'b2c3d4e5', mother_id: '', spouse_info: null, sort_order: 1, status: 1, create_time: '2024-02-01 10:00:00', update_time: '2024-02-01 10:00:00' },
+      { id: 'f6a7b8c9', family_id: selectedFamilyId.value!, name: '张文华', gender: 'male', generation: 3, generation_name: '文', birth_date: '1938-03-12', birth_place: '浙江杭州', is_alive: 1, death_date: '', death_place: '', longitude: null, latitude: null, bio: '', avatar_url: '', father_id: 'c3d4e5f6', mother_id: '', spouse_info: null, sort_order: 1, status: 1, create_time: '2024-02-02 10:00:00', update_time: '2024-02-02 10:00:00' },
+      { id: 'a7b8c9d0', family_id: selectedFamilyId.value!, name: '张文静', gender: 'female', generation: 3, generation_name: '文', birth_date: '1940-08-20', birth_place: '浙江绍兴', is_alive: 1, death_date: '', death_place: '', longitude: null, latitude: null, bio: '', avatar_url: '', father_id: 'b2c3d4e5', mother_id: '', spouse_info: null, sort_order: 2, status: 1, create_time: '2024-02-03 10:00:00', update_time: '2024-02-03 10:00:00' },
+      { id: 'b8c9d0e1', family_id: selectedFamilyId.value!, name: '张建国', gender: 'male', generation: 4, generation_name: '建', birth_date: '1965-04-10', birth_place: '浙江杭州', is_alive: 1, death_date: '', death_place: '', longitude: null, latitude: null, bio: '工程师', avatar_url: '', father_id: 'e5f6a7b8', mother_id: '', spouse_info: '[{"name":"李氏","birthDate":"1967","isAlive":1},{"name":"周氏","birthDate":"1970","isAlive":0,"deathDate":"2005"}]', sort_order: 1, status: 1, create_time: '2024-03-01 10:00:00', update_time: '2024-03-01 10:00:00' },
+      { id: 'c9d0e1f2', family_id: selectedFamilyId.value!, name: '张建民', gender: 'male', generation: 4, generation_name: '建', birth_date: '1968-07-15', birth_place: '浙江绍兴', is_alive: 1, death_date: '', death_place: '', longitude: null, latitude: null, bio: '教师', avatar_url: '', father_id: 'f6a7b8c9', mother_id: '', spouse_info: null, sort_order: 1, status: 1, create_time: '2024-03-02 10:00:00', update_time: '2024-03-02 10:00:00' },
+      { id: 'd0e1f2a3', family_id: selectedFamilyId.value!, name: '张小明', gender: 'male', generation: 5, generation_name: '小', birth_date: '1995-01-20', birth_place: '浙江杭州', is_alive: 1, death_date: '', death_place: '', longitude: null, latitude: null, bio: '', avatar_url: '', father_id: 'b8c9d0e1', mother_id: '', spouse_info: null, sort_order: 1, status: 1, create_time: '2024-04-01 10:00:00', update_time: '2024-04-01 10:00:00' },
+      { id: 'e1f2a3b4', family_id: selectedFamilyId.value!, name: '张小红', gender: 'female', generation: 5, generation_name: '小', birth_date: '1998-06-30', birth_place: '浙江杭州', is_alive: 1, death_date: '', death_place: '', longitude: null, latitude: null, bio: '', avatar_url: '', father_id: 'b8c9d0e1', mother_id: '', spouse_info: null, sort_order: 2, status: 1, create_time: '2024-04-02 10:00:00', update_time: '2024-04-02 10:00:00' }
     ];
     const offset = (pagination.page - 1) * pagination.pageSize;
     tableData.value = allMockMembers.slice(offset, offset + pagination.pageSize);
@@ -233,6 +249,7 @@ const formData = reactive({
   longitude: null as number | null,
   latitude: null as number | null,
   bio: '',
+  avatarUrl: '',
   fatherId: '',
   motherId: '',
   spouseList: [] as SpouseItem[],
@@ -281,6 +298,7 @@ function resetForm() {
   formData.longitude = null;
   formData.latitude = null;
   formData.bio = '';
+  formData.avatarUrl = '';
   formData.fatherId = '';
   formData.motherId = '';
   formData.spouseList = [];
@@ -454,6 +472,7 @@ function handleEdit(row: FamilyMemberItem) {
   formData.longitude = row.longitude;
   formData.latitude = row.latitude;
   formData.bio = row.bio || '';
+  formData.avatarUrl = row.avatar_url || '';
   formData.fatherId = row.father_id || '';
   formData.motherId = row.mother_id || '';
   formData.spouseList = parseSpouseInfo(row.spouse_info);
@@ -597,6 +616,7 @@ function buildSubmitData() {
     longitude: formData.longitude ?? undefined,
     latitude: formData.latitude ?? undefined,
     bio: formData.bio || undefined,
+    avatarUrl: formData.avatarUrl || undefined,
     fatherId: formData.fatherId || undefined,
     motherId: formData.motherId || undefined,
     // 始终提交配偶列表（含空数组），保证编辑时清空配偶能同步到后端
@@ -856,6 +876,9 @@ onMounted(() => { loadFamilyOptions(); });
               :feedback="duplicateNameError || undefined"
             >
               <NInput v-model:value="formData.name" placeholder="请输入姓名" />
+            </NFormItem>
+            <NFormItem label="头像" path="avatarUrl">
+              <ImageUpload v-model:value="formData.avatarUrl" :size="80" />
             </NFormItem>
             <NFormItem label="性别" path="gender">
               <NRadioGroup v-model:value="formData.gender">

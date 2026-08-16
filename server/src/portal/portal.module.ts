@@ -4,10 +4,11 @@ import { PortalService } from './portal.service';
 import { FamilyModule } from '../family/family.module';
 import { FamilyMemberModule } from '../family-member/family-member.module';
 import { ContentModule } from '../content/content.module';
+import { MembershipModule } from '../membership/membership.module';
 import { UserJwtAuthGuard } from '../user/user.guard';
 
 @Module({
-  imports: [FamilyModule, FamilyMemberModule, ContentModule],
+  imports: [FamilyModule, FamilyMemberModule, ContentModule, MembershipModule],
   controllers: [PortalController],
   providers: [PortalService, UserJwtAuthGuard]
 })

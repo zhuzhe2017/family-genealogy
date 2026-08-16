@@ -1,6 +1,7 @@
 import { ExceptionFilter, Catch, ArgumentsHost, HttpException, HttpStatus, Logger, PayloadTooLargeException } from '@nestjs/common';
 import { Response } from 'express';
 import { SystemLogService } from '../../system-log/system-log.service';
+import { EntitlementException } from '../../membership/membership.exception';
 import { MAX_FILE_SIZE } from '../upload/upload.service';
 import type { AuthenticatedRequest } from '../types/common';
 
@@ -17,6 +18,16 @@ export class AllExceptionsFilter implements ExceptionFilter {
 
     let status: number;
     let message: string;
+
+    // 权益校验异常：HTTP 200 + 业务码 4xxx，前端据此统一拦截跳转会员中心
+    if (exception instanceof EntitlementException) {
+      response.status(HttpStatus.OK).json({
+        code: exception.code,
+        data: null,
+        msg: exception.message
+      });
+      return;
+    }
 
     if (exception instanceof PayloadTooLargeException) {
       // 请求体过大：文件上传场景(multer 将 LIMIT_FILE_SIZE 转为 PayloadTooLargeException)给出友好提示;

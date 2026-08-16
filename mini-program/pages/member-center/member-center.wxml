@@ -1,0 +1,93 @@
+<view class="container">
+  <!-- 家族提示 -->
+  <view class="family-banner">
+    <view class="family-label">为家族开通会员</view>
+    <view class="family-name" wx:if="{{currentFamilyName}}">{{currentFamilyName}}</view>
+    <view class="family-name family-name-empty" wx:else>请先在首页选择或创建家族</view>
+    <view class="family-desc">订阅跟随家族，家族内成员共享全部权益</view>
+  </view>
+
+  <!-- 当前订阅状态 -->
+  <view class="status-card" wx:if="{{subStatus}}">
+    <view class="status-head">
+      <view class="status-plan">
+        <text class="status-plan-name">{{subStatus.planName}}</text>
+        <text class="status-badge {{subStatus.isFree ? 'badge-free' : 'badge-vip'}}">{{subStatus.isFree ? '免费版' : 'VIP'}}</text>
+      </view>
+      <view class="status-expire" wx:if="{{subStatus.expireText}}">有效期至 {{subStatus.expireText}}</view>
+    </view>
+
+    <view class="status-row">
+      <text class="status-label">存储空间</text>
+      <text class="status-value">{{subStatus.storageUsedText}} / {{subStatus.storageLimitText}}</text>
+    </view>
+    <view class="progress">
+      <view class="progress-bar" style="width: {{subStatus.storagePercent}}%"></view>
+    </view>
+
+    <view class="status-row" wx:if="{{subStatus.aiRestoreLimit}}">
+      <text class="status-label">AI 老照片修复</text>
+      <text class="status-value">{{subStatus.aiRestoreUsed}} / {{subStatus.aiRestoreLimit}} 张</text>
+    </view>
+    <view class="status-row" wx:if="{{subStatus.worshipProLimit}}">
+      <text class="status-label">祭祀增值服务</text>
+      <text class="status-value">{{subStatus.worshipProUsed}} / {{subStatus.worshipProLimit}} 次</text>
+    </view>
+
+    <view class="status-tip" wx:if="{{subStatus.isFree}}">当前为免费版，升级套餐解锁更多空间与专属权益</view>
+    <view class="status-tip" wx:else>{{subStatus.statusText}}</view>
+  </view>
+
+  <!-- 离线/未登录提示 -->
+  <view class="offline-tip" wx:if="{{offlineMode}}">当前为离线示例数据，连接后端后可查看实时会员状态</view>
+
+  <!-- 加载中 -->
+  <view class="state-box" wx:if="{{loading}}">
+    <text class="state-text">套餐加载中...</text>
+  </view>
+
+  <!-- 加载失败：提示重试 -->
+  <view class="state-box" wx:elif="{{loadFailed}}">
+    <text class="state-text">套餐加载失败，请检查网络后重试</text>
+    <text class="state-btn" bindtap="loadData">重新加载</text>
+  </view>
+
+  <!-- 空态：后端未配置可用套餐 -->
+  <view class="state-box" wx:elif="{{plans.length === 0}}">
+    <text class="state-text">暂无可购买的套餐</text>
+  </view>
+
+  <!-- 套餐卡片 -->
+  <view
+    class="plan-card {{item.recommend ? 'plan-card-recommend' : ''}}"
+    wx:for="{{plans}}"
+    wx:key="code"
+    data-plan="{{item}}"
+    bindtap="choosePlan"
+  >
+    <view class="plan-head">
+      <view class="plan-name">{{item.name}}</view>
+      <view class="plan-tag {{item.recommend ? 'plan-tag-primary' : 'plan-tag-gold'}}">{{item.tag}}</view>
+    </view>
+    <view class="plan-price">
+      <text class="price-symbol">¥</text>
+      <text class="price-num">{{item.price}}</text>
+      <text class="price-unit">{{item.unit}}</text>
+    </view>
+    <view class="plan-features">
+      <view class="feature" wx:for="{{item.features}}" wx:for-item="f" wx:key="*this">{{f}}</view>
+    </view>
+    <view class="btn {{item.recommend ? 'btn-primary' : 'btn-gold'}} plan-btn">立即开通</view>
+  </view>
+
+  <!-- 免费版说明 -->
+  <view class="card free-card">
+    <view class="card-title">免费版可用权益</view>
+    <view class="plan-features">
+      <view class="feature feature-muted" wx:for="{{freeFeatures}}" wx:for-item="f" wx:key="*this">{{f}}</view>
+    </view>
+    <view class="free-tip">升级付费套餐可解锁更多空间与专属功能</view>
+  </view>
+
+  <view class="page-tip">开通后可在「我的」中管理订阅；如需退款请在购买后于订单页面申请。</view>
+</view>

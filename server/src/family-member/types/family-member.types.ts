@@ -16,6 +16,7 @@ export interface FamilyMemberRow extends DataRow {
   longitude: number | null;
   latitude: number | null;
   bio: string | null;
+  avatar_url: string;
   father_id: string;
   mother_id: string;
   spouse_info: string | null;
@@ -41,6 +42,8 @@ export interface FamilyMemberCreateData {
   longitude?: number;
   latitude?: number;
   bio?: string;
+  /** 头像URL（/uploads/xxx 或 http(s) 完整地址，最多500字符） */
+  avatarUrl?: string;
   fatherId?: string;
   motherId?: string;
   spouseInfo?: unknown;
@@ -63,6 +66,8 @@ export interface FamilyMemberUpdateData {
   longitude?: number;
   latitude?: number;
   bio?: string;
+  /** 头像URL（/uploads/xxx 或 http(s) 完整地址，最多500字符） */
+  avatarUrl?: string;
   fatherId?: string;
   motherId?: string;
   spouseInfo?: unknown;

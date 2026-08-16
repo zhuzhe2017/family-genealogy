@@ -9,6 +9,23 @@
       </view>
 
       <view class="form-group">
+        <text class="form-label">头像</text>
+        <view class="avatar-uploader">
+          <view class="avatar-upload-btn" bindtap="chooseAvatar">
+            <image wx:if="{{form.avatar}}" src="{{form.avatar}}" mode="aspectFill" class="avatar-preview-img"/>
+            <view wx:else class="avatar-placeholder">
+              <text class="upload-icon">+</text>
+              <text class="upload-text">上传头像</text>
+            </view>
+          </view>
+          <view class="avatar-actions" wx:if="{{form.avatar}}">
+            <text class="avatar-action" bindtap="chooseAvatar">更换</text>
+            <text class="avatar-action avatar-action-danger" catchtap="removeAvatar">删除</text>
+          </view>
+        </view>
+      </view>
+
+      <view class="form-group">
         <text class="form-label required">性别</text>
         <view class="gender-selector">
           <view class="gender-option {{form.gender === 'male' ? 'active' : ''}}" bindtap="selectGender" data-gender="male">

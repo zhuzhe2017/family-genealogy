@@ -33,6 +33,7 @@ Page({
       generationName: '',
       title: '',
       bio: '',
+      avatar: '',
       photos: []
     }
   },
@@ -63,6 +64,7 @@ Page({
             'form.generationName': m.generationName,
             'form.title': m.title,
             'form.bio': m.bio,
+            'form.avatar': m.avatar || '',
             'form.fatherId': m.fatherId,
             'form.motherId': m.motherId,
             'form.photos': m.photos || [],
@@ -163,6 +165,27 @@ Page({
     this.setData({ 'form.photos': photos });
   },
 
+  /** 选择头像（单张） */
+  chooseAvatar() {
+    wx.chooseMedia({
+      count: 1,
+      mediaType: ['image'],
+      sizeType: ['compressed'],
+      sourceType: ['album', 'camera'],
+      success: (res) => {
+        const path = (res.tempFiles || [])[0]?.tempFilePath;
+        if (path) {
+          this.setData({ 'form.avatar': path });
+        }
+      }
+    });
+  },
+
+  /** 清除头像 */
+  removeAvatar() {
+    this.setData({ 'form.avatar': '' });
+  },
+
   submitForm() {
     const form = this.data.form;
     if (!form.name || !form.name.trim()) {
@@ -189,11 +212,17 @@ Page({
     const familyId = (app.globalData.currentFamily || {}).id;
     if (!USE_MOCK && getToken() && familyId) {
       wx.showLoading({ title: '提交中' });
-      // 本地临时照片先逐张上传,拿到 URL 后随成员一起提交
+      // 本地临时照片先逐张上传,拿到 URL 后随成员一起提交；头像同理（单张）
       const tempPhotos = (form.photos || []).filter(p => this.isLocalTempFile(p));
       const readyPhotos = (form.photos || []).filter(p => !this.isLocalTempFile(p));
-      Promise.all(tempPhotos.map(p => this.uploadImage(p)))
-        .then((urls) => {
+      const avatarTemp = form.avatar && this.isLocalTempFile(form.avatar) ? form.avatar : '';
+      const avatarReady = form.avatar && !this.isLocalTempFile(form.avatar) ? form.avatar : '';
+      const uploadTasks = tempPhotos.map(p => this.uploadImage(p));
+      if (avatarTemp) uploadTasks.push(this.uploadImage(avatarTemp));
+      Promise.all(uploadTasks)
+        .then((results) => {
+          const photoUrls = results.slice(0, tempPhotos.length);
+          const avatarUrl = avatarTemp ? results[results.length - 1] : (avatarReady || '');
           const payload = {
             name: form.name.trim(),
             gender: form.gender,
@@ -208,7 +237,8 @@ Page({
             fatherId: form.fatherId || '',
             motherId: form.motherId || '',
             spouseInfo: form.spouseInfo || {},
-            photos: readyPhotos.concat(urls)
+            avatarUrl: avatarUrl || undefined,
+            photos: readyPhotos.concat(photoUrls)
           };
           return this.data.isEdit
             ? familyMember.update(familyId, this._editId, payload)

@@ -60,33 +60,57 @@ App({
     }
   },
 
-  /** 调用 wx.login + 后端 /user/wx-login 换取 token */
-  doWxLogin() {
-    wx.login({
-      success: (res) => {
-        if (!res.code) {
-          console.error('wx.login 未返回 code');
-          this.mockLogin();
-          return;
+  /**
+   * 微信登录(可 Promise 化,供登录页复用)
+   * @returns {Promise<{token, userInfo}>} 登录成功数据;失败 reject
+   */
+  loginByWechat() {
+    return new Promise((resolve, reject) => {
+      wx.login({
+        success: (res) => {
+          if (!res.code) {
+            reject(new Error('wx.login 未返回 code'));
+            return;
+          }
+          auth.wxLogin(res.code)
+            .then((data) => {
+              this.applyLogin(data);
+              resolve(data);
+            })
+            .catch(reject);
+        },
+        fail: (err) => {
+          reject(new Error((err && err.errMsg) || 'wx.login 失败'));
         }
-        auth.wxLogin(res.code)
-          .then((data) => {
-            setToken(data.token);
-            this.globalData.userInfo = data.userInfo;
-            this.globalData.isOnline = true;
-            // 登录成功后再拉取真实家族,修复冷启动竞态
-            // (onLaunch 时 initFamilyData 可能因 token 未就绪已走 mock)
-            this.initFamilyData();
-          })
-          .catch((err) => {
-            console.error('后端登录失败,回退 mock', err);
-            this.mockLogin();
-          });
-      },
-      fail: (err) => {
-        console.error('wx.login 失败', err);
-        this.mockLogin();
-      }
+      });
+    });
+  },
+
+  /** 手机号验证码登录(供登录页复用) */
+  loginByPhone(phone, code) {
+    return auth.phoneLogin(phone, code).then((data) => {
+      this.applyLogin(data);
+      return data;
+    });
+  },
+
+  /** 登录成功统一处理:存 token + 更新用户态 + 拉取家族数据 */
+  applyLogin(data) {
+    if (data && data.token) {
+      setToken(data.token);
+    }
+    this.globalData.userInfo = data.userInfo;
+    this.globalData.isOnline = true;
+    // 登录成功后再拉取真实家族,修复冷启动竞态
+    // (onLaunch 时 initFamilyData 可能因 token 未就绪已走 mock)
+    this.initFamilyData();
+  },
+
+  /** 静默微信登录:调用 wx.login + 后端 /user/wx-login 换取 token,失败回退 mock */
+  doWxLogin() {
+    this.loginByWechat().catch((err) => {
+      console.error('后端登录失败,回退 mock', err);
+      this.mockLogin();
     });
   },
 
@@ -115,6 +139,56 @@ App({
     if (!USE_MOCK) {
       this.doWxLogin();
     }
+  },
+
+  /**
+   * 权益受限统一拦截（request.js 检测到 4xxx 业务码时回调）：
+   * - 3 秒内防抖,避免并发请求重复弹窗
+   * - 4001/4002/4003/4004 弹出付费引导,确认后跳转会员中心
+   * - 4000/4005 等仅 toast 提示
+   */
+  onEntitlementError(code, msg) {
+    const now = Date.now();
+    if (this._entitlementAt && now - this._entitlementAt < 3000) {
+      return;
+    }
+    this._entitlementAt = now;
+
+    const text = msg || '该功能为会员专属权益';
+    const guides = {
+      '4001': { title: '功能未解锁', content: text + '\n开通会员即可使用该功能。', confirm: '去开通' },
+      '4002': { title: '存储空间不足', content: text + '\n升级套餐可扩大存储容量。', confirm: '去升级' },
+      '4003': { title: '额度已用尽', content: text + '\n升级套餐可获取更多额度。', confirm: '去升级' },
+      '4004': { title: '订阅已过期', content: text + '\n续费后即可继续使用全部功能。', confirm: '去续费' }
+    };
+    const guide = guides[code];
+
+    if (!guide) {
+      wx.showToast({ title: text, icon: 'none', duration: 2500 });
+      return;
+    }
+    wx.showModal({
+      title: guide.title,
+      content: guide.content,
+      confirmText: guide.confirm,
+      cancelText: '暂不',
+      confirmColor: '#8B1A1A',
+      success: (res) => {
+        if (res.confirm) {
+          this.goMemberCenter();
+        }
+      }
+    });
+  },
+
+  /** 跳转会员中心（已在会员中心页则不重复跳转） */
+  goMemberCenter() {
+    const pages = getCurrentPages();
+    const current = pages[pages.length - 1];
+    if (current && current.route === 'pages/member-center/member-center') {
+      return;
+    }
+    wx.navigateTo({ url: '/pages/member-center/member-center' });
   },
 
   /** 初始化家族数据:优先从后端加载,失败回退 mock */

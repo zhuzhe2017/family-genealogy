@@ -238,6 +238,7 @@ const local: App.I18n.Schema = {
     'mini-program_generation-table': 'Generation Table',
     'mini-program_content': 'Content Management',
     'mini-program_surname': 'Surname Management',
+    'mini-program_subscription': 'Subscription Management',
     system: 'System',
     system_menu: 'Menu Management',
     system_role: 'Role Management',

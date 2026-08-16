@@ -7,7 +7,8 @@
     </view>
     <view class="header-content">
       <view class="member-avatar-large {{member.gender === 'female' ? 'female' : ''}}">
-        <text>{{f.firstChar(member.name)}}</text>
+        <image wx:if="{{member.avatar}}" src="{{member.avatar}}" mode="aspectFill" class="member-avatar-img"/>
+        <text wx:else>{{f.firstChar(member.name)}}</text>
       </view>
       <view class="member-header-info">
         <text class="member-header-name">{{member.name}}</text>

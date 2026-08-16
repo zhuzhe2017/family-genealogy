@@ -1,0 +1,271 @@
+/* 会员中心页样式 */
+.container {
+  padding: 24rpx;
+}
+
+/* 家族横幅 */
+.family-banner {
+  background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+  border-radius: var(--radius-lg);
+  padding: 32rpx;
+  color: #FFFFFF;
+  margin-bottom: 24rpx;
+  box-shadow: var(--shadow);
+}
+
+.family-label {
+  font-size: 24rpx;
+  opacity: 0.85;
+}
+
+.family-name {
+  font-size: 40rpx;
+  font-weight: 600;
+  margin-top: 8rpx;
+}
+
+.family-name-empty {
+  font-size: 30rpx;
+  font-weight: 400;
+  opacity: 0.9;
+}
+
+.family-desc {
+  font-size: 24rpx;
+  opacity: 0.8;
+  margin-top: 12rpx;
+}
+
+/* 当前订阅状态卡片 */
+.status-card {
+  background: var(--bg-white);
+  border-radius: var(--radius-lg);
+  padding: 32rpx;
+  margin-bottom: 24rpx;
+  box-shadow: var(--shadow-card);
+}
+
+.status-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24rpx;
+}
+
+.status-plan {
+  display: flex;
+  align-items: center;
+}
+
+.status-plan-name {
+  font-size: 34rpx;
+  font-weight: 600;
+  margin-right: 16rpx;
+}
+
+.status-badge {
+  padding: 4rpx 16rpx;
+  border-radius: 999rpx;
+  font-size: 20rpx;
+}
+
+.badge-vip {
+  background: linear-gradient(135deg, #C9A96E, #A87F3F);
+  color: #FFFFFF;
+}
+
+.badge-free {
+  background: #F5F5F5;
+  color: #999;
+}
+
+.status-expire {
+  font-size: 24rpx;
+  color: var(--text-muted);
+}
+
+.status-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12rpx;
+}
+
+.status-label {
+  font-size: 26rpx;
+  color: var(--text-secondary);
+}
+
+.status-value {
+  font-size: 26rpx;
+  color: #333;
+  font-weight: 500;
+}
+
+.progress {
+  height: 12rpx;
+  background: #F0F0F0;
+  border-radius: 999rpx;
+  overflow: hidden;
+  margin-bottom: 20rpx;
+}
+
+.progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, var(--primary), var(--gold));
+  border-radius: 999rpx;
+  transition: width 0.3s ease;
+}
+
+.status-tip {
+  font-size: 24rpx;
+  color: var(--text-muted);
+  margin-top: 16rpx;
+  line-height: 1.6;
+}
+
+/* 离线提示 */
+.offline-tip {
+  background: #FFF7E6;
+  color: #B27A0A;
+  font-size: 24rpx;
+  padding: 20rpx 28rpx;
+  border-radius: var(--radius-md);
+  margin-bottom: 24rpx;
+  line-height: 1.6;
+}
+
+/* 加载/失败/空态占位 */
+.state-box {
+  padding: 64rpx 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20rpx;
+}
+
+.state-text {
+  font-size: 24rpx;
+  color: #999;
+}
+
+.state-btn {
+  padding: 12rpx 48rpx;
+  background: var(--primary);
+  color: #FFFFFF;
+  font-size: 26rpx;
+  border-radius: 999rpx;
+  line-height: 1.6;
+}
+
+/* 套餐卡片 */
+.plan-card {
+  background: var(--bg-white);
+  border-radius: var(--radius-lg);
+  padding: 32rpx;
+  margin-bottom: 24rpx;
+  box-shadow: var(--shadow-card);
+  border: 3rpx solid transparent;
+}
+
+.plan-card-recommend {
+  border-color: var(--gold);
+}
+
+.plan-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.plan-name {
+  font-size: 36rpx;
+  font-weight: 600;
+}
+
+.plan-tag {
+  padding: 6rpx 20rpx;
+  border-radius: 999rpx;
+  font-size: 22rpx;
+}
+
+.plan-tag-primary {
+  background: rgba(139, 26, 26, 0.1);
+  color: var(--primary);
+}
+
+.plan-tag-gold {
+  background: rgba(201, 169, 110, 0.15);
+  color: var(--gold);
+}
+
+.plan-price {
+  display: flex;
+  align-items: baseline;
+  margin: 20rpx 0 8rpx;
+}
+
+.price-symbol {
+  font-size: 30rpx;
+  color: var(--primary);
+  font-weight: 600;
+}
+
+.price-num {
+  font-size: 64rpx;
+  font-weight: 700;
+  color: var(--primary);
+  line-height: 1;
+}
+
+.price-unit {
+  font-size: 26rpx;
+  color: var(--text-muted);
+  margin-left: 8rpx;
+}
+
+.plan-features {
+  margin: 16rpx 0 24rpx;
+}
+
+.feature {
+  font-size: 26rpx;
+  color: var(--text-secondary);
+  padding: 10rpx 0 10rpx 40rpx;
+  position: relative;
+}
+
+.feature::before {
+  content: '✓';
+  position: absolute;
+  left: 8rpx;
+  color: var(--primary);
+  font-weight: 600;
+}
+
+.feature-muted::before {
+  color: var(--text-muted);
+}
+
+.plan-btn {
+  width: 100%;
+}
+
+/* 免费版卡片 */
+.free-card {
+  margin-top: 8rpx;
+}
+
+.free-tip {
+  font-size: 24rpx;
+  color: var(--text-muted);
+  margin-top: 12rpx;
+}
+
+.page-tip {
+  font-size: 22rpx;
+  color: var(--text-muted);
+  text-align: center;
+  padding: 24rpx 16rpx 48rpx;
+  line-height: 1.8;
+}

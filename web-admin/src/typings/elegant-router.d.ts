@@ -30,6 +30,7 @@ declare module "@elegant-router/types" {
     "mini-program_generation-table": "/mini-program/generation-table";
     "mini-program_members": "/mini-program/members";
     "mini-program_overview": "/mini-program/overview";
+    "mini-program_subscription": "/mini-program/subscription";
     "mini-program_surname": "/mini-program/surname";
     "system": "/system";
     "system_admin": "/system/admin";
@@ -104,6 +105,7 @@ declare module "@elegant-router/types" {
     | "mini-program_generation-table"
     | "mini-program_members"
     | "mini-program_overview"
+    | "mini-program_subscription"
     | "mini-program_surname"
     | "system_admin"
     | "system_menu"

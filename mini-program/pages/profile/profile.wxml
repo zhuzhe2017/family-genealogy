@@ -14,15 +14,32 @@
         <text class="user-name">{{userInfo.nickName || '未登录'}}</text>
         <text class="user-role">{{userInfo.role === 'admin' ? '家族管理员' : '家族成员'}}</text>
       </view>
-      <view class="edit-profile" bindtap="editProfile">
+      <view class="edit-profile" bindtap="loginEntry" wx:if="{{!isOnline}}">
+        <text>登录/注册</text>
+      </view>
+      <view class="edit-profile" bindtap="editProfile" wx:else>
         <text>编辑资料</text>
       </view>
     </view>
   </view>
 
+  <!-- 未登录提示 -->
+  <view class="login-banner" wx:if="{{!isOnline}}" bindtap="loginEntry">
+    <text class="login-banner-text">登录后可同步家族数据，支持手机号 / 微信登录</text>
+    <text class="login-banner-arrow">›</text>
+  </view>
+
   <!-- 功能菜单 -->
   <view class="menu-section">
     <view class="menu-group">
+      <view class="menu-item" bindtap="navigateTo" data-url="/pages/member-center/member-center">
+        <view class="menu-icon">👑</view>
+        <view class="menu-text">
+          <text>会员中心</text>
+        </view>
+        <text class="vip-badge {{vipStatus.isVip ? 'vip-badge-gold' : ''}}">{{vipStatus.text}}</text>
+        <text class="menu-arrow">›</text>
+      </view>
       <view class="menu-item" bindtap="navigateTo" data-url="/pages/family-manage/family-manage">
         <view class="menu-icon">🏠</view>
         <text class="menu-text">家谱管理</text>
@@ -41,6 +58,12 @@
     </view>
 
     <view class="menu-group">
+      <view class="menu-item" bindtap="bindPhoneEntry">
+        <view class="menu-icon">📱</view>
+        <text class="menu-text">绑定手机号</text>
+        <text class="vip-badge {{userInfo.phoneMasked ? 'vip-badge-gold' : ''}}">{{userInfo.phoneMasked || '未绑定'}}</text>
+        <text class="menu-arrow">›</text>
+      </view>
       <view class="menu-item" bindtap="navigateTo" data-url="/pages/settings/settings">
         <view class="menu-icon">⚙️</view>
         <text class="menu-text">设置</text>

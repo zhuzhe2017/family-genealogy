@@ -1,5 +1,5 @@
 const app = getApp();
-const { auth } = require('../../utils/api');
+const { auth, subscription } = require('../../utils/api');
 const { clearToken, getToken } = require('../../utils/request');
 const { API_BASE_URL, USE_MOCK } = require('../../utils/config');
 const { resolveImageUrl } = require('../../utils/format');
@@ -8,19 +8,44 @@ Page({
   data: {
     userInfo: {},
     editVisible: false,
+    isOnline: false,
     editForm: {
       nickName: '',
       gender: 0,
       avatarTempPath: ''
-    }
+    },
+    vipStatus: { isVip: false, text: '开通会员' }
   },
 
   onLoad() {
+    this.setData({ isOnline: !!app.globalData.isOnline });
     this.loadProfile();
   },
 
   onShow() {
+    this.setData({ isOnline: !!app.globalData.isOnline });
     this.loadProfile();
+    this.loadVipStatus();
+  },
+
+  /** 加载会员状态角标（当前家族套餐），无家族/离线时保持默认 */
+  loadVipStatus() {
+    const family = app.globalData.currentFamily;
+    if (USE_MOCK || !getToken() || !family) return;
+    subscription.getCurrent(Number(family.id))
+      .then((data) => {
+        if (!data) return;
+        const isVip = data.planCode && data.planCode !== 'free';
+        this.setData({
+          vipStatus: {
+            isVip: !!isVip,
+            text: isVip ? (data.planName || 'VIP') : '开通会员'
+          }
+        });
+      })
+      .catch(() => {
+        // 加载失败保持默认角标
+      });
   },
 
   /** 加载用户信息:优先走后端 API,失败回退 globalData */
@@ -41,7 +66,25 @@ Page({
 
   /** 补充 avatarFull:后端返回的相对路径(/uploads/xxx)拼上域名,供页面 image 直接使用 */
   attachAvatarFull(info) {
-    return Object.assign({}, info, { avatarFull: resolveImageUrl(info.avatarUrl) });
+    const phone = info.phone || '';
+    return Object.assign({}, info, {
+      avatarFull: resolveImageUrl(info.avatarUrl),
+      phoneMasked: phone ? phone.replace(/^(\d{3})\d{4}(\d{4})$/, '$1****$2') : ''
+    });
+  },
+
+  /** 未登录时跳转登录页 */
+  loginEntry() {
+    wx.navigateTo({ url: '/pages/login/login' });
+  },
+
+  /** 绑定手机号入口(多端统一锚点) */
+  bindPhoneEntry() {
+    if (!this.data.isOnline) {
+      wx.showToast({ title: '请先登录', icon: 'none' });
+      return;
+    }
+    wx.navigateTo({ url: '/pages/login/login?mode=bind' });
   },
 
   /** 打开编辑资料弹窗,回填当前资料 */

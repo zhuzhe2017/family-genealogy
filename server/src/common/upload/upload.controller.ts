@@ -1,14 +1,22 @@
 import {
   BadRequestException,
   Controller,
+  HttpException,
+  HttpStatus,
   Post,
+  Req,
   UploadedFile,
+  UseGuards,
   UseInterceptors
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { existsSync, mkdirSync } from 'fs';
+import { AuthGuard } from '@nestjs/passport';
+import { DataSource } from 'typeorm';
 import { Public } from '../decorators/public.decorator';
+import { EntitlementService } from '../../membership/membership.service';
+import { type AuthenticatedRequest } from '../types/common';
 import {
   ALLOWED_IMAGE_TYPES,
   buildStoredFileName,
@@ -16,14 +24,26 @@ import {
   UPLOAD_DIR
 } from './upload.service';
 
+/** 上传业务类型白名单（storage_usage_record.biz_type） */
+const BIZ_TYPES = ['photo', 'document', 'dynamic', 'album', 'member_avatar', 'event'];
+
 /**
  * 图片上传
- * @Public 公开访问：管理员端与小程序用户端共用该接口（仅做文件存储，无业务数据），
- * 文件类型与大小已在上传层限制
+ * - @Public 跳过全局管理员 JwtAuthGuard
+ * - @UseGuards(AuthGuard(['jwt','user-jwt'])) 显式放行管理员与小程序用户两种令牌
+ * - 存储额度校验（M1）：请求携带 familyId 时视为家族维度上传，
+ *   校验用户归属 → 预检存储余量（4002）→ 存文件 → 记账 storage_usage_record；
+ *   管理员上传 / 无 familyId（如用户头像）不占家族存储额度。
  */
 @Public()
+@UseGuards(AuthGuard(['jwt', 'user-jwt']))
 @Controller('common')
 export class UploadController {
+  constructor(
+    private readonly dataSource: DataSource,
+    private readonly entitlementService: EntitlementService
+  ) {}
+
   /** 图片上传：返回可直接访问的相对 URL（/uploads/xxx.png） */
   @Post('upload')
   @UseInterceptors(
@@ -54,10 +74,47 @@ export class UploadController {
       }
     })
   )
-  async upload(@UploadedFile() file?: Express.Multer.File) {
+  async upload(@UploadedFile() file?: Express.Multer.File, @Req() req?: AuthenticatedRequest) {
     if (!file) {
       throw new BadRequestException('请选择要上传的图片文件', '400');
     }
-    return { url: `/uploads/${file.filename}`, filename: file.filename, size: file.size };
+
+    const url = `/uploads/${file.filename}`;
+    const familyId = Number((req?.body as Record<string, unknown>)?.familyId || 0);
+    const bizType = String((req?.body as Record<string, unknown>)?.bizType || 'photo');
+
+    // 家族维度上传（小程序用户令牌）：校验归属 + 存储额度 + 记账
+    if (familyId > 0 && req?.user && typeof req.user.id === 'string') {
+      await this.assertFamilyMember(String(req.user.id), familyId);
+      await this.entitlementService.assertStorage(familyId, file.size);
+      await this.entitlementService.recordStorage(
+        familyId,
+        url,
+        file.size,
+        BIZ_TYPES.includes(bizType) ? bizType : 'photo',
+        '',
+        String(req.user.id)
+      );
+    }
+    // 管理员上传 / 无家族归属（头像等）：不占家族存储额度
+
+    return { url, filename: file.filename, size: file.size };
+  }
+
+  /** 用户是否属于该家族（family_permission 记录或家族创建者），与订阅服务校验逻辑一致 */
+  private async assertFamilyMember(userId: string, familyId: number): Promise<void> {
+    const [perm] = await this.dataSource.query<{ id: number }[]>(
+      'SELECT `id` FROM `family_permission` WHERE `family_id` = ? AND `user_id` = ? AND `status` = 1',
+      [familyId, userId]
+    );
+    if (perm) return;
+
+    const [family] = await this.dataSource.query<{ creator_user_id: string | null }[]>(
+      'SELECT `creator_user_id` FROM `family` WHERE `id` = ? AND `status` = 1',
+      [familyId]
+    );
+    if (!family || family.creator_user_id !== userId) {
+      throw new HttpException('您不属于该家族，无权操作', HttpStatus.FORBIDDEN);
+    }
   }
 }

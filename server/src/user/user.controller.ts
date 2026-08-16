@@ -21,6 +21,44 @@ export class UserController {
   }
 
   /**
+   * 发送手机号短信验证码(公开接口)
+   * 场景: login-登录 / bind-绑定手机号
+   * 限流 10 次/分钟/IP;服务端另有 60s 重发间隔与单号每日上限
+   */
+  @Public()
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  @Post('sms/send')
+  async sendSmsCode(@Body() body: { phone: string; scene?: 'login' | 'bind' }) {
+    return this.userService.sendSmsCode(body.phone, body.scene || 'login');
+  }
+
+  /**
+   * 手机号验证码登录(公开接口)
+   * 验证码一次性消费;未注册手机号自动注册
+   */
+  @Public()
+  @Throttle({ default: { limit: 20, ttl: 60_000 } })
+  @Post('phone-login')
+  async phoneLogin(@Body() body: { phone: string; code: string }) {
+    return this.userService.phoneLogin(body.phone, body.code);
+  }
+
+  /**
+   * 绑定手机号(需登录,作为跨端统一锚点)
+   * 已绑定其他账号的手机号返回 409
+   */
+  @Public()
+  @UseGuards(UserJwtAuthGuard)
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  @Post('bind-phone')
+  async bindPhone(
+    @Req() req: AuthenticatedRequest,
+    @Body() body: { phone: string; code: string }
+  ) {
+    return this.userService.bindPhone(String(req.user.id), body.phone, body.code);
+  }
+
+  /**
    * 获取当前用户信息
    * @Public 跳过全局管理员 JwtAuthGuard,改用 UserJwtAuthGuard 校验用户令牌
    */

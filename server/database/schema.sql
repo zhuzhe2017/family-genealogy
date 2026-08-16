@@ -30,7 +30,68 @@ CREATE TABLE `user` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户表';
 
 -- ------------------------------------------------------------
--- 2. 家族表
+-- 1.1 用户认证绑定表（多端账号统一：一个账户可绑定多种登录凭证）
+-- provider: wechat(微信)/phone(手机号)/email/apple/google...
+-- 跨端互通: 微信小程序与APP通过 unionid 合并到同一 user_id
+-- ------------------------------------------------------------
+CREATE TABLE `user_auth_identity` (
+  `id`           BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT 'ID',
+  `user_id`      VARCHAR(32)   NOT NULL COMMENT '账户ID(业务数据统一归属)',
+  `provider`     VARCHAR(32)   NOT NULL COMMENT '认证提供方: wechat/phone/email/apple/google',
+  `provider_uid` VARCHAR(64)   NOT NULL COMMENT '提供方唯一标识: 微信openid/手机号/邮箱/第三方sub',
+  `unionid`      VARCHAR(64)   DEFAULT '' COMMENT '微信unionid(仅provider=wechat,用于跨appid合并)',
+  `extra`        JSON          DEFAULT NULL COMMENT '扩展信息(JSON)',
+  `status`       TINYINT(1)    DEFAULT 1 COMMENT '状态 1-正常 0-已解绑(解绑建议直接删除)',
+  `create_time`  DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `update_time`  DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_provider_uid` (`provider`, `provider_uid`),
+  INDEX `idx_user_id` (`user_id`),
+  INDEX `idx_unionid` (`unionid`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户认证绑定表';
+
+-- ------------------------------------------------------------
+-- 1.2 用户短信验证码表（手机号验证码登录/绑定）
+-- 验证码存 SHA-256 哈希,短时效一次性;attempts 控制暴力尝试
+-- ------------------------------------------------------------
+CREATE TABLE `user_sms_code` (
+  `id`          BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT 'ID',
+  `phone`       VARCHAR(20)   NOT NULL COMMENT '手机号',
+  `scene`       VARCHAR(20)   NOT NULL DEFAULT 'login' COMMENT '场景: login-登录 bind-绑定',
+  `code_hash`   VARCHAR(64)   NOT NULL COMMENT '验证码SHA-256哈希',
+  `expires_at`  DATETIME      NOT NULL COMMENT '过期时间',
+  `attempts`    TINYINT(2)    DEFAULT 0 COMMENT '已尝试次数(>=5 自动作废)',
+  `used`        TINYINT(1)    DEFAULT 0 COMMENT '是否已使用 1-是 0-否',
+  `create_time` DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  PRIMARY KEY (`id`),
+  INDEX `idx_phone_scene` (`phone`, `scene`, `create_time`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户短信验证码表';
+
+-- ------------------------------------------------------------
+-- 2. 姓氏表（在 family 表之前创建,供 fk_family_surname 引用）
+-- ------------------------------------------------------------
+CREATE TABLE `surname` (
+  `id`            INT UNSIGNED  NOT NULL AUTO_INCREMENT COMMENT 'ID',
+  `surname`       VARCHAR(10)   NOT NULL COMMENT '姓氏',
+  `pinyin`        VARCHAR(50)   NOT NULL DEFAULT '' COMMENT '拼音',
+  `initial`       VARCHAR(1)    NOT NULL DEFAULT '' COMMENT '拼音首字母',
+  `ranking`       INT UNSIGNED  DEFAULT 0 COMMENT '百家姓排名',
+  `totem`         VARCHAR(500)  DEFAULT '' COMMENT '姓氏图腾图片URL',
+  `origin`        VARCHAR(500)  DEFAULT '' COMMENT '姓氏起源',
+  `population`    INT UNSIGNED  DEFAULT 0 COMMENT '人口数量',
+  `description`   TEXT          DEFAULT NULL COMMENT '详细描述',
+  `status`        TINYINT(1)    DEFAULT 1 COMMENT '状态 1-启用 0-禁用',
+  `create_by`     VARCHAR(50)   DEFAULT '' COMMENT '创建人',
+  `create_time`   DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `update_time`   DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  PRIMARY KEY (`id`),
+  UNIQUE INDEX `uk_surname` (`surname`),
+  INDEX `idx_initial` (`initial`),
+  INDEX `idx_status` (`status`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='姓氏表';
+
+-- ------------------------------------------------------------
+-- 3. 家族表
 -- ------------------------------------------------------------
 CREATE TABLE `family` (
   `id`            INT UNSIGNED  NOT NULL AUTO_INCREMENT COMMENT '家族ID（自增整数）',
@@ -95,6 +156,7 @@ CREATE TABLE `family_member` (
   `longitude`     DECIMAL(10, 7) DEFAULT NULL COMMENT '墓茔经度',
   `latitude`      DECIMAL(10, 7) DEFAULT NULL COMMENT '墓茔纬度',
   `bio`           TEXT          COMMENT '生平简介',
+  `avatar_url`    VARCHAR(500)  NOT NULL DEFAULT '' COMMENT '头像URL（/uploads/xxx 或 http(s) 完整地址，最多500字符）',
   `father_id`     VARCHAR(32)   DEFAULT '' COMMENT '父亲成员ID',
   `mother_id`     VARCHAR(32)   DEFAULT '' COMMENT '母亲成员ID',
   `spouse_info`   JSON          DEFAULT NULL COMMENT '配偶信息JSON数组：[{name,birthDate,rank,bio,deathDate,deathPlace,longitude,latitude}]',
@@ -462,43 +524,20 @@ CREATE TABLE `sys_menu` (
   INDEX `idx_status` (`status`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='系统菜单表';
 
--- 兼容已存在的数据库：补充 route_name 字段
-ALTER TABLE `sys_menu` ADD COLUMN IF NOT EXISTS `route_name` VARCHAR(50) DEFAULT '' COMMENT '路由名称（对应 elegant-router 的 route key）' AFTER `component`;
+-- 兼容已存在的数据库：补充 route_name 字段（全新导入时表定义已包含,跳过）
+-- ALTER TABLE `sys_menu` ADD COLUMN `route_name` VARCHAR(50) DEFAULT '' COMMENT '路由名称（对应 elegant-router 的 route key）' AFTER `component`;
 
 -- 兼容已存在的数据库：补充 operator 字段（操作人，操作日志用途）
-ALTER TABLE `sys_menu` ADD COLUMN IF NOT EXISTS `operator` VARCHAR(50) DEFAULT '' COMMENT '操作人' AFTER `keep_alive`;
+-- ALTER TABLE `sys_menu` ADD COLUMN `operator` VARCHAR(50) DEFAULT '' COMMENT '操作人' AFTER `keep_alive`;
 
 -- 兼容已存在的数据库：为内容表补充 audit_status 字段（审核状态 0-待审核 1-已通过 2-已下架）
-ALTER TABLE `family_dynamic`  ADD COLUMN IF NOT EXISTS `audit_status` TINYINT(1) DEFAULT 1 COMMENT '审核状态 0-待审核 1-已通过 2-已下架' AFTER `status`;
-ALTER TABLE `family_photo`    ADD COLUMN IF NOT EXISTS `audit_status` TINYINT(1) DEFAULT 1 COMMENT '审核状态 0-待审核 1-已通过 2-已下架' AFTER `status`;
-ALTER TABLE `family_document` ADD COLUMN IF NOT EXISTS `audit_status` TINYINT(1) DEFAULT 1 COMMENT '审核状态 0-待审核 1-已通过 2-已下架' AFTER `status`;
-ALTER TABLE `family_event`    ADD COLUMN IF NOT EXISTS `audit_status` TINYINT(1) DEFAULT 1 COMMENT '审核状态 0-待审核 1-已通过 2-已下架' AFTER `status`;
+ALTER TABLE `family_dynamic`  ADD COLUMN `audit_status` TINYINT(1) DEFAULT 1 COMMENT '审核状态 0-待审核 1-已通过 2-已下架' AFTER `status`;
+ALTER TABLE `family_photo`    ADD COLUMN `audit_status` TINYINT(1) DEFAULT 1 COMMENT '审核状态 0-待审核 1-已通过 2-已下架' AFTER `status`;
+ALTER TABLE `family_document` ADD COLUMN `audit_status` TINYINT(1) DEFAULT 1 COMMENT '审核状态 0-待审核 1-已通过 2-已下架' AFTER `status`;
+ALTER TABLE `family_event`    ADD COLUMN `audit_status` TINYINT(1) DEFAULT 1 COMMENT '审核状态 0-待审核 1-已通过 2-已下架' AFTER `status`;
 
 -- ------------------------------------------------------------
--- 26. 姓氏表
--- ------------------------------------------------------------
-CREATE TABLE `surname` (
-  `id`            INT UNSIGNED  NOT NULL AUTO_INCREMENT COMMENT 'ID',
-  `surname`       VARCHAR(10)   NOT NULL COMMENT '姓氏',
-  `pinyin`        VARCHAR(50)   NOT NULL DEFAULT '' COMMENT '拼音',
-  `initial`       VARCHAR(1)    NOT NULL DEFAULT '' COMMENT '拼音首字母',
-  `ranking`       INT UNSIGNED  DEFAULT 0 COMMENT '百家姓排名',
-  `totem`         VARCHAR(500)  DEFAULT '' COMMENT '姓氏图腾图片URL',
-  `origin`        VARCHAR(500)  DEFAULT '' COMMENT '姓氏起源',
-  `population`    INT UNSIGNED  DEFAULT 0 COMMENT '人口数量',
-  `description`   TEXT          DEFAULT NULL COMMENT '详细描述',
-  `status`        TINYINT(1)    DEFAULT 1 COMMENT '状态 1-启用 0-禁用',
-  `create_by`     VARCHAR(50)   DEFAULT '' COMMENT '创建人',
-  `create_time`   DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-  `update_time`   DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
-  PRIMARY KEY (`id`),
-  UNIQUE INDEX `uk_surname` (`surname`),
-  INDEX `idx_initial` (`initial`),
-  INDEX `idx_status` (`status`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='姓氏表';
-
--- ------------------------------------------------------------
--- 27. 后台角色表
+-- 26. 后台角色表
 -- ------------------------------------------------------------
 CREATE TABLE `sys_role` (
   `id`            INT UNSIGNED  NOT NULL AUTO_INCREMENT COMMENT '角色ID',

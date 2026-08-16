@@ -1,6 +1,7 @@
 import { Controller, Get, Post, Put, Delete, Body, Param, Query, Req, UseGuards, ParseIntPipe } from '@nestjs/common';
 import { Public } from '../common/decorators/public.decorator';
 import { UserJwtAuthGuard } from '../user/user.guard';
+import { EntitlementGuard } from '../membership/guards/entitlement.guard';
 import { type AuthenticatedRequest } from '../common/types/common';
 import { PortalService } from './portal.service';
 import { type ContentType } from '../content/content.service';
@@ -12,10 +13,14 @@ import { type ContentCreateData } from '../content/types/content.types';
  * 小程序用户端接口（一期）
  * - @Public 跳过全局管理员 JwtAuthGuard
  * - @UseGuards(UserJwtAuthGuard) 校验用户令牌（type=user）
+ * - @UseGuards(EntitlementGuard) 能力点校验：标注了 @Entitlement(capability) 的接口
+ *   按当前家族订阅套餐拦截（未解锁 → 4001）；未标注接口直接放行。
+ *   现有接口均为免费基础能力，付费能力点（backup/export/permission/reminder/digest 等）
+ *   对应业务接口随 M2 实现，届时在接口上追加 @Entitlement 即可生效。
  * 路由前缀 /api/user，与既有 /user/wx-login、/user/profile 保持一致
  */
 @Public()
-@UseGuards(UserJwtAuthGuard)
+@UseGuards(UserJwtAuthGuard, EntitlementGuard)
 @Controller('user')
 export class PortalController {
   constructor(private readonly portalService: PortalService) {}

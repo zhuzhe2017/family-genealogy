@@ -27,6 +27,7 @@ export const views: Record<LastLevelRouteKey, RouteComponent | (() => Promise<Ro
   "mini-program_generation-table": () => import("@/views/mini-program/generation-table/index.vue"),
   "mini-program_members": () => import("@/views/mini-program/members/index.vue"),
   "mini-program_overview": () => import("@/views/mini-program/overview/index.vue"),
+  "mini-program_subscription": () => import("@/views/mini-program/subscription/index.vue"),
   "mini-program_surname": () => import("@/views/mini-program/surname/index.vue"),
   system_admin: () => import("@/views/system/admin/index.vue"),
   system_menu: () => import("@/views/system/menu/index.vue"),

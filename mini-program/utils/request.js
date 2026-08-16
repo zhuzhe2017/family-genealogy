@@ -27,11 +27,25 @@ function clearToken() {
   }
 }
 
+/** 权益类业务码判断：后端 EntitlementException 以 HTTP 200 + 4xxx 返回（4000-4005） */
+function isEntitlementCode(code) {
+  return /^4\d{3}$/.test(String(code || ''));
+}
+
+/** 通知全局权益拦截（app.onEntitlementError：付费引导弹窗 + 跳转会员中心） */
+function notifyEntitlement(code, msg) {
+  const app = getApp();
+  if (app && typeof app.onEntitlementError === 'function') {
+    app.onEntitlementError(code, msg);
+  }
+}
+
 /**
  * 统一请求方法,基于 wx.request 封装 Promise
  * 自动注入 Authorization 头、解析后端标准响应 {code,data,msg}
- * @param {Object} options - { url, method, data, header, timeout }
- * @returns {Promise<any>} resolve(data 字段),reject(Error)
+ * @param {Object} options - { url, method, data, header, timeout, skipEntitlementGuide }
+ *   skipEntitlementGuide: true 时跳过权益引导（4xxx 仍 reject 带 code，由业务自行处理）
+ * @returns {Promise<any>} resolve(data 字段),reject(Error 带 code/entitlement 属性)
  */
 function request(options) {
   const url = options.url.startsWith('http') ? options.url : API_BASE_URL + options.url;
@@ -50,10 +64,20 @@ function request(options) {
       ),
       success(res) {
         if (res.statusCode >= 200 && res.statusCode < 300) {
-          if (res.data && res.data.code === '0000') {
-            resolve(res.data.data);
+          const data = res.data || {};
+          if (data.code === '0000') {
+            resolve(data.data);
+          } else if (isEntitlementCode(data.code)) {
+            // 权益受限（会员功能未解锁/存储不足/额度用尽/订阅过期等）
+            const err = new Error(data.msg || '会员权益受限');
+            err.code = data.code;
+            err.entitlement = true;
+            if (!options.skipEntitlementGuide) {
+              notifyEntitlement(data.code, err.message);
+            }
+            reject(err);
           } else {
-            reject(new Error((res.data && res.data.msg) || '请求失败'));
+            reject(new Error(data.msg || '请求失败'));
           }
         } else if (res.statusCode === 401) {
           clearToken();

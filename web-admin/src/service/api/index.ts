@@ -11,4 +11,5 @@ export * from './family';
 export * from './generation-table';
 export * from './family-member';
 export * from './system-settings';
+export * from './subscription';
 export * from './upload';

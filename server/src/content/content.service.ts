@@ -1,6 +1,7 @@
 import { Injectable, HttpException, HttpStatus } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { randomBytes } from 'crypto';
+import { EntitlementService } from '../membership/membership.service';
 import { type ContentType, type ContentConfig, type ContentRow, type ContentQueryParams, type ContentCreateData, type EventDetailData, type EventMemberData } from './types/content.types';
 import { type QueryValues } from '../common/types/common';
 
@@ -29,7 +30,10 @@ const CONTENT_CONFIG: Record<ContentType, ContentConfig> = {
 
 @Injectable()
 export class ContentService {
-  constructor(private readonly dataSource: DataSource) {}
+  constructor(
+    private readonly dataSource: DataSource,
+    private readonly entitlementService: EntitlementService
+  ) {}
 
   /** 列表查询（分页 + 筛选） */
   async getList(type: ContentType, params: ContentQueryParams, userId?: string) {
@@ -156,14 +160,54 @@ export class ContentService {
     return { id, auditStatus: newStatus };
   }
 
-  /** 软删除：status = 0 */
+  /** 软删除：status = 0；删除后释放关联图片的存储占用（幂等） */
   async delete(type: ContentType, id: string) {
     await this.ensureExist(type, id);
+    const fileKeys = await this.collectFileKeys(type, id);
     await this.dataSource.query(
       `UPDATE \`${CONTENT_CONFIG[type].table}\` SET \`status\` = 0 WHERE \`id\` = ?`,
       [id]
     );
+    for (const key of fileKeys) {
+      await this.entitlementService.releaseStorage(key);
+    }
     return { success: true };
+  }
+
+  /** 收集内容关联的图片 URL（file_key 与上传记账时的 url 一致），供删除时释放存储 */
+  private async collectFileKeys(type: ContentType, id: string): Promise<string[]> {
+    switch (type) {
+      case 'photo': {
+        const [row] = await this.dataSource.query<{ url: string | null }[]>(
+          'SELECT `url` FROM `family_photo` WHERE `id` = ?',
+          [id]
+        );
+        return row?.url ? [row.url] : [];
+      }
+      case 'document': {
+        const [row] = await this.dataSource.query<{ file_url: string | null; cover_url: string | null }[]>(
+          'SELECT `file_url`, `cover_url` FROM `family_document` WHERE `id` = ?',
+          [id]
+        );
+        return [row?.file_url, row?.cover_url].filter((v): v is string => Boolean(v));
+      }
+      case 'event': {
+        const rows = await this.dataSource.query<{ photo_url: string }[]>(
+          'SELECT `photo_url` FROM `family_event_photo` WHERE `event_id` = ?',
+          [id]
+        );
+        return rows.map(r => r.photo_url).filter(Boolean);
+      }
+      case 'dynamic': {
+        const rows = await this.dataSource.query<{ image_url: string }[]>(
+          'SELECT `image_url` FROM `family_dynamic_image` WHERE `dynamic_id` = ?',
+          [id]
+        );
+        return rows.map(r => r.image_url).filter(Boolean);
+      }
+      default:
+        return [];
+    }
   }
 
   /**

@@ -22,6 +22,8 @@ import { PortalModule } from './portal/portal.module';
 import { SystemConfigModule } from './system-config/system-config.module';
 import { SystemLogModule } from './system-log/system-log.module';
 import { SystemSecurityModule } from './system-security/system-security.module';
+import { MembershipModule } from './membership/membership.module';
+import { SubscriptionModule } from './subscription/subscription.module';
 import { UploadModule } from './common/upload/upload.module';
 import { JwtAuthGuard } from './auth/guard/jwt-auth.guard';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
@@ -58,6 +60,8 @@ import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
     SystemConfigModule,
     SystemLogModule,
     SystemSecurityModule,
+    MembershipModule,
+    SubscriptionModule,
     UploadModule
   ],
   controllers: [AppController],

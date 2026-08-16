@@ -1,5 +1,6 @@
 import { FamilyMemberService } from './family-member.service';
 import { HttpStatus } from '@nestjs/common';
+import { type EntitlementService } from '../membership/membership.service';
 
 describe('FamilyMemberService', () => {
   let service: FamilyMemberService;
@@ -7,7 +8,10 @@ describe('FamilyMemberService', () => {
 
   beforeEach(() => {
     queryMock = jest.fn();
-    service = new FamilyMemberService({ query: queryMock } as unknown as import('typeorm').DataSource);
+    service = new FamilyMemberService(
+      { query: queryMock } as unknown as import('typeorm').DataSource,
+      { releaseStorage: jest.fn().mockResolvedValue(undefined) } as unknown as EntitlementService
+    );
   });
 
   const mockTableExists = (_tableName = 'family_members_1') => {
@@ -331,7 +335,9 @@ describe('FamilyMemberService', () => {
       queryMock
         .mockResolvedValueOnce([{ id: 'x', status: 1 }])
         .mockResolvedValueOnce({ affectedRows: 1 }) // UPDATE status=0
-        .mockResolvedValueOnce({ affectedRows: 1 }); // member_count -1
+        .mockResolvedValueOnce({ affectedRows: 1 }) // member_count -1
+        .mockResolvedValueOnce([{ exists: 1 }]) // ensurePhotoTable（删除后释放照片存储）
+        .mockResolvedValueOnce([]); // 无成员照片
 
       await service.delete(1, 'x');
 
@@ -363,7 +369,9 @@ describe('FamilyMemberService', () => {
       queryMock
         .mockResolvedValueOnce([{ id: 'x' }]) // 查找成员
         .mockResolvedValueOnce({ affectedRows: 1 }) // 条件更新命中（本次删除生效）
-        .mockResolvedValueOnce({ affectedRows: 1 }); // member_count -1
+        .mockResolvedValueOnce({ affectedRows: 1 }) // member_count -1
+        .mockResolvedValueOnce([{ exists: 1 }]) // ensurePhotoTable（删除后释放照片存储）
+        .mockResolvedValueOnce([]); // 无成员照片
 
       await service.delete(1, 'x');
 
