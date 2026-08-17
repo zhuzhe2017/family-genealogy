@@ -86,8 +86,9 @@ function normalizeMember(row) {
     isAlive: row.is_alive != null ? !!Number(row.is_alive) : true,
     deathDate: row.death_date || '',
     deathPlace: row.death_place || '',
+    longitude: row.longitude != null ? Number(row.longitude) : null,
+    latitude: row.latitude != null ? Number(row.latitude) : null,
     bio: row.bio || '',
-    title: row.title || '',
     avatar: resolveImageUrl(row.avatar_url),
     fatherId: row.father_id || '',
     motherId: row.mother_id || '',
@@ -107,6 +108,35 @@ function parseSpouseInfo(raw) {
   } catch (e) {
     return null;
   }
+}
+
+/** 解析 spouse_info JSON 字符串/对象，返回规范化配偶列表（多配偶场景，供表单编辑回填） */
+function parseSpouseList(raw) {
+  if (!raw) return [];
+  let parsed = raw;
+  if (typeof raw === 'string') {
+    try {
+      parsed = JSON.parse(raw);
+    } catch (e) {
+      return [];
+    }
+  }
+  const list = Array.isArray(parsed) ? parsed : [parsed];
+  return list
+    .map(s => ({
+      name: s.name || '',
+      birthDate: s.birthDate || s.birth_date || '',
+      // 显式 isAlive 优先；否则按是否有逝世日期推断
+      isAlive: s.isAlive != null ? Number(s.isAlive) : (s.deathDate || s.death_date ? 0 : 1),
+      deathDate: s.deathDate || s.death_date || '',
+      deathPlace: s.deathPlace || s.death_place || '',
+      longitude: s.longitude != null ? String(s.longitude) : '',
+      latitude: s.latitude != null ? String(s.latitude) : '',
+      bio: s.bio || '',
+      // 默认展开；仅首条保留展开，其余自动折叠
+      collapsed: false
+    }))
+    .filter(s => s.name);
 }
 
 /** 内容行 → 动态对象 */
@@ -184,6 +214,7 @@ module.exports = {
   generationNamesOf,
   normalizeMember,
   parseSpouseInfo,
+  parseSpouseList,
   normalizeDynamic,
   normalizePhoto,
   normalizeDocument,

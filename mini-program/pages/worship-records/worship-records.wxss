@@ -1,0 +1,111 @@
+.page-container {
+  background: #1a1a2e;
+  min-height: 100vh;
+  padding: 24rpx;
+  box-sizing: border-box;
+}
+
+.list-header {
+  display: flex;
+  align-items: baseline;
+  margin-bottom: 20rpx;
+}
+
+.list-title {
+  font-size: 32rpx;
+  font-weight: bold;
+  color: #F5E6D0;
+}
+
+.list-count {
+  margin-left: 16rpx;
+  font-size: 22rpx;
+  color: rgba(245, 230, 208, 0.5);
+}
+
+.record-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.record-item {
+  display: flex;
+  align-items: flex-start;
+  padding: 20rpx;
+  margin-bottom: 16rpx;
+  border-radius: 16rpx;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1rpx solid rgba(212, 165, 116, 0.18);
+}
+
+.record-avatar {
+  width: 72rpx;
+  height: 72rpx;
+  border-radius: 50%;
+  background: #D4A574;
+  color: #1a1a2e;
+  font-size: 30rpx;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 20rpx;
+  flex-shrink: 0;
+}
+
+.record-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.record-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.record-user {
+  font-size: 28rpx;
+  font-weight: bold;
+  color: #F5E6D0;
+}
+
+.record-time {
+  font-size: 22rpx;
+  color: rgba(245, 230, 208, 0.5);
+  flex-shrink: 0;
+  margin-left: 16rpx;
+}
+
+.record-content {
+  display: block;
+  margin-top: 8rpx;
+  font-size: 26rpx;
+  color: rgba(245, 230, 208, 0.8);
+  word-break: break-all;
+}
+
+.state-tip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 80rpx 40rpx;
+  color: rgba(245, 230, 208, 0.6);
+  font-size: 26rpx;
+}
+
+.state-btn {
+  margin-top: 24rpx;
+  padding: 12rpx 48rpx;
+  border-radius: 32rpx;
+  border: 1rpx solid rgba(212, 165, 116, 0.5);
+  color: #D4A574;
+  font-size: 26rpx;
+}
+
+.load-more {
+  padding: 24rpx 0 12rpx;
+  text-align: center;
+  font-size: 24rpx;
+  color: rgba(245, 230, 208, 0.4);
+}

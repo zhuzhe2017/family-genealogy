@@ -7,6 +7,7 @@ import { UserJwtAuthGuard } from './user.guard';
 
 @Module({
   controllers: [UserController],
-  providers: [UserService, SmsService, UserJwtStrategy, UserJwtAuthGuard]
+  providers: [UserService, SmsService, UserJwtStrategy, UserJwtAuthGuard],
+  exports: [UserService]
 })
 export class UserModule {}

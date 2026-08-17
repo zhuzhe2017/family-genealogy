@@ -18,7 +18,8 @@ import {
   TitleComponent,
   ToolboxComponent,
   TooltipComponent,
-  TransformComponent
+  TransformComponent,
+  DataZoomComponent
 } from 'echarts/components';
 import type {
   DatasetComponentOption,
@@ -26,7 +27,8 @@ import type {
   LegendComponentOption,
   TitleComponentOption,
   ToolboxComponentOption,
-  TooltipComponentOption
+  TooltipComponentOption,
+  DataZoomComponentOption
 } from 'echarts/components';
 import { LabelLayout, UniversalTransition } from 'echarts/features';
 import { CanvasRenderer } from 'echarts/renderers';
@@ -45,6 +47,7 @@ export type ECOption = echarts.ComposeOption<
   | TooltipComponentOption
   | GridComponentOption
   | ToolboxComponentOption
+  | DataZoomComponentOption
   | DatasetComponentOption
 >;
 
@@ -56,6 +59,7 @@ echarts.use([
   DatasetComponent,
   TransformComponent,
   ToolboxComponent,
+  DataZoomComponent,
   BarChart,
   LineChart,
   PieChart,

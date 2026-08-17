@@ -32,6 +32,7 @@ declare module "@elegant-router/types" {
     "mini-program_overview": "/mini-program/overview";
     "mini-program_subscription": "/mini-program/subscription";
     "mini-program_surname": "/mini-program/surname";
+    "mini-program_worship": "/mini-program/worship";
     "system": "/system";
     "system_admin": "/system/admin";
     "system_menu": "/system/menu";
@@ -107,6 +108,7 @@ declare module "@elegant-router/types" {
     | "mini-program_overview"
     | "mini-program_subscription"
     | "mini-program_surname"
+    | "mini-program_worship"
     | "system_admin"
     | "system_menu"
     | "system_permission"

@@ -10,6 +10,12 @@ export interface UserRow extends DataRow {
   gender: number;
   openid: string;
   unionid: string;
+  /** 关联家族支系ID（会员所属家族支系） */
+  family_id: number | null;
+  /** 关联成员ID（会员与家族成员的绑定关系） */
+  member_id: string;
+  /** 分享码（家族邀请/加入） */
+  share_code: string | null;
   status: number;
   create_time: string;
   update_time: string;
@@ -22,6 +28,12 @@ export interface UserInfo {
   avatarUrl: string;
   gender: number;
   phone?: string;
+  /** 关联家族支系ID */
+  familyId?: number | null;
+  /** 关联成员ID */
+  memberId?: string;
+  /** 分享码 */
+  shareCode?: string | null;
 }
 
 /** 登录响应 */

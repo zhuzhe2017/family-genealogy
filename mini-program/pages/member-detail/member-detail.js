@@ -49,6 +49,8 @@ Page({
     this.setData({
       member: {
         ...me,
+        // 后端返回当前用户是否可编辑（绑定该成员ID的会员或家族创建者）
+        canEdit: !!me.canEdit,
         // 后端可能无 spouse_info,补空对象避免 WXML 访问 member.spouseInfo.name 报错
         spouseInfo: me.spouseInfo || {},
         father: father ? father.name : '',
@@ -69,14 +71,11 @@ Page({
       birthDate: '1880年3月15日',
       deathDate: '1955年8月20日',
       birthPlace: '山东省济南市',
-      title: '家族始祖',
       isAlive: false,
       bio: '张太公，字子远，生于清光绪六年。早年从商，后回乡办学，为家族发展奠定了坚实基础。为人正直，乐善好施，深受乡邻敬重。',
-      spouseId: '',
       spouseInfo: {
         name: '张太婆',
         birthDate: '1882年5月12日',
-        rank: '长女',
         bio: '张太婆，贤良淑德，相夫教子，为家族培养了三子。',
         deathDate: '1960年11月8日',
         deathPlace: '山东省济南市张氏祖坟',

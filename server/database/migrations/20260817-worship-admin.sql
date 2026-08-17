@@ -1,0 +1,27 @@
+-- ============================================================
+-- 迁移: 祭祀管理后台（祭祀记录 / 纪念对象）
+-- 新增: system:worship:list/delete 权限 + 祭祀管理菜单
+-- 幂等: INSERT IGNORE 避免重复执行时报错
+-- ============================================================
+
+USE `family_genealogy`;
+
+-- 祭祀管理权限
+INSERT IGNORE INTO `sys_permission` (`name`, `code`, `status`) VALUES
+('祭祀记录查询', 'system:worship:list', 1),
+('祭祀数据删除', 'system:worship:delete', 1);
+
+-- 将新增权限授予超级管理员角色
+INSERT IGNORE INTO `sys_role_permission` (`role_id`, `permission_id`)
+SELECT r.`id`, p.`id` FROM `sys_role` r, `sys_permission` p
+WHERE r.`code` = 'super' AND p.`code` LIKE 'system:worship:%';
+
+-- 祭祀管理菜单（挂在"小程序管理"目录下）
+SET @mini_program_dir := (SELECT `id` FROM `sys_menu` WHERE `route_name` = 'mini-program' LIMIT 1);
+INSERT IGNORE INTO `sys_menu` (`parent_id`, `name`, `type`, `path`, `component`, `route_name`, `icon`, `permission`, `sort_order`, `status`, `visible`, `keep_alive`)
+VALUES (@mini_program_dir, '祭祀管理', 'menu', '/mini-program/worship', 'view.mini-program_worship', 'mini-program_worship', 'mdi:incense', 'system:worship:list', 9, 1, 1, 1);
+
+-- 将菜单授予超级管理员角色
+INSERT IGNORE INTO `sys_role_menu` (`role_id`, `menu_id`)
+SELECT r.`id`, m.`id` FROM `sys_role` r, `sys_menu` m
+WHERE r.`code` = 'super' AND m.`route_name` = 'mini-program_worship';

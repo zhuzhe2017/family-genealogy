@@ -38,6 +38,15 @@ export class FamilyService {
     if (!row) throw new HttpException('姓氏ID无效，请选择有效的姓氏', HttpStatus.BAD_REQUEST);
   }
 
+  /** 家族创建者用户ID（用于成员编辑权限判断；家族不存在或已停用返回 null） */
+  async getCreatorUserId(familyId: number): Promise<string | null> {
+    const [row] = await this.dataSource.query<Pick<FamilyRow, 'creator_user_id'>[]>(
+      'SELECT `creator_user_id` FROM `family` WHERE `id` = ? AND `status` = 1 LIMIT 1',
+      [familyId]
+    );
+    return row?.creator_user_id ?? null;
+  }
+
   /** 分页列表（含字辈信息） */
   async getList(params: FamilyQueryParams) {
     const { page, pageSize, keyword, status, isPublic } = params;

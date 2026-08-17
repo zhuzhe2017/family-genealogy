@@ -5,9 +5,10 @@
 -- 运行后，后续成员的增/删/改/批量导入会自动同步该列（见 family-member.service.ts syncMemberCount）
 -- ============================================================
 
+DROP PROCEDURE IF EXISTS sp_sync_family_member_count;
+
 DELIMITER //
 
-DROP PROCEDURE IF EXISTS sp_sync_family_member_count;
 CREATE PROCEDURE sp_sync_family_member_count()
 BEGIN
   DECLARE v_id INT UNSIGNED DEFAULT 0;

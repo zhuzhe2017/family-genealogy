@@ -15,6 +15,8 @@
     "pages/album/album",
     "pages/photo-detail/photo-detail",
     "pages/worship/worship",
+    "pages/worship-records/worship-records",
+    "pages/memorial-detail/memorial-detail",
     "pages/dynamic/dynamic",
     "pages/profile/profile",
     "pages/create-family/create-family",

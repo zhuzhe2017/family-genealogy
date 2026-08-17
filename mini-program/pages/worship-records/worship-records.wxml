@@ -1,0 +1,47 @@
+<wxs src="../../utils/filters.wxs" module="f" />
+<view class="page-container">
+  <!-- 列表头 -->
+  <view class="list-header">
+    <text class="list-title">祈福记录</text>
+    <text class="list-count" wx:if="{{records.length > 0}}">共 {{records.length}} 条已加载</text>
+  </view>
+
+  <view class="record-list">
+    <view class="record-item" wx:for="{{records}}" wx:key="id">
+      <view class="record-avatar">
+        <text>{{f.firstChar(item.userName)}}</text>
+      </view>
+      <view class="record-info">
+        <view class="record-header">
+          <text class="record-user">{{item.userName}}</text>
+          <text class="record-time">{{item.time}}</text>
+        </view>
+        <text class="record-content">{{item.content}}</text>
+      </view>
+    </view>
+
+    <!-- 未登录 -->
+    <view class="state-tip" wx:if="{{needLogin}}">
+      <text>登录后可查看家族祈福记录</text>
+      <view class="state-btn" bindtap="guideLogin">去登录</view>
+    </view>
+
+    <!-- 加载失败 -->
+    <view class="state-tip" wx:elif="{{loadFailed}}">
+      <text>祈福记录加载失败</text>
+      <view class="state-btn" bindtap="retry">重试</view>
+    </view>
+
+    <!-- 空态 -->
+    <view class="state-tip" wx:elif="{{records.length === 0 && !loading}}">
+      <text>暂无祈福记录，快来参与祭祀祈福吧</text>
+    </view>
+
+    <!-- 加载更多 -->
+    <view class="load-more" wx:if="{{records.length > 0 && !loadFailed}}">
+      <text wx:if="{{loading}}">加载中...</text>
+      <text wx:elif="{{hasMore}}">上拉加载更多</text>
+      <text wx:else>— 已加载全部记录 —</text>
+    </view>
+  </view>
+</view>

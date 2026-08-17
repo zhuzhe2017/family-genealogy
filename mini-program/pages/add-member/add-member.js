@@ -1,6 +1,6 @@
 const app = getApp();
 const { familyMember } = require('../../utils/api');
-const { normalizeMember } = require('../../utils/format');
+const { normalizeMember, parseSpouseList } = require('../../utils/format');
 const { API_BASE_URL, USE_MOCK } = require('../../utils/config');
 const { getToken } = require('../../utils/request');
 
@@ -15,27 +15,23 @@ Page({
       birthPlace: '',
       isAlive: true,
       deathDate: '',
+      deathPlace: '',
+      longitude: '',
+      latitude: '',
       fatherName: '',
       motherName: '',
       fatherId: '',
       motherId: '',
-      spouseId: '',
-      spouseInfo: {
-        name: '',
-        birthDate: '',
-        rank: '',
-        bio: '',
-        deathDate: '',
-        deathPlace: '',
-        longitude: '',
-        latitude: ''
-      },
+      spouseList: [],
       generationName: '',
-      title: '',
       bio: '',
       avatar: '',
       photos: []
-    }
+    },
+    showParentPicker: false,
+    parentPickerType: 'father',
+    parentKeyword: '',
+    parentCandidates: []
   },
 
   onLoad(options) {
@@ -50,28 +46,53 @@ Page({
   loadEditData(id) {
     const familyId = (app.globalData.currentFamily || {}).id;
     if (!USE_MOCK && getToken() && familyId) {
-      familyMember.getById(familyId, id)
-        .then((row) => {
+      // 同时加载全量成员用于回显父/母姓名
+      Promise.all([
+        familyMember.getById(familyId, id),
+        familyMember.getAll(familyId)
+      ])
+        .then(([row, all]) => {
           const m = normalizeMember(row);
-          this.setData({
-            'form.name': m.name,
-            'form.gender': m.gender || 'male',
-            'form.generation': m.generation || 1,
-            'form.birthDate': m.birthDate,
-            'form.birthPlace': m.birthPlace,
-            'form.isAlive': m.isAlive,
-            'form.deathDate': m.deathDate,
-            'form.generationName': m.generationName,
-            'form.title': m.title,
-            'form.bio': m.bio,
-            'form.avatar': m.avatar || '',
-            'form.fatherId': m.fatherId,
-            'form.motherId': m.motherId,
-            'form.photos': m.photos || [],
-            'form.spouseInfo': m.spouseInfo || {
-              name: '', birthDate: '', rank: '', bio: '',
-              deathDate: '', deathPlace: '', longitude: '', latitude: ''
+          const nameMap = {};
+          (all || []).forEach(member => {
+            nameMap[member.id] = member.name;
+          });
+          const fatherName = m.fatherId ? (nameMap[m.fatherId] || '已选择') : '';
+          // 母亲为父亲配偶时 motherId 存 rank 序号，需按配偶列表解析姓名
+          const resolveMotherName = () => {
+            if (!m.motherId) return Promise.resolve('');
+            if (m.fatherId) {
+              return familyMember.getFatherSpouses(familyId, m.fatherId)
+                .then((spouses) => {
+                  const sp = (spouses || []).find(s => String(s.rank) === String(m.motherId));
+                  return sp ? sp.name : (nameMap[m.motherId] || '已选择');
+                })
+                .catch(() => nameMap[m.motherId] || '已选择');
             }
+            return Promise.resolve(nameMap[m.motherId] || '已选择');
+          };
+          resolveMotherName().then((motherName) => {
+            this.setData({
+              'form.name': m.name,
+              'form.gender': m.gender || 'male',
+              'form.generation': m.generation || 1,
+              'form.birthDate': m.birthDate,
+              'form.birthPlace': m.birthPlace,
+              'form.isAlive': m.isAlive,
+              'form.deathDate': m.deathDate,
+              'form.deathPlace': m.deathPlace,
+              'form.longitude': m.longitude != null ? String(m.longitude) : '',
+              'form.latitude': m.latitude != null ? String(m.latitude) : '',
+              'form.generationName': m.generationName,
+              'form.bio': m.bio,
+              'form.avatar': m.avatar || '',
+              'form.fatherId': m.fatherId || '',
+              'form.motherId': m.motherId || '',
+              'form.fatherName': fatherName,
+              'form.motherName': motherName,
+              'form.photos': m.photos || [],
+              'form.spouseList': parseSpouseList(row.spouse_info)
+            });
           });
         })
         .catch((err) => {
@@ -91,9 +112,7 @@ Page({
       'form.birthPlace': '山东省济南市',
       'form.isAlive': false,
       'form.deathDate': '1955-08-20',
-      'form.generationName': '',
-      'form.title': '家族始祖',
-      'form.bio': '张太公，字子远，生于清光绪六年。'
+      'form.generationName': ''
     });
   },
 
@@ -117,18 +136,55 @@ Page({
     });
   },
 
+  /** 配偶字段输入（data-index 定位数组项） */
   spouseInputChange(e) {
+    const index = e.currentTarget.dataset.index;
     const field = e.currentTarget.dataset.field;
-    const value = e.detail.value;
     this.setData({
-      [`form.spouseInfo.${field}`]: value
+      [`form.spouseList[${index}].${field}`]: e.detail.value
     });
   },
 
+  /** 配偶日期选择（data-index 定位数组项） */
   spouseDateChange(e) {
+    const index = e.currentTarget.dataset.index;
     const field = e.currentTarget.dataset.field;
     this.setData({
-      [`form.spouseInfo.${field}`]: e.detail.value
+      [`form.spouseList[${index}].${field}`]: e.detail.value
+    });
+  },
+
+  /** 配偶在世状态切换（去世后展示墓茔信息填写） */
+  spouseToggleAlive(e) {
+    const index = e.currentTarget.dataset.index;
+    this.setData({
+      [`form.spouseList[${index}].isAlive`]: e.detail.value ? 1 : 0
+    });
+  },
+
+  /** 添加一位配偶：自动折叠已有配偶（保留数据），新增的默认展开 */
+  addSpouse() {
+    const spouseList = this.data.form.spouseList.map(s => ({ ...s, collapsed: true }));
+    spouseList.push({
+      name: '', birthDate: '', isAlive: 1, deathDate: '', deathPlace: '',
+      longitude: '', latitude: '', bio: '', collapsed: false
+    });
+    this.setData({ 'form.spouseList': spouseList });
+  },
+
+  /** 删除指定配偶 */
+  removeSpouse(e) {
+    const index = e.currentTarget.dataset.index;
+    const spouseList = this.data.form.spouseList.filter((_, i) => i !== index);
+    this.setData({ 'form.spouseList': spouseList });
+  },
+
+  /** 展开/收起指定配偶表单（仅切换折叠状态，不影响已录入数据） */
+  toggleSpouseCollapse(e) {
+    const index = e.currentTarget.dataset.index;
+    const collapsed = !this.data.form.spouseList[index].collapsed;
+    this.setData({
+      [`form.spouseList[${index}].collapsed`]: collapsed
     });
   },
 
@@ -136,18 +192,130 @@ Page({
     this.setData({ 'form.isAlive': e.detail.value });
   },
 
-  selectParent(e) {
-    const type = e.currentTarget.dataset.type;
-    wx.showToast({ title: `选择${type === 'father' ? '父亲' : '母亲'}`, icon: 'none' });
+  /** 代数输入：变更后清空父/母选择（不同代数对应的上一代不同） */
+  generationInput(e) {
+    const value = e.detail.value;
+    const gen = parseInt(value, 10);
+    this.setData({
+      'form.generation': value,
+      'form.fatherId': '',
+      'form.fatherName': '',
+      'form.motherId': '',
+      'form.motherName': ''
+    });
+    if (gen >= 2) {
+      wx.showToast({ title: '请选择父亲', icon: 'none' });
+    }
   },
 
-  selectSpouse() {
-    wx.showToast({ title: '选择配偶', icon: 'none' });
+  /** 打开父亲/母亲候选选择弹层 */
+  selectParent(e) {
+    const type = e.currentTarget.dataset.type;
+    const gen = Number(this.data.form.generation) || 1;
+    if (type === 'father') {
+      if (gen < 2) {
+        wx.showToast({ title: '第1代成员不能选择父亲', icon: 'none' });
+        return;
+      }
+      this.setData({ showParentPicker: true, parentPickerType: 'father', parentKeyword: '', parentCandidates: [] });
+      this.loadFatherCandidates('');
+    } else {
+      const fatherId = this.data.form.fatherId;
+      if (!fatherId) {
+        wx.showToast({ title: '请先选择父亲', icon: 'none' });
+        return;
+      }
+      this.setData({ showParentPicker: true, parentPickerType: 'mother', parentKeyword: '', parentCandidates: [] });
+      this.loadMotherCandidates(fatherId);
+    }
+  },
+
+  closeParentPicker() {
+    this.setData({ showParentPicker: false, parentCandidates: [] });
+  },
+
+  /** 父亲候选关键字搜索（防抖） */
+  parentKeywordInput(e) {
+    const keyword = e.detail.value;
+    this.setData({ parentKeyword: keyword });
+    if (this._searchTimer) clearTimeout(this._searchTimer);
+    this._searchTimer = setTimeout(() => {
+      this.loadFatherCandidates(keyword);
+    }, 300);
+  },
+
+  /** 加载父亲候选（上一代男性成员，空关键字返回全部） */
+  loadFatherCandidates(keyword) {
+    const familyId = (app.globalData.currentFamily || {}).id;
+    const gen = Number(this.data.form.generation) || 1;
+    if (!familyId || gen < 2) return;
+    familyMember.getFatherCandidates(familyId, { generation: gen, keyword: keyword || '' })
+      .then((list) => {
+        const candidates = (list || []).map(r => ({
+          id: r.id,
+          name: r.name,
+          sub: (r.generation_name ? r.generation_name + '字辈 · ' : '') + r.generation + '代',
+          extra: r.spouse_names ? '配偶：' + r.spouse_names : ''
+        }));
+        this.setData({ parentCandidates: candidates });
+      })
+      .catch((err) => {
+        wx.showToast({ title: (err && err.message) || '加载候选失败', icon: 'none' });
+      });
+  },
+
+  /** 加载候选母亲（所选父亲的配偶列表，motherId 存配偶 rank 序号） */
+  loadMotherCandidates(fatherId) {
+    const familyId = (app.globalData.currentFamily || {}).id;
+    if (!familyId) return;
+    familyMember.getFatherSpouses(familyId, fatherId)
+      .then((list) => {
+        const candidates = (list || []).map(s => ({
+          id: String(s.rank),
+          name: s.name,
+          sub: '',
+          extra: s.isAlive ? '' : '已故'
+        }));
+        this.setData({ parentCandidates: candidates });
+      })
+      .catch((err) => {
+        wx.showToast({ title: (err && err.message) || '加载候选失败', icon: 'none' });
+      });
+  },
+
+  /** 选中候选父/母 */
+  pickParent(e) {
+    const index = e.currentTarget.dataset.index;
+    const item = this.data.parentCandidates[index];
+    if (!item) return;
+    if (this.data.parentPickerType === 'father') {
+      // 更换父亲后需重新选择母亲
+      this.setData({
+        'form.fatherId': item.id,
+        'form.fatherName': item.name,
+        'form.motherId': '',
+        'form.motherName': '',
+        showParentPicker: false,
+        parentCandidates: []
+      });
+    } else {
+      this.setData({
+        'form.motherId': item.id,
+        'form.motherName': item.name,
+        showParentPicker: false,
+        parentCandidates: []
+      });
+    }
   },
 
   choosePhoto() {
+    const remain = 9 - (this.data.form.photos || []).length;
+    if (remain <= 0) {
+      wx.showToast({ title: '最多上传9张照片', icon: 'none' });
+      return;
+    }
     wx.chooseMedia({
-      count: 9,
+      count: remain,
       mediaType: ['image'],
       sizeType: ['compressed'],
       sourceType: ['album', 'camera'],
@@ -192,9 +360,71 @@ Page({
       wx.showToast({ title: '请输入姓名', icon: 'none' });
       return;
     }
+    if (form.name.trim().length > 50) {
+      wx.showToast({ title: '姓名不能超过50个字符', icon: 'none' });
+      return;
+    }
     if (form.generationName && !this.validateGenerationName(form.generationName)) {
       wx.showToast({ title: '字辈只能为1-10个中文汉字', icon: 'none' });
       return;
+    }
+    const gen = Number(form.generation) || 0;
+    if (!Number.isInteger(gen) || gen < 1) {
+      wx.showToast({ title: '代数必须为正整数', icon: 'none' });
+      return;
+    }
+    if (gen === 1 && form.fatherId) {
+      wx.showToast({ title: '第1代成员不能选择父亲', icon: 'none' });
+      return;
+    }
+    if (gen >= 2 && !form.fatherId) {
+      wx.showToast({ title: '第2代及以上成员请先选择父亲', icon: 'none' });
+      return;
+    }
+    // 墓茔坐标合法性（经度 -180~180，纬度 -90~90；空值跳过，非法格式拦截）
+    const longitude = this.parseCoordinate(form.longitude);
+    const latitude = this.parseCoordinate(form.latitude);
+    if (longitude !== undefined && (Number.isNaN(longitude) || longitude < -180 || longitude > 180)) {
+      wx.showToast({ title: '经度需在-180到180之间', icon: 'none' });
+      return;
+    }
+    if (latitude !== undefined && (Number.isNaN(latitude) || latitude < -90 || latitude > 90)) {
+      wx.showToast({ title: '纬度需在-90到90之间', icon: 'none' });
+      return;
+    }
+    // 配偶信息清洗与校验（支持多配偶；去世配偶才保留墓茔信息，在世配偶墓茔字段置空）
+    const spouseList = (form.spouseList || [])
+      .map(s => {
+        const alive = s.isAlive === 0 ? 0 : 1;
+        return {
+          name: (s.name || '').trim(),
+          birthDate: s.birthDate || '',
+          isAlive: alive,
+          deathDate: alive === 0 ? (s.deathDate || '') : '',
+          deathPlace: alive === 0 ? (s.deathPlace || '') : '',
+          longitude: alive === 0 ? this.parseCoordinate(s.longitude) : null,
+          latitude: alive === 0 ? this.parseCoordinate(s.latitude) : null,
+          bio: s.bio || ''
+        };
+      })
+      .filter(s => s.name);
+    for (let i = 0; i < spouseList.length; i++) {
+      const sp = spouseList[i];
+      const label = '第' + (i + 1) + '位配偶';
+      if (sp.name.length > 50) {
+        wx.showToast({ title: label + '姓名不能超过50个字符', icon: 'none' });
+        return;
+      }
+      if (sp.isAlive === 0) {
+        if (sp.longitude !== undefined && (Number.isNaN(sp.longitude) || sp.longitude < -180 || sp.longitude > 180)) {
+          wx.showToast({ title: label + '经度需在-180到180之间', icon: 'none' });
+          return;
+        }
+        if (sp.latitude !== undefined && (Number.isNaN(sp.latitude) || sp.latitude < -90 || sp.latitude > 90)) {
+          wx.showToast({ title: label + '纬度需在-90到90之间', icon: 'none' });
+          return;
+        }
+      }
     }
 
     const onSuccess = () => {
@@ -217,26 +447,29 @@ Page({
       const readyPhotos = (form.photos || []).filter(p => !this.isLocalTempFile(p));
       const avatarTemp = form.avatar && this.isLocalTempFile(form.avatar) ? form.avatar : '';
       const avatarReady = form.avatar && !this.isLocalTempFile(form.avatar) ? form.avatar : '';
-      const uploadTasks = tempPhotos.map(p => this.uploadImage(p));
-      if (avatarTemp) uploadTasks.push(this.uploadImage(avatarTemp));
+      const uploadTasks = tempPhotos.map(p => this.uploadImage(p, 'photo'));
+      if (avatarTemp) uploadTasks.push(this.uploadImage(avatarTemp, 'member_avatar'));
       Promise.all(uploadTasks)
         .then((results) => {
           const photoUrls = results.slice(0, tempPhotos.length);
           const avatarUrl = avatarTemp ? results[results.length - 1] : (avatarReady || '');
+          // 配偶信息以数组提交（与后端 spouse_info JSON 数组结构一致，支持多配偶）
           const payload = {
             name: form.name.trim(),
             gender: form.gender,
-            generation: Number(form.generation) || 1,
+            generation: gen,
             generationName: form.generationName.trim(),
             birthDate: form.birthDate || '',
             birthPlace: form.birthPlace || '',
             isAlive: form.isAlive ? 1 : 0,
             deathDate: form.deathDate || '',
             deathPlace: form.deathPlace || '',
+            longitude: longitude,
+            latitude: latitude,
             bio: form.bio || '',
             fatherId: form.fatherId || '',
             motherId: form.motherId || '',
-            spouseInfo: form.spouseInfo || {},
+            spouseInfo: spouseList,
             avatarUrl: avatarUrl || undefined,
             photos: readyPhotos.concat(photoUrls)
           };
@@ -257,18 +490,30 @@ Page({
     }
   },
 
-  /** 判断是否为本地临时文件路径（非 http/uploads 开头即需上传） */
-  isLocalTempFile(path) {
-    return !!path && typeof path === 'string' && !/^https?:\/\//.test(path) && !/^\/uploads\//.test(path);
+  /** 解析墓茔坐标（空值返回 undefined，非法返回 NaN 由调用方校验范围） */
+  parseCoordinate(value) {
+    if (value === '' || value == null) return undefined;
+    const num = Number(value);
+    return Number.isNaN(num) ? NaN : num;
   },
 
-  /** 上传图片到后端,返回可访问 URL */
-  uploadImage(filePath) {
+  /** 判断是否为本地临时文件：已上传资源(/uploads/)与真实远程 URL 视为就绪，其余(含微信 http://tmp/、wxfile://)需上传 */
+  isLocalTempFile(path) {
+    if (!path || typeof path !== 'string') return false;
+    if (/^\/uploads\//.test(path)) return false; // 已上传到服务器的资源
+    if (/^https?:\/\/(?!tmp\/)/.test(path)) return false; // 真实远程 URL；http://tmp/ 是微信临时文件
+    return true; // 本地临时文件（wxfile:// 等）
+  },
+
+  /** 上传图片到后端,返回可访问 URL；bizType 用于存储额度记账分类 */
+  uploadImage(filePath, bizType) {
     return new Promise((resolve, reject) => {
+      const familyId = (app.globalData.currentFamily || {}).id;
       wx.uploadFile({
         url: API_BASE_URL + '/common/upload',
         filePath: filePath,
         name: 'file',
+        formData: familyId ? { familyId: String(familyId), bizType: bizType || 'photo' } : {},
         success(res) {
           try {
             const data = JSON.parse(res.data);

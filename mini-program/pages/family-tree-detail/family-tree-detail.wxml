@@ -49,7 +49,6 @@
                 </view>
                 <view class="node-info">
                   <text class="node-name">{{node.name}}</text>
-                  <text class="node-title" wx:if="{{node.title}}">{{node.title}}</text>
                   <view class="node-tags">
                     <text class="node-tag" wx:if="{{node.generationName}}">{{node.generationName}}字辈</text>
                     <text class="node-tag" wx:if="{{node.isAlive === false}}">已逝</text>
@@ -134,10 +133,6 @@
     <view class="modal-info-row">
       <text class="info-label">子女</text>
       <text class="info-value">{{selectedNode.childrenCount || 0}}人</text>
-    </view>
-    <view class="modal-info-row" wx:if="{{selectedNode.title}}">
-      <text class="info-label">头衔</text>
-      <text class="info-value">{{selectedNode.title}}</text>
     </view>
   </view>
   <view class="modal-footer">

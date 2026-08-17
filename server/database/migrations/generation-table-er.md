@@ -89,4 +89,4 @@
 
 ## 迁移参考
 
-迁移脚本见同目录 `refactor-generation-table.sql`（DROP 旧表 + CREATE 新表 + 权限/菜单种子，幂等执行）。
+字辈表结构（`generation_table`）、字辈权限码与菜单已并入 `server/database/schema.sql`，全新环境执行 schema.sql 即可；存量库无需单独迁移（原 `refactor-generation-table.sql` 已删除，内容全部被 schema.sql 覆盖，旧 `family_generation` 表已随迁移废弃）。

@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { h, ref, reactive, onMounted, watch, computed } from 'vue';
-import type { DataTableColumn, FormInst, FormRules, SelectOption } from 'naive-ui';
 import {
   useMessage, useDialog, NTag, NSwitch, NButton, NSpace, NSelect,
   NModal, NInput, NInputNumber, NForm, NFormItem, NRadio, NRadioGroup, NCard,
-  NScrollbar, NAlert, NCode
+  NScrollbar, NAlert, NCode, NUpload
 } from 'naive-ui';
+import type { DataTableColumn, FormInst, FormRules, SelectOption, UploadCustomRequestOptions } from 'naive-ui';
 import { useAuth } from '@/hooks/business/auth';
 import {
   fetchAllFamilies,
@@ -14,7 +14,7 @@ import {
   fetchDeleteMember, fetchToggleMemberAlive,
   fetchAllMembers, fetchBatchImportMembers,
   fetchFatherCandidates, fetchFatherSpouses,
-  checkDuplicateMember
+  checkDuplicateMember, uploadImage
 } from '@/service/api';
 import type { FamilyMemberItem, FatherCandidate, FatherSpouse } from '@/service/api';
 import { resolveImageUrl } from '@/utils/image-url';
@@ -234,6 +234,8 @@ interface SpouseItem {
   longitude: number | null;
   latitude: number | null;
   bio: string;
+  /** 折叠状态：false 展开 / true 收起（仅影响展示，不影响数据） */
+  collapsed: boolean;
 }
 
 const formData = reactive({
@@ -250,6 +252,7 @@ const formData = reactive({
   latitude: null as number | null,
   bio: '',
   avatarUrl: '',
+  photos: [] as string[],
   fatherId: '',
   motherId: '',
   spouseList: [] as SpouseItem[],
@@ -299,6 +302,7 @@ function resetForm() {
   formData.latitude = null;
   formData.bio = '';
   formData.avatarUrl = '';
+  formData.photos = [];
   formData.fatherId = '';
   formData.motherId = '';
   formData.spouseList = [];
@@ -331,7 +335,8 @@ function parseSpouseInfo(raw: string | null | unknown): SpouseItem[] {
       deathPlace: s.deathPlace || s.death_place || '',
       longitude: s.longitude ?? s.lng ?? null,
       latitude: s.latitude ?? s.lat ?? null,
-      bio: s.bio || ''
+      bio: s.bio || '',
+      collapsed: false
     }))
     .filter((s: { name: string }) => s.name);
 }
@@ -456,7 +461,7 @@ function handleAdd() {
   showModal.value = true;
 }
 
-function handleEdit(row: FamilyMemberItem) {
+async function handleEdit(row: FamilyMemberItem) {
   isEdit.value = true;
   editId.value = row.id;
   duplicateNameError.value = null;
@@ -473,6 +478,7 @@ function handleEdit(row: FamilyMemberItem) {
   formData.latitude = row.latitude;
   formData.bio = row.bio || '';
   formData.avatarUrl = row.avatar_url || '';
+  formData.photos = row.photos || [];
   formData.fatherId = row.father_id || '';
   formData.motherId = row.mother_id || '';
   formData.spouseList = parseSpouseInfo(row.spouse_info);
@@ -480,6 +486,15 @@ function handleEdit(row: FamilyMemberItem) {
   selectedFatherInfo.value = null;
   motherCandidates.value = [];
   showModal.value = true;
+  // 列表接口不含照片数组，从详情接口补充回显
+  if (selectedFamilyId.value) {
+    try {
+      const { data } = await fetchMemberById(selectedFamilyId.value, row.id);
+      if (data) formData.photos = data.photos || [];
+    } catch {
+      /* 照片加载失败不阻塞编辑 */
+    }
+  }
   if (selectedFamilyId.value && formData.fatherId) {
     loadSelectedFatherInfo(selectedFamilyId.value, formData.fatherId);
     loadMotherCandidates(selectedFamilyId.value, formData.fatherId);
@@ -617,10 +632,12 @@ function buildSubmitData() {
     latitude: formData.latitude ?? undefined,
     bio: formData.bio || undefined,
     avatarUrl: formData.avatarUrl || undefined,
+    // 始终提交照片列表（含空数组），保证编辑时清空照片能同步到后端
+    photos: formData.photos,
     fatherId: formData.fatherId || undefined,
     motherId: formData.motherId || undefined,
-    // 始终提交配偶列表（含空数组），保证编辑时清空配偶能同步到后端
-    spouseInfo: formData.spouseList,
+    // 始终提交配偶列表（含空数组），保证编辑时清空配偶能同步到后端；剥离 collapsed 展示字段
+    spouseInfo: formData.spouseList.map(({ collapsed: _collapsed, ...spouse }) => spouse),
     sortOrder: formData.sortOrder
   };
 }
@@ -781,15 +798,64 @@ async function handleExport() {
 
 // ===== 多配偶编辑 =====
 function getEmptySpouse(): SpouseItem {
-  return { name: '', birthDate: '', isAlive: 1, deathDate: '', deathPlace: '', longitude: null, latitude: null, bio: '' };
+  return { name: '', birthDate: '', isAlive: 1, deathDate: '', deathPlace: '', longitude: null, latitude: null, bio: '', collapsed: false };
 }
 
+/** 添加配偶：自动折叠已有配偶（保留数据），新增的默认展开 */
 function addSpouse() {
+  formData.spouseList = formData.spouseList.map(s => ({ ...s, collapsed: true }));
   formData.spouseList.push(getEmptySpouse());
 }
 
 function removeSpouse(index: number) {
   formData.spouseList.splice(index, 1);
+}
+
+/** 展开/收起指定配偶表单（仅切换折叠状态，不影响已录入数据） */
+function toggleSpouseCollapse(index: number) {
+  formData.spouseList[index].collapsed = !formData.spouseList[index].collapsed;
+}
+
+// ===== 成员照片（多图） =====
+const MAX_PHOTOS = 9;
+
+async function handlePhotoUpload(options: UploadCustomRequestOptions) {
+  const rawFile = options.file.file as File | null;
+  if (!rawFile) {
+    options.onError();
+    return;
+  }
+  if (!/image\/(png|jpe?g|gif|webp)/.test(rawFile.type)) {
+    message.error('仅支持 png/jpg/jpeg/gif/webp 格式的图片');
+    options.onError();
+    return;
+  }
+  if (rawFile.size > 5 * 1024 * 1024) {
+    message.error('图片大小不能超过 5MB');
+    options.onError();
+    return;
+  }
+  if (formData.photos.length >= MAX_PHOTOS) {
+    message.warning(`最多上传 ${MAX_PHOTOS} 张照片`);
+    options.onError();
+    return;
+  }
+  try {
+    const { data, error } = await uploadImage(rawFile);
+    if (error || !data) {
+      message.error((error as Error)?.message || '上传失败');
+      options.onError();
+      return;
+    }
+    formData.photos.push(data.url);
+    options.onFinish();
+  } catch {
+    options.onError();
+  }
+}
+
+function removePhoto(index: number) {
+  formData.photos.splice(index, 1);
 }
 
 onMounted(() => { loadFamilyOptions(); });
@@ -880,6 +946,33 @@ onMounted(() => { loadFamilyOptions(); });
             <NFormItem label="头像" path="avatarUrl">
               <ImageUpload v-model:value="formData.avatarUrl" :size="80" />
             </NFormItem>
+            <NFormItem label="成员照片">
+              <NSpace vertical :size="10" style="width: 100%">
+                <NUpload
+                  accept="image/png,image/jpeg,image/gif,image/webp"
+                  multiple
+                  :max="MAX_PHOTOS"
+                  :show-file-list="false"
+                  :custom-request="handlePhotoUpload"
+                  :disabled="submitting"
+                >
+                  <NButton size="small" dashed>+ 上传照片</NButton>
+                </NUpload>
+                <div v-if="formData.photos.length" class="flex flex-wrap gap-8px">
+                  <div
+                    v-for="(url, idx) in formData.photos"
+                    :key="idx"
+                    class="group relative size-72px rd-8px overflow-hidden border-1px border-gray-200"
+                  >
+                    <img :src="resolveImageUrl(url)" alt="成员照片" class="size-full object-cover" />
+                    <div class="absolute inset-0 hidden items-center justify-center bg-black/50 group-hover:flex">
+                      <NButton size="tiny" type="error" ghost @click="removePhoto(idx)">删除</NButton>
+                    </div>
+                  </div>
+                </div>
+                <span class="text-12px text-gray-500">支持多张照片（最多 {{ MAX_PHOTOS }} 张，png/jpg/gif/webp ≤ 5MB）</span>
+              </NSpace>
+            </NFormItem>
             <NFormItem label="性别" path="gender">
               <NRadioGroup v-model:value="formData.gender">
                 <NRadio value="male">男</NRadio>
@@ -961,30 +1054,43 @@ onMounted(() => { loadFamilyOptions(); });
 
             <NFormItem label="配偶信息">
               <NSpace vertical :size="8" style="width: 100%">
-                <div v-for="(spouse, idx) in formData.spouseList" :key="idx" style="border: 1px solid #e8e8e8; border-radius: 4px; padding: 12px">
-                  <NSpace align="center" style="margin-bottom: 8px">
-                    <span style="font-weight: 600">配偶 {{ idx + 1 }}</span>
-                    <NButton size="tiny" type="error" tertiary @click="removeSpouse(idx)">删除</NButton>
-                  </NSpace>
-                  <NSpace vertical :size="4">
-                    <NSpace align="center">
-                      <NInput v-model:value="spouse.name" placeholder="姓名" style="width: 120px" />
-                      <NInput v-model:value="spouse.birthDate" placeholder="出生日期" style="width: 140px" />
-                      <NSpace align="center" :size="4">
-                        <span class="text-12px text-gray-500">在世</span>
-                        <NSwitch v-model:value="spouse.isAlive" :checked-value="1" :unchecked-value="0" size="small" />
+                <div
+                  v-for="(spouse, idx) in formData.spouseList"
+                  :key="idx"
+                  class="spouse-card"
+                  :class="{ 'spouse-card-collapsed': spouse.collapsed }"
+                >
+                  <div class="spouse-card-header" @click="toggleSpouseCollapse(idx)">
+                    <span class="spouse-card-title">配偶 {{ idx + 1 }}</span>
+                    <span v-if="spouse.collapsed" class="spouse-card-summary">{{ spouse.name || '未填写姓名' }}（已收起）</span>
+                    <NSpace :size="8" style="margin-left: auto" @click.stop>
+                      <NButton size="tiny" :type="spouse.collapsed ? 'primary' : 'default'" tertiary @click="toggleSpouseCollapse(idx)">
+                        {{ spouse.collapsed ? '展开' : '收起' }}
+                      </NButton>
+                      <NButton size="tiny" type="error" tertiary @click="removeSpouse(idx)">删除</NButton>
+                    </NSpace>
+                  </div>
+                  <div v-if="!spouse.collapsed" class="spouse-card-body">
+                    <NSpace vertical :size="4">
+                      <NSpace align="center">
+                        <NInput v-model:value="spouse.name" placeholder="姓名" style="width: 120px" />
+                        <NInput v-model:value="spouse.birthDate" placeholder="出生日期" style="width: 140px" />
+                        <NSpace align="center" :size="4">
+                          <span class="text-12px text-gray-500">在世</span>
+                          <NSwitch v-model:value="spouse.isAlive" :checked-value="1" :unchecked-value="0" size="small" />
+                        </NSpace>
                       </NSpace>
+                      <NSpace v-if="spouse.isAlive === 0">
+                        <NInput v-model:value="spouse.deathDate" placeholder="逝世日期" style="width: 140px" />
+                        <NInput v-model:value="spouse.deathPlace" placeholder="安葬地点" style="width: 200px" />
+                      </NSpace>
+                      <NSpace v-if="spouse.isAlive === 0">
+                        <NInputNumber v-model:value="spouse.longitude" placeholder="经度" :step="0.000001" style="width: 140px" />
+                        <NInputNumber v-model:value="spouse.latitude" placeholder="纬度" :step="0.000001" style="width: 140px" />
+                      </NSpace>
+                      <NInput v-model:value="spouse.bio" placeholder="生平简介" type="textarea" :rows="2" />
                     </NSpace>
-                    <NSpace v-if="spouse.isAlive === 0">
-                      <NInput v-model:value="spouse.deathDate" placeholder="逝世日期" style="width: 140px" />
-                      <NInput v-model:value="spouse.deathPlace" placeholder="安葬地点" style="width: 200px" />
-                    </NSpace>
-                    <NSpace v-if="spouse.isAlive === 0">
-                      <NInputNumber v-model:value="spouse.longitude" placeholder="经度" :step="0.000001" style="width: 140px" />
-                      <NInputNumber v-model:value="spouse.latitude" placeholder="纬度" :step="0.000001" style="width: 140px" />
-                    </NSpace>
-                    <NInput v-model:value="spouse.bio" placeholder="生平简介" type="textarea" :rows="2" />
-                  </NSpace>
+                  </div>
                 </div>
                 <NButton dashed type="primary" block @click="addSpouse">+ 添加配偶</NButton>
               </NSpace>
@@ -1137,5 +1243,44 @@ onMounted(() => { loadFamilyOptions(); });
   margin-top: 4px;
   font-size: 12px;
   color: #888;
+}
+/* 多配偶折叠卡片 */
+.spouse-card {
+  border: 1px solid #e8e8e8;
+  border-radius: 4px;
+  padding: 12px;
+  transition: border-color 0.2s, background-color 0.2s;
+}
+.spouse-card-collapsed {
+  background-color: #fafafa;
+  border-style: dashed;
+  border-color: #d9c3c3;
+}
+.spouse-card-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  user-select: none;
+}
+.spouse-card-title {
+  font-weight: 600;
+  flex-shrink: 0;
+}
+.spouse-card-summary {
+  font-size: 12px;
+  color: #999;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+.spouse-card-body {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #f0f0f0;
+}
+.spouse-card-collapsed .spouse-card-body {
+  display: none;
 }
 </style>

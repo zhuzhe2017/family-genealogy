@@ -23,6 +23,8 @@ export interface FamilyMemberItem {
   status: number;
   create_time: string;
   update_time: string;
+  /** 成员照片URL数组（详情接口返回） */
+  photos?: string[];
 }
 
 export interface FatherCandidate {
@@ -76,6 +78,8 @@ export interface CreateFamilyMemberData {
   bio?: string;
   /** 头像URL（/uploads/xxx 或 http(s) 完整地址，最多500字符） */
   avatarUrl?: string;
+  /** 成员照片URL数组（最多9张，编辑时传空数组表示清空） */
+  photos?: string[];
   fatherId?: string;
   motherId?: string;
   spouseInfo?: unknown;
@@ -97,6 +101,8 @@ export interface UpdateFamilyMemberData {
   bio?: string;
   /** 头像URL（/uploads/xxx 或 http(s) 完整地址，最多500字符） */
   avatarUrl?: string;
+  /** 成员照片URL数组（最多9张，编辑时传空数组表示清空） */
+  photos?: string[];
   fatherId?: string;
   motherId?: string;
   spouseInfo?: unknown;

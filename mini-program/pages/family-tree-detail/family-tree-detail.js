@@ -65,29 +65,29 @@ Page({
     const treeLevels = [
       // 第一代
       [
-        { id: '1', name: '张太公', gender: 'male', generation: 1, generationName: '文', birthYear: '1880', title: '家族始祖', hasChildren: true, childrenCount: 3, spouseId: '', spouseInfo: { name: '张太婆', birthDate: '1882年5月12日', rank: '长女', bio: '张太婆，贤良淑德，相夫教子。', deathDate: '1960年11月8日', deathPlace: '山东省济南市张氏祖坟', longitude: '117.000923', latitude: '36.675807' } }
+        { id: '1', name: '张太公', gender: 'male', generation: 1, generationName: '文', birthYear: '1880', hasChildren: true, childrenCount: 3, spouseInfo: { name: '张太婆', birthDate: '1882年5月12日', bio: '张太婆，贤良淑德，相夫教子。', deathDate: '1960年11月8日', deathPlace: '山东省济南市张氏祖坟', longitude: '117.000923', latitude: '36.675807' } }
       ],
       // 第二代
       [
-        { id: '2', name: '张大', gender: 'male', generation: 2, generationName: '德', birthYear: '1910', hasChildren: true, childrenCount: 2, spouseId: '', spouseInfo: { name: '李氏', birthDate: '1911年', rank: '', bio: '', deathDate: '', deathPlace: '', longitude: '', latitude: '' } },
-        { id: '3', name: '张二', gender: 'male', generation: 2, generationName: '德', birthYear: '1912', hasChildren: true, childrenCount: 2, spouseId: '', spouseInfo: { name: '王氏', birthDate: '1913年', rank: '', bio: '', deathDate: '', deathPlace: '', longitude: '', latitude: '' } },
-        { id: '4', name: '张三', gender: 'male', generation: 2, generationName: '德', birthYear: '1915', hasChildren: true, childrenCount: 1, spouseId: '', spouseInfo: { name: '陈氏', birthDate: '1916年', rank: '', bio: '', deathDate: '', deathPlace: '', longitude: '', latitude: '' } }
+        { id: '2', name: '张大', gender: 'male', generation: 2, generationName: '德', birthYear: '1910', hasChildren: true, childrenCount: 2, spouseInfo: { name: '李氏', birthDate: '1911年', bio: '', deathDate: '', deathPlace: '', longitude: '', latitude: '' } },
+        { id: '3', name: '张二', gender: 'male', generation: 2, generationName: '德', birthYear: '1912', hasChildren: true, childrenCount: 2, spouseInfo: { name: '王氏', birthDate: '1913年', bio: '', deathDate: '', deathPlace: '', longitude: '', latitude: '' } },
+        { id: '4', name: '张三', gender: 'male', generation: 2, generationName: '德', birthYear: '1915', hasChildren: true, childrenCount: 1, spouseInfo: { name: '陈氏', birthDate: '1916年', bio: '', deathDate: '', deathPlace: '', longitude: '', latitude: '' } }
       ],
       // 第三代
       [
-        { id: '5', name: '张强', gender: 'male', generation: 3, generationName: '永', birthYear: '1940', hasChildren: true, childrenCount: 2, spouseId: '', spouseInfo: { name: '刘氏', birthDate: '1941年', rank: '', bio: '', deathDate: '', deathPlace: '', longitude: '', latitude: '' } },
-        { id: '6', name: '张明', gender: 'male', generation: 3, generationName: '永', birthYear: '1942', hasChildren: true, childrenCount: 1, spouseId: '', spouseInfo: { name: '赵氏', birthDate: '1943年', rank: '', bio: '', deathDate: '', deathPlace: '', longitude: '', latitude: '' } },
-        { id: '7', name: '张华', gender: 'male', generation: 3, generationName: '永', birthYear: '1945', hasChildren: true, childrenCount: 2, spouseId: '', spouseInfo: { name: '孙氏', birthDate: '1946年', rank: '', bio: '', deathDate: '', deathPlace: '', longitude: '', latitude: '' } },
-        { id: '8', name: '张丽', gender: 'female', generation: 3, generationName: '永', birthYear: '1948', hasChildren: true, childrenCount: 1, spouseId: '', spouseInfo: { name: '周先生', birthDate: '1945年', rank: '', bio: '', deathDate: '', deathPlace: '', longitude: '', latitude: '' } },
-        { id: '9', name: '张芳', gender: 'female', generation: 3, generationName: '永', birthYear: '1950', hasChildren: false, childrenCount: 0, spouseId: '', spouseInfo: { name: '吴先生', birthDate: '1948年', rank: '', bio: '', deathDate: '', deathPlace: '', longitude: '', latitude: '' } }
+        { id: '5', name: '张强', gender: 'male', generation: 3, generationName: '永', birthYear: '1940', hasChildren: true, childrenCount: 2, spouseInfo: { name: '刘氏', birthDate: '1941年', bio: '', deathDate: '', deathPlace: '', longitude: '', latitude: '' } },
+        { id: '6', name: '张明', gender: 'male', generation: 3, generationName: '永', birthYear: '1942', hasChildren: true, childrenCount: 1, spouseInfo: { name: '赵氏', birthDate: '1943年', bio: '', deathDate: '', deathPlace: '', longitude: '', latitude: '' } },
+        { id: '7', name: '张华', gender: 'male', generation: 3, generationName: '永', birthYear: '1945', hasChildren: true, childrenCount: 2, spouseInfo: { name: '孙氏', birthDate: '1946年', bio: '', deathDate: '', deathPlace: '', longitude: '', latitude: '' } },
+        { id: '8', name: '张丽', gender: 'female', generation: 3, generationName: '永', birthYear: '1948', hasChildren: true, childrenCount: 1, spouseInfo: { name: '周先生', birthDate: '1945年', bio: '', deathDate: '', deathPlace: '', longitude: '', latitude: '' } },
+        { id: '9', name: '张芳', gender: 'female', generation: 3, generationName: '永', birthYear: '1950', hasChildren: false, childrenCount: 0, spouseInfo: { name: '吴先生', birthDate: '1948年', bio: '', deathDate: '', deathPlace: '', longitude: '', latitude: '' } }
       ],
       // 第四代
       [
-        { id: '10', name: '张伟', gender: 'male', generation: 4, generationName: '世', birthYear: '1970', hasChildren: true, childrenCount: 1, spouseId: '', spouseInfo: { name: '郑氏', birthDate: '1971年', rank: '', bio: '', deathDate: '', deathPlace: '', longitude: '', latitude: '' } },
-        { id: '11', name: '张敏', gender: 'female', generation: 4, generationName: '世', birthYear: '1972', hasChildren: true, childrenCount: 2, spouseId: '', spouseInfo: { name: '王先生', birthDate: '1970年', rank: '', bio: '', deathDate: '', deathPlace: '', longitude: '', latitude: '' } },
+        { id: '10', name: '张伟', gender: 'male', generation: 4, generationName: '世', birthYear: '1970', hasChildren: true, childrenCount: 1, spouseInfo: { name: '郑氏', birthDate: '1971年', bio: '', deathDate: '', deathPlace: '', longitude: '', latitude: '' } },
+        { id: '11', name: '张敏', gender: 'female', generation: 4, generationName: '世', birthYear: '1972', hasChildren: true, childrenCount: 2, spouseInfo: { name: '王先生', birthDate: '1970年', bio: '', deathDate: '', deathPlace: '', longitude: '', latitude: '' } },
         { id: '12', name: '张军', gender: 'male', generation: 4, generationName: '世', birthYear: '1975', hasChildren: false, childrenCount: 0 },
-        { id: '13', name: '张燕', gender: 'female', generation: 4, generationName: '世', birthYear: '1978', hasChildren: true, childrenCount: 1, spouseId: '', spouseInfo: { name: '李先生', birthDate: '1976年', rank: '', bio: '', deathDate: '', deathPlace: '', longitude: '', latitude: '' } },
-        { id: '14', name: '张鹏', gender: 'male', generation: 4, generationName: '世', birthYear: '1980', hasChildren: true, childrenCount: 1, spouseId: '', spouseInfo: { name: '周氏', birthDate: '1981年', rank: '', bio: '', deathDate: '', deathPlace: '', longitude: '', latitude: '' } }
+        { id: '13', name: '张燕', gender: 'female', generation: 4, generationName: '世', birthYear: '1978', hasChildren: true, childrenCount: 1, spouseInfo: { name: '李先生', birthDate: '1976年', bio: '', deathDate: '', deathPlace: '', longitude: '', latitude: '' } },
+        { id: '14', name: '张鹏', gender: 'male', generation: 4, generationName: '世', birthYear: '1980', hasChildren: true, childrenCount: 1, spouseInfo: { name: '周氏', birthDate: '1981年', bio: '', deathDate: '', deathPlace: '', longitude: '', latitude: '' } }
       ],
       // 第五代
       [

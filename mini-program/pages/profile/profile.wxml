@@ -29,6 +29,35 @@
     <text class="login-banner-arrow">›</text>
   </view>
 
+  <!-- 我的家族支系（登录后展示关联信息与分享码） -->
+  <view class="family-card" wx:if="{{isOnline}}">
+    <view class="family-card-header">
+      <text class="family-card-title">我的家族支系</text>
+      <view class="family-card-action" bindtap="joinFamilyEntry">加入/切换</view>
+    </view>
+    <view class="family-card-body" wx:if="{{familyInfo.bound}}">
+      <view class="family-card-row">
+        <text class="family-card-label">所属支系</text>
+        <text class="family-card-value">{{familyInfo.familyName}}</text>
+      </view>
+      <view class="family-card-row" wx:if="{{familyInfo.memberName}}">
+        <text class="family-card-label">绑定成员</text>
+        <text class="family-card-value">{{familyInfo.memberName}}</text>
+      </view>
+      <view class="family-card-row" wx:if="{{familyInfo.shareCode}}">
+        <text class="family-card-label">分享码</text>
+        <view class="family-card-share">
+          <text class="family-card-code">{{familyInfo.shareCode}}</text>
+          <text class="family-card-copy" bindtap="copyShareCode">复制</text>
+        </view>
+      </view>
+    </view>
+    <view class="family-card-empty" wx:else>
+      <text>尚未关联家族支系，输入分享码或家族ID即可加入</text>
+      <view class="family-card-join-btn" bindtap="joinFamilyEntry">立即加入</view>
+    </view>
+  </view>
+
   <!-- 功能菜单 -->
   <view class="menu-section">
     <view class="menu-group">

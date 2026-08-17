@@ -156,6 +156,15 @@ export const generatedRoutes: GeneratedRoute[] = [
           title: 'mini-program_surname',
           i18nKey: 'route.mini-program_surname'
         }
+      },
+      {
+        name: 'mini-program_worship',
+        path: '/mini-program/worship',
+        component: 'view.mini-program_worship',
+        meta: {
+          title: 'mini-program_worship',
+          i18nKey: 'route.mini-program_worship'
+        }
       }
     ]
   },

@@ -239,6 +239,7 @@ const local: App.I18n.Schema = {
     'mini-program_content': 'Content Management',
     'mini-program_surname': 'Surname Management',
     'mini-program_subscription': 'Subscription Management',
+    'mini-program_worship': 'Worship Management',
     system: 'System',
     system_menu: 'Menu Management',
     system_role: 'Role Management',

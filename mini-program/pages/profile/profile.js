@@ -2,13 +2,15 @@ const app = getApp();
 const { auth, subscription } = require('../../utils/api');
 const { clearToken, getToken } = require('../../utils/request');
 const { API_BASE_URL, USE_MOCK } = require('../../utils/config');
-const { resolveImageUrl } = require('../../utils/format');
+const { resolveImageUrl, normalizeFamily } = require('../../utils/format');
 
 Page({
   data: {
     userInfo: {},
     editVisible: false,
     isOnline: false,
+    // 我的家族关联:{ familyId, familyName, memberName, shareCode, bound }
+    familyInfo: { familyId: '', familyName: '', memberName: '', shareCode: '', bound: false },
     editForm: {
       nickName: '',
       gender: 0,
@@ -25,6 +27,7 @@ Page({
   onShow() {
     this.setData({ isOnline: !!app.globalData.isOnline });
     this.loadProfile();
+    this.loadFamilyInfo();
     this.loadVipStatus();
   },
 
@@ -70,6 +73,101 @@ Page({
     return Object.assign({}, info, {
       avatarFull: resolveImageUrl(info.avatarUrl),
       phoneMasked: phone ? phone.replace(/^(\d{3})\d{4}(\d{4})$/, '$1****$2') : ''
+    });
+  },
+
+  /** 加载我的家族关联信息（支系/成员/分享码） */
+  loadFamilyInfo() {
+    const my = app.globalData.myFamily || {};
+    const info = app.globalData.userInfo || {};
+    const familyName = (my.family && my.family.name) || '';
+    const memberName = (my.member && my.member.name) || '';
+    const shareCode = my.shareCode || info.shareCode || '';
+    this.setData({
+      familyInfo: {
+        familyId: my.familyId || info.familyId || '',
+        familyName: familyName,
+        memberName: memberName,
+        shareCode: shareCode,
+        // 已关联家族（family 存在即视为已绑定支系）
+        bound: !!(my.familyId || info.familyId) && !!familyName
+      }
+    });
+  },
+
+  /** 加入家族支系入口:输入分享码或家族ID */
+  joinFamilyEntry() {
+    if (!this.data.isOnline) {
+      wx.showToast({ title: '请先登录', icon: 'none' });
+      return;
+    }
+    wx.showModal({
+      title: '加入家族支系',
+      editable: true,
+      placeholderText: '请输入分享码（如 ABC12345）或家族ID',
+      confirmText: '加入',
+      confirmColor: '#8B1A1A',
+      success: (res) => {
+        if (!res.confirm) return;
+        const input = (res.content || '').trim();
+        if (!input) {
+          wx.showToast({ title: '请输入分享码或家族ID', icon: 'none' });
+          return;
+        }
+        this.doJoin(input);
+      }
+    });
+  },
+
+  /** 提交加入:纯数字视为家族ID,否则视为分享码 */
+  doJoin(input) {
+    const payload = /^\d+$/.test(input)
+      ? { familyId: Number(input) }
+      : { shareCode: input.toUpperCase() };
+    wx.showLoading({ title: '加入中' });
+    auth.joinFamily(payload)
+      .then((data) => {
+        wx.hideLoading();
+        const userInfo = data.userInfo || {};
+        // 更新全局关联信息
+        app.globalData.myFamily = {
+          familyId: userInfo.familyId,
+          family: data.family || null,
+          memberId: userInfo.memberId,
+          member: data.member || null,
+          shareCode: data.shareCode
+        };
+        app.globalData.userInfo = Object.assign({}, app.globalData.userInfo || {}, userInfo);
+        // 切换当前家族为刚加入的支系
+        if (data.family && data.family.id) {
+          const fam = normalizeFamily(data.family);
+          app.globalData.families = [
+            fam,
+            ...(app.globalData.families || []).filter(f => String(f.id) !== String(data.family.id))
+          ];
+          app.globalData.currentFamily = fam;
+        }
+        this.loadFamilyInfo();
+        wx.showToast({ title: '加入成功', icon: 'success' });
+      })
+      .catch((err) => {
+        wx.hideLoading();
+        wx.showToast({ title: (err && err.message) || '加入失败', icon: 'none' });
+      });
+  },
+
+  /** 复制分享码到剪贴板 */
+  copyShareCode() {
+    const code = this.data.familyInfo.shareCode;
+    if (!code) {
+      wx.showToast({ title: '暂无可分享的家族分享码', icon: 'none' });
+      return;
+    }
+    wx.setClipboardData({
+      data: code,
+      success: () => {
+        wx.showToast({ title: '分享码已复制', icon: 'success' });
+      }
     });
   },
 

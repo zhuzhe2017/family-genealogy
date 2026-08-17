@@ -21,12 +21,18 @@ CREATE TABLE `user` (
   `gender`      TINYINT(1)    DEFAULT 0 COMMENT '性别 0-未知 1-男 2-女',
   `openid`      VARCHAR(64)   DEFAULT '' COMMENT '微信openid',
   `unionid`     VARCHAR(64)   DEFAULT '' COMMENT '微信unionid',
+  `family_id`   INT UNSIGNED  DEFAULT NULL COMMENT '关联家族支系ID（会员所属家族支系，family.id）',
+  `member_id`   VARCHAR(32)   DEFAULT '' COMMENT '关联成员ID（会员与家族成员的绑定关系，family_members_{familyId}.id）',
+  `share_code`  VARCHAR(16)   DEFAULT NULL COMMENT '分享码（家族邀请/加入，全局唯一，仅已入族会员持有）',
   `status`      TINYINT(1)    DEFAULT 1 COMMENT '状态 1-正常 0-禁用',
   `create_time` DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   `update_time` DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
   PRIMARY KEY (`id`),
   INDEX `idx_openid` (`openid`),
-  INDEX `idx_phone` (`phone`)
+  INDEX `idx_phone` (`phone`),
+  INDEX `idx_user_family_id` (`family_id`),
+  INDEX `idx_user_member_id` (`member_id`),
+  UNIQUE INDEX `uk_user_share_code` (`share_code`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户表';
 
 -- ------------------------------------------------------------
@@ -403,6 +409,24 @@ CREATE TABLE `family_worship_record` (
   INDEX `idx_user` (`user_id`),
   INDEX `idx_type` (`family_id`, `type`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='祭祀记录表';
+
+-- ------------------------------------------------------------
+-- 18.1 祭祀纪念对象表（纪念堂）
+-- ------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS `family_worship_memorial` (
+  `id`              INT UNSIGNED  NOT NULL AUTO_INCREMENT COMMENT 'ID',
+  `family_id`       INT UNSIGNED  NOT NULL COMMENT '家族ID',
+  `member_id`       VARCHAR(32)   NOT NULL COMMENT '成员ID（已故成员，family_member.id）',
+  `member_name`     VARCHAR(50)   NOT NULL COMMENT '成员姓名（冗余快照）',
+  `avatar_url`      VARCHAR(500)  NOT NULL DEFAULT '' COMMENT '遗像URL',
+  `epitaph`         VARCHAR(500)  NOT NULL DEFAULT '' COMMENT '碑文/纪念寄语',
+  `creator_user_id` VARCHAR(32)   NOT NULL COMMENT '创建人用户ID',
+  `status`          TINYINT(1)    NOT NULL DEFAULT 1 COMMENT '状态 1-正常 0-已删除',
+  `create_time`     DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_family_member` (`family_id`, `member_id`),
+  INDEX `idx_family` (`family_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='祭祀纪念对象表';
 
 -- ------------------------------------------------------------
 -- 19. 家族成员权限表

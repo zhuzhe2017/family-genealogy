@@ -238,6 +238,352 @@
   flex-direction: column;
 }
 
+/* 空态/加载/错误提示 */
+.records-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 48rpx 0;
+  color: rgba(255,255,255,0.4);
+  font-size: 24rpx;
+}
+
+.records-empty-btn {
+  margin-top: 20rpx;
+  padding: 12rpx 48rpx;
+  border-radius: 32rpx;
+  border: 1rpx solid rgba(212, 165, 116, 0.4);
+  color: #D4A574;
+  font-size: 26rpx;
+}
+
+/* ============ 纪念日提醒 ============ */
+.reminder-section {
+  margin: 24rpx 24rpx 0;
+  padding: 24rpx;
+  border-radius: 16rpx;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1rpx solid rgba(212, 165, 116, 0.18);
+}
+
+.reminder-header {
+  display: flex;
+  align-items: baseline;
+  margin-bottom: 16rpx;
+}
+
+.reminder-title {
+  font-size: 30rpx;
+  font-weight: bold;
+  color: #F5E6D0;
+}
+
+.reminder-sub {
+  margin-left: 16rpx;
+  font-size: 22rpx;
+  color: rgba(245, 230, 208, 0.5);
+}
+
+.reminder-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.reminder-item {
+  display: flex;
+  align-items: center;
+  padding: 14rpx 0;
+  border-bottom: 1rpx solid rgba(255, 255, 255, 0.06);
+}
+
+.reminder-item:last-child {
+  border-bottom: none;
+}
+
+.reminder-avatar {
+  width: 64rpx;
+  height: 64rpx;
+  border-radius: 50%;
+  background: #D4A574;
+  color: #1a1a2e;
+  font-size: 28rpx;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 20rpx;
+  flex-shrink: 0;
+}
+
+.reminder-avatar.lock {
+  background: rgba(212, 165, 116, 0.15);
+  font-size: 32rpx;
+}
+
+.reminder-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.reminder-name {
+  font-size: 28rpx;
+  color: #F5E6D0;
+}
+
+.reminder-desc {
+  font-size: 22rpx;
+  color: rgba(245, 230, 208, 0.55);
+  margin-top: 4rpx;
+}
+
+.reminder-days {
+  flex-shrink: 0;
+  margin-left: 16rpx;
+}
+
+.reminder-today {
+  font-size: 26rpx;
+  font-weight: bold;
+  color: #E8B88A;
+}
+
+.reminder-days-text {
+  font-size: 24rpx;
+  color: rgba(245, 230, 208, 0.7);
+}
+
+.reminder-lock-btn {
+  padding: 8rpx 20rpx;
+  border-radius: 24rpx;
+  border: 1rpx solid rgba(212, 165, 116, 0.5);
+  color: #D4A574;
+  font-size: 24rpx;
+}
+
+/* ============ 纪念堂 ============ */
+.memorial-section {
+  margin: 24rpx 24rpx 0;
+  padding: 24rpx;
+  border-radius: 16rpx;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1rpx solid rgba(212, 165, 116, 0.18);
+}
+
+.memorial-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20rpx;
+}
+
+.memorial-title {
+  font-size: 30rpx;
+  font-weight: bold;
+  color: #F5E6D0;
+}
+
+.memorial-add {
+  padding: 8rpx 24rpx;
+  border-radius: 28rpx;
+  border: 1rpx solid rgba(212, 165, 116, 0.5);
+  color: #D4A574;
+  font-size: 24rpx;
+}
+
+.memorial-scroll {
+  white-space: nowrap;
+}
+
+.memorial-card {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  width: 200rpx;
+  margin-right: 20rpx;
+  padding: 20rpx 16rpx;
+  border-radius: 12rpx;
+  background: rgba(255, 255, 255, 0.08);
+  position: relative;
+  vertical-align: top;
+}
+
+.memorial-avatar {
+  width: 96rpx;
+  height: 96rpx;
+  border-radius: 50%;
+  background: #3a2a1a;
+  border: 2rpx solid #D4A574;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  color: #D4A574;
+  font-size: 40rpx;
+  font-weight: bold;
+}
+
+.memorial-avatar image {
+  width: 100%;
+  height: 100%;
+}
+
+.memorial-name {
+  margin-top: 14rpx;
+  font-size: 28rpx;
+  color: #F5E6D0;
+  font-weight: bold;
+}
+
+.memorial-life {
+  margin-top: 6rpx;
+  font-size: 20rpx;
+  color: rgba(255,255,255,0.45);
+}
+
+.memorial-epitaph {
+  margin-top: 8rpx;
+  font-size: 22rpx;
+  color: rgba(212, 165, 116, 0.9);
+  white-space: normal;
+  text-align: center;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  line-height: 1.4;
+}
+
+.memorial-del {
+  position: absolute;
+  top: 8rpx;
+  right: 12rpx;
+  width: 40rpx;
+  height: 40rpx;
+  line-height: 40rpx;
+  text-align: center;
+  font-size: 24rpx;
+  color: rgba(255,255,255,0.5);
+  background: rgba(0,0,0,0.25);
+  border-radius: 50%;
+}
+
+.memorial-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 24rpx 0;
+  color: rgba(255,255,255,0.4);
+  font-size: 24rpx;
+}
+
+.memorial-empty-btn {
+  margin-top: 16rpx;
+  padding: 10rpx 44rpx;
+  border-radius: 32rpx;
+  border: 1rpx solid rgba(212, 165, 116, 0.4);
+  color: #D4A574;
+  font-size: 24rpx;
+}
+
+/* ============ 已故成员选择弹层 ============ */
+.member-picker-mask {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  z-index: 100;
+  display: flex;
+  align-items: flex-end;
+}
+
+.member-picker-panel {
+  width: 100%;
+  max-height: 65vh;
+  background: #2a1d12;
+  border-radius: 24rpx 24rpx 0 0;
+  display: flex;
+  flex-direction: column;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.member-picker-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 28rpx 32rpx;
+  border-bottom: 1rpx solid rgba(212, 165, 116, 0.2);
+}
+
+.member-picker-title {
+  font-size: 30rpx;
+  font-weight: bold;
+  color: #F5E6D0;
+}
+
+.member-picker-close {
+  font-size: 26rpx;
+  color: rgba(255,255,255,0.5);
+}
+
+.member-picker-list {
+  max-height: 52vh;
+}
+
+.member-picker-item {
+  display: flex;
+  align-items: center;
+  padding: 22rpx 32rpx;
+  border-bottom: 1rpx solid rgba(255, 255, 255, 0.06);
+}
+
+.member-picker-avatar {
+  width: 72rpx;
+  height: 72rpx;
+  border-radius: 50%;
+  background: #3a2a1a;
+  border: 2rpx solid #D4A574;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  color: #D4A574;
+  font-size: 30rpx;
+  font-weight: bold;
+  margin-right: 20rpx;
+}
+
+.member-picker-avatar image {
+  width: 100%;
+  height: 100%;
+}
+
+.member-picker-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.member-picker-name {
+  font-size: 28rpx;
+  color: #F5E6D0;
+}
+
+.member-picker-life {
+  margin-top: 4rpx;
+  font-size: 22rpx;
+  color: rgba(255,255,255,0.45);
+}
+
+.member-picker-tip {
+  padding: 40rpx 0;
+  text-align: center;
+  font-size: 24rpx;
+  color: rgba(255,255,255,0.4);
+}
+
 .record-item {
   display: flex;
   padding: 20rpx 0;

@@ -5,7 +5,7 @@
 
       <view class="form-group">
         <text class="form-label required">姓名</text>
-        <input class="form-input" placeholder="请输入姓名" value="{{form.name}}" bindinput="inputChange" data-field="name"/>
+        <input class="form-input" placeholder="请输入姓名" value="{{form.name}}" bindinput="inputChange" data-field="name" maxlength="50"/>
       </view>
 
       <view class="form-group">
@@ -40,6 +40,12 @@
       </view>
 
       <view class="form-group">
+        <text class="form-label">代数/辈分</text>
+        <input class="form-input" type="number" placeholder="如：2（第2代）" value="{{form.generation}}" bindinput="generationInput"/>
+        <text class="form-tip">正整数，第2代及以上需选择父亲</text>
+      </view>
+
+      <view class="form-group">
         <text class="form-label">出生日期</text>
         <picker mode="date" value="{{form.birthDate}}" bindchange="dateChange" data-field="birthDate">
           <view class="picker-value">{{form.birthDate || '请选择出生日期'}}</view>
@@ -48,7 +54,7 @@
 
       <view class="form-group">
         <text class="form-label">出生地</text>
-        <input class="form-input" placeholder="请输入出生地" value="{{form.birthPlace}}" bindinput="inputChange" data-field="birthPlace"/>
+        <input class="form-input" placeholder="请输入出生地" value="{{form.birthPlace}}" bindinput="inputChange" data-field="birthPlace" maxlength="200"/>
       </view>
 
       <view class="form-group">
@@ -67,6 +73,21 @@
         <picker mode="date" value="{{form.deathDate}}" bindchange="dateChange" data-field="deathDate">
           <view class="picker-value">{{form.deathDate || '请选择逝世日期'}}</view>
         </picker>
+      </view>
+
+      <view class="form-group" wx:if="{{!form.isAlive}}">
+        <text class="form-label">安葬地点</text>
+        <input class="form-input" placeholder="请输入安葬地点" value="{{form.deathPlace}}" bindinput="inputChange" data-field="deathPlace" maxlength="200"/>
+      </view>
+
+      <view class="form-group" wx:if="{{!form.isAlive}}">
+        <text class="form-label">墓茔经度</text>
+        <input class="form-input" type="digit" placeholder="如：116.407526" value="{{form.longitude}}" bindinput="inputChange" data-field="longitude"/>
+      </view>
+
+      <view class="form-group" wx:if="{{!form.isAlive}}">
+        <text class="form-label">墓茔纬度</text>
+        <input class="form-input" type="digit" placeholder="如：39.90403" value="{{form.latitude}}" bindinput="inputChange" data-field="latitude"/>
       </view>
     </view>
 
@@ -90,65 +111,77 @@
       </view>
 
       <view class="form-group">
-        <text class="form-label">配偶姓名</text>
-        <input class="form-input" placeholder="请输入配偶姓名" value="{{form.spouseInfo.name}}" bindinput="spouseInputChange" data-field="name"/>
-      </view>
+        <text class="form-label">配偶信息</text>
+        <text class="form-tip">支持添加多位配偶；仅去世的配偶可填写墓茔信息</text>
 
-      <view class="form-group">
-        <text class="form-label">配偶出生日期</text>
-        <picker mode="date" value="{{form.spouseInfo.birthDate}}" bindchange="spouseDateChange" data-field="birthDate">
-          <view class="picker-value">{{form.spouseInfo.birthDate || '请选择配偶出生日期'}}</view>
-        </picker>
-      </view>
+        <view class="spouse-card {{item.collapsed ? 'collapsed' : ''}}" wx:for="{{form.spouseList}}" wx:key="index">
+          <view class="spouse-card-header" bindtap="toggleSpouseCollapse" data-index="{{index}}">
+            <view class="spouse-card-left">
+              <text class="spouse-card-title">配偶 {{index + 1}}</text>
+              <text class="spouse-card-summary" wx:if="{{item.collapsed}}">{{item.name ? item.name + '（已收起）' : '未填写姓名（已收起）'}}</text>
+            </view>
+            <view class="spouse-card-actions">
+              <text class="spouse-collapse-btn">{{item.collapsed ? '展开' : '收起'}}</text>
+              <text class="spouse-card-delete" catchtap="removeSpouse" data-index="{{index}}">删除</text>
+            </view>
+          </view>
 
-      <view class="form-group">
-        <text class="form-label">配偶排行</text>
-        <input class="form-input" placeholder="如：长女、次子" value="{{form.spouseInfo.rank}}" bindinput="spouseInputChange" data-field="rank"/>
-      </view>
+          <view class="spouse-card-body" wx:if="{{!item.collapsed}}">
+            <view class="spouse-row">
+              <text class="form-label">姓名</text>
+              <input class="form-input" placeholder="请输入配偶姓名" value="{{item.name}}" bindinput="spouseInputChange" data-index="{{index}}" data-field="name" maxlength="50"/>
+            </view>
 
-      <view class="form-group">
-        <text class="form-label">配偶简介</text>
-        <textarea class="form-textarea" placeholder="请输入配偶简介" value="{{form.spouseInfo.bio}}" bindinput="spouseInputChange" data-field="bio"/>
-      </view>
+            <view class="spouse-row">
+              <text class="form-label">出生日期</text>
+              <picker mode="date" value="{{item.birthDate}}" bindchange="spouseDateChange" data-index="{{index}}" data-field="birthDate">
+                <view class="picker-value">{{item.birthDate || '请选择出生日期'}}</view>
+              </picker>
+            </view>
 
-      <view class="form-group">
-        <text class="form-label">配偶逝世日期</text>
-        <picker mode="date" value="{{form.spouseInfo.deathDate}}" bindchange="spouseDateChange" data-field="deathDate">
-          <view class="picker-value">{{form.spouseInfo.deathDate || '请选择配偶逝世日期'}}</view>
-        </picker>
-      </view>
+            <view class="spouse-row spouse-row-inline">
+              <text class="form-label">是否在世</text>
+              <switch checked="{{item.isAlive === 1}}" bindchange="spouseToggleAlive" data-index="{{index}}" color="#8B1A1A"/>
+            </view>
 
-      <view class="form-group">
-        <text class="form-label">配偶安葬地点</text>
-        <input class="form-input" placeholder="请输入配偶安葬地点" value="{{form.spouseInfo.deathPlace}}" bindinput="spouseInputChange" data-field="deathPlace"/>
-      </view>
+            <view class="spouse-row" wx:if="{{item.isAlive === 0}}">
+              <text class="form-label">逝世日期</text>
+              <picker mode="date" value="{{item.deathDate}}" bindchange="spouseDateChange" data-index="{{index}}" data-field="deathDate">
+                <view class="picker-value">{{item.deathDate || '请选择逝世日期'}}</view>
+              </picker>
+            </view>
 
-      <view class="form-group">
-        <text class="form-label">配偶墓茔经度</text>
-        <input class="form-input" type="digit" placeholder="如：116.407526" value="{{form.spouseInfo.longitude}}" bindinput="spouseInputChange" data-field="longitude"/>
-      </view>
+            <view class="spouse-row" wx:if="{{item.isAlive === 0}}">
+              <text class="form-label">安葬地点</text>
+              <input class="form-input" placeholder="请输入安葬地点" value="{{item.deathPlace}}" bindinput="spouseInputChange" data-index="{{index}}" data-field="deathPlace" maxlength="200"/>
+            </view>
 
-      <view class="form-group">
-        <text class="form-label">配偶墓茔纬度</text>
-        <input class="form-input" type="digit" placeholder="如：39.90403" value="{{form.spouseInfo.latitude}}" bindinput="spouseInputChange" data-field="latitude"/>
-      </view>
+            <view class="spouse-row" wx:if="{{item.isAlive === 0}}">
+              <text class="form-label">墓茔经度</text>
+              <input class="form-input" type="digit" placeholder="如：116.407526" value="{{item.longitude}}" bindinput="spouseInputChange" data-index="{{index}}" data-field="longitude"/>
+            </view>
 
-      <view class="form-group">
-        <text class="form-label">选择本族配偶（可选）</text>
-        <view class="relation-picker" bindtap="selectSpouse">
-          <text>{{form.spouseId ? '已选择本族配偶' : '请选择本族配偶'}}</text>
-          <text class="picker-arrow">›</text>
+            <view class="spouse-row" wx:if="{{item.isAlive === 0}}">
+              <text class="form-label">墓茔纬度</text>
+              <input class="form-input" type="digit" placeholder="如：39.90403" value="{{item.latitude}}" bindinput="spouseInputChange" data-index="{{index}}" data-field="latitude"/>
+            </view>
+
+            <view class="spouse-row">
+              <text class="form-label">简介</text>
+              <textarea class="form-textarea" placeholder="请输入配偶简介" value="{{item.bio}}" bindinput="spouseInputChange" data-index="{{index}}" data-field="bio"/>
+            </view>
+          </view>
+        </view>
+
+        <view class="spouse-add-btn" bindtap="addSpouse">
+          <text class="spouse-add-icon">+</text>
+          <text>添加配偶</text>
         </view>
       </view>
     </view>
 
     <view class="form-section">
       <view class="section-title">其他信息</view>
-
-      <view class="form-group">
-        <text class="form-label">头衔/称号</text>
-        <input class="form-input" placeholder="如：家族始祖、进士等" value="{{form.title}}" bindinput="inputChange" data-field="title"/>
-      </view>
 
       <view class="form-group">
         <text class="form-label">个人简介</text>
@@ -158,13 +191,13 @@
       <view class="form-group">
         <text class="form-label">上传照片</text>
         <view class="photo-uploader">
-          <view class="upload-btn" bindtap="choosePhoto">
-            <text class="upload-icon">+</text>
-            <text class="upload-text">添加照片</text>
-          </view>
           <view class="photo-preview" wx:for="{{form.photos}}" wx:key="*this">
             <image src="{{item}}" mode="aspectFill"/>
             <view class="photo-delete" bindtap="deletePhoto" data-index="{{index}}">×</view>
+          </view>
+          <view class="upload-btn" wx:if="{{form.photos.length < 9}}" bindtap="choosePhoto">
+            <text class="upload-icon">+</text>
+            <text class="upload-text">添加照片</text>
           </view>
         </view>
       </view>
@@ -174,5 +207,29 @@
   <!-- 底部按钮 -->
   <view class="form-footer safe-bottom">
     <button class="submit-btn" bindtap="submitForm">{{isEdit ? '保存修改' : '添加成员'}}</button>
+  </view>
+
+  <!-- 父亲/母亲候选选择弹层 -->
+  <view class="picker-mask" wx:if="{{showParentPicker}}" bindtap="closeParentPicker"></view>
+  <view class="picker-panel" wx:if="{{showParentPicker}}">
+    <view class="picker-header">
+      <text class="picker-title">{{parentPickerType === 'father' ? '选择父亲' : '选择母亲'}}</text>
+      <text class="picker-close" bindtap="closeParentPicker">关闭</text>
+    </view>
+    <view class="picker-search" wx:if="{{parentPickerType === 'father'}}">
+      <input class="picker-search-input" placeholder="输入姓名或母亲姓名搜索" value="{{parentKeyword}}" bindinput="parentKeywordInput"/>
+    </view>
+    <scroll-view scroll-y class="picker-list">
+      <view class="picker-item" wx:for="{{parentCandidates}}" wx:key="index" bindtap="pickParent" data-index="{{index}}">
+        <view class="picker-item-main">
+          <text class="item-name">{{item.name}}</text>
+          <text class="item-sub" wx:if="{{item.sub}}">{{item.sub}}</text>
+        </view>
+        <text class="item-extra" wx:if="{{item.extra}}">{{item.extra}}</text>
+      </view>
+      <view class="picker-empty" wx:if="{{!parentCandidates.length}}">
+        <text>{{parentPickerType === 'father' ? '未找到候选父亲，请检查代数或输入关键字搜索' : '该父亲暂无配偶记录，可在下方手动填写配偶信息'}}</text>
+      </view>
+    </scroll-view>
   </view>
 </view>

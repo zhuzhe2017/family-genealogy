@@ -60,9 +60,10 @@ export class PortalController {
   @Get('family/:familyId/members/:id')
   getFamilyMemberDetail(
     @Param('familyId', ParseIntPipe) familyId: number,
-    @Param('id') id: string
+    @Param('id') id: string,
+    @Req() req: AuthenticatedRequest
   ) {
-    return this.portalService.getFamilyMemberDetail(familyId, id);
+    return this.portalService.getFamilyMemberDetail(familyId, id, String(req.user.id));
   }
 
   @Get('family/:familyId/members/:id/children')
@@ -71,6 +72,23 @@ export class PortalController {
     @Param('id') id: string
   ) {
     return this.portalService.getMemberChildren(familyId, id);
+  }
+
+  @Get('family/:familyId/father-candidates')
+  getFatherCandidates(
+    @Param('familyId', ParseIntPipe) familyId: number,
+    @Query('generation') generation?: string,
+    @Query('keyword') keyword?: string
+  ) {
+    return this.portalService.getFatherCandidates(familyId, Number(generation) || 0, keyword || '');
+  }
+
+  @Get('family/:familyId/father-spouses')
+  getFatherSpouses(
+    @Param('familyId', ParseIntPipe) familyId: number,
+    @Query('fatherId') fatherId?: string
+  ) {
+    return this.portalService.getFatherSpouses(familyId, fatherId || '');
   }
 
   @Post('family/create')
@@ -83,18 +101,20 @@ export class PortalController {
   @Post('family/:familyId/members')
   createMember(
     @Param('familyId', ParseIntPipe) familyId: number,
-    @Body() body: FamilyMemberCreateData
+    @Body() body: FamilyMemberCreateData,
+    @Req() req: AuthenticatedRequest
   ) {
-    return this.portalService.createMember(familyId, body);
+    return this.portalService.createMember(familyId, body, String(req.user.id));
   }
 
   @Put('family/:familyId/members/:id')
   updateMember(
     @Param('familyId', ParseIntPipe) familyId: number,
     @Param('id') id: string,
-    @Body() body: FamilyMemberUpdateData
+    @Body() body: FamilyMemberUpdateData,
+    @Req() req: AuthenticatedRequest
   ) {
-    return this.portalService.updateMember(familyId, id, body);
+    return this.portalService.updateMember(familyId, id, body, String(req.user.id));
   }
 
   // ---------- 内容 ----------

@@ -3,9 +3,9 @@ import { ConfigService } from '@nestjs/config';
 import { DataSource } from 'typeorm';
 import { JwtService } from '@nestjs/jwt';
 import { randomBytes } from 'crypto';
-import { type UserRow, type UserLoginResult, type UserAuthIdentityRow } from './types/user.types';
+import { type UserRow, type UserInfo, type UserLoginResult, type UserAuthIdentityRow } from './types/user.types';
 import { SmsService } from './sms.service';
-import { type WxSessionResponse, type QueryValues } from '../common/types/common';
+import { type WxSessionResponse, type QueryValues, type DataRow } from '../common/types/common';
 
 @Injectable()
 export class UserService {
@@ -87,7 +87,7 @@ export class UserService {
 
     // c. 存量兜底：迁移未执行或历史数据仍以 user.openid 为准
     const [legacy] = await this.dataSource.query<UserRow[]>(
-      'SELECT `id`, `nickname`, `avatar_url`, `gender`, `phone`, `status` FROM `user` WHERE `openid` = ? LIMIT 1',
+      'SELECT `id`, `nickname`, `avatar_url`, `gender`, `phone`, `family_id`, `member_id`, `share_code`, `status` FROM `user` WHERE `openid` = ? LIMIT 1',
       [openid] as QueryValues
     );
     if (legacy) {
@@ -208,7 +208,7 @@ export class UserService {
   /** 按 ID 查用户 */
   private async findUserById(userId: string) {
     const [user] = await this.dataSource.query<UserRow[]>(
-      'SELECT `id`, `nickname`, `avatar_url`, `gender`, `phone`, `status` FROM `user` WHERE `id` = ? LIMIT 1',
+      'SELECT `id`, `nickname`, `avatar_url`, `gender`, `phone`, `family_id`, `member_id`, `share_code`, `status` FROM `user` WHERE `id` = ? LIMIT 1',
       [userId] as QueryValues
     );
     return user;
@@ -237,32 +237,235 @@ export class UserService {
     const token = this.jwtService.sign(payload);
     return {
       token,
-      userInfo: {
-        id: user.id,
-        nickName: user.nickname,
-        avatarUrl: user.avatar_url,
-        gender: user.gender,
-        phone: user.phone || undefined
-      }
+      userInfo: this.toUserInfo(user)
     };
   }
 
-  /** 获取当前用户信息 */
-  async getProfile(userId: string): Promise<UserLoginResult['userInfo']> {
-    const [user] = await this.dataSource.query<UserRow[]>(
-      'SELECT `id`, `nickname`, `avatar_url`, `gender`, `phone`, `status` FROM `user` WHERE `id` = ?',
-      [userId] as QueryValues
-    );
-    if (!user) {
-      throw new HttpException('用户不存在', HttpStatus.NOT_FOUND);
-    }
+  /** 行记录 → 对外用户信息（含家族关联字段） */
+  private toUserInfo(user: UserRow): UserInfo {
     return {
       id: user.id,
       nickName: user.nickname,
       avatarUrl: user.avatar_url,
       gender: user.gender,
-      phone: user.phone
+      phone: user.phone || undefined,
+      familyId: user.family_id ?? null,
+      memberId: user.member_id || '',
+      shareCode: user.share_code || null
     };
+  }
+
+  /** 获取当前用户信息 */
+  async getProfile(userId: string): Promise<UserInfo> {
+    const [user] = await this.dataSource.query<UserRow[]>(
+      'SELECT `id`, `nickname`, `avatar_url`, `gender`, `phone`, `family_id`, `member_id`, `share_code`, `status` FROM `user` WHERE `id` = ?',
+      [userId] as QueryValues
+    );
+    if (!user) {
+      throw new HttpException('用户不存在', HttpStatus.NOT_FOUND);
+    }
+    return this.toUserInfo(user);
+  }
+
+  /** 获取用户家族绑定信息（供权限判断，仅需 family_id/member_id） */
+  async getUserFamilyBinding(userId: string): Promise<{ familyId: number | null; memberId: string }> {
+    const [user] = await this.dataSource.query<UserRow[]>(
+      'SELECT `id`, `family_id`, `member_id` FROM `user` WHERE `id` = ? AND `status` = 1 LIMIT 1',
+      [userId] as QueryValues
+    );
+    return { familyId: user?.family_id ?? null, memberId: user?.member_id || '' };
+  }
+
+  // ==================== 家族关联（支系归属/成员绑定/分享码） ====================
+
+  /**
+   * 获取我的家族关联信息：
+   * - 关联的家族支系（仅启用中，已删除返回 null）
+   * - 绑定的家族成员（仅启用中，已删除返回 null）
+   * - 我的分享码（供他人加入我的家族）
+   * 登录后调用，用于"自动检测并进入已关联的家族支系"。
+   */
+  async getMyFamily(userId: string) {
+    const user = await this.findUserById(userId);
+    if (!user) {
+      throw new HttpException('用户不存在', HttpStatus.NOT_FOUND);
+    }
+
+    let family = null;
+    let member = null;
+    if (user.family_id) {
+      family = await this.getFamilyBrief(user.family_id);
+      if (family && user.member_id) {
+        member = await this.getMemberBrief(user.family_id, user.member_id);
+      }
+    }
+
+    return {
+      familyId: user.family_id ?? null,
+      family,
+      memberId: user.member_id || '',
+      member,
+      shareCode: user.share_code || null
+    };
+  }
+
+  /**
+   * 加入家族支系（合法途径进入指定家族）：
+   * - 通过分享码加入：shareCode → 定位持有者当前所属家族
+   * - 通过家族ID加入：familyId 直接指定
+   * - 可选 memberId：加入时同步绑定指定家族成员
+   * 校验：家族必须存在且启用；memberId 必须属于目标家族。
+   * 已入其他家族时允许切换（重新关联），分享码沿用。
+   */
+  async joinFamily(
+    userId: string,
+    params: { shareCode?: string; familyId?: number; memberId?: string }
+  ) {
+    const user = await this.findUserById(userId);
+    if (!user) {
+      throw new HttpException('用户不存在', HttpStatus.NOT_FOUND);
+    }
+
+    const shareCode = String(params.shareCode || '').trim().toUpperCase();
+    const familyIdParam = Number(params.familyId) || 0;
+
+    if (!shareCode && !familyIdParam) {
+      throw new HttpException('请提供分享码或家族ID', HttpStatus.BAD_REQUEST);
+    }
+    if (shareCode && familyIdParam) {
+      throw new HttpException('分享码与家族ID只能二选一', HttpStatus.BAD_REQUEST);
+    }
+
+    let familyId: number;
+    if (shareCode) {
+      const [owner] = await this.dataSource.query<Pick<UserRow, 'family_id'>[]>(
+        'SELECT `family_id` FROM `user` WHERE `share_code` = ? AND `status` = 1 LIMIT 1',
+        [shareCode] as QueryValues
+      );
+      if (!owner || !owner.family_id) {
+        throw new HttpException('分享码无效或已失效', HttpStatus.BAD_REQUEST);
+      }
+      familyId = Number(owner.family_id);
+    } else {
+      familyId = familyIdParam;
+    }
+
+    const [family] = await this.dataSource.query<Pick<UserRow, 'id' | 'status'>[]>(
+      'SELECT `id`, `status` FROM `family` WHERE `id` = ? LIMIT 1',
+      [familyId]
+    );
+    if (!family || family.status !== 1) {
+      throw new HttpException('家族不存在或已停用', HttpStatus.NOT_FOUND);
+    }
+
+    const memberId = String(params.memberId || '').trim();
+    if (memberId) {
+      await this.assertMemberInFamily(familyId, memberId);
+    }
+
+    // 生成分享码（幂等：已持有则沿用），保证该会员可继续邀请他人
+    const code = user.share_code || (await this.generateShareCode());
+    await this.dataSource.query(
+      'UPDATE `user` SET `family_id` = ?, `member_id` = ?, `share_code` = ? WHERE `id` = ?',
+      [familyId, memberId, code, userId] as QueryValues
+    );
+
+    return {
+      userInfo: this.toUserInfo({ ...user, family_id: familyId, member_id: memberId, share_code: code }),
+      family: await this.getFamilyBrief(familyId),
+      member: memberId ? await this.getMemberBrief(familyId, memberId) : null,
+      shareCode: code
+    };
+  }
+
+  /**
+   * 绑定家族成员：会员账号绑定当前所属家族中的指定成员ID。
+   * 绑定后该会员获得编辑此成员信息的权限（不受 VIP 状态限制）。
+   * 校验：必须已加入家族；成员必须属于该家族且启用中。
+   */
+  async bindMember(userId: string, memberId: string): Promise<UserInfo> {
+    const user = await this.findUserById(userId);
+    if (!user) {
+      throw new HttpException('用户不存在', HttpStatus.NOT_FOUND);
+    }
+    const trimmed = String(memberId || '').trim();
+    if (!trimmed) {
+      throw new HttpException('成员ID不能为空', HttpStatus.BAD_REQUEST);
+    }
+    if (!user.family_id) {
+      throw new HttpException('请先加入家族后再绑定成员', HttpStatus.BAD_REQUEST);
+    }
+    await this.assertMemberInFamily(user.family_id, trimmed);
+
+    await this.dataSource.query(
+      'UPDATE `user` SET `member_id` = ? WHERE `id` = ?',
+      [trimmed, userId] as QueryValues
+    );
+    return this.getProfile(userId);
+  }
+
+  /** 生成全局唯一的 8 位分享码（去除易混淆字符 0/O/1/I） */
+  private async generateShareCode(): Promise<string> {
+    const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    for (let i = 0; i < 20; i++) {
+      const chars: string[] = [];
+      for (let j = 0; j < 8; j++) {
+        chars.push(alphabet[Math.floor(Math.random() * alphabet.length)]);
+      }
+      const code = chars.join('');
+      const [dup] = await this.dataSource.query<Pick<UserRow, 'id'>[]>(
+        'SELECT `id` FROM `user` WHERE `share_code` = ? LIMIT 1',
+        [code] as QueryValues
+      );
+      if (!dup) return code;
+    }
+    throw new HttpException('分享码生成失败，请重试', HttpStatus.INTERNAL_SERVER_ERROR);
+  }
+
+  /** 家族基础信息（仅启用中，不存在返回 null） */
+  private async getFamilyBrief(familyId: number) {
+    const [row] = await this.dataSource.query<DataRow[]>(
+      'SELECT `id`, `name`, `logo`, `founder`, `origin`, `description`, `is_public`, `allow_join`, `member_count`, `status` FROM `family` WHERE `id` = ? AND `status` = 1 LIMIT 1',
+      [familyId]
+    );
+    return row ?? null;
+  }
+
+  /** 家族成员基础信息（仅启用中，不存在返回 null） */
+  private async getMemberBrief(familyId: number, memberId: string) {
+    const tableName = `family_members_${familyId}`;
+    if (!/^family_members_\d+$/.test(tableName)) {
+      throw new HttpException('成员表名不合法', HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+    try {
+      const [row] = await this.dataSource.query<DataRow[]>(
+        'SELECT `id`, `name`, `gender`, `generation`, `generation_name`, `is_alive` FROM `' + tableName + '` WHERE `id` = ? AND `status` = 1 LIMIT 1',
+        [memberId]
+      );
+      return row ?? null;
+    } catch {
+      return null; // 分表不存在视为无绑定
+    }
+  }
+
+  /** 校验成员存在且属于指定家族（否则抛 400） */
+  private async assertMemberInFamily(familyId: number, memberId: string): Promise<void> {
+    const tableName = `family_members_${familyId}`;
+    if (!/^family_members_\d+$/.test(tableName)) {
+      throw new HttpException('成员表名不合法', HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+    try {
+      const [row] = await this.dataSource.query<Pick<UserRow, 'id'>[]>(
+        'SELECT `id` FROM `' + tableName + '` WHERE `id` = ? AND `status` = 1 LIMIT 1',
+        [memberId]
+      );
+      if (!row) {
+        throw new HttpException('成员不存在或不属于该家族', HttpStatus.BAD_REQUEST);
+      }
+    } catch (e) {
+      if (e instanceof HttpException) throw e;
+      throw new HttpException('成员不存在或不属于该家族', HttpStatus.BAD_REQUEST);
+    }
   }
 
   /**

@@ -22,6 +22,18 @@ const auth = {
   getProfile: function () {
     return request({ url: '/user/profile' });
   },
+  /** 获取我的家族关联信息（登录后自动进入关联家族支系） */
+  getMyFamily: function () {
+    return request({ url: '/user/me/family' });
+  },
+  /** 加入家族支系:分享码 / 家族ID（可选绑定成员） */
+  joinFamily: function (data) {
+    return request({ url: '/user/family/join', method: 'POST', data: data || {} });
+  },
+  /** 绑定家族成员（绑定后获得编辑该成员权限，不受 VIP 限制） */
+  bindMember: function (memberId) {
+    return request({ url: '/user/family/bind-member', method: 'PUT', data: { memberId: memberId } });
+  },
   /** 更新当前用户资料 */
   updateProfile: function (data) {
     return request({ url: '/user/profile', method: 'PUT', data: data });
@@ -65,6 +77,14 @@ const familyMember = {
   /** 成员子女列表 */
   getChildren: function (familyId, id) {
     return request({ url: '/user/family/' + familyId + '/members/' + id + '/children' });
+  },
+  /** 父亲候选（上一代男性成员，按姓名/母亲姓名模糊搜索） */
+  getFatherCandidates: function (familyId, params) {
+    return request({ url: '/user/family/' + familyId + '/father-candidates', data: params || {} });
+  },
+  /** 父亲的配偶列表（候选母亲） */
+  getFatherSpouses: function (familyId, fatherId) {
+    return request({ url: '/user/family/' + familyId + '/father-spouses', data: { fatherId: fatherId || '' } });
   },
   /** 添加成员 */
   create: function (familyId, data) {
@@ -132,4 +152,44 @@ const subscription = {
   }
 };
 
-module.exports = { auth, family, familyMember, content, subscription };
+/** 祭祀祈福相关接口 */
+const worship = {
+  /** 祭祀页面汇总：今日各类型统计 + 最近祈福记录 */
+  getSummary: function (familyId) {
+    return request({ url: '/user/worship/summary', data: { familyId: familyId } });
+  },
+  /** 提交祭祀操作（incense-上香 pray-祈福 offer-献祭 wish-许愿，content 选填） */
+  createRecord: function (data) {
+    return request({ url: '/user/worship/record', method: 'POST', data: data || {} });
+  },
+  /** 祈福记录分页（查看更多；page/pageSize/type 选填） */
+  getRecordPage: function (familyId, params) {
+    return request({ url: '/user/worship/records', data: Object.assign({ familyId: familyId }, params || {}) });
+  },
+  /** 纪念日/生日提醒（reminder 权益；days 选填，默认 30 天） */
+  getReminders: function (familyId, days) {
+    return request({ url: '/user/worship/reminders', data: { familyId: familyId, days: days || 30 } });
+  },
+  /** 纪念对象列表（纪念堂） */
+  getMemorials: function (familyId) {
+    return request({ url: '/user/worship/memorials', data: { familyId: familyId } });
+  },
+  /** 纪念对象详情（纪念信息 + 家族最近祭祀记录） */
+  getMemorialDetail: function (familyId, id) {
+    return request({ url: '/user/worship/memorials/' + id, data: { familyId: familyId } });
+  },
+  /** 可创建纪念的已故成员列表 */
+  getMemorialCandidates: function (familyId) {
+    return request({ url: '/user/worship/memorial-candidates', data: { familyId: familyId } });
+  },
+  /** 创建纪念对象（消耗 worship_pro 额度；data: { familyId, memberId, epitaph? }） */
+  createMemorial: function (data) {
+    return request({ url: '/user/worship/memorials', method: 'POST', data: data || {} });
+  },
+  /** 删除纪念对象（仅创建者或家族创建者） */
+  deleteMemorial: function (familyId, id) {
+    return request({ url: '/user/worship/memorials/' + id, method: 'DELETE', data: { familyId: familyId } });
+  }
+};
+
+module.exports = { auth, family, familyMember, content, subscription, worship };

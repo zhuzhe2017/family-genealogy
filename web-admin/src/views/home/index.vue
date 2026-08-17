@@ -42,7 +42,7 @@ const topSurnames = computed<SurnameStat[]>(() =>
 /** 姓氏总数 */
 const surnameTotalCount = computed(() => stats.value.surnames?.length || 0);
 
-/** 姓氏图表配置 */
+/** 姓氏图表配置（竖向柱状图，姓氏较多时启用横向滑动） */
 const surnameChartOptions = computed<ECOption>(() => {
   const data = topSurnames.value;
   const names = data.map(s => s.surname);
@@ -52,7 +52,39 @@ const surnameChartOptions = computed<ECOption>(() => {
   // 取最大值做自适应
   const maxVal = Math.max(...members, 1);
 
+  // 姓氏数量较多时启用横向滑动（slider + 内部拖拽/滚轮/触屏），默认窗口展示前 8 个
+  const showZoom = names.length > 8;
+  const visibleCount = 8;
+  const dataZoom = showZoom
+    ? [
+        {
+          type: 'slider' as const,
+          xAxisIndex: 0,
+          height: 18,
+          bottom: 30,
+          startValue: 0,
+          endValue: visibleCount - 1,
+          showDetail: false,
+          brushSelect: false,
+          // 平滑滚动动画
+          animationDurationUpdate: 300,
+          handleStyle: { color: '#909399', borderColor: '#909399' }
+        },
+        {
+          type: 'inside' as const,
+          xAxisIndex: 0,
+          startValue: 0,
+          endValue: visibleCount - 1,
+          // 禁用滚轮缩放，保留滚轮/拖拽/触屏横向平移，交互更贴近"滑动查看"
+          zoomOnMouseWheel: false,
+          moveOnMouseMove: true,
+          moveOnMouseWheel: true
+        }
+      ]
+    : undefined;
+
   return {
+    animationDurationUpdate: 300,
     tooltip: {
       trigger: 'axis',
       axisPointer: { type: 'shadow' },
@@ -69,54 +101,60 @@ const surnameChartOptions = computed<ECOption>(() => {
       data: [t('page.home.chartMember'), t('page.home.chartFamily')],
       bottom: 0
     },
-    grid: { left: '3%', right: '8%', top: '3%', bottom: 30, containLabel: true },
+    grid: {
+      left: '2%',
+      right: '2%',
+      top: '6%',
+      bottom: showZoom ? 64 : 36,
+      containLabel: true
+    },
     xAxis: {
+      type: 'category',
+      data: names,
+      axisLabel: { fontSize: 11, interval: 0, rotate: 35 }
+    },
+    yAxis: {
       type: 'value',
       max: Math.ceil(maxVal * 1.2),
       axisLabel: { fontSize: 11 }
     },
-    yAxis: {
-      type: 'category',
-      data: names,
-      inverse: true,
-      axisLabel: { fontSize: 13, fontWeight: 'bold' }
-    },
+    dataZoom,
     series: [
       {
         name: t('page.home.chartMember'),
         type: 'bar',
         data: members,
-        barWidth: 12,
+        barMaxWidth: 28,
         itemStyle: {
           color: {
             type: 'linear',
-            x: 0, y: 0, x2: 1, y2: 0,
+            x: 0, y: 0, x2: 0, y2: 1,
             colorStops: [
-              { offset: 0, color: '#18a058' },
-              { offset: 1, color: '#36d47c' }
+              { offset: 0, color: '#36d47c' },
+              { offset: 1, color: '#18a058' }
             ]
           },
-          borderRadius: [0, 4, 4, 0]
+          borderRadius: [4, 4, 0, 0]
         },
-        label: { show: true, position: 'right', fontSize: 11 }
+        label: { show: true, position: 'top', fontSize: 10 }
       },
       {
         name: t('page.home.chartFamily'),
         type: 'bar',
         data: families,
-        barWidth: 12,
+        barMaxWidth: 28,
         itemStyle: {
           color: {
             type: 'linear',
-            x: 0, y: 0, x2: 1, y2: 0,
+            x: 0, y: 0, x2: 0, y2: 1,
             colorStops: [
-              { offset: 0, color: '#2080f0' },
-              { offset: 1, color: '#66b1ff' }
+              { offset: 0, color: '#66b1ff' },
+              { offset: 1, color: '#2080f0' }
             ]
           },
-          borderRadius: [0, 4, 4, 0]
+          borderRadius: [4, 4, 0, 0]
         },
-        label: { show: true, position: 'right', fontSize: 11 }
+        label: { show: true, position: 'top', fontSize: 10 }
       }
     ]
   };

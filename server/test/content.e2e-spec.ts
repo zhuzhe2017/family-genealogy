@@ -4,6 +4,7 @@ import request from 'supertest';
 import { DataSource } from 'typeorm';
 import { ContentController } from '../src/content/content.controller';
 import { ContentService } from '../src/content/content.service';
+import { EntitlementService } from '../src/membership/membership.service';
 import { JwtAuthGuard } from '../src/auth/guard/jwt-auth.guard';
 import { RolesGuard } from '../src/common/guards/roles.guard';
 import { PermissionsGuard } from '../src/common/guards/permissions.guard';
@@ -35,7 +36,8 @@ describe('Content (e2e)', () => {
       controllers: [ContentController],
       providers: [
         ContentService,
-        { provide: DataSource, useValue: { query: queryMock, createQueryRunner: jest.fn().mockReturnValue(queryRunner) } }
+        { provide: DataSource, useValue: { query: queryMock, createQueryRunner: jest.fn().mockReturnValue(queryRunner) } },
+        { provide: EntitlementService, useValue: { releaseStorage: jest.fn().mockResolvedValue(undefined) } }
       ]
     })
       .overrideGuard(JwtAuthGuard)
@@ -65,7 +67,8 @@ describe('Content (e2e)', () => {
     it('dynamic 类型列表', async () => {
       queryMock
         .mockResolvedValueOnce([{ total: 1 }]) // COUNT
-        .mockResolvedValueOnce([{ id: 'c1', title: '测试', audit_status: 1 }]); // SELECT
+        .mockResolvedValueOnce([{ id: 'c1', title: '测试', audit_status: 1 }]) // SELECT
+        .mockResolvedValueOnce([]); // family_dynamic_image（动态列表附带图片）
 
       const res = await request(app.getHttpServer()).get('/content/dynamic/list?page=1&pageSize=10');
 
@@ -127,6 +130,7 @@ describe('Content (e2e)', () => {
     it('软删除内容', async () => {
       queryMock
         .mockResolvedValueOnce([{ id: 'c1', audit_status: 1, status: 1 }]) // ensureExist
+        .mockResolvedValueOnce([]) // collectFileKeys：family_dynamic_image
         .mockResolvedValueOnce({ affectedRows: 1 }); // UPDATE status=0
 
       const res = await request(app.getHttpServer()).delete('/content/dynamic/c1');

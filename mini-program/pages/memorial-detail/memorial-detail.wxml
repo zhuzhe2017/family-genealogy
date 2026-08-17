@@ -1,0 +1,50 @@
+<wxs src="../../utils/filters.wxs" module="f" />
+<view class="page-container">
+  <!-- 纪念主体 -->
+  <view class="memorial-hero" wx:if="{{memorial && !needLogin && !loadFailed}}">
+    <view class="memorial-avatar">
+      <image wx:if="{{memorial.avatarUrl}}" src="{{memorial.avatarUrl}}" mode="aspectFill"></image>
+      <text wx:else>{{f.firstChar(memorial.memberName)}}</text>
+    </view>
+    <text class="memorial-name">{{memorial.memberName}}</text>
+    <text class="memorial-life">{{memorial.life}}</text>
+    <text class="memorial-epitaph" wx:if="{{memorial.epitaph}}">「{{memorial.epitaph}}」</text>
+  </view>
+
+  <!-- 祈福记录 -->
+  <view class="records-section" wx:if="{{memorial && !needLogin && !loadFailed}}">
+    <view class="records-header">
+      <text class="records-title">祈福记录</text>
+    </view>
+    <view class="records-list">
+      <view class="record-item" wx:for="{{records}}" wx:key="id">
+        <view class="record-avatar">
+          <text>{{f.firstChar(item.userName)}}</text>
+        </view>
+        <view class="record-info">
+          <view class="record-header">
+            <text class="record-user">{{item.userName}}</text>
+            <text class="record-time">{{item.time}}</text>
+          </view>
+          <text class="record-content">{{item.content}}</text>
+        </view>
+      </view>
+      <view class="records-empty" wx:if="{{records.length === 0 && !loading}}">
+        <text>暂无祈福记录，去家族祭祀页参与祈福吧</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 状态提示 -->
+  <view class="state-tip" wx:if="{{loading}}">
+    <text>加载中...</text>
+  </view>
+  <view class="state-tip" wx:elif="{{needLogin}}">
+    <text>登录后可查看纪念详情</text>
+    <view class="state-btn" bindtap="guideLogin">去登录</view>
+  </view>
+  <view class="state-tip" wx:elif="{{loadFailed}}">
+    <text>纪念详情加载失败</text>
+    <view class="state-btn" bindtap="retry">重试</view>
+  </view>
+</view>

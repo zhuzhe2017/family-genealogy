@@ -361,3 +361,96 @@
   color: #8A6D3B;
   margin-left: 16rpx;
 }
+
+/* 我的家族支系卡片 */
+.family-card {
+  margin: 0 24rpx 24rpx;
+  background: #FFFFFF;
+  border-radius: 24rpx;
+  padding: 28rpx 24rpx;
+  box-shadow: 0 2rpx 12rpx rgba(0,0,0,0.04);
+}
+
+.family-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20rpx;
+}
+
+.family-card-title {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #333;
+}
+
+.family-card-action {
+  font-size: 24rpx;
+  color: #8B1A1A;
+  padding: 6rpx 20rpx;
+  border: 1rpx solid #F0C8C8;
+  border-radius: 999rpx;
+}
+
+.family-card-row {
+  display: flex;
+  align-items: center;
+  padding: 14rpx 0;
+}
+
+.family-card-label {
+  width: 150rpx;
+  font-size: 26rpx;
+  color: #999;
+  flex-shrink: 0;
+}
+
+.family-card-value {
+  flex: 1;
+  font-size: 26rpx;
+  color: #333;
+}
+
+.family-card-share {
+  flex: 1;
+  display: flex;
+  align-items: center;
+}
+
+.family-card-code {
+  font-size: 28rpx;
+  color: #8B1A1A;
+  font-weight: 600;
+  letter-spacing: 2rpx;
+  font-family: 'Courier New', monospace;
+  margin-right: 16rpx;
+}
+
+.family-card-copy {
+  font-size: 22rpx;
+  color: #8B1A1A;
+  padding: 4rpx 16rpx;
+  border: 1rpx solid #F0C8C8;
+  border-radius: 999rpx;
+}
+
+.family-card-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 24rpx 0 8rpx;
+}
+
+.family-card-empty text {
+  font-size: 24rpx;
+  color: #999;
+  margin-bottom: 20rpx;
+}
+
+.family-card-join-btn {
+  padding: 14rpx 48rpx;
+  background: #8B1A1A;
+  color: #FFFFFF;
+  font-size: 26rpx;
+  border-radius: 999rpx;
+}

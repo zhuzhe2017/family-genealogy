@@ -28,6 +28,65 @@
     </view>
   </view>
 
+  <!-- 纪念日提醒（reminder 权益） -->
+  <view class="reminder-section" wx:if="{{!needLogin && !loadFailed && (reminders.length > 0 || reminderLocked)}}">
+    <view class="reminder-header">
+      <text class="reminder-title">纪念日提醒</text>
+      <text class="reminder-sub">近 30 天</text>
+    </view>
+    <view class="reminder-list">
+      <block wx:if="{{!reminderLocked}}">
+        <view class="reminder-item" wx:for="{{reminders}}" wx:key="memberId">
+          <view class="reminder-avatar">{{f.firstChar(item.memberName)}}</view>
+          <view class="reminder-info">
+            <text class="reminder-name">{{item.memberName}}</text>
+            <text class="reminder-desc">{{item.desc}}</text>
+          </view>
+          <view class="reminder-days">
+            <text wx:if="{{item.daysUntil === 0}}" class="reminder-today">今天</text>
+            <text wx:elif="{{item.daysUntil === 1}}" class="reminder-today">明天</text>
+            <text wx:else class="reminder-days-text">{{item.daysUntil}} 天后</text>
+          </view>
+        </view>
+      </block>
+      <view class="reminder-item" wx:elif="{{reminderLocked}}">
+        <view class="reminder-avatar lock">🔒</view>
+        <view class="reminder-info">
+          <text class="reminder-name">纪念日/生日提醒</text>
+          <text class="reminder-desc">会员专属 · 自动提醒家族成员生日与忌日</text>
+        </view>
+        <view class="reminder-days">
+          <text class="reminder-lock-btn" bindtap="goMemberCenter">去开通</text>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 纪念堂 -->
+  <view class="memorial-section" wx:if="{{!needLogin && !loadFailed}}">
+    <view class="memorial-header">
+      <text class="memorial-title">纪念堂</text>
+      <view class="memorial-add" bindtap="openMemberPicker">＋ 创建纪念</view>
+    </view>
+    <scroll-view class="memorial-scroll" scroll-x enable-flex wx:if="{{memorials.length > 0}}">
+      <view class="memorial-card" wx:for="{{memorials}}" wx:key="id"
+            bindtap="goMemorialDetail" data-id="{{item.id}}">
+        <view class="memorial-avatar">
+          <image wx:if="{{item.avatarUrl}}" src="{{item.avatarUrl}}" mode="aspectFill"></image>
+          <text wx:else>{{f.firstChar(item.memberName)}}</text>
+        </view>
+        <text class="memorial-name">{{item.memberName}}</text>
+        <text class="memorial-life">{{item.life}}</text>
+        <text class="memorial-epitaph" wx:if="{{item.epitaph}}">{{item.epitaph}}</text>
+        <view class="memorial-del" catchtap="deleteMemorial" data-id="{{item.id}}" data-name="{{item.memberName}}">✕</view>
+      </view>
+    </scroll-view>
+    <view class="memorial-empty" wx:elif="{{!memorialLoading}}">
+      <text>暂无纪念对象，为已故先人创建线上纪念</text>
+      <view class="memorial-empty-btn" bindtap="openMemberPicker">创建纪念</view>
+    </view>
+  </view>
+
   <!-- 祈福操作 -->
   <view class="worship-actions">
     <view class="action-row">
@@ -60,7 +119,7 @@
   <view class="worship-records">
     <view class="records-header">
       <text class="records-title">祈福记录</text>
-      <text class="records-more">查看更多 ></text>
+      <text class="records-more" bindtap="goMoreRecords">查看更多 ></text>
     </view>
     <view class="records-list">
       <view class="record-item" wx:for="{{records}}" wx:key="id">
@@ -75,6 +134,53 @@
           <text class="record-content">{{item.content}}</text>
         </view>
       </view>
+
+      <!-- 加载中 -->
+      <view class="records-empty" wx:if="{{loading}}">
+        <text>加载中...</text>
+      </view>
+
+      <!-- 未登录 -->
+      <view class="records-empty" wx:elif="{{needLogin}}">
+        <text>登录后可查看家族祈福记录</text>
+        <view class="records-empty-btn" bindtap="guideLogin">去登录</view>
+      </view>
+
+      <!-- 加载失败 -->
+      <view class="records-empty" wx:elif="{{loadFailed}}">
+        <text>祈福记录加载失败</text>
+        <view class="records-empty-btn" bindtap="loadSummary">重试</view>
+      </view>
+
+      <!-- 空态 -->
+      <view class="records-empty" wx:elif="{{records.length === 0}}">
+        <text>暂无祈福记录，快来参与祭祀祈福吧</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 已故成员选择弹层（创建纪念） -->
+  <view class="member-picker-mask" wx:if="{{showMemberPicker}}" bindtap="closeMemberPicker">
+    <view class="member-picker-panel" catchtap="noop">
+      <view class="member-picker-header">
+        <text class="member-picker-title">选择要纪念的成员</text>
+        <text class="member-picker-close" bindtap="closeMemberPicker">取消</text>
+      </view>
+      <scroll-view class="member-picker-list" scroll-y>
+        <view class="member-picker-item" wx:for="{{memorialCandidates}}" wx:key="memberId"
+              bindtap="pickCandidate" data-member-id="{{item.memberId}}" data-name="{{item.name}}">
+          <view class="member-picker-avatar">
+            <image wx:if="{{item.avatarUrl}}" src="{{item.avatarUrl}}" mode="aspectFill"></image>
+            <text wx:else>{{f.firstChar(item.name)}}</text>
+          </view>
+          <view class="member-picker-info">
+            <text class="member-picker-name">{{item.name}}</text>
+            <text class="member-picker-life">{{item.birthDate}}{{item.deathDate ? ' - ' + item.deathDate : ''}}</text>
+          </view>
+        </view>
+        <view class="member-picker-tip" wx:if="{{memberPickerLoading}}">加载中...</view>
+        <view class="member-picker-tip" wx:elif="{{memorialCandidates.length === 0}}">暂无可创建纪念的已故成员</view>
+      </scroll-view>
     </view>
   </view>
 </view>

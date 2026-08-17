@@ -70,6 +70,51 @@ export class UserController {
   }
 
   /**
+   * 获取我的家族关联信息（登录后自动检测并进入已关联家族支系）
+   * 返回：familyId / family / memberId / member / shareCode
+   */
+  @Public()
+  @UseGuards(UserJwtAuthGuard)
+  @Get('me/family')
+  async getMyFamily(@Req() req: AuthenticatedRequest) {
+    return this.userService.getMyFamily(String(req.user.id));
+  }
+
+  /**
+   * 加入家族支系（合法途径进入指定家族）
+   * body: { shareCode?: string, familyId?: number, memberId?: string }
+   * - 分享码与家族ID二选一
+   * - memberId 可选，加入时同步绑定指定家族成员
+   */
+  @Public()
+  @UseGuards(UserJwtAuthGuard)
+  @Post('family/join')
+  async joinFamily(
+    @Req() req: AuthenticatedRequest,
+    @Body() body: { shareCode?: string; familyId?: number; memberId?: string }
+  ) {
+    return this.userService.joinFamily(String(req.user.id), {
+      shareCode: body.shareCode,
+      familyId: body.familyId !== undefined ? Number(body.familyId) : undefined,
+      memberId: body.memberId
+    });
+  }
+
+  /**
+   * 绑定家族成员（绑定后获得编辑该成员信息的权限，不受 VIP 状态限制）
+   * body: { memberId: string }
+   */
+  @Public()
+  @UseGuards(UserJwtAuthGuard)
+  @Put('family/bind-member')
+  async bindMember(
+    @Req() req: AuthenticatedRequest,
+    @Body() body: { memberId?: string }
+  ) {
+    return this.userService.bindMember(String(req.user.id), body.memberId || '');
+  }
+
+  /**
    * 更新当前用户资料(昵称/头像/性别)
    * @Public 跳过全局管理员 JwtAuthGuard,改用 UserJwtAuthGuard 校验用户令牌
    */

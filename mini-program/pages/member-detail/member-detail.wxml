@@ -50,10 +50,6 @@
         <text class="row-label">出生地</text>
         <text class="row-value">{{member.birthPlace || '未知'}}</text>
       </view>
-      <view class="info-row" wx:if="{{member.title}}">
-        <text class="row-label">头衔/称号</text>
-        <text class="row-value">{{member.title}}</text>
-      </view>
     </view>
   </view>
 
@@ -68,10 +64,6 @@
       <view class="info-row" wx:if="{{member.spouseInfo.birthDate}}">
         <text class="row-label">出生日期</text>
         <text class="row-value">{{member.spouseInfo.birthDate}}</text>
-      </view>
-      <view class="info-row" wx:if="{{member.spouseInfo.rank}}">
-        <text class="row-label">排行</text>
-        <text class="row-value">{{member.spouseInfo.rank}}</text>
       </view>
       <view class="info-row" wx:if="{{member.spouseInfo.deathDate}}">
         <text class="row-label">逝世日期</text>
@@ -97,7 +89,7 @@
     <view class="card-title">家庭关系</view>
     <view class="relation-section">
       <!-- 配偶 -->
-      <view class="relation-block" wx:if="{{member.spouseInfo.name || member.spouseId}}">
+      <view class="relation-block" wx:if="{{member.spouseInfo.name}}">
         <text class="relation-label">配偶</text>
         <view class="relation-person" bindtap="viewSpouse">
           <view class="relation-avatar {{member.gender === 'male' ? 'female' : ''}}">
@@ -167,7 +159,7 @@
 
   <!-- 底部操作 -->
   <view class="bottom-actions safe-bottom">
-    <view class="action-btn secondary" bindtap="editMember">
+    <view class="action-btn secondary" wx:if="{{member.canEdit}}" bindtap="editMember">
       <text>编辑</text>
     </view>
     <view class="action-btn primary" bindtap="shareMember">

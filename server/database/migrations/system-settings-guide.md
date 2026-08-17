@@ -117,7 +117,7 @@
 
 ### 6.1 数据库迁移
 
-执行 `server/database/migration-system-settings.sql`（幂等）：
+系统设置相关结构（`sys_config`、`sys_log` 表、配置种子、权限码、菜单）已并入 `server/database/schema.sql`，全新环境执行 schema.sql 即可；存量库无需单独迁移（原 `migration-system-settings.sql` 已删除，内容全部被 schema.sql 覆盖）。
 
 - 新增表：`sys_config`（23 条内置配置种子）、`sys_log`
 - 新增 7 个权限码、菜单「系统设置」（`sys_menu` id=17）

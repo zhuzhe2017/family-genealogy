@@ -8,6 +8,8 @@ App({
     userInfo: null,
     currentFamily: null,
     families: [],
+    // 我的家族关联信息:{ familyId, family, memberId, member, shareCode }
+    myFamily: null,
     systemInfo: null,
     // 是否已连接真实后端(API 不可用时降级到 mock 数据)
     isOnline: false
@@ -197,10 +199,9 @@ App({
       family.getList({ page: 1, pageSize: 50 })
         .then((res) => {
           this.globalData.families = (res.list || []).map(normalizeFamily);
-          if (this.globalData.families.length > 0) {
-            this.globalData.currentFamily = this.globalData.families[0];
-          }
+          this.enterAssociatedFamily();
           this.globalData.isOnline = true;
+          this.loadMyFamily();
         })
         .catch((err) => {
           console.error('家族数据加载失败,回退 mock', err);
@@ -208,6 +209,52 @@ App({
         });
     } else {
       this.initMockData();
+    }
+  },
+
+  /**
+   * 登录后自动检测并进入已关联的家族支系：
+   * 若当前用户已绑定 familyId（登录响应/资料接口携带），优先将其作为当前家族；
+   * 未在列表中(分页截断)时单独拉取详情。
+   */
+  enterAssociatedFamily() {
+    const familyId = (this.globalData.userInfo || {}).familyId;
+    if (!familyId) return;
+    const matched = this.globalData.families.find(f => String(f.id) === String(familyId));
+    if (matched) {
+      this.globalData.currentFamily = matched;
+      return;
+    }
+    // 列表未命中:按 ID 拉取详情
+    family.getById(familyId)
+      .then((row) => {
+        if (!row) return;
+        const fam = normalizeFamily(row);
+        this.globalData.families = [fam, ...this.globalData.families];
+        this.globalData.currentFamily = fam;
+      })
+      .catch(() => {
+        // 关联家族不可用(已停用/删除),保持默认当前家族
+      });
+  },
+
+  /** 加载我的家族关联信息（family/member/shareCode），供个人中心展示 */
+  loadMyFamily() {
+    if (!USE_MOCK && getToken()) {
+      auth.getMyFamily()
+        .then((data) => {
+          this.globalData.myFamily = data || null;
+          if (data) {
+            this.globalData.userInfo = Object.assign({}, this.globalData.userInfo || {}, {
+              familyId: data.familyId,
+              memberId: data.memberId,
+              shareCode: data.shareCode
+            });
+          }
+        })
+        .catch(() => {
+          // 关联信息加载失败不影响主流程
+        });
     }
   },
 

@@ -53,7 +53,8 @@ export class FamilyMemberService {
        WHERE table_schema = DATABASE() AND table_name = ?) AS \`exists\``,
       [tableName]
     );
-    if (!rows?.exists) {
+    // mysql2 驱动将 EXISTS 返回为字符串 "0"/"1"，统一按数字归一化后判断
+    if (Number(rows?.exists) !== 1) {
       throw new HttpException(
         `家族成员表 ${tableName} 不存在，请先初始化家族`,
         HttpStatus.NOT_FOUND
@@ -69,7 +70,8 @@ export class FamilyMemberService {
        WHERE table_schema = DATABASE() AND table_name = ?) AS \`exists\``,
       [photoTable]
     );
-    if (!photoRows?.exists) {
+    // mysql2 驱动将 EXISTS 返回为字符串 "0"/"1"，统一按数字归一化后判断
+    if (Number(photoRows?.exists) !== 1) {
       await this.dataSource.query(
         `CREATE TABLE IF NOT EXISTS \`${photoTable}\` (
           \`id\` INT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -239,9 +241,9 @@ export class FamilyMemberService {
   }
 
   /**
-   * 查询父亲候选：当前家族上一代男性成员中按父亲姓名或母亲姓名模糊匹配。
+   * 查询父亲候选：当前家族上一代男性成员，可按姓名或母亲姓名模糊匹配。
    * 返回结果携带 spouse_names（配偶/母亲姓名摘要），便于同名父亲区分。
-   * 触发条件：keyword 至少 1 个字符。
+   * keyword 为空时返回全部候选（LIMIT 20），非空时按关键字过滤。
    */
   async getFatherCandidates(familyId: number, generation: number, keyword: string): Promise<FatherCandidate[]> {
     await this.ensureTable(familyId);
@@ -249,24 +251,27 @@ export class FamilyMemberService {
       throw new HttpException('只有第2代及以上成员才允许选择父亲', HttpStatus.BAD_REQUEST);
     }
     const trimmed = keyword?.trim() || '';
-    if (trimmed.length < 1) {
-      throw new HttpException('请输入至少1个字符进行搜索', HttpStatus.BAD_REQUEST);
-    }
-
+    // 关键字为空时返回上一代全部男性候选（首屏加载）；非空时按姓名/母亲姓名模糊匹配
     const tableName = getSafeMemberTableName(familyId);
     const fatherGeneration = generation - 1;
     const like = `%${trimmed}%`;
+
+    const whereKeyword = trimmed
+      ? ` AND (\`name\` LIKE ? OR IFNULL(\`spouse_info\`, '') LIKE ?)`
+      : '';
+    const params: QueryValues = trimmed
+      ? [1, 'male', fatherGeneration, like, like, 20]
+      : [1, 'male', fatherGeneration, 20];
 
     const rows = await this.dataSource.query<Pick<FamilyMemberRow, 'id' | 'name' | 'gender' | 'generation' | 'generation_name' | 'spouse_info'>[]>(
       `SELECT \`id\`, \`name\`, \`gender\`, \`generation\`, \`generation_name\`, \`spouse_info\`
        FROM \`${tableName}\`
        WHERE \`status\` = ?
          AND \`gender\` = ?
-         AND \`generation\` = ?
-         AND (\`name\` LIKE ? OR IFNULL(\`spouse_info\`, '') LIKE ?)
+         AND \`generation\` = ?${whereKeyword}
        ORDER BY \`sort_order\` ASC, \`create_time\` ASC
-       LIMIT 20`,
-      [1, 'male', fatherGeneration, like, like]
+       LIMIT ?`,
+      params
     );
 
     return rows.map(r => {
@@ -331,6 +336,18 @@ export class FamilyMemberService {
   }
 
   /**
+   * 归一化 spouse_info 为 JSON 数组：
+   * - 数组原样返回（多配偶场景）
+   * - 单个对象包装为数组
+   * - 空值返回空数组
+   */
+  private normalizeSpouseInfo(raw: unknown): unknown[] {
+    if (Array.isArray(raw)) return raw;
+    if (raw && typeof raw === 'object') return [raw];
+    return [];
+  }
+
+  /**
    * 检查同一父亲下是否存在同名成员（排除自身）。
    * 返回 true 表示已存在，false 表示可用。
    */
@@ -385,6 +402,20 @@ export class FamilyMemberService {
     if (!data.generation || data.generation < 1) {
       throw new HttpException('代数必须为正整数', HttpStatus.BAD_REQUEST);
     }
+    // 字段长度校验（与表结构 VARCHAR 长度保持一致，防止无效数据录入）
+    const name = data.name.trim();
+    if (name.length > 50) {
+      throw new HttpException('姓名不能超过50个字符', HttpStatus.BAD_REQUEST);
+    }
+    if ((data.generationName || '').length > 10) {
+      throw new HttpException('字辈不能超过10个字符', HttpStatus.BAD_REQUEST);
+    }
+    if ((data.birthPlace || '').length > 200) {
+      throw new HttpException('出生地不能超过200个字符', HttpStatus.BAD_REQUEST);
+    }
+    if ((data.deathPlace || '').length > 200) {
+      throw new HttpException('安葬地点不能超过200个字符', HttpStatus.BAD_REQUEST);
+    }
 
     const fatherId = data.fatherId?.trim() || '';
     const motherId = data.motherId?.trim() || '';
@@ -402,7 +433,7 @@ export class FamilyMemberService {
 
     // 同父同名唯一性校验
     if (fatherId && data.name) {
-      await this.ensureNoDuplicateName(familyId, fatherId, data.name.trim(), '');
+      await this.ensureNoDuplicateName(familyId, fatherId, name, '');
     }
 
     const memberId = this.generateMemberId();
@@ -417,13 +448,13 @@ export class FamilyMemberService {
          \`spouse_info\`, \`sort_order\`, \`status\`)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
-        memberId, familyId, data.name.trim(), gender, data.generation, data.generationName || '',
+        memberId, familyId, name, gender, data.generation, data.generationName || '',
         data.birthDate || '', data.birthPlace || '', data.isAlive ?? 1,
         data.deathDate || '', data.deathPlace || '',
         data.longitude ?? null, data.latitude ?? null, data.bio || '',
         avatarUrl,
         fatherId, motherId,
-        data.spouseInfo ? JSON.stringify(data.spouseInfo) : JSON.stringify([]),
+        JSON.stringify(this.normalizeSpouseInfo(data.spouseInfo)),
         sortOrder, 1
       ]
     );
@@ -469,6 +500,19 @@ export class FamilyMemberService {
     }
     if (data.generation !== undefined && data.generation < 1) {
       throw new HttpException('代数必须为正整数', HttpStatus.BAD_REQUEST);
+    }
+    // 字段长度校验（与表结构 VARCHAR 长度保持一致，防止无效数据录入）
+    if (data.name !== undefined && data.name.trim().length > 50) {
+      throw new HttpException('姓名不能超过50个字符', HttpStatus.BAD_REQUEST);
+    }
+    if (data.generationName !== undefined && data.generationName.length > 10) {
+      throw new HttpException('字辈不能超过10个字符', HttpStatus.BAD_REQUEST);
+    }
+    if (data.birthPlace !== undefined && data.birthPlace.length > 200) {
+      throw new HttpException('出生地不能超过200个字符', HttpStatus.BAD_REQUEST);
+    }
+    if (data.deathPlace !== undefined && data.deathPlace.length > 200) {
+      throw new HttpException('安葬地点不能超过200个字符', HttpStatus.BAD_REQUEST);
     }
 
     if (data.generation !== undefined) {
@@ -519,7 +563,7 @@ export class FamilyMemberService {
     if (data.avatarUrl !== undefined) { fields.push('`avatar_url` = ?'); values.push(this.validateAvatarUrl(data.avatarUrl)); }
     if (data.fatherId !== undefined) { fields.push('`father_id` = ?'); values.push(fatherId); }
     if (data.motherId !== undefined) { fields.push('`mother_id` = ?'); values.push(motherId); }
-    if (data.spouseInfo !== undefined) { fields.push('`spouse_info` = ?'); values.push(data.spouseInfo ? JSON.stringify(data.spouseInfo) : JSON.stringify([])); }
+    if (data.spouseInfo !== undefined) { fields.push('`spouse_info` = ?'); values.push(JSON.stringify(this.normalizeSpouseInfo(data.spouseInfo))); }
     if (data.sortOrder !== undefined) { fields.push('`sort_order` = ?'); values.push(data.sortOrder); }
     if (data.status !== undefined) { fields.push('`status` = ?'); values.push(data.status); }
 
