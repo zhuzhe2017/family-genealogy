@@ -21,9 +21,9 @@
       </view>
       <view class="ancestor-portrait">
         <view class="portrait-frame">
-          <text class="portrait-text">张</text>
+          <text class="portrait-text">{{f.firstChar(familyName)}}</text>
         </view>
-        <text class="ancestor-name">张氏先祖</text>
+        <text class="ancestor-name">{{familyName || '家族'}}先祖</text>
       </view>
     </view>
   </view>

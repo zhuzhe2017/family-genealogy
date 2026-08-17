@@ -192,4 +192,36 @@ const worship = {
   }
 };
 
-module.exports = { auth, family, familyMember, content, subscription, worship };
+/** 家族会员邀请相关接口 */
+const invitation = {
+  /** 创建邀请（data: { familyId, inviteePhone?, inviteeEmail?, role?, expireDays?, channel? }） */
+  create: function (data) {
+    return request({ url: '/user/invitation/create', method: 'POST', data: data || {} });
+  },
+  /** 我发出的邀请列表 */
+  getSentList: function (params) {
+    return request({ url: '/user/invitation/sent', data: params || {} });
+  },
+  /** 我收到的邀请列表 */
+  getReceivedList: function (params) {
+    return request({ url: '/user/invitation/received', data: params || {} });
+  },
+  /** 家族全部邀请列表（限创建者/管理员） */
+  getFamilyList: function (familyId, params) {
+    return request({ url: '/user/invitation/family/' + familyId + '/list', data: params || {} });
+  },
+  /** 通过邀请码查询邀请信息 */
+  getInfoByCode: function (code) {
+    return request({ url: '/user/invitation/info/' + encodeURIComponent(code) });
+  },
+  /** 处理邀请：接受/拒绝（data: { inviteCode, accept, remark? }） */
+  process: function (data) {
+    return request({ url: '/user/invitation/process', method: 'POST', data: data || {} });
+  },
+  /** 撤销我发出的邀请 */
+  revoke: function (id) {
+    return request({ url: '/user/invitation/revoke/' + id, method: 'PUT' });
+  }
+};
+
+module.exports = { auth, family, familyMember, content, subscription, worship, invitation };

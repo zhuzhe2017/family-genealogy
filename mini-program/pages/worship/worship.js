@@ -13,6 +13,7 @@ const TYPE_LABELS = {
 Page({
   data: {
     familyId: null,
+    familyName: '',   // 当前家族名称，用于取姓氏展示先祖
     loading: true,      // 首屏加载中
     needLogin: false,   // 未登录:引导登录
     loadFailed: false,  // 请求失败:显示重试提示
@@ -35,12 +36,12 @@ Page({
 
   onLoad() {
     const family = app.globalData.currentFamily || {};
-    this.setData({ familyId: family.id || null });
+    this.setData({ familyId: family.id || null, familyName: family.name || '' });
   },
 
   onShow() {
     const family = app.globalData.currentFamily || {};
-    this.setData({ familyId: family.id || null });
+    this.setData({ familyId: family.id || null, familyName: family.name || '' });
     this.loadSummary();
     this.loadMemorials();
     this.loadReminders();

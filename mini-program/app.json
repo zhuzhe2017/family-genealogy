@@ -28,7 +28,9 @@
     "pages/settings/settings",
     "pages/privacy/privacy",
     "pages/login/login",
-    "pages/member-center/member-center"
+    "pages/member-center/member-center",
+    "pages/invitation/invitation",
+    "pages/invite-accept/invite-accept"
   ],
   "entryPagePath": "pages/index/index",
   "window": {

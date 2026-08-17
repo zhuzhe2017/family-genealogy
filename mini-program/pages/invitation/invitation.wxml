@@ -1,0 +1,165 @@
+<view class="container">
+  <view class="page-header">
+    <view class="header-title">家族会员邀请</view>
+    <view class="header-desc">邀请亲友加入您的家族，共同完善家谱</view>
+  </view>
+
+  <view class="action-bar">
+    <view class="create-btn" bindtap="openCreateModal">
+      <text class="create-btn-icon">+</text>
+      <text class="create-btn-text">创建邀请</text>
+    </view>
+  </view>
+
+  <view class="tabs">
+    <view class="tab {{activeTab === 'sent' ? 'active' : ''}}" bindtap="switchTab" data-tab="sent">
+      <text>我发出的</text>
+      <text class="tab-count" wx:if="{{sentTotal > 0}}">{{sentTotal}}</text>
+    </view>
+    <view class="tab {{activeTab === 'received' ? 'active' : ''}}" bindtap="switchTab" data-tab="received">
+      <text>我收到的</text>
+      <text class="tab-count" wx:if="{{receivedTotal > 0}}">{{receivedTotal}}</text>
+    </view>
+  </view>
+
+  <!-- 我发出的 -->
+  <scroll-view class="list-scroll" scroll-y wx:if="{{activeTab === 'sent'}}" refresher-enabled refresher-triggered="{{sentRefreshing}}" bindrefresherrefresh="onSentRefresh" bindscrolltolower="onSentLoadMore">
+    <view class="invitation-list" wx:if="{{sentList.length > 0}}">
+      <view class="invitation-card" wx:for="{{sentList}}" wx:key="id">
+        <view class="card-main">
+          <view class="card-row">
+            <text class="card-label">邀请码</text>
+            <text class="card-code">{{item.inviteCode}}</text>
+          </view>
+          <view class="card-row">
+            <text class="card-label">角色</text>
+            <text class="card-value">{{formatRole(item.role)}}</text>
+          </view>
+          <view class="card-row">
+            <text class="card-label">状态</text>
+            <text class="card-status status-{{item.status}}">{{formatStatus(item.status)}}</text>
+          </view>
+          <view class="card-row">
+            <text class="card-label">有效期至</text>
+            <text class="card-value">{{item.expiresAt}}</text>
+          </view>
+          <view class="card-row" wx:if="{{item.createTime}}">
+            <text class="card-label">创建时间</text>
+            <text class="card-value">{{item.createTime}}</text>
+          </view>
+        </view>
+        <view class="card-actions" wx:if="{{item.status === 1}}">
+          <view class="action-btn share" bindtap="onShareItem" data-item="{{item}}">分享</view>
+          <view class="action-btn revoke" bindtap="onRevoke" data-id="{{item.id}}">撤销</view>
+        </view>
+      </view>
+    </view>
+    <view class="empty" wx:if="{{!sentLoading && sentList.length === 0}}">
+      <text>暂无发出的邀请</text>
+      <text class="empty-sub">点击上方“创建邀请”邀请亲友</text>
+    </view>
+    <view class="loadmore" wx:if="{{sentLoading && sentList.length > 0}}">加载中...</view>
+  </scroll-view>
+
+  <!-- 我收到的 -->
+  <scroll-view class="list-scroll" scroll-y wx:if="{{activeTab === 'received'}}" refresher-enabled refresher-triggered="{{receivedRefreshing}}" bindrefresherrefresh="onReceivedRefresh" bindscrolltolower="onReceivedLoadMore">
+    <view class="invitation-list" wx:if="{{receivedList.length > 0}}">
+      <view class="invitation-card" wx:for="{{receivedList}}" wx:key="id">
+        <view class="card-main">
+          <view class="inviter-info">
+            <image class="inviter-avatar" wx:if="{{item.inviterAvatarUrl}}" src="{{item.inviterAvatarUrl}}" mode="aspectFill"></image>
+            <view class="inviter-default" wx:else>
+              <text>{{f.firstChar(item.inviterNickname || '族')}}</text>
+            </view>
+            <view class="inviter-meta">
+              <text class="inviter-name">{{item.inviterNickname || '家族成员'}}</text>
+              <text class="inviter-desc">邀请您加入家族</text>
+            </view>
+          </view>
+          <view class="card-row">
+            <text class="card-label">角色</text>
+            <text class="card-value">{{formatRole(item.role)}}</text>
+          </view>
+          <view class="card-row">
+            <text class="card-label">有效期至</text>
+            <text class="card-value">{{item.expiresAt}}</text>
+          </view>
+          <view class="card-row" wx:if="{{item.createTime}}">
+            <text class="card-label">发送时间</text>
+            <text class="card-value">{{item.createTime}}</text>
+          </view>
+        </view>
+        <view class="card-actions" wx:if="{{item.status === 1}}">
+          <view class="action-btn reject" bindtap="onReject" data-item="{{item}}">拒绝</view>
+          <view class="action-btn accept" bindtap="onAccept" data-item="{{item}}">接受</view>
+        </view>
+      </view>
+    </view>
+    <view class="empty" wx:if="{{!receivedLoading && receivedList.length === 0}}">
+      <text>暂无收到的邀请</text>
+    </view>
+    <view class="loadmore" wx:if="{{receivedLoading && receivedList.length > 0}}">加载中...</view>
+  </scroll-view>
+</view>
+
+<!-- 创建邀请弹层 -->
+<view class="modal-mask" wx:if="{{showCreateModal}}" catchtap="closeCreateModal">
+  <view class="modal-panel" catchtap="noop">
+    <view class="modal-title">创建家族邀请</view>
+    <view class="modal-body">
+      <view class="form-item">
+        <text class="form-label">邀请角色</text>
+        <picker mode="selector" range="{{roleOptions}}" range-key="label" value="{{roleIndex}}" bindchange="onRoleChange">
+          <view class="form-picker">
+            <text>{{createRole === 'admin' ? '家族管理员' : '普通会员'}}</text>
+            <text class="picker-arrow">></text>
+          </view>
+        </picker>
+      </view>
+      <view class="form-item">
+        <text class="form-label">有效期</text>
+        <picker mode="selector" range="{{expireOptions}}" range-key="label" value="{{expireIndex}}" bindchange="onExpireChange">
+          <view class="form-picker">
+            <text>{{createExpireDays}}天</text>
+            <text class="picker-arrow">></text>
+          </view>
+        </picker>
+      </view>
+      <view class="form-item">
+        <text class="form-label">被邀请人手机号（选填）</text>
+        <input class="form-input" type="number" placeholder="选填，用于短信通知" value="{{createPhone}}" bindinput="onPhoneInput" maxlength="11" />
+      </view>
+      <view class="form-item">
+        <text class="form-label">被邀请人邮箱（选填）</text>
+        <input class="form-input" placeholder="选填，用于邮件通知" value="{{createEmail}}" bindinput="onEmailInput" />
+      </view>
+    </view>
+    <view class="modal-footer">
+      <view class="modal-btn cancel" bindtap="closeCreateModal">取消</view>
+      <view class="modal-btn confirm {{createSubmitting ? 'disabled' : ''}}" bindtap="submitCreate">
+        <text wx:if="{{!createSubmitting}}">创建邀请</text>
+        <text wx:else>创建中...</text>
+      </view>
+    </view>
+  </view>
+</view>
+
+<!-- 分享弹层 -->
+<view class="modal-mask" wx:if="{{showShareModal}}" catchtap="closeShareModal">
+  <view class="modal-panel share-panel" catchtap="noop">
+    <view class="modal-title">分享邀请</view>
+    <view class="share-code-box">
+      <text class="share-code-label">邀请码</text>
+      <text class="share-code">{{shareInvitation.inviteCode}}</text>
+    </view>
+    <view class="share-tip">将邀请码或链接分享给亲友，对方在微信中打开即可加入家族</view>
+    <view class="modal-footer column">
+      <button class="share-btn primary" open-type="share">分享给微信好友</button>
+      <view class="share-btn" bindtap="copyCode">复制邀请码</view>
+      <view class="share-btn" bindtap="copyLink">复制邀请链接</view>
+      <view class="share-btn cancel" bindtap="closeShareModal">关闭</view>
+    </view>
+  </view>
+</view>
+
+<wxs module="f" src="../../utils/filters.wxs"></wxs>

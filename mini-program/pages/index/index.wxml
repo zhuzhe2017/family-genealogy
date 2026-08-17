@@ -9,7 +9,7 @@
     <view class="logo-section">
       <view class="logo-ring">
         <view class="logo-inner">
-          <text class="logo-text">张</text>
+          <text class="logo-text">家</text>
         </view>
       </view>
       <view class="brand-name">数字家谱</view>

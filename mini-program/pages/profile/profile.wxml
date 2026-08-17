@@ -74,6 +74,11 @@
         <text class="menu-text">家谱管理</text>
         <text class="menu-arrow">›</text>
       </view>
+      <view class="menu-item" bindtap="navigateTo" data-url="/pages/invitation/invitation">
+        <view class="menu-icon">📩</view>
+        <text class="menu-text">家族邀请</text>
+        <text class="menu-arrow">›</text>
+      </view>
       <view class="menu-item" bindtap="navigateTo" data-url="/pages/permission/permission">
         <view class="menu-icon">🔐</view>
         <text class="menu-text">权限管理</text>

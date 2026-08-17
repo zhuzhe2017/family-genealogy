@@ -26,6 +26,7 @@ import { MembershipModule } from './membership/membership.module';
 import { SubscriptionModule } from './subscription/subscription.module';
 import { WorshipModule } from './worship/worship.module';
 import { UploadModule } from './common/upload/upload.module';
+import { InvitationModule } from './invitation/invitation.module';
 import { JwtAuthGuard } from './auth/guard/jwt-auth.guard';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 
@@ -64,7 +65,8 @@ import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
     MembershipModule,
     SubscriptionModule,
     WorshipModule,
-    UploadModule
+    UploadModule,
+    InvitationModule
   ],
   controllers: [AppController],
   providers: [

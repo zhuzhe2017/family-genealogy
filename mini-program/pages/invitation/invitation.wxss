@@ -1,0 +1,372 @@
+.container {
+  min-height: 100vh;
+  background: #F5F5F5;
+  padding-bottom: 40rpx;
+}
+
+.page-header {
+  background: linear-gradient(135deg, #8B1A1A 0%, #A52A2A 100%);
+  padding: 40rpx 32rpx;
+  color: #fff;
+}
+
+.header-title {
+  font-size: 40rpx;
+  font-weight: 600;
+}
+
+.header-desc {
+  font-size: 26rpx;
+  margin-top: 12rpx;
+  opacity: 0.9;
+}
+
+.action-bar {
+  padding: 24rpx 32rpx;
+}
+
+.create-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #8B1A1A;
+  color: #fff;
+  border-radius: 12rpx;
+  padding: 24rpx 0;
+  box-shadow: 0 4rpx 16rpx rgba(139, 26, 26, 0.2);
+}
+
+.create-btn-icon {
+  font-size: 36rpx;
+  margin-right: 12rpx;
+  font-weight: 600;
+}
+
+.create-btn-text {
+  font-size: 30rpx;
+}
+
+.tabs {
+  display: flex;
+  background: #fff;
+  margin: 0 32rpx 24rpx;
+  border-radius: 12rpx;
+  overflow: hidden;
+  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.04);
+}
+
+.tab {
+  flex: 1;
+  text-align: center;
+  padding: 24rpx 0;
+  font-size: 28rpx;
+  color: #666;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tab.active {
+  color: #8B1A1A;
+  font-weight: 600;
+  background: rgba(139, 26, 26, 0.06);
+}
+
+.tab-count {
+  background: #8B1A1A;
+  color: #fff;
+  font-size: 20rpx;
+  border-radius: 12rpx;
+  padding: 2rpx 10rpx;
+  margin-left: 8rpx;
+  line-height: 1;
+}
+
+.list-scroll {
+  height: calc(100vh - 320rpx);
+}
+
+.invitation-list {
+  padding: 0 32rpx 24rpx;
+}
+
+.invitation-card {
+  background: #fff;
+  border-radius: 16rpx;
+  margin-bottom: 24rpx;
+  box-shadow: 0 2rpx 12rpx rgba(0, 0, 0, 0.04);
+  overflow: hidden;
+}
+
+.card-main {
+  padding: 24rpx 28rpx;
+}
+
+.card-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12rpx 0;
+  font-size: 28rpx;
+}
+
+.card-label {
+  color: #999;
+}
+
+.card-value {
+  color: #333;
+}
+
+.card-code {
+  font-size: 34rpx;
+  color: #8B1A1A;
+  font-weight: 600;
+  letter-spacing: 2rpx;
+}
+
+.card-status {
+  font-size: 26rpx;
+  padding: 4rpx 16rpx;
+  border-radius: 8rpx;
+}
+
+.status-1 { background: #FFF3E0; color: #E65100; }
+.status-2 { background: #E8F5E9; color: #2E7D32; }
+.status-3 { background: #FFEBEE; color: #C62828; }
+.status-4 { background: #ECEFF1; color: #546E7A; }
+.status-0 { background: #F5F5F5; color: #9E9E9E; }
+
+.inviter-info {
+  display: flex;
+  align-items: center;
+  padding: 12rpx 0 20rpx;
+  border-bottom: 1rpx solid #F0F0F0;
+  margin-bottom: 12rpx;
+}
+
+.inviter-avatar {
+  width: 80rpx;
+  height: 80rpx;
+  border-radius: 50%;
+  margin-right: 20rpx;
+  background: #eee;
+}
+
+.inviter-default {
+  width: 80rpx;
+  height: 80rpx;
+  border-radius: 50%;
+  background: #8B1A1A;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 20rpx;
+  font-size: 32rpx;
+}
+
+.inviter-meta {
+  display: flex;
+  flex-direction: column;
+}
+
+.inviter-name {
+  font-size: 30rpx;
+  color: #333;
+  font-weight: 500;
+}
+
+.inviter-desc {
+  font-size: 24rpx;
+  color: #999;
+  margin-top: 6rpx;
+}
+
+.card-actions {
+  display: flex;
+  border-top: 1rpx solid #F0F0F0;
+}
+
+.action-btn {
+  flex: 1;
+  text-align: center;
+  padding: 24rpx 0;
+  font-size: 28rpx;
+  color: #666;
+}
+
+.action-btn.share { color: #8B1A1A; }
+.action-btn.revoke { color: #999; }
+.action-btn.reject { color: #999; }
+.action-btn.accept {
+  color: #fff;
+  background: #8B1A1A;
+}
+
+.empty {
+  text-align: center;
+  padding: 120rpx 40rpx;
+  color: #999;
+  font-size: 28rpx;
+}
+
+.empty-sub {
+  display: block;
+  font-size: 24rpx;
+  margin-top: 16rpx;
+  color: #bbb;
+}
+
+.loadmore {
+  text-align: center;
+  padding: 24rpx;
+  color: #999;
+  font-size: 26rpx;
+}
+
+/* 弹层 */
+.modal-mask {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal-panel {
+  width: 84%;
+  background: #fff;
+  border-radius: 20rpx;
+  padding: 32rpx;
+}
+
+.modal-title {
+  font-size: 34rpx;
+  font-weight: 600;
+  text-align: center;
+  margin-bottom: 24rpx;
+  color: #333;
+}
+
+.modal-body {
+  margin-bottom: 24rpx;
+}
+
+.form-item {
+  margin-bottom: 24rpx;
+}
+
+.form-label {
+  display: block;
+  font-size: 26rpx;
+  color: #666;
+  margin-bottom: 10rpx;
+}
+
+.form-input {
+  background: #F7F7F7;
+  border-radius: 10rpx;
+  padding: 18rpx 20rpx;
+  font-size: 28rpx;
+}
+
+.form-picker {
+  background: #F7F7F7;
+  border-radius: 10rpx;
+  padding: 18rpx 20rpx;
+  font-size: 28rpx;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.picker-arrow {
+  color: #999;
+  font-size: 26rpx;
+}
+
+.modal-footer {
+  display: flex;
+  gap: 20rpx;
+}
+
+.modal-footer.column {
+  flex-direction: column;
+}
+
+.modal-btn,
+.share-btn {
+  flex: 1;
+  text-align: center;
+  padding: 22rpx 0;
+  border-radius: 10rpx;
+  font-size: 28rpx;
+}
+
+.modal-btn.cancel,
+.share-btn.cancel {
+  background: #F0F0F0;
+  color: #666;
+}
+
+.modal-btn.confirm {
+  background: #8B1A1A;
+  color: #fff;
+}
+
+.modal-btn.disabled {
+  opacity: 0.6;
+}
+
+.share-panel {
+  text-align: center;
+}
+
+.share-code-box {
+  background: #FFF8E1;
+  border-radius: 12rpx;
+  padding: 32rpx;
+  margin-bottom: 20rpx;
+}
+
+.share-code-label {
+  display: block;
+  font-size: 26rpx;
+  color: #999;
+  margin-bottom: 12rpx;
+}
+
+.share-code {
+  display: block;
+  font-size: 48rpx;
+  color: #8B1A1A;
+  font-weight: 600;
+  letter-spacing: 8rpx;
+}
+
+.share-tip {
+  font-size: 26rpx;
+  color: #999;
+  margin-bottom: 24rpx;
+  line-height: 1.6;
+}
+
+.share-btn {
+  margin-bottom: 16rpx;
+  background: #F7F7F7;
+  color: #333;
+}
+
+.share-btn.primary {
+  background: #8B1A1A;
+  color: #fff;
+  line-height: normal;
+}
+
+.share-btn::after {
+  border: none;
+}

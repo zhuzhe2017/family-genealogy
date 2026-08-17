@@ -1,0 +1,48 @@
+<view class="container">
+  <view class="loading-box" wx:if="{{loading}}">
+    <view class="loading-icon"></view>
+    <text class="loading-text">加载中...</text>
+  </view>
+
+  <view class="error-box" wx:if="{{!loading && notFound}}">
+    <view class="error-icon">!</view>
+    <text class="error-title">邀请码无效或已过期</text>
+    <text class="error-desc">请联系邀请人重新发送邀请</text>
+    <view class="error-btn" bindtap="onLogin">返回登录</view>
+  </view>
+
+  <view class="invite-card" wx:if="{{!loading && !notFound && info}}">
+    <view class="family-logo-box">
+      <image wx:if="{{info.familyLogo}}" class="family-logo" src="{{info.familyLogo}}" mode="aspectFill"></image>
+      <view wx:else class="family-logo default-logo">
+        <text>{{f.firstChar(info.familyName || '家')}}</text>
+      </view>
+    </view>
+    <view class="family-name">{{info.familyName || '家族'}}</view>
+    <view class="inviter-row">
+      <text class="inviter-avatar" wx:if="{{info.inviterAvatarUrl}}">{{info.inviterAvatarUrl}}</text>
+      <text class="inviter-text">{{info.inviterNickname || '家族成员'}} 邀请您加入</text>
+    </view>
+    <view class="info-row">
+      <text class="info-label">邀请角色</text>
+      <text class="info-value">{{info.role === 'admin' ? '家族管理员' : '普通会员'}}</text>
+    </view>
+    <view class="info-row">
+      <text class="info-label">有效期至</text>
+      <text class="info-value">{{info.expiresAt}}</text>
+    </view>
+
+    <view class="action-box" wx:if="{{loggedIn}}">
+      <view class="btn reject" bindtap="onReject" wx:if="{{!processing}}">拒绝</view>
+      <view class="btn accept {{processing ? 'disabled' : ''}}" bindtap="onAccept">
+        <text wx:if="{{!processing}}">接受邀请</text>
+        <text wx:else>处理中...</text>
+      </view>
+    </view>
+    <view class="action-box" wx:else>
+      <view class="btn accept" bindtap="onLogin">登录后接受邀请</view>
+    </view>
+  </view>
+</view>
+
+<wxs module="f" src="../../utils/filters.wxs"></wxs>
