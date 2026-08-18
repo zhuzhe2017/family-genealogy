@@ -37,6 +37,25 @@
     </view>
   </view>
 
+  <!-- 广告轮播 -->
+  <view class="banner-section" wx:if="{{banners.length > 0}}">
+    <swiper
+      class="banner-swiper"
+      autoplay="{{banners.length > 1}}"
+      interval="{{bannerInterval}}"
+      duration="500"
+      circular="{{banners.length > 1}}"
+      indicator-dots="{{banners.length > 1}}"
+      indicator-color="rgba(255,255,255,0.4)"
+      indicator-active-color="#FFFFFF"
+    >
+      <swiper-item wx:for="{{banners}}" wx:key="id" data-type="{{item.linkType}}" data-url="{{item.linkUrl}}" bindtap="onBannerTap">
+        <image class="banner-image" src="{{item.imageUrl}}" mode="aspectFill" lazy-load />
+        <view class="banner-title" wx:if="{{item.title}}">{{item.title}}</view>
+      </swiper-item>
+    </swiper>
+  </view>
+
   <!-- 开发模式模拟数据角标 -->
   <view class="mock-banner" wx:if="{{isMock}}">当前为模拟数据,连接后端后展示真实内容</view>
 

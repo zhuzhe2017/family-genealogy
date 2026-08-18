@@ -14,3 +14,4 @@ export * from './system-settings';
 export * from './subscription';
 export * from './worship';
 export * from './upload';
+export * from './banner';

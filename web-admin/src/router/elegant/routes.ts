@@ -85,6 +85,15 @@ export const generatedRoutes: GeneratedRoute[] = [
     },
     children: [
       {
+        name: 'mini-program_banner',
+        path: '/mini-program/banner',
+        component: 'view.mini-program_banner',
+        meta: {
+          title: 'mini-program_banner',
+          i18nKey: 'route.mini-program_banner'
+        }
+      },
+      {
         name: 'mini-program_content',
         path: '/mini-program/content',
         component: 'view.mini-program_content',

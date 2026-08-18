@@ -2,6 +2,42 @@
   padding-bottom: 40rpx;
 }
 
+/* 广告轮播:悬浮在家族头部卡片与快捷入口之间 */
+.banner-section {
+  margin: -30rpx 32rpx 0;
+  position: relative;
+  z-index: 2;
+}
+
+.banner-swiper {
+  width: 100%;
+  height: 260rpx;
+  border-radius: 20rpx;
+  overflow: hidden;
+  box-shadow: 0 8rpx 24rpx rgba(0, 0, 0, 0.12);
+}
+
+.banner-image {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.banner-title {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 40rpx 20rpx 16rpx;
+  font-size: 26rpx;
+  color: #FFFFFF;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.5), transparent);
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 /* 家族头部 */
 .family-header {
   position: relative;

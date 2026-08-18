@@ -1,5 +1,5 @@
 const app = getApp();
-const { content } = require('../../utils/api');
+const { content, banner } = require('../../utils/api');
 const { normalizeDynamic, normalizeEvent } = require('../../utils/format');
 const { USE_MOCK } = require('../../utils/config');
 const { getToken } = require('../../utils/request');
@@ -26,7 +26,10 @@ Page({
     // 最近活动/家族名人:仅开发模式有模拟数据,真实模式无数据源时显示空态
     recentActivities: [],
     famousMembers: [],
-    isMock: false           // 开发模式模拟数据角标
+    isMock: false,           // 开发模式模拟数据角标
+    // 广告轮播
+    banners: [],             // 轮播广告列表
+    bannerInterval: 3000     // 自动切换间隔(ms),由后端 sys_config 下发
   },
 
   onLoad() {
@@ -34,6 +37,7 @@ Page({
       currentFamily: app.globalData.currentFamily || {}
     });
     this.loadDynamics();
+    this.loadBanners();
   },
 
   onShow() {
@@ -42,6 +46,7 @@ Page({
     });
     // 每次可见时刷新,获取最新登录态与动态(有数据时不再闪加载态)
     this.loadDynamics();
+    this.loadBanners();
   },
 
   /**
@@ -201,6 +206,55 @@ Page({
     wx.navigateTo({
       url: '/pages/timeline/timeline'
     });
+  },
+
+  /**
+   * 加载广告轮播:未登录/未选择家族时清空不请求
+   * - 后端返回当前家族 + 全局启用广告,以及自动切换间隔 interval
+   */
+  loadBanners() {
+    const familyId = (app.globalData.currentFamily || {}).id;
+    if (!getToken() || !familyId) {
+      this.setData({ banners: [], bannerInterval: 3000 });
+      return;
+    }
+    banner.getList(familyId)
+      .then((res) => {
+        const list = (res.list || []).map((item) => ({
+          id: item.id,
+          title: item.title || '',
+          imageUrl: item.imageUrl || '',
+          linkType: item.linkType || 'none',
+          linkUrl: item.linkUrl || ''
+        }));
+        this.setData({
+          banners: list,
+          bannerInterval: (res.interval && res.interval >= 1000) ? res.interval : 3000
+        });
+      })
+      .catch((err) => {
+        console.error('广告轮播加载失败', err);
+        this.setData({ banners: [] });
+      });
+  },
+
+  /** 点击轮播广告:page-小程序页面跳转,url-复制链接, none-无操作 */
+  onBannerTap(e) {
+    const { type, url } = e.currentTarget.dataset;
+    if (!type || type === 'none' || !url) return;
+    if (type === 'page') {
+      const tabBarPages = ['/pages/home/home', '/pages/family-tree/family-tree', '/pages/dynamic/dynamic', '/pages/profile/profile'];
+      if (tabBarPages.includes(url)) {
+        wx.switchTab({ url });
+      } else {
+        wx.navigateTo({ url });
+      }
+    } else if (type === 'url') {
+      wx.setClipboardData({
+        data: url,
+        success: () => wx.showToast({ title: '链接已复制', icon: 'success' })
+      });
+    }
   },
 
   /** 未登录状态下点击"立即登录":静默登录成功后刷新 */

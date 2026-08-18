@@ -224,4 +224,12 @@ const invitation = {
   }
 };
 
-module.exports = { auth, family, familyMember, content, subscription, worship, invitation };
+/** 广告轮播相关接口 */
+const banner = {
+  /** 当前家族启用轮播列表（含全局广告，返回切换间隔 interval） */
+  getList: function (familyId) {
+    return request({ url: '/user/banner/list', data: { familyId: familyId } });
+  }
+};
+
+module.exports = { auth, family, familyMember, content, subscription, worship, invitation, banner };
