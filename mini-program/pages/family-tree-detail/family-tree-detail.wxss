@@ -56,173 +56,80 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 24rpx;
+  font-size: 22rpx;
   color: #666;
+}
+
+.tool-btn.active {
+  background: #8B1A1A;
+  color: #FFFFFF;
+}
+
+/* 搜索栏 */
+.search-bar {
+  padding: 16rpx 24rpx;
+  background: #FFFFFF;
+  border-bottom: 1rpx solid #F0F0F0;
+}
+
+.search-input-wrap {
+  display: flex;
+  align-items: center;
+  background: #F5F5F5;
+  border-radius: 32rpx;
+  padding: 0 24rpx;
+  height: 64rpx;
+}
+
+.search-icon {
+  font-size: 26rpx;
+  margin-right: 12rpx;
+}
+
+.search-input {
+  flex: 1;
+  font-size: 26rpx;
+  height: 64rpx;
+  line-height: 64rpx;
+}
+
+.search-clear {
+  font-size: 36rpx;
+  color: #999;
+  padding: 0 8rpx;
 }
 
 /* 树状视图 */
 .tree-view {
-  padding: 24rpx;
-}
-
-.tree-scroll {
+  position: relative;
   width: 100%;
-  height: calc(100vh - 300rpx);
+  height: calc(100vh - 220rpx);
+  background: #F0E9DD;
+  overflow: hidden;
 }
 
-.tree-canvas {
-  padding: 40rpx;
-  min-width: 100%;
-  box-sizing: border-box;
+.family-tree-canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+  background: #F0E9DD;
 }
 
-.tree-level {
-  margin-bottom: 60rpx;
-  position: relative;
-}
-
-.tree-level-label {
-  font-size: 24rpx;
-  color: #8B1A1A;
-  font-weight: 500;
-  margin-bottom: 24rpx;
-  padding-left: 16rpx;
-  border-left: 4rpx solid #8B1A1A;
-}
-
-.tree-nodes-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 40rpx;
-  justify-content: center;
-}
-
-.tree-node-wrapper {
-  position: relative;
-  display: flex;
-  align-items: center;
-  gap: 16rpx;
-}
-
-.tree-node-wrapper.has-spouse {
-  gap: 32rpx;
-}
-
-/* 连接线 */
-.connect-line {
+.tree-hint {
   position: absolute;
-  background: #D4A574;
+  bottom: 24rpx;
+  left: 0;
+  right: 0;
+  text-align: center;
+  pointer-events: none;
 }
 
-.connect-line.up {
-  width: 2rpx;
-  height: 40rpx;
-  top: -40rpx;
-  left: 50%;
-  transform: translateX(-50%);
-}
-
-.connect-line.down {
-  width: 2rpx;
-  height: 40rpx;
-  bottom: -40rpx;
-  left: 50%;
-  transform: translateX(-50%);
-}
-
-.spouse-connector {
-  width: 40rpx;
-  height: 2rpx;
-  background: #D4A574;
-}
-
-/* 节点卡片 */
-.node-card {
-  background: #FFFFFF;
-  border-radius: 20rpx;
-  padding: 24rpx;
-  box-shadow: 0 4rpx 16rpx rgba(0,0,0,0.08);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  min-width: 160rpx;
-  border: 2rpx solid transparent;
-  position: relative;
-}
-
-.node-card.female {
-  border-color: #FFB6C1;
-  background: linear-gradient(135deg, #FFF0F3 0%, #FFFFFF 100%);
-}
-
-.node-card.spouse-card {
-  opacity: 0.85;
-  transform: scale(0.95);
-}
-
-.node-avatar {
-  width: 80rpx;
-  height: 80rpx;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #8B1A1A, #B22222);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-bottom: 12rpx;
-}
-
-.node-avatar text {
-  font-size: 32rpx;
-  color: #FFFFFF;
-  font-weight: bold;
-  font-family: 'KaiTi', serif;
-}
-
-.female .node-avatar {
-  background: linear-gradient(135deg, #FF6B9D, #FFB6C1);
-}
-
-.node-info {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-
-.node-name {
-  font-size: 26rpx;
-  color: #333;
-  font-weight: 500;
-  margin-bottom: 4rpx;
-}
-
-.node-title {
-  font-size: 20rpx;
-  color: #D4A574;
-  margin-bottom: 8rpx;
-}
-
-.node-tags {
-  display: flex;
-  gap: 8rpx;
-  margin-top: 4rpx;
-}
-
-.node-tag {
-  font-size: 18rpx;
-  padding: 2rpx 10rpx;
-  border-radius: 6rpx;
-  background: #F5F5F5;
+.hint-text {
+  font-size: 22rpx;
   color: #999;
-}
-
-.node-tag.tag-generation {
-  background: rgba(139, 26, 26, 0.1);
-  color: #8B1A1A;
-}
-
-.node-tag.tag-generation-name {
-  background: rgba(201, 169, 110, 0.15);
-  color: #C9A96E;
+  background: rgba(255, 255, 255, 0.8);
+  padding: 8rpx 20rpx;
+  border-radius: 24rpx;
 }
 
 /* 列表视图 */
@@ -298,6 +205,22 @@
   font-size: 36rpx;
   color: #CCC;
   margin-left: 16rpx;
+}
+
+/* 列表空态 */
+.list-empty {
+  padding: 80rpx 0;
+  text-align: center;
+  font-size: 26rpx;
+  color: #999;
+}
+
+/* 加载更多 */
+.load-more {
+  padding: 24rpx 0 40rpx;
+  text-align: center;
+  font-size: 26rpx;
+  color: #8B1A1A;
 }
 
 /* 底部操作栏 */
@@ -432,6 +355,17 @@
   font-size: 28rpx;
   color: #333;
   font-weight: 500;
+}
+
+.modal-collapse {
+  margin-top: 20rpx;
+  padding: 20rpx 0;
+  text-align: center;
+  font-size: 26rpx;
+  color: #8B1A1A;
+  border: 1rpx solid #F0E0D0;
+  border-radius: 12rpx;
+  background: #FDF8F3;
 }
 
 .modal-footer {

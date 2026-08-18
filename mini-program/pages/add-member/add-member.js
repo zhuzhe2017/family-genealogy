@@ -41,6 +41,28 @@ Page({
       // 加载编辑数据
       this.loadEditData(options.id);
     }
+    // 从家族树"添加子女"进入：预填父亲与代数（fatherId 由节点弹窗传入）
+    if (options.fatherId) {
+      this.setData({
+        'form.fatherId': options.fatherId,
+        'form.generation': Number(options.generation) || 1
+      });
+      this.loadFatherName(options.fatherId);
+    }
+  },
+
+  /** 根据 fatherId 加载父亲姓名用于回显 */
+  loadFatherName(fatherId) {
+    const familyId = (app.globalData.currentFamily || {}).id;
+    if (!USE_MOCK && getToken() && familyId) {
+      familyMember.getById(familyId, fatherId)
+        .then((row) => {
+          if (row && row.name) {
+            this.setData({ 'form.fatherName': row.name });
+          }
+        })
+        .catch(() => {});
+    }
   },
 
   loadEditData(id) {
