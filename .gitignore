@@ -27,6 +27,9 @@ out/
 *.tsbuildinfo
 tsconfig.tsbuildinfo
 
+# 保留 web-admin 的 Vite 构建配置目录
+!web-admin/build/
+
 # ---- 测试覆盖率 ----
 coverage/
 .nyc_output/
