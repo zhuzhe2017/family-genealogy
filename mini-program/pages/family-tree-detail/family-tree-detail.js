@@ -25,6 +25,22 @@ const LIST_PAGE_SIZE = 50; // 列表视图每页成员数
 const LOD_BLOCK_THRESHOLD = 40;  // 卡片 < 40px 时仅画色块，跳过全部文字
 const LOD_MEDIUM_THRESHOLD = 90; // 卡片 < 90px 时画简版（名字 + 配偶色块）
 
+// 直系图（vertical）常量：圆形头像、角色标注、配偶在侧
+const V_AVATAR_R = 34;            // 主成员头像半径（世界坐标），符合中尺寸规格
+const V_SPOUSE_AVATAR_R = V_AVATAR_R * 0.8; // 配偶头像半径（主成员的 0.8 倍，视觉略小、主次分明）
+const V_LEVEL_H = 160;            // 代际垂直间距
+const V_SPOUSE_GAP = 28;          // 夫妇头像间距
+const V_PADDING_X = 48;           // 直系图水平内边距
+const V_MARGIN_Y = 36;            // 上下边距
+
+// 头像组件常量（canvas 2d 绘制层组件化）
+const AVATAR_SIZE = { small: 22, medium: V_AVATAR_R, large: 46 }; // 尺寸规格（半径 px）
+const AVATAR_SHAPE = { circle: 'circle', rounded: 'rounded' };    // 形状：圆形 / 圆角方形
+const AVATAR_BORDER = '#FFFFFF';                                   // 默认描边色（与纸底对比）
+const AVATAR_STATUS_ALIVE = '#4CAF50';                             // 在世状态圆点色
+const AVATAR_STATUS_DEAD = '#9E9E9E';                              // 已逝状态圆点色
+const AVATAR_TIMEOUT = 10000;                                      // 头像加载超时（ms）
+
 Page({
   data: {
     viewMode: 'tree',
@@ -50,10 +66,18 @@ Page({
   rootNodes: [],      // 顶层根节点
   layoutMap: {},      // id -> {x,y,level,node}
   renderNodes: [],    // 当前要渲染的节点列表
+  vLayoutMap: {},     // 直系图布局 id -> {x,y,node,spouseX,role}
+  vRootId: '',        // 直系图展示的中心人物 id
   renderGen: 'all',
   pan: { x: 0, y: 0, startX: 0, startY: 0, touching: false },
   zoom: 1,          // 用户缩放倍率（双指缩放/重置调整）
+  vPan: { x: 0, y: 0, startX: 0, startY: 0, touching: false }, // 直系图平移
+  vZoom: 1,         // 直系图缩放
+  vTapInfo: null,            // 直系图点击判定
+  vPinchStartDist: 0,        // 直系图双指缩放起始距离
+  vPinchStartZoom: 1,        // 直系图双指缩放起始倍率
   initialScale: 1,  // 基础适配缩放（随布局自动重算）
+  vInitialScale: 1, // 直系图基础适配缩放
   canvasReady: false,       // canvas 是否已初始化完成
   _canvasInitPending: false, // 初始化进行中标记，防止重复初始化
   pinchStartDist: 0,        // 双指缩放起始距离
@@ -64,6 +88,7 @@ Page({
   renderSearch: '',         // 当前搜索关键字（不放入 data，避免输入抖动触发 setData）
   collapsedIds: new Set(),  // 已折叠（隐藏其后代）的节点 id 集合
   nodeMap: {},              // id -> node 快速索引
+  avatarCache: {},          // 头像图片缓存 url -> { img, loaded, failed }，避免重复加载
 
   onLoad() {
     this.loadTreeData();
@@ -86,7 +111,8 @@ Page({
     if (this.canvasReady || this._canvasInitPending) return;
     this._canvasInitPending = true;
     const query = wx.createSelectorQuery();
-    query.select('#familyTreeCanvas')
+    const canvasId = this.data.viewMode === 'vertical' ? '#verticalTreeCanvas' : '#familyTreeCanvas';
+    query.select(canvasId)
       .fields({ node: true, size: true })
       .exec((res) => {
         this._canvasInitPending = false;
@@ -115,7 +141,11 @@ Page({
         this.setData({
           canvasStyle: `width:${this.canvasWidth}px;height:${this.canvasHeight}px`
         }, () => {
-          this.renderTree();
+          if (this.data.viewMode === 'vertical') {
+            this.renderVerticalTree();
+          } else {
+            this.renderTree();
+          }
         });
       });
   },
@@ -157,7 +187,7 @@ Page({
       };
     });
 
-    // 2. 一次遍历建立父子关系
+    // 2. 一次遍历建立父子关系，并回填父指针
     const rootIds = new Set();
     Object.keys(nodeMap).forEach(id => rootIds.add(id));
     const allNodeList = [];
@@ -169,10 +199,12 @@ Page({
         father.children.push(node);
         father.hasChildren = true;
         rootIds.delete(node.id);
+        node.parentId = father.id;
       } else if (mother) {
         mother.children.push(node);
         mother.hasChildren = true;
         rootIds.delete(node.id);
+        node.parentId = mother.id;
       }
     });
 
@@ -282,8 +314,14 @@ Page({
     this._filteredList = nodes.slice().sort((a, b) => a.generation - b.generation || a.sortOrder - b.sortOrder);
     this.listPage = 1;
     this.refreshList();
-    this.calcLayout();
-    this.renderTree();
+    // 根据当前视图分别计算布局并渲染
+    if (this.data.viewMode === 'vertical') {
+      this.calcVerticalLayout();
+      this.renderVerticalTree();
+    } else {
+      this.calcLayout();
+      this.renderTree();
+    }
   },
 
   /** 刷新列表视图当前页（分页切片） */
@@ -361,6 +399,87 @@ Page({
     this.layoutMap = layoutMap;
   },
 
+  /** 计算直系图布局：以选中的 vRootId（或当前过滤结果中最合适节点）为中心，
+   *  沿父指针向上收集在当前过滤结果中的祖先链 */
+  calcVerticalLayout() {
+    const visibleSet = new Set((this.renderNodes || []).map(n => n.id));
+    if (!visibleSet.size) {
+      this.vLayoutMap = {};
+      return { contentW: 0, contentH: 0 };
+    }
+
+    // 默认中心优先级：用户指定（且在当前过滤中）> 搜索命中 > 最年轻叶子 > 最后一个节点
+    let center = this.nodeMap[this.vRootId];
+    if (!center || !visibleSet.has(center.id)) {
+      center = null;
+    }
+
+    if (!center) {
+      const kw = (this.renderSearch || '').trim();
+      if (kw) {
+        const matched = this.renderNodes.find(n => (n.name || '').indexOf(kw) > -1);
+        if (matched && visibleSet.has(matched.id)) center = matched;
+      }
+    }
+
+    if (!center) {
+      const leaves = this.renderNodes.filter(n => !n.children || !n.children.length || !n.children.some(c => visibleSet.has(c.id)));
+      center = leaves.length ? leaves[leaves.length - 1] : this.renderNodes[this.renderNodes.length - 1];
+    }
+
+    if (!center) {
+      this.vLayoutMap = {};
+      return { contentW: 0, contentH: 0 };
+    }
+
+    // 向上收集祖先链，仅保留在当前过滤结果中的节点
+    const chain = [];
+    const collectAncestors = (node) => {
+      if (!node || !visibleSet.has(node.id)) return;
+      collectAncestors(node.parentId ? this.nodeMap[node.parentId] : null);
+      chain.push(node);
+    };
+    collectAncestors(center);
+
+    if (!chain.length) {
+      this.vLayoutMap = {};
+      return { contentW: 0, contentH: 0 };
+    }
+
+    const layoutMap = {};
+    let maxW = 0;
+
+    chain.forEach((node, idx) => {
+      const hasSpouse = node.spouseInfo && node.spouseInfo.name;
+      // 总宽 = 主圆直径 + 夫妇间距 + 配偶圆直径（配偶圆左缘 = x + 主直径 + 间距）
+      const coupleW = hasSpouse
+        ? V_AVATAR_R * 2 + V_SPOUSE_GAP + V_SPOUSE_AVATAR_R * 2
+        : V_AVATAR_R * 2;
+      maxW = Math.max(maxW, coupleW);
+      const x = V_PADDING_X;
+      const y = V_MARGIN_Y + idx * V_LEVEL_H;
+      layoutMap[node.id] = {
+        x,
+        y,
+        node,
+        hasSpouse,
+        spouseX: hasSpouse ? x + V_AVATAR_R * 2 + V_SPOUSE_GAP : x,
+        role: this.getVerticalRole(node, idx, chain.length)
+      };
+    });
+
+    // 将链条水平居中
+    const contentW = maxW + V_PADDING_X * 2;
+    const offsetX = (contentW - maxW) / 2 - V_AVATAR_R;
+    Object.values(layoutMap).forEach(l => {
+      l.x += offsetX;
+      if (l.hasSpouse) l.spouseX += offsetX;
+    });
+
+    this.vLayoutMap = layoutMap;
+    return { contentW, contentH: V_MARGIN_Y * 2 + chain.length * V_LEVEL_H };
+  },
+
   /** 使用 canvas 2d 绘制整棵树 */
   renderTree() {
     const ctx = this.canvasCtx;
@@ -378,13 +497,312 @@ Page({
     this.drawTreeContent(ctx, offsetX, offsetY, scale);
   },
 
+  /** 使用 canvas 2d 绘制直系图 */
+  renderVerticalTree() {
+    const ctx = this.canvasCtx;
+    const nodes = this.renderNodes || [];
+    if (!ctx || !nodes.length) {
+      console.log('renderVerticalTree skipped, ctx=', !!ctx, 'nodes=', nodes.length);
+      return;
+    }
+    // 确保切换到直系图时重新计算布局（初始加载可能在树状模式下完成）
+    this.calcVerticalLayout();
+    const vNodes = Object.values(this.vLayoutMap || {});
+    if (!vNodes.length) {
+      console.log('renderVerticalTree: 无直系链可绘制');
+      return;
+    }
+    ctx.fillStyle = CANVAS_BG;
+    ctx.fillRect(0, 0, this.canvasWidth, this.canvasHeight);
+    const { scale, offsetX, offsetY } = this.getVerticalTransform();
+    this.drawVerticalContent(ctx, offsetX, offsetY, scale);
+  },
+
+  /** 直系图统一坐标变换 */
+  getVerticalTransform() {
+    const { contentW, contentH } = this.getVerticalContentSize();
+    this.vInitialScale = this.computeVerticalFitScale(contentW, contentH);
+    const scale = this.vInitialScale * this.vZoom;
+    const offsetX = (this.canvasWidth - contentW * scale) / 2 + this.vPan.x;
+    const offsetY = contentH * scale <= this.canvasHeight
+      ? (this.canvasHeight - contentH * scale) / 2 + this.vPan.y
+      : 16 + this.vPan.y;
+    return { scale, offsetX, offsetY };
+  },
+
+  /** 直系图尺寸 */
+  getVerticalContentSize() {
+    const layoutSize = this.calcVerticalLayout();
+    const w = Math.max(layoutSize.contentW, this.canvasWidth * 0.6);
+    const h = Math.max(layoutSize.contentH, this.canvasHeight * 0.6);
+    return { contentW: w, contentH: h };
+  },
+
+  /** 直系图基础适配：小树放大、长链完整显示 */
+  computeVerticalFitScale(contentW, contentH) {
+    if (!this.canvasWidth || !this.canvasHeight) return 1;
+    const fitX = this.canvasWidth / contentW;
+    const fitY = this.canvasHeight / contentH;
+    let fit = Math.max(fitX, fitY);
+    // 头像直径 68px，初始至少 1.0 保证角色和配偶清晰可读
+    return Math.max(MIN_SCALE, Math.min(MAX_INITIAL_SCALE, Math.max(fit, 1.0)));
+  },
+
+  /** 绘制直系图内容：头像、连线、角色、配偶 */
+  drawVerticalContent(ctx, offsetX, offsetY, scale) {
+    ctx.save();
+    ctx.translate(offsetX, offsetY);
+    ctx.scale(scale, scale);
+    const vNodes = Object.values(this.vLayoutMap || {});
+    if (!vNodes.length) { ctx.restore(); return; }
+
+    // 1. 绘制垂直连接线
+    for (let i = 0; i < vNodes.length - 1; i++) {
+      const cur = vNodes[i];
+      const next = vNodes[i + 1];
+      const x1 = cur.x + V_AVATAR_R;
+      const y1 = cur.y + V_AVATAR_R * 2;
+      const x2 = next.x + V_AVATAR_R;
+      const y2 = next.y;
+      ctx.beginPath();
+      ctx.strokeStyle = '#E8B4A8';
+      ctx.lineWidth = 2;
+      ctx.moveTo(x1, y1);
+      ctx.lineTo(x1, y1 + (y2 - y1) / 2);
+      ctx.lineTo(x2, y1 + (y2 - y1) / 2);
+      ctx.lineTo(x2, y2);
+      ctx.stroke();
+    }
+
+    // 2. 绘制每对夫妇与角色标注
+    vNodes.forEach((l) => {
+      this.drawVerticalNode(ctx, l);
+      if (l.hasSpouse) this.drawVerticalSpouse(ctx, l);
+    });
+
+    ctx.restore();
+  },
+
+  /** 角色语义：最下方是自己，向上依次为父亲/母亲、爷爷/奶奶、曾祖父/曾祖母… */
+  getVerticalRole(node, idx, chainLen) {
+    const diff = chainLen - 1 - idx;
+    const maleRoles = ['自己', '父亲', '爷爷', '曾祖父', '高祖父', '天祖父', '烈祖父', '太祖父', '远祖父', '鼻祖父'];
+    const femaleRoles = ['自己', '母亲', '奶奶', '曾祖母', '高祖母', '天祖母', '烈祖母', '太祖母', '远祖母', '鼻祖母'];
+    const roles = node.gender === 'female' ? femaleRoles : maleRoles;
+    return roles[diff] || `上${diff}代`;
+  },
+
+  /** 绘制直系图节点：头像、姓名、角色 */
+  drawVerticalNode(ctx, l) {
+    const node = l.node;
+    const cx = l.x + V_AVATAR_R;
+    const cy = l.y + V_AVATAR_R;
+    this.drawMemberAvatar(ctx, {
+      cx,
+      cy,
+      radius: V_AVATAR_R,
+      name: node.name,
+      avatar: node.avatar,
+      color: node.gender === 'female' ? '#D98BA6' : '#6A8BAE',
+      alive: node.isAlive !== false
+    });
+    ctx.fillStyle = '#333333';
+    ctx.font = 'bold 14px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    ctx.fillText(this.ellipsizeByWidth(ctx, node.name, V_AVATAR_R * 2.4), cx, l.y + V_AVATAR_R * 2 + 8);
+    ctx.fillStyle = '#8B7D6B';
+    ctx.font = '12px sans-serif';
+    ctx.fillText(l.role, cx, l.y + V_AVATAR_R * 2 + 26);
+  },
+
+  /** 绘制配偶头像与姓名（在主角右侧，头像为主成员 0.8 倍） */
+  drawVerticalSpouse(ctx, l) {
+    const spouse = l.node.spouseInfo;
+    const cx = l.spouseX + V_SPOUSE_AVATAR_R;
+    const cy = l.y + V_SPOUSE_AVATAR_R;
+    const midX = (l.x + V_AVATAR_R * 2 + l.spouseX) / 2;
+    // 夫妇连线：中间断开口放置家徽
+    ctx.beginPath();
+    ctx.strokeStyle = '#E8B4A8';
+    ctx.lineWidth = 2;
+    ctx.moveTo(l.x + V_AVATAR_R * 2 + 10, cy);
+    ctx.lineTo(midX - 14, cy);
+    ctx.moveTo(midX + 14, cy);
+    ctx.lineTo(l.spouseX - 10, cy);
+    ctx.stroke();
+    // 家徽：橙色圆心 + 白色心形，参考图风格
+    ctx.beginPath();
+    ctx.arc(midX, cy, 12, 0, Math.PI * 2);
+    ctx.fillStyle = '#E07A5F';
+    ctx.fill();
+    ctx.fillStyle = '#FFFFFF';
+    ctx.font = '12px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('❤', midX, cy + 1);
+
+    this.drawMemberAvatar(ctx, {
+      cx,
+      cy,
+      radius: V_SPOUSE_AVATAR_R,
+      name: spouse.name,
+      color: '#D98BA6',
+      alive: true,
+      showStatus: false
+    });
+    ctx.fillStyle = '#333333';
+    ctx.font = 'bold 14px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    ctx.fillText(this.ellipsizeByWidth(ctx, spouse.name, V_SPOUSE_AVATAR_R * 2.4), cx, l.y + V_SPOUSE_AVATAR_R * 2 + 8);
+    ctx.fillStyle = '#8B7D6B';
+    ctx.font = '12px sans-serif';
+    const spouseRole = this.getSpouseRole(l.role, l.node.gender);
+    ctx.fillText(spouseRole, cx, l.y + V_SPOUSE_AVATAR_R * 2 + 26);
+  },
+
+  /** 配偶角色：与主角角色对应（父亲↔母亲、爷爷↔奶奶等） */
+  getSpouseRole(role, nodeGender) {
+    const maleRoles = ['自己', '父亲', '爷爷', '曾祖父', '高祖父', '天祖父', '烈祖父', '太祖父', '远祖父', '鼻祖父'];
+    const femaleRoles = ['自己', '母亲', '奶奶', '曾祖母', '高祖母', '天祖母', '烈祖母', '太祖母', '远祖母', '鼻祖母'];
+    const idx = maleRoles.indexOf(role);
+    if (idx === -1) return '配偶';
+    if (nodeGender === 'female') {
+      return idx === 0 ? '丈夫' : maleRoles[idx];
+    }
+    return idx === 0 ? '妻子' : femaleRoles[idx];
+  },
+
+  /**
+   * 头像组件（canvas 2d 绘制层）：
+   * - 支持图片头像（异步加载 + 缓存），加载中/失败自动回退首字
+   * - 支持尺寸规格（radius）、形状（圆形/圆角方形）、边框、在世/已逝状态圆点
+   */
+  drawMemberAvatar(ctx, opts) {
+    const {
+      cx,
+      cy,
+      radius = V_AVATAR_R,
+      name = '',
+      avatar = '',
+      color = '#6A8BAE',
+      shape = AVATAR_SHAPE.circle,
+      borderColor = AVATAR_BORDER,
+      borderWidth = 3,
+      alive = true,
+      showStatus = true
+    } = opts || {};
+
+    // 1. 底色 + 图片或首字（在裁剪路径内绘制，保证不越界）
+    ctx.save();
+    this.avatarShapePath(ctx, cx, cy, radius, shape);
+    ctx.clip();
+    ctx.fillStyle = color;
+    ctx.fillRect(cx - radius, cy - radius, radius * 2, radius * 2);
+
+    const entry = avatar ? this.getAvatarImage(avatar) : null;
+    if (entry && entry.loaded && entry.img) {
+      // 图片已加载：cover 模式填充头像区域
+      const s = radius * 2;
+      ctx.drawImage(entry.img, cx - radius, cy - radius, s, s);
+    } else {
+      // 首字占位（加载中或加载失败或未配置图片）
+      ctx.fillStyle = '#FFFFFF';
+      ctx.font = `bold ${Math.max(10, Math.round(radius * 0.45))}px KaiTi, serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText((name || '?').charAt(0), cx, cy + 1);
+    }
+    ctx.restore();
+
+    // 2. 描边（在裁剪外绘制，使边框完整）
+    ctx.save();
+    this.avatarShapePath(ctx, cx, cy, radius - borderWidth / 2, shape);
+    ctx.strokeStyle = borderColor;
+    ctx.lineWidth = borderWidth;
+    ctx.stroke();
+    ctx.restore();
+
+    // 3. 在世/已逝状态圆点（右下角）
+    if (showStatus) {
+      const dotR = Math.max(4, radius * 0.22);
+      const dotX = cx + radius * 0.66;
+      const dotY = cy + radius * 0.66;
+      ctx.beginPath();
+      ctx.arc(dotX, dotY, dotR, 0, Math.PI * 2);
+      ctx.fillStyle = alive ? AVATAR_STATUS_ALIVE : AVATAR_STATUS_DEAD;
+      ctx.fill();
+      ctx.strokeStyle = AVATAR_BORDER;
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
+  },
+
+  /** 头像形状路径：circle 圆形 / rounded 圆角方形（居中于 cx,cy） */
+  avatarShapePath(ctx, cx, cy, radius, shape) {
+    ctx.beginPath();
+    if (shape === AVATAR_SHAPE.rounded) {
+      const r = radius * 0.28;
+      ctx.moveTo(cx - radius + r, cy - radius);
+      ctx.lineTo(cx + radius - r, cy - radius);
+      ctx.arcTo(cx + radius, cy - radius, cx + radius, cy - radius + r, r);
+      ctx.lineTo(cx + radius, cy + radius - r);
+      ctx.arcTo(cx + radius, cy + radius, cx + radius - r, cy + radius, r);
+      ctx.lineTo(cx - radius + r, cy + radius);
+      ctx.arcTo(cx - radius, cy + radius, cx - radius, cy + radius - r, r);
+      ctx.lineTo(cx - radius, cy - radius + r);
+      ctx.arcTo(cx - radius, cy - radius, cx - radius + r, cy - radius, r);
+      ctx.closePath();
+    } else {
+      ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+      ctx.closePath();
+    }
+  },
+
+  /** 获取头像图片（带缓存）：未加载完成返回占位入口，加载完成/失败后触发一次重绘 */
+  getAvatarImage(url) {
+    if (this.avatarCache[url]) return this.avatarCache[url];
+    const entry = { img: null, loaded: false, failed: false };
+    this.avatarCache[url] = entry;
+    let img = null;
+    try {
+      img = wx.createImage();
+    } catch (e) {
+      entry.failed = true;
+      return entry;
+    }
+    img.onload = () => {
+      entry.img = img;
+      entry.loaded = true;
+      this.requestRender();
+    };
+    img.onerror = () => {
+      entry.failed = true;
+      this.requestRender();
+    };
+    img.src = url;
+    // 超时保护：长时间未加载成功视为失败，避免一直占位
+    entry.timer = setTimeout(() => {
+      if (!entry.loaded) {
+        entry.failed = true;
+        this.requestRender();
+      }
+    }, AVATAR_TIMEOUT);
+    return entry;
+  },
+
   /** 请求一次渲染：合并同一帧内的多次重绘请求（拖动/缩放节流） */
   requestRender() {
     if (this._renderScheduled) return;
     this._renderScheduled = true;
     const doRender = () => {
       this._renderScheduled = false;
-      this.renderTree();
+      if (this.data.viewMode === 'vertical') {
+        this.renderVerticalTree();
+      } else {
+        this.renderTree();
+      }
     };
     const canvas = this.canvasNode;
     if (canvas && typeof canvas.requestAnimationFrame === 'function') {
@@ -755,15 +1173,14 @@ Page({
   },
 
   toggleView() {
-    const next = this.data.viewMode === 'tree' ? 'list' : 'tree';
+    // 当前需求：仅保留树状图与直系图两种视图，取消列表视图切换入口
+    const next = this.data.viewMode === 'tree' ? 'vertical' : 'tree';
     this.setData({ viewMode: next }, () => {
-      // wx:if 会销毁并重建 canvas 节点，切回树状视图时必须重新获取上下文
-      if (next === 'tree') {
-        this.canvasCtx = null;
-        this.canvasNode = null;
-        this.canvasReady = false;
-        wx.nextTick(() => this.initCanvas());
-      }
+      // wx:if 会销毁并重建 canvas 节点，切回树状/直系视图时必须重新获取上下文
+      this.canvasCtx = null;
+      this.canvasNode = null;
+      this.canvasReady = false;
+      wx.nextTick(() => this.initCanvas());
     });
   },
 
@@ -775,11 +1192,19 @@ Page({
   },
 
   resetView() {
-    this.pan = { x: 0, y: 0, startX: 0, startY: 0, touching: false };
-    this.zoom = 1;
-    this.tapInfo = null;
-    this.setData({ canvasScale: 1 });
-    this.renderTree();
+    if (this.data.viewMode === 'vertical') {
+      this.vPan = { x: 0, y: 0, startX: 0, startY: 0, touching: false };
+      this.vZoom = 1;
+      this.vTapInfo = null;
+      this.setData({ canvasScale: 1 });
+      this.renderVerticalTree();
+    } else {
+      this.pan = { x: 0, y: 0, startX: 0, startY: 0, touching: false };
+      this.zoom = 1;
+      this.tapInfo = null;
+      this.setData({ canvasScale: 1 });
+      this.renderTree();
+    }
   },
 
   onCanvasTouchStart(e) {
@@ -861,6 +1286,116 @@ Page({
         selectedCollapsed: this.collapsedIds.has(node.id)
       });
     }
+  },
+
+  /** 直系图手势：开始拖动或双指缩放 */
+  onVerticalTouchStart(e) {
+    const touches = e.touches;
+    if (touches.length === 2) {
+      this.vTapInfo = null;
+      this.vPan.touching = false;
+      this.vPinchStartDist = this.touchDist(touches);
+      this.vPinchStartZoom = this.vZoom;
+      return;
+    }
+    const t = touches[0];
+    this.vTapInfo = { x: t.clientX, y: t.clientY };
+    this.vPan.startX = t.clientX - this.vPan.x;
+    this.vPan.startY = t.clientY - this.vPan.y;
+    this.vPan.touching = true;
+  },
+
+  onVerticalTouchMove(e) {
+    const touches = e.touches;
+    if (touches.length === 2 && this.vPinchStartDist > 0) {
+      const dist = this.touchDist(touches);
+      const next = Math.max(MIN_SCALE, Math.min(MAX_SCALE, this.vPinchStartZoom * (dist / this.vPinchStartDist)));
+      if (Math.abs(next - this.vZoom) > 0.001) {
+        this.applyVerticalZoomAt(next, touches);
+      }
+      return;
+    }
+    if (!this.vPan.touching || touches.length !== 1) return;
+    const t = touches[0];
+    if (this.vTapInfo &&
+      (Math.abs(t.clientX - this.vTapInfo.x) > 10 || Math.abs(t.clientY - this.vTapInfo.y) > 10)) {
+      this.vTapInfo = null;
+    }
+    this.vPan.x = t.clientX - this.vPan.startX;
+    this.vPan.y = t.clientY - this.vPan.startY;
+    this.requestRender();
+  },
+
+  onVerticalTouchEnd() {
+    this.vPan.touching = false;
+    this.vPinchStartDist = 0;
+    this.vPinchStartZoom = 1;
+  },
+
+  /** 直系图以双指中点为焦点缩放 */
+  applyVerticalZoomAt(nextZoom, touches) {
+    const { scale, offsetX, offsetY } = this.getVerticalTransform();
+    const t0 = touches[0];
+    const t1 = touches[1];
+    const mx = (t0.clientX + t1.clientX) / 2;
+    const my = (t0.clientY + t1.clientY) / 2;
+    const worldX = (mx - offsetX) / scale;
+    const worldY = (my - offsetY) / scale;
+
+    this.vZoom = nextZoom;
+    const ns = this.vInitialScale * this.vZoom;
+    const { contentW, contentH } = this.getVerticalContentSize();
+    const nOffsetX = mx - worldX * ns;
+    const nOffsetY = my - worldY * ns;
+    this.vPan.x = nOffsetX - (this.canvasWidth - contentW * ns) / 2;
+    this.vPan.y = nOffsetY - (this.canvasHeight - contentH * ns) / 2;
+    this.requestRender();
+  },
+
+  /** 直系图点击：命中头像（含配偶）后弹出详情 */
+  onVerticalTap(e) {
+    if (!this.vTapInfo) return;
+    const touch = e.detail;
+    const node = this.hitVerticalTest(touch.x, touch.y);
+    if (node) {
+      this.setData({
+        showModal: true,
+        selectedNode: node,
+        selectedCollapsed: this.collapsedIds.has(node.id)
+      });
+    }
+  },
+
+  /** 直系图命中检测：点击主角或配偶头像均返回该成员 */
+  hitVerticalTest(x, y) {
+    const { scale, offsetX, offsetY } = this.getVerticalTransform();
+    const worldX = (x - offsetX) / scale;
+    const worldY = (y - offsetY) / scale;
+    const vNodes = Object.values(this.vLayoutMap || {});
+    let hit = null;
+    vNodes.forEach(l => {
+      const cx = l.x + V_AVATAR_R;
+      const cy = l.y + V_AVATAR_R;
+      if (Math.pow(worldX - cx, 2) + Math.pow(worldY - cy, 2) <= Math.pow(V_AVATAR_R + 4, 2)) {
+        hit = l.node;
+      }
+      if (l.hasSpouse) {
+        const sx = l.spouseX + V_SPOUSE_AVATAR_R;
+        if (Math.pow(worldX - sx, 2) + Math.pow(worldY - cy, 2) <= Math.pow(V_SPOUSE_AVATAR_R + 4, 2)) {
+          hit = l.node;
+        }
+      }
+    });
+    return hit;
+  },
+
+  /** 将当前直系图节点设为中心 */
+  setVerticalRoot(node) {
+    this.vRootId = node && node.id;
+    this.vPan = { x: 0, y: 0, startX: 0, startY: 0, touching: false };
+    this.vZoom = 1;
+    this.calcVerticalLayout();
+    this.renderVerticalTree();
   },
 
   /** 折叠/展开节点：折叠后隐藏其后代，展开后恢复 */
@@ -959,6 +1494,14 @@ Page({
     this.applyFilter();
   },
 
+  /** 以当前弹窗中的节点为直系图中心，并关闭弹窗 */
+  setAsVerticalRoot() {
+    const node = this.data.selectedNode;
+    if (!node) return;
+    this.setVerticalRoot(node);
+    this.closeModal();
+  },
+
   showNodeDetail(e) {
     const id = e.currentTarget.dataset.id;
     const node = this.data.memberList.find(m => m.id === id);
@@ -985,6 +1528,21 @@ Page({
     setTimeout(() => {
       this.setData({ showModal: false });
     }, 200);
+  },
+
+  /** 预览当前选中成员头像大图（无头像时忽略） */
+  previewNodeAvatar() {
+    const node = this.data.selectedNode;
+    if (node && node.avatar) {
+      wx.previewImage({ current: node.avatar, urls: [node.avatar] });
+    }
+  },
+
+  /** 弹窗内头像加载失败：回退为首字显示 */
+  onAvatarError() {
+    if (this.data.selectedNode && this.data.selectedNode.avatar) {
+      this.setData({ 'selectedNode.avatar': '' });
+    }
   },
 
   viewDetail() {
@@ -1037,6 +1595,10 @@ Page({
 
   /** 导出整棵树为完整大图（离屏画布 1:1 绘制）；share=true 走文件分享，否则保存相册 */
   exportImage(share) {
+    if (this.data.viewMode === 'vertical') {
+      this.exportVerticalImage(share);
+      return;
+    }
     const bounds = this.getBounds();
     const contentW = bounds.width + PADDING * 2;
     const contentH = bounds.height + PADDING * 2;
@@ -1070,6 +1632,43 @@ Page({
       }
     }
     // 兜底：导出当前可视区域
+    doExport(this.canvasNode);
+  },
+
+  /** 导出直系图为完整大图 */
+  exportVerticalImage(share) {
+    const layoutSize = this.calcVerticalLayout();
+    const contentW = layoutSize.contentW;
+    const contentH = layoutSize.contentH;
+    if (!contentW || !contentH) {
+      wx.showToast({ title: '暂无可导出内容', icon: 'none' });
+      return;
+    }
+    const exportDpr = Math.min(this.canvasDpr || 2, 2);
+    const doExport = (canvas) => {
+      wx.canvasToTempFilePath({
+        canvas,
+        fileType: 'png',
+        success: (res) => this.handleExportedFile(res.tempFilePath, share),
+        fail: () => wx.showToast({ title: '导出失败', icon: 'none' })
+      });
+    };
+    if (typeof wx.createOffscreenCanvas === 'function') {
+      try {
+        const cw = Math.ceil(contentW * exportDpr);
+        const ch = Math.ceil(contentH * exportDpr);
+        const offCanvas = wx.createOffscreenCanvas({ type: '2d', width: cw, height: ch });
+        const octx = offCanvas.getContext('2d');
+        octx.scale(exportDpr, exportDpr);
+        octx.fillStyle = CANVAS_BG;
+        octx.fillRect(0, 0, contentW, contentH);
+        this.drawVerticalContent(octx, 0, 0, 1);
+        doExport(offCanvas);
+        return;
+      } catch (e) {
+        console.warn('直系图离屏导出失败', e);
+      }
+    }
     doExport(this.canvasNode);
   },
 

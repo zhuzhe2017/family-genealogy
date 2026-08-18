@@ -20,7 +20,7 @@
         <text>重置</text>
       </view>
       <view class="tool-btn" bindtap="toggleView">
-        <text>{{viewMode === 'tree' ? '列表' : '树状'}}</text>
+        <text>{{viewMode === 'tree' ? '直系' : '树状'}}</text>
       </view>
     </view>
   </view>
@@ -51,8 +51,25 @@
     </view>
   </view>
 
-  <!-- 列表视图 -->
-  <view class="list-view" wx:if="{{viewMode === 'list'}}">
+  <!-- 直系图视图 -->
+  <view class="tree-view" wx:if="{{viewMode === 'vertical'}}">
+    <canvas
+      type="2d"
+      id="verticalTreeCanvas"
+      class="family-tree-canvas"
+      style="{{canvasStyle}}"
+      bindtouchstart="onVerticalTouchStart"
+      catchtouchmove="onVerticalTouchMove"
+      bindtouchend="onVerticalTouchEnd"
+      bindtap="onVerticalTap">
+    </canvas>
+    <view class="tree-hint">
+      <text class="hint-text">拖动查看，双指缩放</text>
+    </view>
+  </view>
+
+  <!-- 列表视图：当前已取消显示 -->
+  <!-- <view class="list-view" wx:if="{{viewMode === 'list'}}">
     <view class="member-list-item" wx:for="{{memberList}}" wx:key="id" bindtap="showNodeDetail" data-id="{{item.id}}">
       <view class="list-avatar {{item.gender === 'female' ? 'female' : ''}}">
         <text>{{f.firstChar(item.name)}}</text>
@@ -73,7 +90,7 @@
     <view class="load-more" wx:if="{{listHasMore}}" bindtap="loadMoreList">
       <text>加载更多</text>
     </view>
-  </view>
+  </view> -->
 
   <!-- 底部操作栏 -->
   <view class="bottom-actions">
@@ -92,8 +109,9 @@
 <view class="modal-mask" wx:if="{{showModal}}" bindtap="closeModal"></view>
 <view class="modal-content" wx:if="{{showModal}}" animation="{{modalAnimation}}">
   <view class="modal-header">
-    <view class="modal-avatar">
-      <text>{{f.firstChar(selectedNode.name)}}</text>
+    <view class="modal-avatar {{selectedNode.avatar ? 'with-image' : ''}}" bindtap="previewNodeAvatar">
+      <image wx:if="{{selectedNode.avatar}}" class="modal-avatar-image" src="{{selectedNode.avatar}}" mode="aspectFill" binderror="onAvatarError" lazy-load/>
+      <text wx:else>{{f.firstChar(selectedNode.name)}}</text>
     </view>
     <view class="modal-title">
       <text class="modal-name">{{selectedNode.name}}</text>
@@ -130,5 +148,6 @@
     <view class="modal-btn" bindtap="addChild">添加子女</view>
     <view class="modal-btn" bindtap="viewDetail">查看详情</view>
     <view class="modal-btn primary" bindtap="editNode">编辑</view>
+    <view class="modal-btn" wx:if="{{viewMode === 'vertical'}}" bindtap="setAsVerticalRoot">以此为中心</view>
   </view>
 </view>
