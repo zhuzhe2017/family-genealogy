@@ -21,3 +21,15 @@ export class BannerController {
     return this.bannerService.getActiveList(String(req.user.id), Number(familyId) || 0);
   }
 }
+
+/** 全局广告公共接口：无需登录/家族归属，未登录或无家族用户也可看到全局广告 */
+@Public()
+@Controller('banner')
+export class BannerPublicController {
+  constructor(private readonly bannerService: BannerService) {}
+
+  @Get('global')
+  getGlobal() {
+    return this.bannerService.getGlobalList();
+  }
+}

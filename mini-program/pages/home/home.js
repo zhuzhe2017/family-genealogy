@@ -218,18 +218,16 @@ Page({
   },
 
   /**
-   * 加载广告轮播:未登录/未选择家族时清空不请求
-   * - 后端返回当前家族 + 全局启用广告,以及自动切换间隔 interval
+   * 加载广告轮播:有登录且有家族 → 家族+全局广告;未登录/无家族 → 仅全局广告
+   * - 数字 id 校验:mock 回退数据 id 为 'fam001' 等字符串,后端 Number() 解析为 0 会报"缺少家族ID",
+   *   因此请求前统一转数字并确认是有效正整数
    */
   loadBanners() {
-    // 数字 id 校验:mock 回退数据 id 为 'fam001' 等字符串,后端 Number() 解析为 0 会报"缺少家族ID",
-    // 因此在请求前统一转数字并确认是有效正整数
     const familyId = Number((app.globalData.currentFamily || {}).id);
-    if (!getToken() || !familyId || familyId <= 0) {
-      this.setData({ banners: [], bannerInterval: 3000 });
-      return;
-    }
-    banner.getList(familyId)
+    const requestPromise = (getToken() && familyId > 0)
+      ? banner.getList(familyId)
+      : banner.getGlobal();
+    requestPromise
       .then((res) => {
         const list = (res.list || []).map((item) => ({
           id: item.id,

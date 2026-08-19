@@ -229,6 +229,10 @@ const banner = {
   /** 当前家族启用轮播列表（含全局广告，返回切换间隔 interval） */
   getList: function (familyId) {
     return request({ url: '/user/banner/list', data: { familyId: familyId } });
+  },
+  /** 全局广告轮播列表（无需登录，所有用户可见） */
+  getGlobal: function () {
+    return request({ url: '/banner/global' });
   }
 };
 

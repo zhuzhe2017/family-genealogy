@@ -17,15 +17,22 @@ describe('BannerService', () => {
       });
     });
 
-    it('家族被禁用时抛出 FORBIDDEN', async () => {
+    it('非家族成员仅返回全局广告，不报错', async () => {
       queryMock
         .mockResolvedValueOnce([]) // family_permission
         .mockResolvedValueOnce([]) // user.family_id
-        .mockResolvedValueOnce([]); // family.status=1 无记录
+        .mockResolvedValueOnce([]) // family.status=1 无记录（非成员）
+        .mockResolvedValueOnce([
+          { id: 2, family_id: 0, title: 'g', image_url: '/g.jpg', link_type: 'none', link_url: '',
+            sort_order: 0, start_time: null, end_time: null, create_time: '2026-01-01' },
+          { id: 1, family_id: 1, title: 't', image_url: '/a.jpg', link_type: 'page', link_url: '/pages/home/home',
+            sort_order: 1, start_time: null, end_time: null, create_time: '2026-01-01' }
+        ])
+        .mockResolvedValueOnce([{ config_value: '3000' }]);
 
-      await expect(service.getActiveList('u1', 1)).rejects.toMatchObject({
-        status: HttpStatus.FORBIDDEN
-      });
+      const result = await service.getActiveList('u1', 1);
+      expect(result.list).toHaveLength(1);
+      expect(result.list[0].familyId).toBe(0);
     });
 
     it('返回启用广告与默认间隔', async () => {
@@ -53,6 +60,22 @@ describe('BannerService', () => {
 
       const result = await service.getActiveList('u1', 1);
       expect(result.interval).toBe(60000);
+    });
+  });
+
+  describe('getGlobalList', () => {
+    it('仅返回全局广告（family_id=0）与间隔', async () => {
+      queryMock
+        .mockResolvedValueOnce([
+          { id: 2, family_id: 0, title: 'g', image_url: '/g.jpg', link_type: 'none', link_url: '',
+            sort_order: 0, start_time: null, end_time: null, create_time: '2026-01-01' }
+        ])
+        .mockResolvedValueOnce([{ config_value: '3500' }]);
+
+      const result = await service.getGlobalList();
+      expect(result.list).toHaveLength(1);
+      expect(result.list[0].familyId).toBe(0);
+      expect(result.interval).toBe(3500);
     });
   });
 });

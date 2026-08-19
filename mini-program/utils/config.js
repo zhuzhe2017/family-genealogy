@@ -6,7 +6,7 @@
  * - TIMEOUT: 请求超时时间(ms)
  */
 module.exports = {
-  API_BASE_URL: 'http://localhost:3000/api',
+  API_BASE_URL: 'https://jiapuadmin.deejee.net/api',
   USE_MOCK: false,
   TIMEOUT: 10000
 };
