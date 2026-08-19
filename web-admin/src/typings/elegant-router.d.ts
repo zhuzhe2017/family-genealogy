@@ -20,6 +20,7 @@ declare module "@elegant-router/types" {
     "403": "/403";
     "404": "/404";
     "500": "/500";
+    "app-center": "/app-center";
     "home": "/home";
     "iframe-page": "/iframe-page/:url";
     "login": "/login/:module(pwd-login|code-login|register|reset-pwd|bind-wechat)?";
@@ -32,7 +33,6 @@ declare module "@elegant-router/types" {
     "mini-program_generation-table": "/mini-program/generation-table";
     "mini-program_members": "/mini-program/members";
     "mini-program_overview": "/mini-program/overview";
-    "mini-program_plugin": "/mini-program/plugin";
     "mini-program_subscription": "/mini-program/subscription";
     "mini-program_surname": "/mini-program/surname";
     "mini-program_worship": "/mini-program/worship";
@@ -76,6 +76,7 @@ declare module "@elegant-router/types" {
     | "403"
     | "404"
     | "500"
+    | "app-center"
     | "home"
     | "iframe-page"
     | "login"
@@ -102,16 +103,16 @@ declare module "@elegant-router/types" {
     | "500"
     | "iframe-page"
     | "login"
+    | "app-center"
     | "home"
     | "mini-program_banner"
     | "mini-program_content"
-    | "mini-program_family-tree"
     | "mini-program_family-invitation"
+    | "mini-program_family-tree"
     | "mini-program_family"
     | "mini-program_generation-table"
     | "mini-program_members"
     | "mini-program_overview"
-    | "mini-program_plugin"
     | "mini-program_subscription"
     | "mini-program_surname"
     | "mini-program_worship"
@@ -191,7 +192,7 @@ declare module "@elegant-router/types" {
         component: `view.${K}`;
       }
     : never;
-
+  
   /**
    * the center level route
    */
@@ -214,7 +215,7 @@ declare module "@elegant-router/types" {
         children: (CenterLevelRoute<GetChildRouteKey<K>> | LastLevelRoute<GetChildRouteKey<K>>)[];
       }
     : never;
-
+  
   /**
    * the custom first level route
    */

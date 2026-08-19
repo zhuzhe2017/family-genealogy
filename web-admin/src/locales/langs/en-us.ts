@@ -240,7 +240,6 @@ const local: App.I18n.Schema = {
     'mini-program_surname': 'Surname Management',
     'mini-program_subscription': 'Subscription Management',
     'mini-program_banner': 'Banner Management',
-    'mini-program_plugin': 'App Plugin Management',
     'mini-program_family-invitation': 'Family Invitation',
     'mini-program_worship': 'Worship Management',
     system: 'System',

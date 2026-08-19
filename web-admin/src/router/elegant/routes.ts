@@ -40,6 +40,17 @@ export const generatedRoutes: GeneratedRoute[] = [
     }
   },
   {
+    name: 'app-center',
+    path: '/app-center',
+    component: 'layout.base$view.app-center',
+    meta: {
+      title: 'app-center',
+      i18nKey: 'route.app-center',
+      icon: 'mdi:puzzle',
+      order: 4
+    }
+  },
+  {
     name: 'home',
     path: '/home',
     component: 'layout.base$view.home',
@@ -112,21 +123,21 @@ export const generatedRoutes: GeneratedRoute[] = [
         }
       },
       {
-        name: 'mini-program_family-tree',
-        path: '/mini-program/family-tree',
-        component: 'view.mini-program_family-tree',
-        meta: {
-          title: 'mini-program_family-tree',
-          i18nKey: 'route.mini-program_family-tree'
-        }
-      },
-      {
         name: 'mini-program_family-invitation',
         path: '/mini-program/family-invitation',
         component: 'view.mini-program_family-invitation',
         meta: {
           title: 'mini-program_family-invitation',
           i18nKey: 'route.mini-program_family-invitation'
+        }
+      },
+      {
+        name: 'mini-program_family-tree',
+        path: '/mini-program/family-tree',
+        component: 'view.mini-program_family-tree',
+        meta: {
+          title: 'mini-program_family-tree',
+          i18nKey: 'route.mini-program_family-tree'
         }
       },
       {
@@ -155,15 +166,6 @@ export const generatedRoutes: GeneratedRoute[] = [
           title: 'mini-program_overview',
           i18nKey: 'route.mini-program_overview',
           hideInMenu: true
-        }
-      },
-      {
-        name: 'mini-program_plugin',
-        path: '/mini-program/plugin',
-        component: 'view.mini-program_plugin',
-        meta: {
-          title: 'mini-program_plugin',
-          i18nKey: 'route.mini-program_plugin'
         }
       },
       {

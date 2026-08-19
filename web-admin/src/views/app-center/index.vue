@@ -86,7 +86,7 @@ async function loadList() {
     data.value = res?.list || [];
     pagination.itemCount = res?.total || 0;
   } catch (err: any) {
-    message.error(err?.msg || '应用插件列表加载失败');
+    message.error(err?.msg || '应用中心列表加载失败');
   } finally {
     loading.value = false;
   }
@@ -139,15 +139,15 @@ function openEdit(row: AdminPluginItem) {
 
 async function handleSave() {
   if (!/^[a-z0-9_-]{2,64}$/.test(form.code.trim())) {
-    message.warning('插件编码需为 2-64 位小写字母/数字/下划线/中划线');
+    message.warning('应用编码需为 2-64 位小写字母/数字/下划线/中划线');
     return;
   }
   if (!form.name.trim()) {
-    message.warning('请填写插件名称');
+    message.warning('请填写应用名称');
     return;
   }
   if (!form.icon.trim()) {
-    message.warning('请填写插件图标（emoji 或图片URL）');
+    message.warning('请填写应用图标（emoji 或图片URL）');
     return;
   }
   if (!form.entryValue.trim()) {
@@ -204,7 +204,7 @@ onMounted(loadList);
 
 <template>
   <div>
-    <NCard title="应用插件管理" :bordered="false" class="mb-16px">
+    <NCard title="应用中心" :bordered="false" class="mb-16px">
       <div class="flex items-center gap-12px flex-wrap">
         <NSelect v-model:value="search.status" :options="[{ label: '启用', value: 1 }, { label: '停用', value: 0 }]" placeholder="状态" clearable style="width: 120px" />
         <NInput v-model:value="search.keyword" placeholder="名称/编码关键字" clearable style="width: 180px" @keyup.enter="handleSearch" />
@@ -233,17 +233,17 @@ onMounted(loadList);
 
     <NModal v-model:show="showModal" preset="card" :title="editingId ? '编辑应用' : '新增应用'" style="width: min(92vw, 560px)" :mask-closable="false">
       <NForm label-placement="left" label-width="90px">
-        <NFormItem label="插件编码">
+        <NFormItem label="应用编码">
           <NInput v-model:value="form.code" placeholder="如 compass、naming，唯一且创建后不可重复" maxlength="64" />
         </NFormItem>
-        <NFormItem label="插件名称">
+        <NFormItem label="应用名称">
           <NInput v-model:value="form.name" placeholder="例如：电子罗盘" maxlength="64" />
         </NFormItem>
-        <NFormItem label="插件图标">
+        <NFormItem label="应用图标">
           <NInput v-model:value="form.icon" placeholder="emoji 或图片URL，如 🧭" maxlength="255" />
           <div class="text-12px text-gray-400 mt-4px">小程序端以 emoji 底色块展示，推荐直接填 emoji</div>
         </NFormItem>
-        <NFormItem label="插件简介">
+        <NFormItem label="应用简介">
           <NInput v-model:value="form.description" type="textarea" :rows="2" placeholder="一句话说明用途" maxlength="255" />
         </NFormItem>
         <NFormItem label="入口类型">
