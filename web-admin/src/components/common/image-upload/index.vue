@@ -19,6 +19,10 @@ interface Props {
   maxSize?: number;
   /** 是否禁用上传 */
   disabled?: boolean;
+  /** 推荐最小宽度（像素），用于前端提示 */
+  minWidth?: number;
+  /** 推荐最小高度（像素），用于前端提示 */
+  minHeight?: number;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -63,6 +67,24 @@ async function handleCustomRequest(options: UploadCustomRequestOptions) {
     errorMsg.value = `图片大小不能超过 ${props.maxSize}MB`;
     options.onError();
     return;
+  }
+
+  // 推荐尺寸校验（仅提示，不阻断上传，避免兼容性问题）
+  if (props.minWidth || props.minHeight) {
+    const img = new Image();
+    img.onload = () => {
+      const tips: string[] = [];
+      if (props.minWidth && img.naturalWidth < props.minWidth) {
+        tips.push(`宽度建议 ≥ ${props.minWidth}px`);
+      }
+      if (props.minHeight && img.naturalHeight < props.minHeight) {
+        tips.push(`高度建议 ≥ ${props.minHeight}px`);
+      }
+      if (tips.length > 0) {
+        errorMsg.value = `图片尺寸较小，${tips.join('，')}，可能影响展示效果`;
+      }
+    };
+    img.src = URL.createObjectURL(rawFile);
   }
 
   uploading.value = true;

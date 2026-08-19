@@ -193,8 +193,17 @@ async function handleSave() {
     message.warning('请上传广告图片');
     return;
   }
-  if ((form.linkType === 'page' || form.linkType === 'url') && !form.linkUrl.trim()) {
+  if ((form.linkType === 'page' || form.linkType === 'url') && !form.linkUrl?.trim()) {
     message.warning('请填写跳转地址');
+    return;
+  }
+  const linkUrl = form.linkUrl?.trim() || '';
+  if (form.linkType === 'page' && !linkUrl.startsWith('/')) {
+    message.warning('小程序页面路径需以 / 开头');
+    return;
+  }
+  if (form.linkType === 'url' && !/^https?:\/\//.test(linkUrl)) {
+    message.warning('外部链接需以 http:// 或 https:// 开头');
     return;
   }
 
@@ -270,7 +279,7 @@ onMounted(() => {
       />
     </NCard>
 
-    <NModal v-model:show="showModal" preset="card" :title="editingId ? '编辑广告' : '新增广告'" style="width: 560px" :mask-closable="false">
+    <NModal v-model:show="showModal" preset="card" :title="editingId ? '编辑广告' : '新增广告'" style="width: min(92vw, 560px)" :mask-closable="false">
       <NForm label-placement="left" label-width="90px">
         <NFormItem label="所属家族">
           <NSelect v-model:value="form.familyId" :options="familyOptions" placeholder="选择家族（含全局广告）" />
@@ -279,7 +288,8 @@ onMounted(() => {
           <NInput v-model:value="form.title" placeholder="例如：家族文化节活动" maxlength="100" />
         </NFormItem>
         <NFormItem label="广告图片">
-          <ImageUpload v-model:value="form.imageUrl" :size="160" />
+          <ImageUpload v-model:value="form.imageUrl" :size="160" :min-width="750" :min-height="260" />
+          <div class="text-12px text-gray-400 mt-4px">推荐尺寸 750×260 像素（约 2.88:1），以保证小程序端展示完整不被拉伸</div>
         </NFormItem>
         <NFormItem label="跳转类型">
           <NSelect v-model:value="form.linkType" :options="linkTypeOptions" style="width: 180px" />

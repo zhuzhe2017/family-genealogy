@@ -53,7 +53,7 @@ export class BannerAdminController {
   /** 删除 */
   @Permissions('system:family-banner:delete')
   @Delete(':id')
-  delete(@Param('id') id: string) {
-    return this.adminService.delete(Number(id));
+  delete(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
+    return this.adminService.delete(Number(id), String(req.user?.id || ''));
   }
 }

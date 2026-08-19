@@ -45,15 +45,18 @@
       interval="{{bannerInterval}}"
       duration="500"
       circular="{{banners.length > 1}}"
-      indicator-dots="{{banners.length > 1}}"
-      indicator-color="rgba(255,255,255,0.4)"
-      indicator-active-color="#FFFFFF"
+      indicator-dots="{{false}}"
+      bindchange="onBannerChange"
     >
-      <swiper-item wx:for="{{banners}}" wx:key="id" data-type="{{item.linkType}}" data-url="{{item.linkUrl}}" bindtap="onBannerTap">
-        <image class="banner-image" src="{{item.imageUrl}}" mode="aspectFill" lazy-load />
+      <swiper-item wx:for="{{banners}}" wx:key="id" data-type="{{item.linkType}}" data-url="{{item.linkUrl}}" data-id="{{item.id}}" bindtap="onBannerTap">
+        <image class="banner-image" src="{{item.imageUrl}}" mode="aspectFill" lazy-load data-id="{{item.id}}" binderror="onBannerError" />
         <view class="banner-title" wx:if="{{item.title}}">{{item.title}}</view>
       </swiper-item>
     </swiper>
+    <!-- 自定义指示器：避免与标题堆叠，样式更可控 -->
+    <view class="banner-indicators" wx:if="{{banners.length > 1}}">
+      <view wx:for="{{banners}}" wx:key="id" class="banner-dot {{bannerCurrent === index ? 'active' : ''}}" />
+    </view>
   </view>
 
   <!-- 开发模式模拟数据角标 -->

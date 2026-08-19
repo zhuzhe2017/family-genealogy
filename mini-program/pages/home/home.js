@@ -29,7 +29,8 @@ Page({
     isMock: false,           // 开发模式模拟数据角标
     // 广告轮播
     banners: [],             // 轮播广告列表
-    bannerInterval: 3000     // 自动切换间隔(ms),由后端 sys_config 下发
+    bannerInterval: 3000,    // 自动切换间隔(ms),由后端 sys_config 下发
+    bannerCurrent: 0         // 当前轮播索引
   },
 
   onLoad() {
@@ -46,7 +47,15 @@ Page({
     });
     // 每次可见时刷新,获取最新登录态与动态(有数据时不再闪加载态)
     this.loadDynamics();
-    this.loadBanners();
+    // 仅在家族或登录态变化时重新加载广告,避免重复请求导致闪烁
+    const currentFamilyId = (app.globalData.currentFamily || {}).id;
+    const lastFamilyId = this._lastBannerFamilyId;
+    const tokenChanged = this._lastBannerToken !== getToken();
+    if (currentFamilyId !== lastFamilyId || tokenChanged || this.data.banners.length === 0) {
+      this._lastBannerFamilyId = currentFamilyId;
+      this._lastBannerToken = getToken();
+      this.loadBanners();
+    }
   },
 
   /**
@@ -213,8 +222,10 @@ Page({
    * - 后端返回当前家族 + 全局启用广告,以及自动切换间隔 interval
    */
   loadBanners() {
-    const familyId = (app.globalData.currentFamily || {}).id;
-    if (!getToken() || !familyId) {
+    // 数字 id 校验:mock 回退数据 id 为 'fam001' 等字符串,后端 Number() 解析为 0 会报"缺少家族ID",
+    // 因此在请求前统一转数字并确认是有效正整数
+    const familyId = Number((app.globalData.currentFamily || {}).id);
+    if (!getToken() || !familyId || familyId <= 0) {
       this.setData({ banners: [], bannerInterval: 3000 });
       return;
     }
@@ -240,6 +251,8 @@ Page({
 
   /** 点击轮播广告:page-小程序页面跳转,url-复制链接, none-无操作 */
   onBannerTap(e) {
+    // 若用户正在滑动则不触发点击,避免误跳转
+    if (this._bannerSwiping) return;
     const { type, url } = e.currentTarget.dataset;
     if (!type || type === 'none' || !url) return;
     if (type === 'page') {
@@ -255,6 +268,29 @@ Page({
         success: () => wx.showToast({ title: '链接已复制', icon: 'success' })
       });
     }
+  },
+
+  /** 广告图片加载失败：移除或标记该条目，避免空白占位 */
+  onBannerError(e) {
+    const id = e.currentTarget.dataset.id;
+    if (!id) return;
+    const banners = this.data.banners.map(item => {
+      if (String(item.id) === String(id)) {
+        return Object.assign({}, item, { imageError: true });
+      }
+      return item;
+    }).filter(item => !item.imageError);
+    this.setData({ banners, bannerCurrent: Math.min(this.data.bannerCurrent, banners.length - 1) });
+  },
+
+  /** 轮播切换:同步自定义指示器索引,并短暂标记滑动中以避免误触 */
+  onBannerChange(e) {
+    this._bannerSwiping = true;
+    this.setData({ bannerCurrent: e.detail.current });
+    clearTimeout(this._bannerSwipeTimer);
+    this._bannerSwipeTimer = setTimeout(() => {
+      this._bannerSwiping = false;
+    }, 300);
   },
 
   /** 未登录状态下点击"立即登录":静默登录成功后刷新 */

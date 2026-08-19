@@ -8,6 +8,8 @@ import {
 
 /** 轮播切换间隔默认值（毫秒，可在 sys_config.banner_interval 中配置） */
 const DEFAULT_INTERVAL = 3000;
+/** 轮播切换间隔最大值（毫秒），防止配置过大导致几乎不切换 */
+const MAX_INTERVAL = 60000;
 
 /**
  * 小程序用户端广告轮播服务
@@ -51,7 +53,8 @@ export class BannerService {
     );
     if (!row) return DEFAULT_INTERVAL;
     const n = Number(row.config_value);
-    return Number.isFinite(n) && n >= 1000 ? n : DEFAULT_INTERVAL;
+    if (!Number.isFinite(n) || n < 1000) return DEFAULT_INTERVAL;
+    return Math.min(n, MAX_INTERVAL);
   }
 
   /** 行记录 → 对外条目 */
@@ -70,7 +73,7 @@ export class BannerService {
     };
   }
 
-  /** 家族归属校验：family_permission / user.family_id / 家族创建者 */
+  /** 家族归属校验：family_permission / user.family_id / 家族创建者，并校验家族未被禁用 */
   private async assertFamilyMember(userId: string, familyId: number): Promise<void> {
     const [perm] = await this.dataSource.query<{ id: number }[]>(
       'SELECT `id` FROM `family_permission` WHERE `family_id` = ? AND `user_id` = ? AND `status` = 1',
@@ -90,6 +93,6 @@ export class BannerService {
     );
     if (family && family.creator_user_id === userId) return;
 
-    throw new HttpException('您不属于该家族，无权操作', HttpStatus.FORBIDDEN);
+    throw new HttpException('您不属于该家族或家族已被禁用，无权操作', HttpStatus.FORBIDDEN);
   }
 }

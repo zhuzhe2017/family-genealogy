@@ -17,10 +17,23 @@
   box-shadow: 0 8rpx 24rpx rgba(0, 0, 0, 0.12);
 }
 
+swiper-item {
+  position: relative;
+}
+
 .banner-image {
   width: 100%;
   height: 100%;
   display: block;
+  background: #f0f0f0;
+}
+
+.banner-image-error {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #999;
+  font-size: 24rpx;
 }
 
 .banner-title {
@@ -28,7 +41,7 @@
   left: 0;
   right: 0;
   bottom: 0;
-  padding: 40rpx 20rpx 16rpx;
+  padding: 40rpx 20rpx 32rpx;
   font-size: 26rpx;
   color: #FFFFFF;
   background: linear-gradient(to top, rgba(0, 0, 0, 0.5), transparent);
@@ -36,6 +49,32 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* 自定义指示器:位于轮播底部,避免与标题重叠 */
+.banner-indicators {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 12rpx;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10rpx;
+  z-index: 3;
+}
+
+.banner-dot {
+  width: 14rpx;
+  height: 6rpx;
+  border-radius: 3rpx;
+  background: rgba(255, 255, 255, 0.4);
+  transition: all 0.3s;
+}
+
+.banner-dot.active {
+  width: 22rpx;
+  background: #FFFFFF;
 }
 
 /* 家族头部 */

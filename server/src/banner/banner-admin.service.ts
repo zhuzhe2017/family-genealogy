@@ -126,7 +126,23 @@ export class BannerAdminService {
   }
 
   /** 删除（物理删除） */
-  async delete(id: number) {
+  async delete(id: number, operator: string) {
+    // 先查询并校验归属，防止跨租户误删
+    const [row] = await this.dataSource.query<{ family_id: number; creator_user_id: string }[]>(
+      'SELECT `family_id`, `creator_user_id` FROM `family_banner` WHERE `id` = ?',
+      [id]
+    );
+    if (!row) {
+      throw new HttpException('广告不存在或已删除', HttpStatus.NOT_FOUND);
+    }
+    if (!operator || (Number(row.family_id) !== 0 && row.creator_user_id !== operator)) {
+      // 全局广告仅允许超级管理员/创建者删除；普通管理员只能删除自己创建的广告
+      const isSuper = await this.isSuperAdmin(operator);
+      if (!isSuper) {
+        throw new HttpException('无权删除该广告', HttpStatus.FORBIDDEN);
+      }
+    }
+
     const result = await this.dataSource.query<{ affectedRows?: number }>(
       'DELETE FROM `family_banner` WHERE `id` = ?',
       [id]
@@ -139,6 +155,23 @@ export class BannerAdminService {
       throw new HttpException('广告不存在或已删除', HttpStatus.NOT_FOUND);
     }
     return { success: true };
+  }
+
+  /** 判断管理员是否为超级管理员角色 */
+  private async isSuperAdmin(adminId: string): Promise<boolean> {
+    if (!adminId) return false;
+    const [admin] = await this.dataSource.query<{ role: string }[]>(
+      'SELECT `role` FROM `sys_admin` WHERE `id` = ? AND `status` = 1 LIMIT 1',
+      [adminId]
+    );
+    if (!admin) return false;
+    if (admin.role === 'super') return true;
+
+    const [role] = await this.dataSource.query<{ code: string }[]>(
+      'SELECT `code` FROM `sys_role` WHERE `id` = ? AND `status` = 1 LIMIT 1',
+      [admin.role]
+    );
+    return role?.code === 'super';
   }
 
   /** 参数校验与归一化（partial=true 时允许缺省字段） */
@@ -173,15 +206,26 @@ export class BannerAdminService {
       throw new HttpException('缺少广告图片', HttpStatus.BAD_REQUEST);
     }
 
-    if (data.linkType !== undefined) {
-      if (!LINK_TYPES.includes(String(data.linkType))) {
+    // 部分更新时若 linkType 与 linkUrl 都未传入,保持原值;否则归一化 linkType
+    if (data.linkType !== undefined || (partial && data.linkUrl !== undefined)) {
+      const rawLinkType = data.linkType !== undefined ? String(data.linkType).trim() : clean.linkType;
+      if (!LINK_TYPES.includes(rawLinkType)) {
         throw new HttpException('跳转类型非法，仅支持 none/page/url', HttpStatus.BAD_REQUEST);
       }
-      clean.linkType = String(data.linkType) as typeof clean.linkType;
+      clean.linkType = rawLinkType as typeof clean.linkType;
     }
 
     if (data.linkUrl !== undefined) {
       clean.linkUrl = String(data.linkUrl).trim();
+    }
+
+    // 校验 linkUrl 与 linkType 的对应关系:page/url 类型必须提供地址,none 类型忽略地址
+    if (clean.linkType !== 'none') {
+      if (clean.linkUrl.length === 0) {
+        throw new HttpException(`跳转类型为 ${clean.linkType} 时必须填写跳转地址`, HttpStatus.BAD_REQUEST);
+      }
+    } else {
+      clean.linkUrl = '';
     }
 
     if (data.sortOrder !== undefined) {
@@ -211,6 +255,23 @@ export class BannerAdminService {
       }
       if (clean.imageUrl.length === 0) {
         throw new HttpException('广告图片不能为空', HttpStatus.BAD_REQUEST);
+      }
+    }
+
+    // 当更新操作没有任何字段变化时(仅传入空对象),视为无效请求
+    if (partial) {
+      const hasChange =
+        data.familyId !== undefined ||
+        data.title !== undefined ||
+        data.imageUrl !== undefined ||
+        data.linkType !== undefined ||
+        data.linkUrl !== undefined ||
+        data.sortOrder !== undefined ||
+        data.status !== undefined ||
+        data.startTime !== undefined ||
+        data.endTime !== undefined;
+      if (!hasChange) {
+        throw new HttpException('没有需要更新的字段', HttpStatus.BAD_REQUEST);
       }
     }
 
