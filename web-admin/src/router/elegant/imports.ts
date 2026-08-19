@@ -21,6 +21,7 @@ export const views: Record<LastLevelRouteKey, RouteComponent | (() => Promise<Ro
   "iframe-page": () => import("@/views/_builtin/iframe-page/[url].vue"),
   login: () => import("@/views/_builtin/login/index.vue"),
   home: () => import("@/views/home/index.vue"),
+  "mini-program_banner": () => import("@/views/mini-program/banner/index.vue"),
   "mini-program_content": () => import("@/views/mini-program/content/index.vue"),
   "mini-program_family-tree": () => import("@/views/mini-program/family-tree/index.vue"),
   "mini-program_family": () => import("@/views/mini-program/family/index.vue"),

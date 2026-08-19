@@ -127,11 +127,14 @@ export class BannerAdminService {
 
   /** 删除（物理删除） */
   async delete(id: number) {
-    const result = await this.dataSource.query<{ affectedRows: number }>(
+    const result = await this.dataSource.query<{ affectedRows?: number }>(
       'DELETE FROM `family_banner` WHERE `id` = ?',
       [id]
     );
-    const affected = Array.isArray(result) ? Number(result[0]?.affectedRows ?? 0) : 0;
+    // TypeORM query 对 DELETE 返回 OkPacket 对象（mysql2 driver 可能包装为数组），兼容两种形态
+    const affected = Array.isArray(result)
+      ? Number(result[0]?.affectedRows ?? 0)
+      : Number(result?.affectedRows ?? 0);
     if (affected === 0) {
       throw new HttpException('广告不存在或已删除', HttpStatus.NOT_FOUND);
     }
@@ -201,11 +204,14 @@ export class BannerAdminService {
       clean.endTime = data.endTime ? String(data.endTime) : null;
     }
 
-    if (clean.title.length === 0) {
-      throw new HttpException('广告标题不能为空', HttpStatus.BAD_REQUEST);
-    }
-    if (clean.imageUrl.length === 0) {
-      throw new HttpException('广告图片不能为空', HttpStatus.BAD_REQUEST);
+    // 新增时必须校验非空；部分更新按字段级处理，缺失字段保持原值
+    if (!partial) {
+      if (clean.title.length === 0) {
+        throw new HttpException('广告标题不能为空', HttpStatus.BAD_REQUEST);
+      }
+      if (clean.imageUrl.length === 0) {
+        throw new HttpException('广告图片不能为空', HttpStatus.BAD_REQUEST);
+      }
     }
 
     return clean;
