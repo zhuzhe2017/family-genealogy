@@ -109,6 +109,7 @@ CREATE TABLE `family` (
   `description`   TEXT          COMMENT '家族简介',
   `is_public`     TINYINT(1)    DEFAULT 1 COMMENT '是否公开 1-公开 0-私密',
   `allow_join`    TINYINT(1)    DEFAULT 1 COMMENT '是否允许加入 1-允许 0-禁止',
+  `seed_share_code` VARCHAR(16) DEFAULT NULL COMMENT '家族种子分享码（全局唯一，创建家族时自动生成，用于新成员加入）',
   `member_count`  INT UNSIGNED  DEFAULT 0 COMMENT '成员数量',
   `gen_count`     INT UNSIGNED  DEFAULT 0 COMMENT '代数',
   `generation_table_id` VARCHAR(32) DEFAULT NULL COMMENT '关联字辈表ID',

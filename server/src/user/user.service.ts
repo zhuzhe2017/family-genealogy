@@ -4,6 +4,7 @@ import { DataSource } from 'typeorm';
 import { JwtService } from '@nestjs/jwt';
 import { randomBytes } from 'crypto';
 import { type UserRow, type UserInfo, type UserLoginResult, type UserAuthIdentityRow } from './types/user.types';
+import { type FamilyRow } from '../family/types/family.types';
 import { SmsService } from './sms.service';
 import { type WxSessionResponse, type QueryValues, type DataRow } from '../common/types/common';
 
@@ -310,16 +311,16 @@ export class UserService {
   }
 
   /**
-   * 加入家族支系（合法途径进入指定家族）：
-   * - 通过分享码加入：shareCode → 定位持有者当前所属家族
-   * - 通过家族ID加入：familyId 直接指定
+   * 加入家族支系（仅允许通过有效的分享码加入）：
+   * - 家族种子分享码（family.seed_share_code）：创建家族时自动生成，指向该家族本身
+   * - 会员分享码（user.share_code）：指向该会员当前所属家族
    * - 可选 memberId：加入时同步绑定指定家族成员
    * 校验：家族必须存在且启用；memberId 必须属于目标家族。
    * 已入其他家族时允许切换（重新关联），分享码沿用。
    */
   async joinFamily(
     userId: string,
-    params: { shareCode?: string; familyId?: number; memberId?: string }
+    params: { shareCode: string; memberId?: string }
   ) {
     const user = await this.findUserById(userId);
     if (!user) {
@@ -327,17 +328,20 @@ export class UserService {
     }
 
     const shareCode = String(params.shareCode || '').trim().toUpperCase();
-    const familyIdParam = Number(params.familyId) || 0;
-
-    if (!shareCode && !familyIdParam) {
-      throw new HttpException('请提供分享码或家族ID', HttpStatus.BAD_REQUEST);
-    }
-    if (shareCode && familyIdParam) {
-      throw new HttpException('分享码与家族ID只能二选一', HttpStatus.BAD_REQUEST);
+    if (!shareCode) {
+      throw new HttpException('请提供分享码', HttpStatus.BAD_REQUEST);
     }
 
-    let familyId: number;
-    if (shareCode) {
+    // 优先匹配家族种子分享码（家族专属，不可重复）
+    let familyId: number | null = null;
+    const [familyBySeed] = await this.dataSource.query<Pick<FamilyRow, 'id' | 'status'>[]>(
+      'SELECT `id`, `status` FROM `family` WHERE `seed_share_code` = ? AND `status` = 1 LIMIT 1',
+      [shareCode] as QueryValues
+    );
+    if (familyBySeed) {
+      familyId = Number(familyBySeed.id);
+    } else {
+      // 否则匹配会员分享码，定位持有者当前所属家族
       const [owner] = await this.dataSource.query<Pick<UserRow, 'family_id'>[]>(
         'SELECT `family_id` FROM `user` WHERE `share_code` = ? AND `status` = 1 LIMIT 1',
         [shareCode] as QueryValues
@@ -346,11 +350,9 @@ export class UserService {
         throw new HttpException('分享码无效或已失效', HttpStatus.BAD_REQUEST);
       }
       familyId = Number(owner.family_id);
-    } else {
-      familyId = familyIdParam;
     }
 
-    const [family] = await this.dataSource.query<Pick<UserRow, 'id' | 'status'>[]>(
+    const [family] = await this.dataSource.query<Pick<FamilyRow, 'id' | 'status'>[]>(
       'SELECT `id`, `status` FROM `family` WHERE `id` = ? LIMIT 1',
       [familyId]
     );

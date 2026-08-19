@@ -95,7 +95,7 @@ Page({
     });
   },
 
-  /** 加入家族支系入口:输入分享码或家族ID */
+  /** 加入家族支系入口:输入分享码 */
   joinFamilyEntry() {
     if (!this.data.isOnline) {
       wx.showToast({ title: '请先登录', icon: 'none' });
@@ -104,14 +104,14 @@ Page({
     wx.showModal({
       title: '加入家族支系',
       editable: true,
-      placeholderText: '请输入分享码（如 ABC12345）或家族ID',
+      placeholderText: '请输入分享码（如 ABC12345）',
       confirmText: '加入',
       confirmColor: '#8B1A1A',
       success: (res) => {
         if (!res.confirm) return;
         const input = (res.content || '').trim();
         if (!input) {
-          wx.showToast({ title: '请输入分享码或家族ID', icon: 'none' });
+          wx.showToast({ title: '请输入分享码', icon: 'none' });
           return;
         }
         this.doJoin(input);
@@ -119,13 +119,10 @@ Page({
     });
   },
 
-  /** 提交加入:纯数字视为家族ID,否则视为分享码 */
+  /** 提交加入:仅支持分享码 */
   doJoin(input) {
-    const payload = /^\d+$/.test(input)
-      ? { familyId: Number(input) }
-      : { shareCode: input.toUpperCase() };
     wx.showLoading({ title: '加入中' });
-    auth.joinFamily(payload)
+    auth.joinFamily({ shareCode: input.toUpperCase() })
       .then((data) => {
         wx.hideLoading();
         const userInfo = data.userInfo || {};

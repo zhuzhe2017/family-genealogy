@@ -16,6 +16,9 @@ export class FamilyService {
   /** 成员表名基础前缀 */
   private readonly MEMBER_TABLE_PREFIX = 'family_members';
 
+  /** 邀请码/分享码字符表（去除易混淆字符 0/O/1/I） */
+  private readonly SHARE_CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+
   /** 获取家族成员分表名，例如 family_members_1 */
   private getMemberTableName(familyId: number): string {
     return `${this.MEMBER_TABLE_PREFIX}_${familyId}`;
@@ -219,13 +222,15 @@ export class FamilyService {
     );
     if (dup) throw new HttpException('家族名称已存在', HttpStatus.BAD_REQUEST);
 
+    const seedShareCode = await this.generateUniqueSeedShareCode();
+
     const familyId = await this.dataSource.transaction(async manager => {
       // 1. 插入家族主表
       const insertResult = await manager.query<InsertResult>(
         `INSERT INTO \`family\`
          (\`surname_id\`, \`generation_table_id\`, \`name\`, \`logo\`, \`founder\`, \`origin\`, \`description\`,
-          \`is_public\`, \`allow_join\`, \`creator_id\`, \`creator_user_id\`, \`status\`)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`,
+          \`is_public\`, \`allow_join\`, \`seed_share_code\`, \`creator_id\`, \`creator_user_id\`, \`status\`)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`,
         [
           data.surnameId ?? null,
           data.generationTableId ?? null,
@@ -236,6 +241,7 @@ export class FamilyService {
           data.description || null,
           data.isPublic ?? 1,
           data.allowJoin ?? 1,
+          seedShareCode,
           data.creatorId ?? null,
           data.creatorUserId ?? null
         ]
@@ -252,7 +258,7 @@ export class FamilyService {
       return id;
     });
 
-    return { id: familyId };
+    return { id: familyId, seedShareCode };
   }
 
   /**
@@ -292,6 +298,23 @@ export class FamilyService {
         INDEX \`idx_name\` (\`family_id\`, \`name\`)
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='家族成员表'
     `);
+  }
+
+  /** 生成全局唯一的家族种子分享码（8 位，去除易混淆字符） */
+  private async generateUniqueSeedShareCode(): Promise<string> {
+    for (let i = 0; i < 20; i++) {
+      const chars: string[] = [];
+      for (let j = 0; j < 8; j++) {
+        chars.push(this.SHARE_CODE_ALPHABET[Math.floor(Math.random() * this.SHARE_CODE_ALPHABET.length)]);
+      }
+      const code = chars.join('');
+      const [dup] = await this.dataSource.query<Pick<FamilyRow, 'id'>[]>(
+        'SELECT `id` FROM `family` WHERE `seed_share_code` = ? LIMIT 1',
+        [code]
+      );
+      if (!dup) return code;
+    }
+    throw new HttpException('家族种子分享码生成失败，请重试', HttpStatus.INTERNAL_SERVER_ERROR);
   }
 
   /** 更新家族 */

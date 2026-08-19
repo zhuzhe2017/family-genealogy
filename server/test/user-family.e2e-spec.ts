@@ -290,15 +290,15 @@ describe('会员家族关联（支系归属/成员绑定/分享码/编辑权限�
       expect(res.status).toBe(400);
     });
 
-    it('B2 同时传分享码与家族ID → 400', async () => {
+    it('B2 传家族ID直接加入 → 400（仅允许分享码）', async () => {
       const res = await api()
         .post('/api/user/family/join')
         .set('Authorization', 'Bearer ' + token(userCId))
-        .send({ shareCode: shareCodeA, familyId: familyAId });
+        .send({ familyId: familyAId });
       expect(res.status).toBe(400);
     });
 
-    it('B3 分享码与家族ID均未传 → 400', async () => {
+    it('B3 未传分享码 → 400', async () => {
       const res = await api()
         .post('/api/user/family/join')
         .set('Authorization', 'Bearer ' + token(userCId))
@@ -331,20 +331,36 @@ describe('会员家族关联（支系归属/成员绑定/分享码/编辑权限�
     });
 
     it('B7 加入已停用家族 → 404', async () => {
-      // 停用家族B（status=0）
+      // 通过创建者分享码加入已停用家族B
+      const [familyBSeed] = await dataSource.query<{ seed_share_code: string }[]>(
+        'SELECT `seed_share_code` FROM `family` WHERE `id` = ?',
+        [familyBId]
+      );
       await dataSource.query('UPDATE `family` SET `status` = 0 WHERE `id` = ?', [familyBId]);
       const res = await api()
         .post('/api/user/family/join')
         .set('Authorization', 'Bearer ' + token(userCId))
-        .send({ familyId: familyBId });
+        .send({ shareCode: familyBSeed?.seed_share_code || '' });
       expect(res.status).toBe(404);
     });
 
-    it('B8 陌生用户通过家族ID直接加入 → 200', async () => {
+    it('B8 陌生用户通过家族ID直接加入 → 400（已禁止）', async () => {
       const res = await api()
         .post('/api/user/family/join')
         .set('Authorization', 'Bearer ' + token(userCId))
         .send({ familyId: familyAId });
+      expect(res.status).toBe(400);
+    });
+
+    it('B9 陌生用户通过家族种子分享码加入 → 200', async () => {
+      const [familyASeed] = await dataSource.query<{ seed_share_code: string }[]>(
+        'SELECT `seed_share_code` FROM `family` WHERE `id` = ?',
+        [familyAId]
+      );
+      const res = await api()
+        .post('/api/user/family/join')
+        .set('Authorization', 'Bearer ' + token(userCId))
+        .send({ shareCode: familyASeed?.seed_share_code || '' });
       expect(res.status).toBe(201);
       expect(Number(res.body.data.userInfo.familyId)).toBe(familyAId);
       expect(res.body.data.shareCode).toMatch(/^[A-Z0-9]{8}$/);

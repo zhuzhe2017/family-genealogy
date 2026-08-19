@@ -18,6 +18,7 @@ export interface FamilyRow extends DataRow {
   allow_join: number;
   member_count: number;
   gen_count: number;
+  seed_share_code?: string;
   creator_id?: number;
   creator_user_id?: string;
   status: number;
@@ -54,6 +55,11 @@ export interface FamilyCreateData {
   creatorId?: number;
   /** 小程序用户创建者ID（32位hex），由服务端令牌注入，防客户端伪造 */
   creatorUserId?: string;
+  /**
+   * 家族种子分享码，创建时由服务端自动生成。
+   * 用于创建者自身加入家族，也可作为家族专属邀请凭证。
+   */
+  seedShareCode?: string;
 }
 
 /** 家族更新数据 */

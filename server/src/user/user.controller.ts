@@ -81,9 +81,9 @@ export class UserController {
   }
 
   /**
-   * 加入家族支系（合法途径进入指定家族）
-   * body: { shareCode?: string, familyId?: number, memberId?: string }
-   * - 分享码与家族ID二选一
+   * 加入家族支系（仅允许通过有效的分享码加入）
+   * body: { shareCode: string, memberId?: string }
+   * - 支持家族种子分享码（family.seed_share_code）或会员分享码（user.share_code）
    * - memberId 可选，加入时同步绑定指定家族成员
    */
   @Public()
@@ -91,11 +91,10 @@ export class UserController {
   @Post('family/join')
   async joinFamily(
     @Req() req: AuthenticatedRequest,
-    @Body() body: { shareCode?: string; familyId?: number; memberId?: string }
+    @Body() body: { shareCode?: string; memberId?: string }
   ) {
     return this.userService.joinFamily(String(req.user.id), {
       shareCode: body.shareCode,
-      familyId: body.familyId !== undefined ? Number(body.familyId) : undefined,
       memberId: body.memberId
     });
   }

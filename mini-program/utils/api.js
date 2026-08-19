@@ -26,7 +26,7 @@ const auth = {
   getMyFamily: function () {
     return request({ url: '/user/me/family' });
   },
-  /** 加入家族支系:分享码 / 家族ID（可选绑定成员） */
+  /** 加入家族支系:仅支持分享码 */
   joinFamily: function (data) {
     return request({ url: '/user/family/join', method: 'POST', data: data || {} });
   },

@@ -1,6 +1,6 @@
 const app = getApp();
 const { invitation, family } = require('../../utils/api');
-const { getToken } = require('../../utils/auth');
+const { getToken } = require('../../utils/request');
 
 const STATUS_TEXT = { 0: '已失效', 1: '待接受', 2: '已接受', 3: '已拒绝', 4: '已过期' };
 const ROLE_TEXT = { member: '普通会员', admin: '家族管理员' };

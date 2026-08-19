@@ -97,9 +97,9 @@ export class PortalService {
       generationTableId: data.generationTableId ?? null,
       creatorUserId: data.creatorUserId ?? null
     });
-    // 创建者自动关联该家族支系（含分享码），保证其具备后续成员管理权限
-    if (data.creatorUserId) {
-      await this.userService.joinFamily(data.creatorUserId, { familyId: result.id });
+    // 创建者自动关联该家族支系（使用家族种子分享码），保证其具备后续成员管理权限
+    if (data.creatorUserId && result.seedShareCode) {
+      await this.userService.joinFamily(data.creatorUserId, { shareCode: result.seedShareCode });
     }
     return result;
   }
