@@ -1,0 +1,4 @@
+/* web-view 容器页:web-view 组件全屏占位 */
+page {
+  height: 100%;
+}

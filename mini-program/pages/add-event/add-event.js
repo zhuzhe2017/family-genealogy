@@ -178,6 +178,7 @@ Page({
         url: API_BASE_URL + '/common/upload',
         filePath: filePath,
         name: 'file',
+        header: { Authorization: 'Bearer ' + getToken() },
         success(res) {
           try {
             const data = JSON.parse(res.data);

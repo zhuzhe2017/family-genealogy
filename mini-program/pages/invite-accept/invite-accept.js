@@ -1,6 +1,7 @@
 const app = getApp();
 const { invitation } = require('../../utils/api');
-const { getToken } = require('../../utils/auth');
+const { getToken } = require('../../utils/request');
+const { resolveImageUrl } = require('../../utils/format');
 
 Page({
   data: {
@@ -26,7 +27,14 @@ Page({
     this.setData({ loading: true, notFound: false });
     invitation.getInfoByCode(code)
       .then((info) => {
-        this.setData({ info, loading: false });
+        // 后端返回相对路径(/uploads/xxx),补全域名供 <image> 使用
+        this.setData({
+          info: Object.assign({}, info, {
+            familyLogo: resolveImageUrl(info.familyLogo || ''),
+            inviterAvatarUrl: resolveImageUrl(info.inviterAvatarUrl || '')
+          }),
+          loading: false
+        });
       })
       .catch((err) => {
         this.setData({ loading: false, notFound: true });

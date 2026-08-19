@@ -1,4 +1,4 @@
-import { Controller, Get, Query, Req, UseGuards } from '@nestjs/common';
+import { Controller, Get, Param, Post, Query, Req, UseGuards } from '@nestjs/common';
 import { Public } from '../common/decorators/public.decorator';
 import { UserJwtAuthGuard } from '../user/user.guard';
 import { type AuthenticatedRequest } from '../common/types/common';
@@ -31,5 +31,11 @@ export class BannerPublicController {
   @Get('global')
   getGlobal() {
     return this.bannerService.getGlobalList();
+  }
+
+  /** 点击上报：用户点击广告后调用，用于运营统计（幂等，无副作用） */
+  @Post(':id/click')
+  recordClick(@Param('id') id: string) {
+    return this.bannerService.recordClick(Number(id));
   }
 }

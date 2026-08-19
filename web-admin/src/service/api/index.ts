@@ -15,3 +15,5 @@ export * from './subscription';
 export * from './worship';
 export * from './upload';
 export * from './banner';
+export * from './plugin';
+export * from './invitation';

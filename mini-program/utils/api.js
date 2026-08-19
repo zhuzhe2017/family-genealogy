@@ -233,7 +233,19 @@ const banner = {
   /** 全局广告轮播列表（无需登录，所有用户可见） */
   getGlobal: function () {
     return request({ url: '/banner/global' });
+  },
+  /** 点击上报：用户点击广告后调用（运营统计用，失败静默） */
+  recordClick: function (id) {
+    return request({ url: '/banner/' + id + '/click', method: 'POST' });
   }
 };
 
-module.exports = { auth, family, familyMember, content, subscription, worship, invitation, banner };
+/** 应用插件相关接口 */
+const plugin = {
+  /** 启用中的插件列表（应用中心「应用」分区，无需登录） */
+  getList: function () {
+    return request({ url: '/plugin/list' });
+  }
+};
+
+module.exports = { auth, family, familyMember, content, subscription, worship, invitation, banner, plugin };

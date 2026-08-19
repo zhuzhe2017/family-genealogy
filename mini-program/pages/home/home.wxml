@@ -1,61 +1,64 @@
 <wxs src="../../utils/filters.wxs" module="f" />
 <view class="page-container">
-  <!-- 顶部家族信息卡片 -->
-  <view class="family-header">
-    <view class="family-bg">
-      <view class="family-pattern"></view>
-    </view>
-    <view class="family-info">
-      <view class="family-selector" bindtap="switchFamily">
-        <view class="family-logo">
-          <text class="family-logo-text">{{f.firstChar(currentFamily.name)}}</text>
-        </view>
-        <view class="family-name-section">
-          <text class="family-name">{{currentFamily.name}}</text>
-          <text class="family-origin">{{currentFamily.origin}}</text>
-          <text class="family-generation-names" wx:if="{{currentFamily.generationNames}}">字辈：{{currentFamily.generationNames}}</text>
-        </view>
-        <text class="switch-icon">▼</text>
-      </view>
-
-      <view class="family-stats">
-        <view class="stat-item">
-          <text class="stat-number">{{currentFamily.memberCount}}</text>
-          <text class="stat-label">家族成员</text>
-        </view>
-        <view class="stat-divider"></view>
-        <view class="stat-item">
-          <text class="stat-number">{{currentFamily.generationCount}}</text>
-          <text class="stat-label">传承代数</text>
-        </view>
-        <view class="stat-divider"></view>
-        <view class="stat-item">
-          <text class="stat-number">{{currentFamily.founder}}</text>
-          <text class="stat-label">始祖</text>
-        </view>
+  <!-- 顶部沉浸区:广告轮播 + 家族信息 -->
+  <view class="home-hero">
+    <!-- 广告轮播:位于导航栏下沿 -->
+    <view class="banner-section" wx:if="{{banners.length > 0}}">
+      <swiper
+        class="banner-swiper"
+        autoplay="{{banners.length > 1}}"
+        interval="{{bannerInterval}}"
+        duration="500"
+        circular="{{banners.length > 1}}"
+        indicator-dots="{{false}}"
+        bindchange="onBannerChange"
+      >
+        <swiper-item wx:for="{{banners}}" wx:key="id" data-type="{{item.linkType}}" data-url="{{item.linkUrl}}" data-id="{{item.id}}" bindtap="onBannerTap">
+          <image class="banner-image" src="{{item.imageUrl}}" mode="aspectFill" lazy-load data-id="{{item.id}}" binderror="onBannerError" />
+          <view class="banner-title" wx:if="{{item.title}}">{{item.title}}</view>
+        </swiper-item>
+      </swiper>
+      <!-- 自定义指示器：避免与标题堆叠，样式更可控 -->
+      <view class="banner-indicators" wx:if="{{banners.length > 1}}">
+        <view wx:for="{{banners}}" wx:key="id" class="banner-dot {{bannerCurrent === index ? 'active' : ''}}" />
       </view>
     </view>
-  </view>
 
-  <!-- 广告轮播 -->
-  <view class="banner-section" wx:if="{{banners.length > 0}}">
-    <swiper
-      class="banner-swiper"
-      autoplay="{{banners.length > 1}}"
-      interval="{{bannerInterval}}"
-      duration="500"
-      circular="{{banners.length > 1}}"
-      indicator-dots="{{false}}"
-      bindchange="onBannerChange"
-    >
-      <swiper-item wx:for="{{banners}}" wx:key="id" data-type="{{item.linkType}}" data-url="{{item.linkUrl}}" data-id="{{item.id}}" bindtap="onBannerTap">
-        <image class="banner-image" src="{{item.imageUrl}}" mode="aspectFill" lazy-load data-id="{{item.id}}" binderror="onBannerError" />
-        <view class="banner-title" wx:if="{{item.title}}">{{item.title}}</view>
-      </swiper-item>
-    </swiper>
-    <!-- 自定义指示器：避免与标题堆叠，样式更可控 -->
-    <view class="banner-indicators" wx:if="{{banners.length > 1}}">
-      <view wx:for="{{banners}}" wx:key="id" class="banner-dot {{bannerCurrent === index ? 'active' : ''}}" />
+    <!-- 顶部家族信息卡片 -->
+    <view class="family-header">
+      <view class="family-bg">
+        <view class="family-pattern"></view>
+      </view>
+      <view class="family-info">
+        <view class="family-selector" bindtap="switchFamily">
+          <view class="family-logo">
+            <text class="family-logo-text">{{f.firstChar(currentFamily.name)}}</text>
+          </view>
+          <view class="family-name-section">
+            <text class="family-name">{{currentFamily.name}}</text>
+            <text class="family-origin">{{currentFamily.origin}}</text>
+            <text class="family-generation-names" wx:if="{{currentFamily.generationNames}}">字辈：{{currentFamily.generationNames}}</text>
+          </view>
+          <text class="switch-icon">▼</text>
+        </view>
+
+        <view class="family-stats">
+          <view class="stat-item">
+            <text class="stat-number">{{currentFamily.memberCount}}</text>
+            <text class="stat-label">家族成员</text>
+          </view>
+          <view class="stat-divider"></view>
+          <view class="stat-item">
+            <text class="stat-number">{{currentFamily.generationCount}}</text>
+            <text class="stat-label">传承代数</text>
+          </view>
+          <view class="stat-divider"></view>
+          <view class="stat-item">
+            <text class="stat-number">{{currentFamily.founder}}</text>
+            <text class="stat-label">始祖</text>
+          </view>
+        </view>
+      </view>
     </view>
   </view>
 

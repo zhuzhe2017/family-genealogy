@@ -28,6 +28,7 @@ import { WorshipModule } from './worship/worship.module';
 import { UploadModule } from './common/upload/upload.module';
 import { InvitationModule } from './invitation/invitation.module';
 import { BannerModule } from './banner/banner.module';
+import { PluginModule } from './plugin/plugin.module';
 import { JwtAuthGuard } from './auth/guard/jwt-auth.guard';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 
@@ -68,7 +69,8 @@ import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
     WorshipModule,
     UploadModule,
     InvitationModule,
-    BannerModule
+    BannerModule,
+    PluginModule
   ],
   controllers: [AppController],
   providers: [

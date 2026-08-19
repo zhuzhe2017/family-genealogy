@@ -8,6 +8,7 @@ export interface AdminBannerItem {
   imageUrl: string;
   linkType: 'none' | 'page' | 'url';
   linkUrl: string;
+  clickCount: number;
   sortOrder: number;
   status: number;
   startTime: string | null;

@@ -27,10 +27,12 @@ declare module "@elegant-router/types" {
     "mini-program_banner": "/mini-program/banner";
     "mini-program_content": "/mini-program/content";
     "mini-program_family": "/mini-program/family";
+    "mini-program_family-invitation": "/mini-program/family-invitation";
     "mini-program_family-tree": "/mini-program/family-tree";
     "mini-program_generation-table": "/mini-program/generation-table";
     "mini-program_members": "/mini-program/members";
     "mini-program_overview": "/mini-program/overview";
+    "mini-program_plugin": "/mini-program/plugin";
     "mini-program_subscription": "/mini-program/subscription";
     "mini-program_surname": "/mini-program/surname";
     "mini-program_worship": "/mini-program/worship";
@@ -104,10 +106,12 @@ declare module "@elegant-router/types" {
     | "mini-program_banner"
     | "mini-program_content"
     | "mini-program_family-tree"
+    | "mini-program_family-invitation"
     | "mini-program_family"
     | "mini-program_generation-table"
     | "mini-program_members"
     | "mini-program_overview"
+    | "mini-program_plugin"
     | "mini-program_subscription"
     | "mini-program_surname"
     | "mini-program_worship"
@@ -187,7 +191,7 @@ declare module "@elegant-router/types" {
         component: `view.${K}`;
       }
     : never;
-  
+
   /**
    * the center level route
    */
@@ -210,7 +214,7 @@ declare module "@elegant-router/types" {
         children: (CenterLevelRoute<GetChildRouteKey<K>> | LastLevelRoute<GetChildRouteKey<K>>)[];
       }
     : never;
-  
+
   /**
    * the custom first level route
    */

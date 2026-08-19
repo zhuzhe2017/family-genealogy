@@ -41,6 +41,72 @@ const errorMsg = ref('');
 
 const ALLOWED_TYPES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'];
 
+/** 压缩参数：超过阈值大小或宽度的图片在客户端重编码，减小上传体积与加载带宽 */
+const COMPRESS_SIZE_THRESHOLD = 200 * 1024; // 大于 200KB 才压缩
+const COMPRESS_MAX_WIDTH = 1280; // 超过该宽度等比缩放
+const COMPRESS_QUALITY = 0.78;
+
+/** 解析图片尺寸与是否含透明通道 */
+function loadImageInfo(file: File): Promise<{ img: HTMLImageElement; width: number; height: number; hasAlpha: boolean }> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      // 采样部分像素判断透明通道（gif/png 含透明时需保留 png 格式）
+      let hasAlpha = false;
+      try {
+        const probe = document.createElement('canvas');
+        probe.width = 32;
+        probe.height = 32;
+        const ctx = probe.getContext('2d', { willReadFrequently: true });
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, 32, 32);
+          const data = ctx.getImageData(0, 0, 32, 32).data;
+          for (let i = 3; i < data.length; i += 4) {
+            if (data[i] < 255) { hasAlpha = true; break; }
+          }
+        }
+      } catch { /* 读取失败按不透明处理 */ }
+      resolve({ img, width: img.naturalWidth, height: img.naturalHeight, hasAlpha });
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('图片解码失败')); };
+    img.src = url;
+  });
+}
+
+function canvasToBlob(canvas: HTMLCanvasElement, type: string, quality: number): Promise<Blob | null> {
+  return new Promise(resolve => canvas.toBlob(resolve, type, quality));
+}
+
+/** 客户端压缩：动图不压；小图直传；大图/宽图等比缩放并重编码，压缩后更大则回退原图 */
+async function compressImage(file: File): Promise<File> {
+  if (file.type === 'image/gif' || file.size <= COMPRESS_SIZE_THRESHOLD) return file;
+  try {
+    const { img, width, height, hasAlpha } = await loadImageInfo(file);
+    const scale = Math.min(1, COMPRESS_MAX_WIDTH / width);
+
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.max(1, Math.round(width * scale));
+    canvas.height = Math.max(1, Math.round(height * scale));
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return file;
+
+    if (hasAlpha) ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+    // 含透明通道保留 png，否则统一转 jpeg 大幅降低体积
+    const outType = file.type === 'image/png' && hasAlpha ? 'image/png' : 'image/jpeg';
+    const blob = await canvasToBlob(canvas, outType, COMPRESS_QUALITY);
+    if (!blob || blob.size >= file.size) return file;
+    const name = outType === 'image/jpeg' ? file.name.replace(/\.(png|webp)$/i, '.jpg') : file.name;
+    return new File([blob], name, { type: blob.type });
+  } catch (e) {
+    console.warn('图片压缩失败，使用原图上传', e);
+    return file;
+  }
+}
+
 // 外部值变化时清空内部文件列表，避免 max=1 阻挡重新选择（预览由 value 驱动）
 watch(() => props.value, () => {
   uploadRef.value?.clear();
@@ -91,7 +157,9 @@ async function handleCustomRequest(options: UploadCustomRequestOptions) {
   uploadPercent.value = 0;
   errorMsg.value = '';
   try {
-    const { data, error } = await uploadImage(rawFile, percent => {
+    // 客户端压缩(大图/宽图),失败回退原图
+    const uploadFile = await compressImage(rawFile);
+    const { data, error } = await uploadImage(uploadFile, percent => {
       uploadPercent.value = percent;
       options.onProgress({ percent });
     });

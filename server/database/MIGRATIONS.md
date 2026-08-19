@@ -17,6 +17,8 @@
 | `migrations/add-user-auth-identity.sql` | 多端账号统一：`user_auth_identity` / `user_sms_code` 建表 + 存量 openid 回填 | 含**数据回填逻辑**（存量 user.openid → wechat 绑定），不可由 schema.sql 重建 |
 | `migrations/add-user-family-association.sql` | 会员家族关联：user 表 `family_id` / `member_id` / `share_code` + 索引 | 当前会员-家族功能依赖的增量迁移，e2e 测试引用 |
 | `migrations/sync-family-member-count.sql` | 一次性重算 `family.member_count` 冗余列 | 存量数据修复工具，成员数不一致时仍可使用 |
+| `migrations/20260819-app-plugin.sql` | 应用插件注册表 `app_plugin` + 权限/菜单 | 应用中心「应用」分区动态数据源，schema.sql 未包含，本脚本是唯一建表来源 |
+| `migrations/20260819-banner-click-count.sql` | `family_banner.click_count` 点击统计列 | 幂等加列，schema.sql 未包含 |
 
 ## 已删除的迁移文件（2026-08-17）
 

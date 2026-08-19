@@ -18,6 +18,7 @@ export interface BannerItem {
 /** 后台管理轮播项（含创建人与状态） */
 export interface AdminBannerItem extends BannerItem {
   status: number;
+  clickCount: number;
   creatorUserId: string;
   updateTime: string;
 }
@@ -44,6 +45,7 @@ export interface BannerRow {
   image_url: string;
   link_type: string;
   link_url: string;
+  click_count?: number;
   sort_order: number;
   status: number;
   start_time: string | null;

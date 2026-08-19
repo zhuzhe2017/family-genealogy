@@ -1,0 +1,90 @@
+/* 应用中心页样式:复用首页金刚区的图标/尺寸/颜色/排版 */
+.container {
+  padding: 24rpx;
+}
+
+.app-card {
+  background: #FFFFFF;
+  border-radius: 24rpx;
+  padding: 32rpx 16rpx;
+  margin-bottom: 24rpx;
+  box-shadow: 0 4rpx 20rpx rgba(0,0,0,0.06);
+}
+
+.section-title {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #333;
+  padding: 0 8rpx 16rpx;
+}
+
+.app-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16rpx;
+}
+
+.app-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 12rpx 0;
+}
+
+.app-icon {
+  width: 88rpx;
+  height: 88rpx;
+  border-radius: 24rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 12rpx;
+  overflow: hidden;
+}
+
+.app-icon-plugin {
+  background: #E0F7FA;
+}
+
+.app-icon-img {
+  width: 100%;
+  height: 100%;
+}
+
+.app-icon-text {
+  font-size: 40rpx;
+}
+
+.app-name {
+  font-size: 24rpx;
+  color: #333;
+}
+
+.app-desc {
+  font-size: 20rpx;
+  color: #999;
+  margin-top: 4rpx;
+  max-width: 120rpx;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.page-tip {
+  text-align: center;
+  font-size: 24rpx;
+  color: #999;
+  margin-top: 8rpx;
+}
+
+.empty {
+  padding: 120rpx 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.empty-text {
+  font-size: 26rpx;
+  color: #999;
+}

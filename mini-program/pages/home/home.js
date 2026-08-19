@@ -1,6 +1,6 @@
 const app = getApp();
 const { content, banner } = require('../../utils/api');
-const { normalizeDynamic, normalizeEvent } = require('../../utils/format');
+const { normalizeDynamic, normalizeEvent, resolveImageUrl } = require('../../utils/format');
 const { USE_MOCK } = require('../../utils/config');
 const { getToken } = require('../../utils/request');
 
@@ -15,7 +15,7 @@ Page({
       { id: 5, name: '相册影像', icon: '📷', bgColor: '#E0F2F1', url: '/pages/album/album' },
       { id: 6, name: '祭祀祈福', icon: '🙏', bgColor: '#FBE9E7', url: '/pages/worship/worship' },
       { id: 7, name: '家族动态', icon: '💬', bgColor: '#E8EAF6', url: '/pages/dynamic/dynamic' },
-      { id: 8, name: '个人中心', icon: '👤', bgColor: '#F1F8E9', url: '/pages/profile/profile' }
+      { id: 8, name: '应用中心', icon: '🧩', bgColor: '#E0F7FA', url: '/pages/app-center/app-center' }
     ],
     // 家族动态:真实数据 + 状态机,不再静默回退假数据
     recentDynamics: [],
@@ -232,7 +232,7 @@ Page({
         const list = (res.list || []).map((item) => ({
           id: item.id,
           title: item.title || '',
-          imageUrl: item.imageUrl || '',
+          imageUrl: resolveImageUrl(item.imageUrl || ''), // 相对 /uploads/xxx → 完整域名，小程序 image 不支持相对路径
           linkType: item.linkType || 'none',
           linkUrl: item.linkUrl || ''
         }));
@@ -247,12 +247,16 @@ Page({
       });
   },
 
-  /** 点击轮播广告:page-小程序页面跳转,url-复制链接, none-无操作 */
+  /** 点击轮播广告:page-小程序页面跳转,url-外部链接用 web-view 容器打开, none-无操作 */
   onBannerTap(e) {
     // 若用户正在滑动则不触发点击,避免误跳转
     if (this._bannerSwiping) return;
-    const { type, url } = e.currentTarget.dataset;
+    const { type, url, id } = e.currentTarget.dataset;
     if (!type || type === 'none' || !url) return;
+    // 点击上报(运营统计),失败静默不影响跳转
+    if (id) {
+      banner.recordClick(id).catch(() => {});
+    }
     if (type === 'page') {
       const tabBarPages = ['/pages/home/home', '/pages/family-tree/family-tree', '/pages/dynamic/dynamic', '/pages/profile/profile'];
       if (tabBarPages.includes(url)) {
@@ -261,10 +265,7 @@ Page({
         wx.navigateTo({ url });
       }
     } else if (type === 'url') {
-      wx.setClipboardData({
-        data: url,
-        success: () => wx.showToast({ title: '链接已复制', icon: 'success' })
-      });
+      wx.navigateTo({ url: '/pages/webview/webview?url=' + encodeURIComponent(url) });
     }
   },
 

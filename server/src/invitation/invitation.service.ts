@@ -363,9 +363,10 @@ export class InvitationService {
       const shareCode = user.share_code || (await this.generateUniqueInviteCode());
       const familyRole = row.role === 'admin' ? 'admin' : 'member';
 
+      // 切换家族时清空旧成员绑定,避免指向其他家族的 member_id 残留
       await manager.query(
-        'UPDATE `user` SET `family_id` = ?, `share_code` = ?, `family_role` = ? WHERE `id` = ?',
-        [row.family_id, shareCode, familyRole, userId] as QueryValues
+        'UPDATE `user` SET `family_id` = ?, `member_id` = ?, `share_code` = ?, `family_role` = ? WHERE `id` = ?',
+        [row.family_id, '', shareCode, familyRole, userId] as QueryValues
       );
 
       await manager.query(

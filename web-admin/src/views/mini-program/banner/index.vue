@@ -66,6 +66,7 @@ const columns: DataTableColumn<AdminBannerItem>[] = [
     render: row => h(NTag, { type: linkTypeTag[row.linkType] || 'default', size: 'small', bordered: false }, { default: () => linkTypeLabels[row.linkType] || row.linkType })
   },
   { title: '跳转地址', key: 'linkUrl', width: 150, ellipsis: { tooltip: true }, render: row => row.linkUrl || '-' },
+  { title: '点击', key: 'clickCount', width: 80, align: 'center', render: row => row.clickCount ?? 0 },
   { title: '排序', key: 'sortOrder', width: 70, align: 'center' },
   {
     title: '状态', key: 'status', width: 80, align: 'center',

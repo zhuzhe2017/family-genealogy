@@ -2,9 +2,17 @@
   padding-bottom: 40rpx;
 }
 
-/* 广告轮播:悬浮在家族头部卡片与快捷入口之间 */
+/* 顶部沉浸区:红色渐变贯穿状态栏→轮播→家族卡,底部圆角收尾 */
+.home-hero {
+  position: relative;
+  background: linear-gradient(135deg, #8B1A1A 0%, #6B0F0F 100%);
+  border-radius: 0 0 40rpx 40rpx;
+  overflow: hidden;
+}
+
+/* 广告轮播:位于状态栏下沿,卡片悬浮于红色背景上 */
 .banner-section {
-  margin: -30rpx 32rpx 0;
+  margin: 16rpx 32rpx 0;
   position: relative;
   z-index: 2;
 }
@@ -77,13 +85,10 @@ swiper-item {
   background: #FFFFFF;
 }
 
-/* 家族头部 */
+/* 家族头部:背景与圆角由 .home-hero 提供,这里只控制内边距与内容层级 */
 .family-header {
   position: relative;
-  background: linear-gradient(135deg, #8B1A1A 0%, #6B0F0F 100%);
-  padding: 40rpx 32rpx 60rpx;
-  border-radius: 0 0 40rpx 40rpx;
-  overflow: hidden;
+  padding: 24rpx 32rpx 60rpx;
 }
 
 .family-bg {

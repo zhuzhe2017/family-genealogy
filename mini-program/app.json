@@ -30,7 +30,9 @@
     "pages/login/login",
     "pages/member-center/member-center",
     "pages/invitation/invitation",
-    "pages/invite-accept/invite-accept"
+    "pages/invite-accept/invite-accept",
+    "pages/app-center/app-center",
+    "pages/webview/webview"
   ],
   "entryPagePath": "pages/index/index",
   "window": {

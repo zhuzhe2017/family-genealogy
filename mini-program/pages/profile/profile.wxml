@@ -136,12 +136,14 @@
     <view class="edit-panel" catchtap="noop">
       <view class="edit-title">编辑资料</view>
 
-      <!-- 头像:微信头像昵称填写能力 -->
+      <!-- 头像:微信头像昵称填写能力。预览图放在按钮外,按钮仅作透明点击层,
+           避免 chooseAvatar 基础库在按钮内部自动填充头像导致变形 -->
       <view class="edit-avatar-wrap">
-        <button class="edit-avatar-btn" open-type="chooseAvatar" bindchooseavatar="onChooseAvatar">
+        <view class="edit-avatar-btn">
           <image wx:if="{{editForm.avatarTempPath}}" src="{{editForm.avatarTempPath}}" class="edit-avatar-img" mode="aspectFill" />
-          <text wx:else>{{editForm.nickName ? f.firstChar(editForm.nickName) : '选'}}</text>
-        </button>
+          <text wx:else class="edit-avatar-letter">{{editForm.nickName ? f.firstChar(editForm.nickName) : '选'}}</text>
+          <button class="edit-avatar-btn-inner" open-type="chooseAvatar" bindchooseavatar="onChooseAvatar"></button>
+        </view>
         <text class="edit-avatar-tip">点击选择头像</text>
       </view>
 

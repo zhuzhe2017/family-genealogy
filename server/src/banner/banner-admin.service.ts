@@ -50,7 +50,7 @@ export class BannerAdminService {
     const total = countResult?.total ?? 0;
 
     const list = await this.dataSource.query<BannerRow[]>(
-      `SELECT \`id\`, \`family_id\`, \`title\`, \`image_url\`, \`link_type\`, \`link_url\`, \`sort_order\`, \`status\`, \`start_time\`, \`end_time\`, \`creator_user_id\`, \`create_time\`, \`update_time\`
+      `SELECT \`id\`, \`family_id\`, \`title\`, \`image_url\`, \`link_type\`, \`link_url\`, \`click_count\`, \`sort_order\`, \`status\`, \`start_time\`, \`end_time\`, \`creator_user_id\`, \`create_time\`, \`update_time\`
        FROM \`family_banner\` ${whereClause}
        ORDER BY \`sort_order\` ASC, \`id\` DESC
        LIMIT ? OFFSET ?`,
@@ -289,6 +289,7 @@ export class BannerAdminService {
       linkUrl: r.link_url || '',
       sortOrder: r.sort_order,
       status: r.status,
+      clickCount: r.click_count || 0,
       startTime: r.start_time,
       endTime: r.end_time,
       creatorUserId: r.creator_user_id,

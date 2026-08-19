@@ -10,6 +10,23 @@ describe('BannerService', () => {
     service = new BannerService({ query: queryMock } as unknown as import('typeorm').DataSource);
   });
 
+  describe('recordClick', () => {
+    it('有效 id 递增点击数', async () => {
+      queryMock.mockResolvedValueOnce({ affectedRows: 1 });
+      await expect(service.recordClick(6)).resolves.toEqual({ success: true });
+      expect(queryMock).toHaveBeenCalledWith(
+        'UPDATE `family_banner` SET `click_count` = `click_count` + 1 WHERE `id` = ?',
+        [6]
+      );
+    });
+
+    it('无效 id 静默忽略不执行 SQL', async () => {
+      await expect(service.recordClick(0)).resolves.toEqual({ success: true });
+      await expect(service.recordClick(-1)).resolves.toEqual({ success: true });
+      expect(queryMock).not.toHaveBeenCalled();
+    });
+  });
+
   describe('getActiveList', () => {
     it('缺少 familyId 时抛出 BAD_REQUEST', async () => {
       await expect(service.getActiveList('u1', 0)).rejects.toMatchObject({

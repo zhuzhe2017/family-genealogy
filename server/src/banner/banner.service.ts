@@ -66,6 +66,16 @@ export class BannerService {
     };
   }
 
+  /** 记录广告点击次数（用于运营统计；id 无效时静默忽略） */
+  async recordClick(id: number) {
+    if (!id || id <= 0) return { success: true };
+    await this.dataSource.query(
+      'UPDATE `family_banner` SET `click_count` = `click_count` + 1 WHERE `id` = ?',
+      [id]
+    );
+    return { success: true };
+  }
+
   /** 读取轮播切换间隔配置（sys_config.banner_interval） */
   private async getInterval(): Promise<number> {
     const [row] = await this.dataSource.query<{ config_value: string | null }[]>(

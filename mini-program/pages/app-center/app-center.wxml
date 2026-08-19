@@ -1,0 +1,23 @@
+<view class="container">
+  <!-- 应用列表:动态从后端 app_plugin 拉取 -->
+  <view class="app-card" wx:if="{{apps.length > 0}}">
+    <view class="section-title">应用</view>
+    <view class="app-grid">
+      <view class="app-item" wx:for="{{apps}}" wx:key="id" bindtap="openApp" data-item="{{item}}">
+        <view class="app-icon app-icon-plugin">
+          <image wx:if="{{item.iconImage}}" class="app-icon-img" src="{{item.icon}}" mode="aspectFill" />
+          <text wx:else class="app-icon-text">{{item.icon}}</text>
+        </view>
+        <text class="app-name">{{item.name}}</text>
+        <text class="app-desc" wx:if="{{item.description}}">{{item.description}}</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 空态:暂无可用应用 -->
+  <view class="empty" wx:if="{{!loading && apps.length === 0}}">
+    <text class="empty-text">暂无应用，敬请期待</text>
+  </view>
+
+  <view class="page-tip">更多应用持续接入中</view>
+</view>

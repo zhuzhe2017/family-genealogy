@@ -39,9 +39,21 @@ CREATE TABLE IF NOT EXISTS `family_invitation` (
 -- ------------------------------------------------------------
 -- 2. 家族成员角色等级表（用于邀请权限控制）
 -- 扩展 user.family_id，增加当前用户在家族中的角色
+-- 注意: MySQL 8 不支持 ADD COLUMN IF NOT EXISTS, 用 information_schema 幂等判断
 -- ------------------------------------------------------------
-ALTER TABLE `user`
-  ADD COLUMN IF NOT EXISTS `family_role` VARCHAR(20) DEFAULT 'member' COMMENT '家族角色 member-普通会员 admin-家族管理员 creator-家族创建者' AFTER `member_id`;
+SET @role_col_exists := (
+  SELECT COUNT(*) FROM information_schema.COLUMNS
+  WHERE TABLE_SCHEMA = 'family_genealogy'
+    AND TABLE_NAME = 'user'
+    AND COLUMN_NAME = 'family_role'
+);
+SET @role_ddl := IF(@role_col_exists = 0,
+  'ALTER TABLE `user` ADD COLUMN `family_role` VARCHAR(20) DEFAULT ''member'' COMMENT ''家族角色 member-普通会员 admin-家族管理员 creator-家族创建者'' AFTER `member_id`',
+  'SELECT 1'
+);
+PREPARE role_stmt FROM @role_ddl;
+EXECUTE role_stmt;
+DEALLOCATE PREPARE role_stmt;
 
 -- ------------------------------------------------------------
 -- 3. 后台管理权限与菜单

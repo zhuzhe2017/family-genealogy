@@ -20,7 +20,10 @@
     </view>
     <view class="family-name">{{info.familyName || '家族'}}</view>
     <view class="inviter-row">
-      <text class="inviter-avatar" wx:if="{{info.inviterAvatarUrl}}">{{info.inviterAvatarUrl}}</text>
+      <image wx:if="{{info.inviterAvatarUrl}}" class="inviter-avatar" src="{{info.inviterAvatarUrl}}" mode="aspectFill"></image>
+      <view wx:else class="inviter-avatar inviter-avatar-default">
+        <text>{{f.firstChar(info.inviterNickname || '邀')}}</text>
+      </view>
       <text class="inviter-text">{{info.inviterNickname || '家族成员'}} 邀请您加入</text>
     </view>
     <view class="info-row">

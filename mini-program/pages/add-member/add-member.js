@@ -535,6 +535,7 @@ Page({
         url: API_BASE_URL + '/common/upload',
         filePath: filePath,
         name: 'file',
+        header: { Authorization: 'Bearer ' + getToken() },
         formData: familyId ? { familyId: String(familyId), bizType: bizType || 'photo' } : {},
         success(res) {
           try {

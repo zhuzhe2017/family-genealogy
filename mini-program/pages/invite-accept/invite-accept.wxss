@@ -108,6 +108,28 @@
 
 .inviter-row {
   margin-bottom: 32rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12rpx;
+}
+
+.inviter-avatar {
+  width: 48rpx;
+  height: 48rpx;
+  border-radius: 50%;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.inviter-avatar-default {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #D4A574, #C9A96E);
+  color: #FFFFFF;
+  font-size: 24rpx;
+  font-weight: bold;
 }
 
 .inviter-text {
