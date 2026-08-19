@@ -15,7 +15,7 @@ const TEXT_H = 14;     // 文字行高
 const AVATAR_R = 16;   // 头像半径
 const PADDING = 24;    // 画布内边距
 const MIN_SCALE = 0.3; // 最小缩放倍率
-const MAX_SCALE = 4;   // 最大缩放倍率
+const MAX_SCALE = 1.5; // 最大缩放倍率（过大容易拖出可视区域找不到树）
 // 初始视图尺寸策略：小树放大、普通树保证卡片可读，超大宽树整体缩小
 const MAX_INITIAL_SCALE = 1.4; // 初始放大上限（内容过小时放大到可读尺寸）
 const MIN_FIT_SCALE = 0.75;    // 初始缩放下限：卡片 ≥ 90px，进入完整细节等级
