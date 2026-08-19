@@ -54,6 +54,12 @@ const columns: DataTableColumn<AdminInvitationItem>[] = [
     title: '状态', key: 'status', width: 80, align: 'center',
     render: row => h(NTag, { type: statusTag[row.status] || 'default', size: 'small', bordered: false }, { default: () => statusLabels[row.status] || row.status })
   },
+  {
+    title: '渠道', key: 'channel', width: 80, align: 'center',
+    render: row => ({ link: '链接', sms: '短信', email: '邮件', wechat: '微信', qrcode: '扫码', poster: '海报' })[row.channel] || row.channel || '链接'
+  },
+  { title: '分享次数', key: 'shareCount', width: 80, align: 'center' },
+  { title: '加入人数', key: 'joinedCount', width: 80, align: 'center' },
   { title: '过期时间', key: 'expiresAt', width: 150, render: row => formatTime(row.expiresAt) },
   { title: '创建时间', key: 'createTime', width: 150, render: row => formatTime(row.createTime) },
   {
@@ -147,7 +153,7 @@ onMounted(loadList);
         :pagination="pagination"
         :bordered="false"
         :single-line="false"
-        :scroll-x="1100"
+        :scroll-x="1400"
         remote
         @update:page="handlePageChange"
         @update:page-size="handlePageSizeChange"

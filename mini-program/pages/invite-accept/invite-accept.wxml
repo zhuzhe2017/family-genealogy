@@ -34,6 +34,14 @@
       <text class="info-label">有效期至</text>
       <text class="info-value">{{info.expiresAt}}</text>
     </view>
+    <view class="info-row">
+      <text class="info-label">邀请码</text>
+      <text class="info-value code">{{code}}</text>
+    </view>
+    <view class="info-row">
+      <text class="info-label">分享/加入</text>
+      <text class="info-value">{{info.shareCount || 0}} 次分享 · {{info.joinedCount || 0}} 人已加入</text>
+    </view>
 
     <view class="action-box" wx:if="{{loggedIn}}">
       <view class="btn reject" bindtap="onReject" wx:if="{{!processing}}">拒绝</view>

@@ -93,9 +93,11 @@ Page({
           };
           return family.create(payload);
         })
-        .then(() => {
-          // 创建成功后刷新家族列表
-          this.refreshFamilies();
+        .then((data) => {
+          // 创建成功后刷新家族列表,并自动进入新创建的家族(创建者已被服务端自动加入)
+          const createdId = data && (data.id || data.familyId);
+          this.refreshFamilies(createdId);
+          app.loadMyFamily();
           onSuccess();
         })
         .catch((err) => {
@@ -138,11 +140,18 @@ Page({
     });
   },
 
-  /** 创建成功后刷新全局家族列表 */
-  refreshFamilies() {
+  /** 创建成功后刷新全局家族列表;focusId 存在时自动进入该新创建的家族并本地记忆 */
+  refreshFamilies(focusId) {
     family.getList({ page: 1, pageSize: 50 })
       .then((res) => {
         app.globalData.families = (res.list || []).map(normalizeFamily);
+        if (focusId) {
+          const created = app.globalData.families.find(f => String(f.id) === String(focusId));
+          if (created) {
+            app.switchFamily(focusId);
+            return;
+          }
+        }
         if (app.globalData.families.length > 0) {
           app.globalData.currentFamily = app.globalData.families[0];
         }

@@ -22,6 +22,10 @@ export interface AdminInvitationItem {
   inviteeEmail: string;
   inviteCode: string;
   inviteLink: string;
+  channel: string;
+  posterUrl: string;
+  shareCount: number;
+  joinedCount: number;
   role: string;
   status: number;
   expiresAt: string;
@@ -84,7 +88,8 @@ export class InvitationAdminService {
     const list = await this.dataSource.query<Record<string, unknown>[]>(
       `SELECT i.\`id\`, i.\`family_id\`, f.\`name\` AS family_name, i.\`inviter_user_id\`,
               inviter.\`nickname\` AS inviter_nickname, i.\`invitee_user_id\`, invitee.\`nickname\` AS invitee_nickname,
-              i.\`invitee_phone\`, i.\`invitee_email\`, i.\`invite_code\`, i.\`invite_link\`, i.\`role\`,
+              i.\`invitee_phone\`, i.\`invitee_email\`, i.\`invite_code\`, i.\`invite_link\`, i.\`channel\`,
+              i.\`poster_url\`, i.\`share_count\`, i.\`joined_count\`, i.\`role\`,
               i.\`status\`, i.\`expires_at\`, i.\`accepted_at\`, i.\`rejected_at\`, i.\`remark\`, i.\`create_time\`
        ${joinClause} ${whereClause}
        ORDER BY i.\`id\` DESC
@@ -131,6 +136,10 @@ export class InvitationAdminService {
       inviteeEmail: str(r.invitee_email),
       inviteCode: str(r.invite_code),
       inviteLink: str(r.invite_link),
+      channel: str(r.channel) || 'link',
+      posterUrl: str(r.poster_url),
+      shareCount: Number(r.share_count ?? 0),
+      joinedCount: Number(r.joined_count ?? 0),
       role: str(r.role) || 'member',
       status: Number(r.status),
       expiresAt: str(r.expires_at),

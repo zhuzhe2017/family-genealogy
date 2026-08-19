@@ -154,6 +154,12 @@
   font-weight: 500;
 }
 
+.info-value.code {
+  color: #8B1A1A;
+  font-weight: 600;
+  letter-spacing: 2rpx;
+}
+
 .action-box {
   display: flex;
   gap: 24rpx;

@@ -210,9 +210,13 @@ const invitation = {
   getFamilyList: function (familyId, params) {
     return request({ url: '/user/invitation/family/' + familyId + '/list', data: params || {} });
   },
-  /** 通过邀请码查询邀请信息 */
+  /** 通过邀请码查询邀请信息（含小程序码/分享/加入计数） */
   getInfoByCode: function (code) {
     return request({ url: '/user/invitation/info/' + encodeURIComponent(code) });
+  },
+  /** 记录一次分享（分享海报/链接/扫码） */
+  recordShare: function (code) {
+    return request({ url: '/user/invitation/share/' + encodeURIComponent(code), method: 'POST' });
   },
   /** 处理邀请：接受/拒绝（data: { inviteCode, accept, remark? }） */
   process: function (data) {

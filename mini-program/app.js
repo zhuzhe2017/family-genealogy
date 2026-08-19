@@ -19,6 +19,9 @@ App({
     // 获取系统信息(使用新 API 替代已废弃的 wx.getSystemInfo)
     this.initSystemInfo();
 
+    // 从本地缓存恢复上次进入的家族,避免冷启动空白等待
+    this.restoreLastFamily();
+
     // 登录:优先走真实 API,失败时回退 mock
     this.login();
 
@@ -213,6 +216,21 @@ App({
   },
 
   /**
+   * 从本地缓存恢复上次进入的家族支系(冷启动即时展示,
+   * 后端数据返回后由 enterAssociatedFamily/loadMyFamily 校正为已加入家族)
+   */
+  restoreLastFamily() {
+    try {
+      const saved = wx.getStorageSync('current_family');
+      if (saved && saved.id) {
+        this.globalData.currentFamily = saved;
+      }
+    } catch (e) {
+      // 缓存读取失败忽略
+    }
+  },
+
+  /**
    * 登录后自动检测并进入已关联的家族支系：
    * 若当前用户已绑定 familyId（登录响应/资料接口携带），优先将其作为当前家族；
    * 未在列表中(分页截断)时单独拉取详情。
@@ -222,7 +240,7 @@ App({
     if (!familyId) return;
     const matched = this.globalData.families.find(f => String(f.id) === String(familyId));
     if (matched) {
-      this.globalData.currentFamily = matched;
+      this.switchFamily(familyId);
       return;
     }
     // 列表未命中:按 ID 拉取详情
@@ -231,7 +249,7 @@ App({
         if (!row) return;
         const fam = normalizeFamily(row);
         this.globalData.families = [fam, ...this.globalData.families];
-        this.globalData.currentFamily = fam;
+        this.switchFamily(familyId);
       })
       .catch(() => {
         // 关联家族不可用(已停用/删除),保持默认当前家族
@@ -250,6 +268,8 @@ App({
               memberId: data.memberId,
               shareCode: data.shareCode
             });
+            // 已加入家族:登录后自动进入,无需每次手动选择
+            this.enterAssociatedFamily();
           }
         })
         .catch(() => {
@@ -294,6 +314,12 @@ App({
     const fam = this.globalData.families.find(f => String(f.id) === String(familyId));
     if (fam) {
       this.globalData.currentFamily = fam;
+      // 记住当前进入的家族,下次启动自动恢复进入
+      try {
+        wx.setStorageSync('current_family', fam);
+      } catch (e) {
+        // 缓存写入失败忽略
+      }
       return fam;
     }
     return null;

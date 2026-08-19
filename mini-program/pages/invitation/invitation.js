@@ -225,6 +225,13 @@ Page({
     this.setData({ showShareModal: false });
   },
 
+  /** 跳转分享海报页（自定义样式 + 小程序码 + 多渠道分享） */
+  goPoster(e) {
+    const code = e.currentTarget.dataset.code;
+    if (!code) return;
+    wx.navigateTo({ url: '/pages/share-poster/share-poster?code=' + code });
+  },
+
   copyCode() {
     const code = this.data.shareInvitation?.inviteCode;
     if (!code) return;

@@ -13,6 +13,10 @@ export interface AdminInvitationItem {
   inviteeEmail: string;
   inviteCode: string;
   inviteLink: string;
+  channel: string;
+  posterUrl: string;
+  shareCount: number;
+  joinedCount: number;
   role: string;
   status: number;
   expiresAt: string;

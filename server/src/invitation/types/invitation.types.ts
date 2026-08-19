@@ -5,7 +5,7 @@ export type InvitationRole = 'member' | 'admin';
 export type InvitationStatus = 0 | 1 | 2 | 3 | 4;
 
 /** 邀请渠道 */
-export type InvitationChannel = 'link' | 'sms' | 'email' | 'wechat' | 'qrcode';
+export type InvitationChannel = 'link' | 'sms' | 'email' | 'wechat' | 'qrcode' | 'poster';
 
 /** 数据库 invitation 行 */
 export interface InvitationRow {
@@ -17,6 +17,10 @@ export interface InvitationRow {
   invitee_email: string;
   invite_code: string;
   invite_link: string;
+  channel: InvitationChannel;
+  poster_url: string;
+  share_count: number;
+  joined_count: number;
   role: InvitationRole;
   status: InvitationStatus;
   expires_at: Date | string;
@@ -61,6 +65,10 @@ export interface InvitationView {
   inviteeEmail?: string;
   inviteCode: string;
   inviteLink: string;
+  channel?: InvitationChannel;
+  posterUrl?: string;
+  shareCount: number;
+  joinedCount: number;
   role: InvitationRole;
   status: InvitationStatus;
   statusText: string;
@@ -90,6 +98,12 @@ export interface InvitationJoinInfo {
   inviterAvatarUrl?: string;
   role: InvitationRole;
   expiresAt: string;
+  /** 小程序码图片URL（微信配置后生成，供海报绘制） */
+  qrCodeUrl?: string;
+  /** 分享次数 */
+  shareCount: number;
+  /** 通过该邀请加入人数 */
+  joinedCount: number;
 }
 
 /** 家族角色 */

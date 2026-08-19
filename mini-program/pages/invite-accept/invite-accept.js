@@ -14,7 +14,15 @@ Page({
   },
 
   onLoad(options) {
-    const code = String(options.code || options.scene || '').trim().toUpperCase();
+    // 兼容两种进入方式：
+    // 1. 链接/分享卡片: ?code=ABC12345
+    // 2. 扫描海报小程序码: scene=code=ABC12345（getwxacodeunlimit 的 scene 参数）
+    let raw = String(options.code || options.scene || '').trim();
+    if (!options.code && options.scene) {
+      const m = raw.match(/code=([A-Za-z0-9]+)/);
+      if (m) raw = m[1];
+    }
+    const code = raw.toUpperCase();
     this.setData({ code, loggedIn: !!getToken() });
     if (!code) {
       this.setData({ loading: false, notFound: true });

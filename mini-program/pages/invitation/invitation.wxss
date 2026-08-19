@@ -198,6 +198,7 @@
 }
 
 .action-btn.share { color: #8B1A1A; }
+.action-btn.poster { color: #B8860B; }
 .action-btn.revoke { color: #999; }
 .action-btn.reject { color: #999; }
 .action-btn.accept {
@@ -365,6 +366,18 @@
   background: #8B1A1A;
   color: #fff;
   line-height: normal;
+}
+
+.share-btn.primary-poster {
+  background: linear-gradient(135deg, #8B1A1A 0%, #B8860B 100%);
+  color: #fff;
+  font-weight: 500;
+}
+
+.card-row.counts {
+  border-top: 1rpx solid #F5F5F5;
+  padding: 16rpx 28rpx;
+  font-size: 26rpx;
 }
 
 .share-btn::after {

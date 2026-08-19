@@ -79,6 +79,14 @@ export class InvitationController {
   }
 
   /**
+   * 记录一次分享（分享海报/链接/扫码），用于分享记录与加入状态跟踪
+   */
+  @Post('share/:code')
+  recordShare(@Param('code') code: string) {
+    return this.invitationService.recordShare(code);
+  }
+
+  /**
    * 处理邀请：接受/拒绝
    * body: { inviteCode, accept, remark? }
    */

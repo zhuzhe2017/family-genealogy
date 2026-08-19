@@ -18,6 +18,9 @@ Page({
   },
 
   onLoad(options) {
+    // 支持从邀请/海报等页面带 redirect 参数进入，登录成功后返回原页面
+    const redirect = options && options.redirect ? decodeURIComponent(options.redirect) : '';
+    this._redirect = redirect;
     // 支持从个人中心带参进入绑定模式：/pages/login/login?mode=bind
     const mode = options && options.mode === 'bind' ? 'bind' : 'login';
     this.setData({ mode, userInfo: app.globalData.userInfo || {} });
@@ -180,8 +183,14 @@ Page({
     setTimeout(() => this.navigateBack(), 1000);
   },
 
-  /** 返回上一页；无上一页时回到首页 */
+  /** 返回上一页；带 redirect 参数时跳转原页面（如邀请/海报页）；无上一页时回到首页 */
   navigateBack() {
+    if (this._redirect) {
+      const url = this._redirect;
+      this._redirect = '';
+      wx.redirectTo({ url });
+      return;
+    }
     const pages = getCurrentPages();
     if (pages.length > 1) {
       wx.navigateBack();

@@ -49,8 +49,13 @@
           </view>
         </view>
         <view class="card-actions" wx:if="{{item.status === 1}}">
+          <view class="action-btn poster" bindtap="goPoster" data-code="{{item.inviteCode}}">海报</view>
           <view class="action-btn share" bindtap="onShareItem" data-item="{{item}}">分享</view>
           <view class="action-btn revoke" bindtap="onRevoke" data-id="{{item.id}}">撤销</view>
+        </view>
+        <view class="card-row counts">
+          <text class="card-label">分享/加入</text>
+          <text class="card-value">分享 {{item.shareCount || 0}} 次 · 加入 {{item.joinedCount || 0}} 人</text>
         </view>
       </view>
     </view>
@@ -154,6 +159,7 @@
     </view>
     <view class="share-tip">将邀请码或链接分享给亲友，对方在微信中打开即可加入家族</view>
     <view class="modal-footer column">
+      <view class="share-btn primary-poster" bindtap="goPoster" data-code="{{shareInvitation.inviteCode}}">生成分享海报</view>
       <button class="share-btn primary" open-type="share">分享给微信好友</button>
       <view class="share-btn" bindtap="copyCode">复制邀请码</view>
       <view class="share-btn" bindtap="copyLink">复制邀请链接</view>

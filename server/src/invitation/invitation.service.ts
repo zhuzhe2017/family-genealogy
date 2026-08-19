@@ -1,6 +1,9 @@
 import { Injectable, HttpException, HttpStatus } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { DataSource } from 'typeorm';
 import { randomBytes } from 'crypto';
+import { existsSync, mkdirSync, writeFileSync } from 'fs';
+import { join } from 'path';
 import {
   type InvitationRow,
   type CreateInvitationData,
@@ -11,6 +14,7 @@ import {
   type FamilyRole
 } from './types/invitation.types';
 import { type QueryValues, type PaginationResult } from '../common/types/common';
+import { UPLOAD_DIR } from '../common/upload/upload.service';
 
 /** 邀请码字符表（去除易混淆字符 0/O/1/I） */
 const INVITE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -26,7 +30,13 @@ const STATUS_TEXT_MAP: Record<number, string> = {
 
 @Injectable()
 export class InvitationService {
-  constructor(private readonly dataSource: DataSource) {}
+  constructor(
+    private readonly dataSource: DataSource,
+    private readonly configService: ConfigService
+  ) {}
+
+  /** 微信 access_token 内存缓存（提前 5 分钟过期） */
+  private wxTokenCache: { token: string; expireAt: number } | null = null;
 
   // ==================== 邀请生成 ====================
 
@@ -76,11 +86,14 @@ export class InvitationService {
     const expiresAt = new Date(Date.now() + expireDays * 24 * 60 * 60 * 1000);
     const inviteCode = await this.generateUniqueInviteCode();
     const inviteLink = `/pages/invite-accept/invite-accept?code=${inviteCode}`;
+    const channel = ['link', 'sms', 'email', 'wechat', 'qrcode', 'poster'].includes(data.channel)
+      ? data.channel
+      : 'link';
 
     const result = await this.dataSource.query<{ insertId: number }>(
       `INSERT INTO \`family_invitation\`
-        (\`family_id\`, \`inviter_user_id\`, \`invitee_phone\`, \`invitee_email\`, \`invite_code\`, \`invite_link\`, \`role\`, \`status\`, \`expires_at\`)
-       VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?)`,
+        (\`family_id\`, \`inviter_user_id\`, \`invitee_phone\`, \`invitee_email\`, \`invite_code\`, \`invite_link\`, \`channel\`, \`role\`, \`status\`, \`expires_at\`)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?)`,
       [
         familyId,
         userId,
@@ -88,6 +101,7 @@ export class InvitationService {
         String(data.inviteeEmail || '').trim().toLowerCase() || null,
         inviteCode,
         inviteLink,
+        channel,
         role,
         expiresAt
       ] as QueryValues
@@ -140,7 +154,33 @@ export class InvitationService {
     if (!row) {
       throw new HttpException('邀请码无效或已过期', HttpStatus.NOT_FOUND);
     }
-    return this.buildJoinInfo(row);
+    return this.buildJoinInfo(row, await this.ensureQrCode(row));
+  }
+
+  /**
+   * 记录一次分享（分享海报/链接/扫码分享）
+   * 用于"分享记录"跟踪：分享次数 +1
+   */
+  async recordShare(inviteCode: string): Promise<{ shareCount: number }> {
+    const code = String(inviteCode || '').trim().toUpperCase();
+    if (!code) {
+      throw new HttpException('邀请码不能为空', HttpStatus.BAD_REQUEST);
+    }
+    const result = await this.dataSource.query<{ affectedRows?: number }[]>(
+      'UPDATE `family_invitation` SET `share_count` = `share_count` + 1 WHERE `invite_code` = ? AND `status` = 1',
+      [code] as QueryValues
+    );
+    const affected = Array.isArray(result)
+      ? Number(result[0]?.affectedRows ?? 0)
+      : Number((result as unknown as { affectedRows?: number })?.affectedRows ?? 0);
+    if (affected === 0) {
+      throw new HttpException('邀请码无效或已失效', HttpStatus.NOT_FOUND);
+    }
+    const [row] = await this.dataSource.query<{ share_count: number }[]>(
+      'SELECT `share_count` FROM `family_invitation` WHERE `invite_code` = ? LIMIT 1',
+      [code] as QueryValues
+    );
+    return { shareCount: Number(row?.share_count ?? 0) };
   }
 
   // ==================== 邀请处理 ====================
@@ -371,7 +411,7 @@ export class InvitationService {
 
       await manager.query(
         `UPDATE \`family_invitation\`
-         SET \`status\` = 2, \`accepted_at\` = ?, \`processed_by\` = ?, \`invitee_user_id\` = ?
+         SET \`status\` = 2, \`accepted_at\` = ?, \`processed_by\` = ?, \`invitee_user_id\` = ?, \`joined_count\` = \`joined_count\` + 1
          WHERE \`id\` = ? AND \`status\` = 1`,
         [now, userId, userId, row.id] as QueryValues
       );
@@ -380,7 +420,8 @@ export class InvitationService {
 
   /** 构建被邀请人看到的加入信息 */
   private buildJoinInfo(
-    row: InvitationRow & { family_name?: string; family_logo?: string; inviter_nickname?: string; inviter_avatar_url?: string }
+    row: InvitationRow & { family_name?: string; family_logo?: string; inviter_nickname?: string; inviter_avatar_url?: string },
+    qrCodeUrl = ''
   ): InvitationJoinInfo {
     return {
       familyId: row.family_id,
@@ -389,7 +430,10 @@ export class InvitationService {
       inviterNickname: String(row.inviter_nickname || ''),
       inviterAvatarUrl: String(row.inviter_avatar_url || ''),
       role: row.role,
-      expiresAt: this.formatTime(row.expires_at)
+      expiresAt: this.formatTime(row.expires_at),
+      qrCodeUrl,
+      shareCount: Number(row.share_count ?? 0),
+      joinedCount: Number(row.joined_count ?? 0)
     };
   }
 
@@ -406,6 +450,10 @@ export class InvitationService {
       inviteeEmail: row.invitee_email || undefined,
       inviteCode: row.invite_code,
       inviteLink: row.invite_link,
+      channel: row.channel || 'link',
+      posterUrl: row.poster_url || undefined,
+      shareCount: Number(row.share_count ?? 0),
+      joinedCount: Number(row.joined_count ?? 0),
       role: row.role,
       status: row.status,
       statusText: STATUS_TEXT_MAP[row.status] || '未知',
@@ -440,5 +488,73 @@ export class InvitationService {
       if (!dup) return code;
     }
     throw new HttpException('邀请码生成失败，请重试', HttpStatus.INTERNAL_SERVER_ERROR);
+  }
+
+  // ==================== 分享海报/小程序码 ====================
+
+  /**
+   * 生成/复用邀请对应的小程序码图片（供海报绘制）。
+   * - 微信凭证(WX_APPID/WX_SECRET)未配置时返回空串，前端海报以邀请码替代
+   * - 生成成功后保存到 uploads/poster/{code}.png 并缓存 poster_url
+   */
+  private async ensureQrCode(row: InvitationRow): Promise<string> {
+    if (row.poster_url) return row.poster_url;
+
+    const appId = this.configService.get<string>('WX_APPID');
+    const secret = this.configService.get<string>('WX_SECRET');
+    if (!appId || !secret) return '';
+
+    try {
+      const accessToken = await this.getWxAccessToken(appId, secret);
+      const url = `https://api.weixin.qq.com/wxa/getwxacodeunlimit?access_token=${accessToken}`;
+      const resp = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          scene: `code=${row.invite_code}`,
+          page: 'pages/invite-accept/invite-accept',
+          width: 430,
+          check_path: false
+        })
+      });
+      const contentType = resp.headers.get('content-type') || '';
+      if (contentType.includes('application/json')) {
+        const err = (await resp.json()) as { errcode?: number; errmsg?: string };
+        throw new HttpException(`小程序码生成失败: ${err.errmsg || err.errcode || '未知错误'}`, HttpStatus.BAD_GATEWAY);
+      }
+      const buf = Buffer.from(await resp.arrayBuffer());
+      const dir = join(UPLOAD_DIR, 'poster');
+      if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+      const filename = `${row.invite_code}.png`;
+      writeFileSync(join(dir, filename), buf);
+
+      const posterUrl = `/uploads/poster/${filename}`;
+      await this.dataSource.query(
+        'UPDATE `family_invitation` SET `poster_url` = ? WHERE `id` = ?',
+        [posterUrl, row.id] as QueryValues
+      );
+      return posterUrl;
+    } catch (e) {
+      // 小程序码生成失败不影响主流程：前端海报用邀请码替代
+      console.error('生成小程序码失败:', e);
+      return '';
+    }
+  }
+
+  /** 获取微信全局 access_token（内存缓存，提前 5 分钟过期） */
+  private async getWxAccessToken(appId: string, secret: string): Promise<string> {
+    const now = Date.now();
+    if (this.wxTokenCache && this.wxTokenCache.expireAt > now) {
+      return this.wxTokenCache.token;
+    }
+    const url = `https://api.weixin.qq.com/cgi-bin/token?grant_type=client_credential&appid=${appId}&secret=${secret}`;
+    const resp = await fetch(url);
+    const data = (await resp.json()) as { access_token?: string; expires_in?: number; errcode?: number; errmsg?: string };
+    if (!data.access_token) {
+      throw new HttpException(`获取微信 access_token 失败: ${data.errmsg || data.errcode || '未知错误'}`, HttpStatus.BAD_GATEWAY);
+    }
+    const expireAt = Date.now() + (Math.max(Number(data.expires_in || 7200), 60) - 300) * 1000;
+    this.wxTokenCache = { token: data.access_token, expireAt };
+    return data.access_token;
   }
 }
