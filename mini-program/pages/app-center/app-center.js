@@ -1,5 +1,6 @@
 /** 应用中心:全部应用来自后端 app_plugin 表(动态),管理员可在后台增删/启停 */
 const { plugin } = require('../../utils/api');
+const { resolveImageUrl } = require('../../utils/format');
 const TAB_BAR_PAGES = ['/pages/home/home', '/pages/family-tree/family-tree', '/pages/dynamic/dynamic', '/pages/profile/profile'];
 
 Page({
@@ -18,16 +19,20 @@ Page({
       .getList()
       .then((res) => {
         this.setData({
-          apps: (res.list || []).map((item) => ({
-            id: item.id,
-            code: item.code,
-            name: item.name,
-            icon: item.icon || '🧩',
-            description: item.description || '',
-            entryType: item.entryType || 'page',
-            entryValue: item.entryValue || '',
-            iconImage: /^https?:\/\//.test(item.icon || '')
-          })),
+          apps: (res.list || []).map((item) => {
+            const icon = item.icon || '';
+            const iconImage = /^(https?:\/\/|\/uploads\/)/.test(icon);
+            return {
+              id: item.id,
+              code: item.code,
+              name: item.name,
+              icon: iconImage ? resolveImageUrl(icon) : (icon || '🧩'),
+              description: item.description || '',
+              entryType: item.entryType || 'page',
+              entryValue: item.entryValue || '',
+              iconImage
+            };
+          }),
           loading: false
         });
       })
