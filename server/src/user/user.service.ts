@@ -406,6 +406,125 @@ export class UserService {
     return this.getProfile(userId);
   }
 
+  /**
+   * 家族成员角色列表（用户端，角色管理入口）
+   * - 数据源：user.family_id 绑定的用户 + family_permission 表的角色记录
+   * - 角色优先级：族长(family.creator_user_id) > 管理员(family_permission.role=admin) > 普通成员
+   * - canManage：仅族长可分配/回收角色
+   */
+  async getFamilyRoles(userId: string) {
+    const user = await this.findUserById(userId);
+    if (!user) {
+      throw new HttpException('用户不存在', HttpStatus.NOT_FOUND);
+    }
+    if (!user.family_id) {
+      throw new HttpException('请先加入家族', HttpStatus.BAD_REQUEST);
+    }
+    const familyId = Number(user.family_id);
+    const [family] = await this.dataSource.query<DataRow[]>(
+      'SELECT `id`, `name`, `creator_user_id` FROM `family` WHERE `id` = ? AND `status` = 1 LIMIT 1',
+      [familyId]
+    );
+    if (!family) {
+      throw new HttpException('家族不存在或已停用', HttpStatus.NOT_FOUND);
+    }
+    const leaderUserId = String(family.creator_user_id || '');
+    const canManage = leaderUserId === userId;
+
+    const [members, admins] = await Promise.all([
+      this.dataSource.query<DataRow[]>(
+        'SELECT `id`, `nickname`, `avatar_url`, `member_id` FROM `user` WHERE `family_id` = ? AND `status` = 1 ORDER BY `create_time` ASC',
+        [familyId]
+      ),
+      this.dataSource.query<DataRow[]>(
+        'SELECT `user_id` FROM `family_permission` WHERE `family_id` = ? AND `role` = \'admin\' AND `status` = 1',
+        [familyId]
+      )
+    ]);
+    const adminSet = new Set<string>(admins.map((a) => String(a.user_id)));
+    const list = members.map((m) => {
+      const uid = String(m.id);
+      const role = uid === leaderUserId ? 'leader' : adminSet.has(uid) ? 'admin' : 'member';
+      return {
+        userId: uid,
+        nickname: m.nickname || '未设置昵称',
+        avatarUrl: m.avatar_url || '',
+        memberId: m.member_id || '',
+        role,
+        roleLabel: role === 'leader' ? '族长' : role === 'admin' ? '管理员' : '普通成员'
+      };
+    });
+    return {
+      familyId,
+      familyName: family.name,
+      leaderUserId,
+      canManage,
+      list,
+      total: list.length
+    };
+  }
+
+  /**
+   * 设置家族成员角色（仅族长可操作）
+   * role: 'admin' 设为管理员（写入 family_permission，幂等 upsert）/ 'member' 取消管理员
+   * 校验：调用者为族长；目标用户为本家族成员；不可操作族长本人
+   */
+  async setFamilyRole(userId: string, targetUserId: string, role: string) {
+    const user = await this.findUserById(userId);
+    if (!user) {
+      throw new HttpException('用户不存在', HttpStatus.NOT_FOUND);
+    }
+    if (!user.family_id) {
+      throw new HttpException('请先加入家族', HttpStatus.BAD_REQUEST);
+    }
+    const familyId = Number(user.family_id);
+    const [family] = await this.dataSource.query<DataRow[]>(
+      'SELECT `id`, `creator_user_id` FROM `family` WHERE `id` = ? AND `status` = 1 LIMIT 1',
+      [familyId]
+    );
+    if (!family) {
+      throw new HttpException('家族不存在或已停用', HttpStatus.NOT_FOUND);
+    }
+    const leaderUserId = String(family.creator_user_id || '');
+    if (leaderUserId !== userId) {
+      throw new HttpException('仅族长可管理成员角色', HttpStatus.FORBIDDEN);
+    }
+    const target = String(targetUserId || '').trim();
+    if (!target) {
+      throw new HttpException('目标用户ID不能为空', HttpStatus.BAD_REQUEST);
+    }
+    if (target === leaderUserId) {
+      throw new HttpException('不能修改族长的角色', HttpStatus.BAD_REQUEST);
+    }
+    if (role !== 'admin' && role !== 'member') {
+      throw new HttpException('角色参数不合法', HttpStatus.BAD_REQUEST);
+    }
+    const [targetUser] = await this.dataSource.query<DataRow[]>(
+      'SELECT `id`, `family_id` FROM `user` WHERE `id` = ? AND `status` = 1 LIMIT 1',
+      [target]
+    );
+    if (!targetUser || Number(targetUser.family_id) !== familyId) {
+      throw new HttpException('目标用户不属于本家族', HttpStatus.BAD_REQUEST);
+    }
+
+    if (role === 'admin') {
+      const [tu] = await this.dataSource.query<DataRow[]>(
+        'SELECT `nickname` FROM `user` WHERE `id` = ? LIMIT 1',
+        [target]
+      );
+      await this.dataSource.query(
+        'INSERT INTO `family_permission` (`family_id`, `user_id`, `member_name`, `role`, `status`) VALUES (?, ?, ?, \'admin\', 1) ON DUPLICATE KEY UPDATE `role` = \'admin\', `status` = 1, `member_name` = VALUES(`member_name`), `update_time` = CURRENT_TIMESTAMP',
+        [familyId, target, (tu && tu.nickname) || ''] as QueryValues
+      );
+    } else {
+      await this.dataSource.query(
+        'DELETE FROM `family_permission` WHERE `family_id` = ? AND `user_id` = ?',
+        [familyId, target] as QueryValues
+      );
+    }
+    return { success: true, role };
+  }
+
   /** 生成全局唯一的 8 位分享码（去除易混淆字符 0/O/1/I） */
   private async generateShareCode(): Promise<string> {
     const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';

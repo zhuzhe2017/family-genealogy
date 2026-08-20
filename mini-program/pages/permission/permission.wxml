@@ -1,29 +1,55 @@
-<wxs src="../../utils/filters.wxs" module="f" />
 <view class="page-container">
-  <!-- 当前家族成员权限 -->
-  <view class="permission-card">
-    <text class="card-title">成员权限</text>
-    <view class="member-list" wx:if="{{members.length > 0}}">
-      <view class="member-item" wx:for="{{members}}" wx:key="id">
-        <view class="member-avatar">{{f.firstChar(item.name)}}</view>
-        <view class="member-info">
-          <text class="member-name">{{item.name}}</text>
-          <text class="member-role">{{item.desc}}</text>
-        </view>
-        <view class="role-tag {{item.role === 'admin' ? 'role-admin' : ''}}" bindtap="switchRole" data-id="{{item.id}}">
-          {{item.role === 'admin' ? '管理员' : '成员'}}
-        </view>
-      </view>
+  <!-- 家族头部 -->
+  <view class="family-header" wx:if="{{online && familyName}}">
+    <view class="family-avatar">{{familyName[0]}}</view>
+    <view class="family-info">
+      <text class="family-name">{{familyName}}</text>
+      <text class="family-sub">共 {{total}} 位家族成员</text>
     </view>
-    <view class="empty-state" wx:else>
-      <text class="empty-text">暂无成员</text>
+  </view>
+
+  <!-- 未登录/体验模式 -->
+  <view class="empty-state" wx:if="{{!online}}">
+    <text class="empty-text">请先登录后查看家族成员权限</text>
+  </view>
+
+  <!-- 未加入家族 -->
+  <view class="empty-state" wx:elif="{{online && members.length === 0}}">
+    <text class="empty-text">您还未加入任何家族\n加入后可在此管理成员角色</text>
+  </view>
+
+  <!-- 成员角色列表 -->
+  <view class="member-card" wx:else>
+    <view class="card-head">
+      <text class="card-title">成员角色</text>
+      <text class="card-tip" wx:if="{{canManage}}">仅族长可调整</text>
+      <text class="card-tip" wx:else>只读</text>
+    </view>
+    <view class="member-item" wx:for="{{members}}" wx:key="userId">
+      <image wx:if="{{item.avatarFull}}" class="member-avatar-img" src="{{item.avatarFull}}" mode="aspectFill" />
+      <view wx:else class="member-avatar">{{item.nickname[0]}}</view>
+      <view class="member-info">
+        <text class="member-name">{{item.nickname}}</text>
+        <text class="member-role">{{item.roleLabel}}</text>
+      </view>
+      <view
+        wx:if="{{canManage && item.role !== 'leader'}}"
+        class="role-btn {{item.role === 'admin' ? 'role-btn-remove' : 'role-btn-add'}}"
+        bindtap="toggleRole"
+        data-user-id="{{item.userId}}"
+        data-role="{{item.role}}"
+      >
+        {{item.role === 'admin' ? '取消管理员' : '设为管理员'}}
+      </view>
+      <view wx:else class="role-tag {{item.role === 'leader' ? 'role-leader' : (item.role === 'admin' ? 'role-admin' : '')}}">{{item.roleLabel}}</view>
     </view>
   </view>
 
   <!-- 权限说明 -->
   <view class="permission-desc">
     <text class="desc-title">权限说明</text>
-    <text class="desc-item">管理员：可编辑家族树、管理成员、备份数据、设置权限</text>
-    <text class="desc-item">普通成员：可查看家族信息、发布动态、上传照片</text>
+    <text class="desc-item">族长：家族创建者本人，可管理成员角色，拥有家族最高权限</text>
+    <text class="desc-item">管理员：协助族长管理家族事务，与家族基金等模块的管理员身份一致</text>
+    <text class="desc-item">普通成员：可查看家族信息、发布动态、参与家族基金等</text>
   </view>
 </view>

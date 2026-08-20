@@ -34,6 +34,14 @@ const auth = {
   bindMember: function (memberId) {
     return request({ url: '/user/family/bind-member', method: 'PUT', data: { memberId: memberId } });
   },
+  /** 家族成员角色列表（仅族长可分配/回收角色） */
+  getFamilyRoles: function () {
+    return request({ url: '/user/family/roles' });
+  },
+  /** 设置成员角色（role: admin 设为管理员 / member 取消管理员） */
+  setFamilyRole: function (userId, role) {
+    return request({ url: '/user/family/roles/' + userId, method: 'PUT', data: { role: role } });
+  },
   /** 更新当前用户资料 */
   updateProfile: function (data) {
     return request({ url: '/user/profile', method: 'PUT', data: data });

@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Put, Delete, Body, UseGuards, Req } from '@nestjs/common';
+import { Controller, Post, Get, Put, Delete, Body, Param, UseGuards, Req } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { UserService } from './user.service';
 import { UserJwtAuthGuard } from './user.guard';
@@ -111,6 +111,32 @@ export class UserController {
     @Body() body: { memberId?: string }
   ) {
     return this.userService.bindMember(String(req.user.id), body.memberId || '');
+  }
+
+  /**
+   * 获取家族成员角色列表（角色管理入口，仅族长可分配/回收角色）
+   * 返回：familyId / familyName / leaderUserId / canManage / list[{userId,nickname,avatarUrl,memberId,role,roleLabel}]
+   */
+  @Public()
+  @UseGuards(UserJwtAuthGuard)
+  @Get('family/roles')
+  async getFamilyRoles(@Req() req: AuthenticatedRequest) {
+    return this.userService.getFamilyRoles(String(req.user.id));
+  }
+
+  /**
+   * 设置家族成员角色（仅族长）
+   * body: { role: 'admin' 设为管理员 | 'member' 取消管理员 }
+   */
+  @Public()
+  @UseGuards(UserJwtAuthGuard)
+  @Put('family/roles/:userId')
+  async setFamilyRole(
+    @Req() req: AuthenticatedRequest,
+    @Param('userId') targetUserId: string,
+    @Body() body: { role?: string }
+  ) {
+    return this.userService.setFamilyRole(String(req.user.id), targetUserId, body.role || '');
   }
 
   /**
