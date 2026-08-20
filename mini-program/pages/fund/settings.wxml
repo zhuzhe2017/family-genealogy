@@ -1,0 +1,65 @@
+<view class="page">
+  <view class="state" wx:if="{{loading}}">
+    <text class="state-text">加载中...</text>
+  </view>
+
+  <block wx:else>
+    <view class="form-card" wx:if="{{canManageRule}}">
+      <view class="form-item">
+        <view class="form-label">基金名称<text class="required">*</text></view>
+        <input class="input" value="{{form.name}}" data-key="name" bindinput="onInput" maxlength="50" />
+      </view>
+      <view class="form-item">
+        <view class="form-label">基金简介</view>
+        <textarea class="textarea" value="{{form.description}}" data-key="description" bindinput="onInput" maxlength="200" />
+      </view>
+    </view>
+
+    <view class="form-card" wx:if="{{canManageRule}}">
+      <view class="card-title">限额与审批规则</view>
+      <view class="form-item">
+        <view class="form-label">单次存入限额（元）</view>
+        <input class="input" type="digit" value="{{form.singleDepositLimit}}" data-key="singleDepositLimit" bindinput="onInput" />
+      </view>
+      <view class="form-item">
+        <view class="form-label">单次取出限额（元）</view>
+        <input class="input" type="digit" value="{{form.singleWithdrawLimit}}" data-key="singleWithdrawLimit" bindinput="onInput" />
+      </view>
+      <view class="form-item">
+        <view class="form-label">每日存入限额（元）</view>
+        <input class="input" type="digit" value="{{form.dailyDepositLimit}}" data-key="dailyDepositLimit" bindinput="onInput" />
+      </view>
+      <view class="form-item">
+        <view class="form-label">每日取出限额（元）</view>
+        <input class="input" type="digit" value="{{form.dailyWithdrawLimit}}" data-key="dailyWithdrawLimit" bindinput="onInput" />
+      </view>
+      <view class="form-item">
+        <view class="form-label">每月存入限额（元）</view>
+        <input class="input" type="digit" value="{{form.monthlyDepositLimit}}" data-key="monthlyDepositLimit" bindinput="onInput" />
+      </view>
+      <view class="form-item">
+        <view class="form-label">每月取出限额（元）</view>
+        <input class="input" type="digit" value="{{form.monthlyWithdrawLimit}}" data-key="monthlyWithdrawLimit" bindinput="onInput" />
+      </view>
+      <view class="form-item">
+        <view class="form-label">大额取出审批阈值（元）</view>
+        <input class="input" type="digit" value="{{form.withdrawApprovalThreshold}}" data-key="withdrawApprovalThreshold" bindinput="onInput" />
+      </view>
+      <view class="form-item switch-row">
+        <text class="form-label">超出阈值需审批</text>
+        <switch checked="{{form.needApproval}}" bindchange="onSwitch" color="#8B1A1A" />
+      </view>
+    </view>
+
+    <view class="tip" wx:if="{{canManageRule}}">限额遵循经济平衡原则：单次 ≤ 每日 ≤ 每月，防止资金异常流转。</view>
+
+    <view class="footer" wx:if="{{canManageRule}}">
+      <button class="btn-primary" bindtap="save" disabled="{{submitting}}">保存设置</button>
+    </view>
+
+    <view class="danger-zone" wx:if="{{canDissolve}}">
+      <view class="danger-title">危险操作</view>
+      <button class="btn-danger" bindtap="dissolve">解散家族基金</button>
+    </view>
+  </block>
+</view>

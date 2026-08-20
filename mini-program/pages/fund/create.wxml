@@ -1,0 +1,64 @@
+<view class="page">
+  <view class="form-card">
+    <view class="form-item">
+      <view class="form-label">基金名称<text class="required">*</text></view>
+      <input class="input" value="{{form.name}}" data-key="name" bindinput="onInput" placeholder="如：朱氏家族互助基金" maxlength="50" />
+    </view>
+    <view class="form-item">
+      <view class="form-label">基金简介</view>
+      <textarea class="textarea" value="{{form.description}}" data-key="description" bindinput="onInput" placeholder="说明基金用途、规则等（选填）" maxlength="200" />
+    </view>
+    <view class="form-item">
+      <view class="form-label">初始资金（元）</view>
+      <input class="input" type="digit" value="{{form.initAmount}}" data-key="initAmount" bindinput="onInput" placeholder="0" />
+    </view>
+  </view>
+
+  <!-- 高级设置 -->
+  <view class="form-card">
+    <view class="form-item adv-toggle" bindtap="toggleAdvanced">
+      <text>限额与审批规则</text>
+      <text class="adv-toggle-text">{{showAdvanced ? '收起 ▾' : '展开 ▸'}}</text>
+    </view>
+    <block wx:if="{{showAdvanced}}">
+      <view class="form-item">
+        <view class="form-label">单次存入限额（元）</view>
+        <input class="input" type="digit" value="{{form.singleDepositLimit}}" data-key="singleDepositLimit" bindinput="onInput" placeholder="1000" />
+      </view>
+      <view class="form-item">
+        <view class="form-label">单次取出限额（元）</view>
+        <input class="input" type="digit" value="{{form.singleWithdrawLimit}}" data-key="singleWithdrawLimit" bindinput="onInput" placeholder="1000" />
+      </view>
+      <view class="form-item">
+        <view class="form-label">每日存入限额（元）</view>
+        <input class="input" type="digit" value="{{form.dailyDepositLimit}}" data-key="dailyDepositLimit" bindinput="onInput" placeholder="2000" />
+      </view>
+      <view class="form-item">
+        <view class="form-label">每日取出限额（元）</view>
+        <input class="input" type="digit" value="{{form.dailyWithdrawLimit}}" data-key="dailyWithdrawLimit" bindinput="onInput" placeholder="2000" />
+      </view>
+      <view class="form-item">
+        <view class="form-label">每月存入限额（元）</view>
+        <input class="input" type="digit" value="{{form.monthlyDepositLimit}}" data-key="monthlyDepositLimit" bindinput="onInput" placeholder="5000" />
+      </view>
+      <view class="form-item">
+        <view class="form-label">每月取出限额（元）</view>
+        <input class="input" type="digit" value="{{form.monthlyWithdrawLimit}}" data-key="monthlyWithdrawLimit" bindinput="onInput" placeholder="5000" />
+      </view>
+      <view class="form-item">
+        <view class="form-label">大额取出审批阈值（元）</view>
+        <input class="input" type="digit" value="{{form.withdrawApprovalThreshold}}" data-key="withdrawApprovalThreshold" bindinput="onInput" placeholder="500" />
+      </view>
+      <view class="form-item switch-row">
+        <text class="form-label">超出阈值需审批</text>
+        <switch checked="{{form.needApproval}}" bindchange="onSwitch" color="#8B1A1A" />
+      </view>
+    </block>
+  </view>
+
+  <view class="tip">限额规则遵循经济平衡原则，防止资金异常流转；创建后可在「基金设置」中调整。</view>
+
+  <view class="footer">
+    <button class="btn-primary" bindtap="submit" disabled="{{submitting}}">创建家族基金</button>
+  </view>
+</view>

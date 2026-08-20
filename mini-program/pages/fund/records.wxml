@@ -1,0 +1,63 @@
+<view class="page">
+  <!-- 对账卡 -->
+  <view class="balance-card">
+    <view class="balance-cell">
+      <view class="balance-label">当前余额</view>
+      <view class="balance-value">{{totalAmount.toFixed(2)}}</view>
+    </view>
+    <view class="balance-cell">
+      <view class="balance-label">区间收入</view>
+      <view class="balance-value green">{{income.toFixed(2)}}</view>
+    </view>
+    <view class="balance-cell">
+      <view class="balance-label">区间支出</view>
+      <view class="balance-value red">{{expense.toFixed(2)}}</view>
+    </view>
+  </view>
+
+  <!-- 类型 tab -->
+  <scroll-view scroll-x class="tabs" enable-flex>
+    <view class="tab {{typeIndex === index ? 'active' : ''}}"
+          wx:for="{{types}}" wx:key="value"
+          bindtap="onTypeChange" data-index="{{index}}">{{item.label}}</view>
+  </scroll-view>
+
+  <!-- 筛选 -->
+  <view class="filter-bar">
+    <picker mode="date" value="{{startDate}}" bindchange="onStartDate" class="filter-picker">
+      <view class="filter-value {{startDate ? '' : 'placeholder'}}">{{startDate || '开始日期'}} ▾</view>
+    </picker>
+    <picker mode="date" value="{{endDate}}" bindchange="onEndDate" class="filter-picker">
+      <view class="filter-value {{endDate ? '' : 'placeholder'}}">{{endDate || '结束日期'}} ▾</view>
+    </picker>
+    <picker mode="selector" range="{{statusFilters}}" range-key="label" value="{{statusIndex}}" bindchange="onStatusChange" class="filter-picker">
+      <view class="filter-value">{{statusFilters[statusIndex].label}} ▾</view>
+    </picker>
+  </view>
+
+  <!-- 列表 -->
+  <view class="tx-list">
+    <view class="tx-item" wx:for="{{list}}" wx:key="id" bindtap="onApprove" data-item="{{item}}">
+      <view class="tx-icon">{{item.type === 'deposit' ? '📥' : item.type === 'withdraw' ? '📤' : item.type === 'transfer' ? '🔁' : '⚖️'}}</view>
+      <view class="tx-main">
+        <view class="tx-title">
+          <text>{{item.typeLabel}}</text>
+          <text class="tx-badge {{item.status === 2 ? 'pending' : item.status === 3 ? 'rejected' : 'success'}}">{{item.statusLabel}}</text>
+        </view>
+        <view class="tx-desc">
+          {{item.operatorName || '系统'}}{{item.targetName ? ' → ' + item.targetName : ''}}{{item.paymentLabel ? ' · ' + item.paymentLabel : ''}}
+        </view>
+        <view class="tx-desc">{{item.remark}}</view>
+        <view class="tx-time">{{item.createTime}}</view>
+      </view>
+      <view class="tx-amount {{item.direction === 1 ? 'in' : 'out'}}">{{item.direction === 1 ? '+' : '-'}}{{item.amount.toFixed(2)}}</view>
+    </view>
+
+    <view class="tx-empty" wx:if="{{!loading && list.length === 0}}">暂无交易记录</view>
+    <view class="tx-more" wx:if="{{loading}}">加载中...</view>
+    <view class="tx-more" wx:if="{{!loading && !hasMore && list.length > 0}}">没有更多了</view>
+  </view>
+
+  <!-- 待审批操作浮层提示：点击条目上的审批 -->
+  <view class="approve-tip" wx:if="{{canApprove}}">待审批记录可点按弹出通过/驳回</view>
+</view>

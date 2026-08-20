@@ -1,0 +1,256 @@
+.page {
+  min-height: 100vh;
+  background: #F5F1EA;
+  padding: 24rpx 24rpx 180rpx;
+  box-sizing: border-box;
+}
+
+.card {
+  background: #FFF;
+  border-radius: 20rpx;
+  padding: 24rpx;
+  margin-bottom: 20rpx;
+  box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.05);
+}
+
+.section-title {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 20rpx;
+}
+
+.title-card {
+  text-align: center;
+  padding: 40rpx 24rpx;
+}
+
+.g-title {
+  font-size: 36rpx;
+  font-weight: 700;
+  color: #8B1A1A;
+  margin-bottom: 12rpx;
+}
+
+.g-tip {
+  font-size: 26rpx;
+  color: #999;
+}
+
+.field {
+  display: flex;
+  align-items: center;
+  margin-bottom: 20rpx;
+}
+
+.label {
+  font-size: 26rpx;
+  color: #666;
+  width: 160rpx;
+  flex-shrink: 0;
+}
+
+.input {
+  flex: 1;
+  font-size: 28rpx;
+  background: #F7F5F0;
+  border-radius: 12rpx;
+  padding: 14rpx 20rpx;
+  color: #333;
+}
+
+.textarea-full {
+  width: 100%;
+  box-sizing: border-box;
+  font-size: 28rpx;
+  background: #F7F5F0;
+  border-radius: 12rpx;
+  padding: 14rpx 20rpx;
+  min-height: 120rpx;
+  color: #333;
+}
+
+/* 场次选择 */
+.session-option {
+  background: #F7F5F0;
+  border: 1rpx solid #EEE6D9;
+  border-radius: 16rpx;
+  padding: 24rpx;
+}
+
+.session-name {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 8rpx;
+}
+
+.session-time {
+  font-size: 26rpx;
+  color: #666;
+  margin-bottom: 8rpx;
+}
+
+.session-capacity {
+  font-size: 24rpx;
+  color: #C9A227;
+}
+
+/* 饮食偏好 */
+.diet-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16rpx;
+  margin-bottom: 20rpx;
+}
+
+.diet-chip {
+  padding: 12rpx 32rpx;
+  font-size: 28rpx;
+  border-radius: 40rpx;
+  background: #F7F5F0;
+  color: #666;
+  border: 1rpx solid #EEE6D9;
+}
+
+.diet-active {
+  background: #8B1A1A;
+  color: #FFF;
+  border-color: #8B1A1A;
+}
+
+/* 底部按钮 */
+.footer {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 20rpx 24rpx calc(20rpx + env(safe-area-inset-bottom));
+  background: #FFF;
+  box-shadow: 0 -4rpx 16rpx rgba(0, 0, 0, 0.06);
+}
+
+.footer button {
+  width: 100%;
+  margin: 0;
+  height: 96rpx;
+  font-size: 32rpx;
+  font-weight: 500;
+  border-radius: 48rpx;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.footer button::after,
+.footer-inner button::after {
+  border: none;
+}
+
+/* 回执 */
+.receipt {
+  padding-top: 60rpx;
+  text-align: center;
+}
+
+.receipt-icon {
+  width: 120rpx;
+  height: 120rpx;
+  line-height: 120rpx;
+  border-radius: 50%;
+  background: #2E7D32;
+  color: #FFF;
+  font-size: 64rpx;
+  margin: 0 auto 24rpx;
+}
+
+.receipt-title {
+  font-size: 40rpx;
+  font-weight: 700;
+  color: #333;
+  margin-bottom: 8rpx;
+}
+
+.receipt-sub {
+  font-size: 26rpx;
+  color: #999;
+  margin-bottom: 40rpx;
+}
+
+.receipt-card {
+  background: #FFF;
+  border-radius: 20rpx;
+  padding: 32rpx;
+  text-align: left;
+  box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.05);
+  margin-bottom: 40rpx;
+}
+
+.receipt-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16rpx 0;
+  border-bottom: 1rpx solid #F2EDE3;
+}
+
+.receipt-label {
+  font-size: 28rpx;
+  color: #999;
+}
+
+.receipt-value {
+  font-size: 28rpx;
+  color: #333;
+  max-width: 60%;
+  text-align: right;
+}
+
+.code-row {
+  border-bottom: none;
+  padding-bottom: 8rpx;
+}
+
+.receipt-code {
+  font-size: 64rpx;
+  font-weight: 700;
+  color: #8B1A1A;
+  letter-spacing: 8rpx;
+  font-family: monospace;
+}
+
+.receipt-tip {
+  font-size: 24rpx;
+  color: #999;
+  text-align: center;
+  padding-top: 8rpx;
+}
+
+.footer-inner {
+  display: flex;
+  gap: 20rpx;
+}
+
+.footer-inner button {
+  flex: 1;
+  margin: 0;
+  height: 96rpx;
+  font-size: 32rpx;
+  font-weight: 500;
+  border-radius: 48rpx;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, #8B1A1A, #B22222) !important;
+  color: #FFF !important;
+}
+
+.btn-ghost {
+  background: #F5F5F5 !important;
+  color: #333 !important;
+}

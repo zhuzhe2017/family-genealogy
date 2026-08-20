@@ -123,6 +123,15 @@ export const generatedRoutes: GeneratedRoute[] = [
         }
       },
       {
+        name: 'mini-program_gathering',
+        path: '/mini-program/gathering',
+        component: 'view.mini-program_gathering',
+        meta: {
+          title: 'mini-program_gathering',
+          i18nKey: 'route.mini-program_gathering'
+        }
+      },
+      {
         name: 'mini-program_family-invitation',
         path: '/mini-program/family-invitation',
         component: 'view.mini-program_family-invitation',

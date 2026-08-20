@@ -1,0 +1,48 @@
+<view class="page">
+  <!-- 页头 -->
+  <view class="page-header">
+    <text class="page-title">宗亲聚会</text>
+    <text class="page-sub" wx:if="{{familyName}}">{{familyName}}</text>
+  </view>
+
+  <!-- 状态筛选 -->
+  <view class="tab-bar">
+    <view
+      class="tab-item {{statusTab === item.value ? 'active' : ''}}"
+      wx:for="{{tabs}}"
+      wx:key="value"
+      data-value="{{item.value}}"
+      bindtap="switchTab"
+    >{{item.label}}</view>
+  </view>
+
+  <!-- 聚会列表 -->
+  <view class="list">
+    <view class="card" wx:for="{{list}}" wx:key="id" bindtap="goDetail" data-id="{{item.id}}">
+      <view class="card-top">
+        <text class="card-title">{{item.title}}</text>
+        <text class="card-status s{{item.status}}">{{item.statusLabel}}</text>
+      </view>
+      <view class="card-row" wx:if="{{item.timeText}}">
+        <text class="row-icon">🕐</text>
+        <text>{{item.timeText}}</text>
+      </view>
+      <view class="card-row" wx:if="{{item.location}}">
+        <text class="row-icon">📍</text>
+        <text>{{item.location}}</text>
+      </view>
+      <view class="card-bottom">
+        <text class="card-count" wx:if="{{item.progress}}">{{item.progress}}</text>
+        <text class="card-arrow">›</text>
+      </view>
+    </view>
+
+    <view class="empty" wx:if="{{!loading && list.length === 0}}">
+      <text>暂无聚会，点击右下角发布</text>
+    </view>
+    <view class="load-more" wx:if="{{hasMore}}" bindtap="loadMore">加载更多</view>
+  </view>
+
+  <!-- 发布聚会 -->
+  <view class="fab" bindtap="goCreate">+</view>
+</view>

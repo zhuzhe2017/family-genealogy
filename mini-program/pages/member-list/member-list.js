@@ -17,6 +17,11 @@ Page({
     this.loadMembers();
   },
 
+  /** 返回时置位标记,避免"族成员" tab 入口页再次自动跳转造成循环 */
+  onUnload() {
+    app.globalData.skipMemberNav = true;
+  },
+
   loadMembers() {
     const familyId = (app.globalData.currentFamily || {}).id;
     if (!USE_MOCK && getToken() && familyId) {

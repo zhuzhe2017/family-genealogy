@@ -1,0 +1,196 @@
+.page {
+  min-height: 100vh;
+  background: #F5F1EA;
+  padding: 24rpx;
+  box-sizing: border-box;
+}
+
+.loading {
+  text-align: center;
+  color: #999;
+  padding: 100rpx 0;
+  font-size: 28rpx;
+}
+
+.card {
+  background: #FFF;
+  border-radius: 20rpx;
+  padding: 24rpx;
+  margin-bottom: 20rpx;
+  box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.05);
+}
+
+.section-title {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 20rpx;
+}
+
+/* 参会者签到卡 */
+.checkin-card {
+  background: #FFF;
+  border-radius: 20rpx;
+  padding: 40rpx 24rpx;
+  text-align: center;
+  margin-bottom: 20rpx;
+  box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.05);
+}
+
+.status-badge {
+  display: inline-block;
+  font-size: 24rpx;
+  padding: 8rpx 28rpx;
+  border-radius: 40rpx;
+  margin-bottom: 20rpx;
+}
+
+.status-badge.pending {
+  background: #FDF3E0;
+  color: #C9A227;
+}
+
+.status-badge.done {
+  background: #E8F5E9;
+  color: #2E7D32;
+}
+
+.user-name {
+  font-size: 36rpx;
+  font-weight: 700;
+  color: #333;
+  margin-bottom: 8rpx;
+}
+
+.session-name {
+  font-size: 26rpx;
+  color: #999;
+  margin-bottom: 20rpx;
+}
+
+.qrcode {
+  width: 420rpx;
+  height: 420rpx;
+  margin: 0 auto 20rpx;
+}
+
+.code-display {
+  margin: 40rpx auto 20rpx;
+}
+
+.code-text {
+  font-size: 72rpx;
+  font-weight: 700;
+  color: #8B1A1A;
+  letter-spacing: 10rpx;
+  font-family: monospace;
+}
+
+.code-tip {
+  font-size: 26rpx;
+  color: #999;
+  margin-bottom: 8rpx;
+}
+
+.code-num {
+  font-size: 28rpx;
+  color: #8B1A1A;
+  font-weight: 600;
+}
+
+/* 输入核销行 */
+.verify-row {
+  display: flex;
+  gap: 16rpx;
+  align-items: center;
+}
+
+.verify-input {
+  flex: 1;
+  font-size: 32rpx;
+  letter-spacing: 6rpx;
+  background: #F7F5F0;
+  border-radius: 12rpx;
+  padding: 14rpx 20rpx;
+  text-align: center;
+  color: #333;
+}
+
+.btn-sm {
+  flex-shrink: 0;
+  margin: 0;
+  font-size: 28rpx;
+  font-weight: 500;
+  border-radius: 44rpx;
+  line-height: 2.2;
+  padding: 0 40rpx;
+}
+
+/* 组织者扫码区 */
+.scan-area {
+  background: #F7F5F0;
+  border: 2rpx dashed #C9A227;
+  border-radius: 16rpx;
+  padding: 60rpx 0;
+  text-align: center;
+}
+
+.scan-icon {
+  display: block;
+  font-size: 72rpx;
+  color: #8B1A1A;
+  margin-bottom: 12rpx;
+}
+
+.scan-text {
+  font-size: 28rpx;
+  color: #666;
+}
+
+/* 核销结果 */
+.result-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8rpx 0;
+}
+
+.result-name {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #333;
+}
+
+.result-status {
+  font-size: 26rpx;
+}
+
+.result-status.ok {
+  color: #2E7D32;
+}
+
+.result-status.warn {
+  color: #C9A227;
+}
+
+.result-time {
+  font-size: 24rpx;
+  color: #999;
+  margin-top: 12rpx;
+}
+
+.link-row {
+  font-size: 28rpx;
+  color: #8B1A1A;
+  text-align: center;
+  padding: 8rpx 0;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, #8B1A1A, #B22222) !important;
+  color: #FFF !important;
+}
+
+.btn-primary::after {
+  border: none;
+}

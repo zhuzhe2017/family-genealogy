@@ -1,0 +1,75 @@
+<view class="page">
+  <!-- 添加按钮 -->
+  <view class="add-bar" wx:if="{{canManage}}">
+    <button class="btn-ghost" bindtap="openAdd">+ 添加成员</button>
+  </view>
+  <view class="tip-text" wx:if="{{canManage}}">点击成员可分配角色与精细权限；只有绑定账号的家族成员才能加入基金。</view>
+
+  <!-- 列表 -->
+  <view class="member-list">
+    <view class="member-item" wx:for="{{members}}" wx:key="userId"
+          bindtap="openEdit" data-userid="{{item.userId}}">
+      <view class="avatar">{{item.name ? item.name[0] : '?'}}</view>
+      <view class="member-main">
+        <view class="member-name">
+          <text>{{item.name}}</text>
+          <text class="role-badge {{item.role}}">{{item.roleLabel}}</text>
+        </view>
+        <view class="member-balance">个人余额：{{item.balance.toFixed(2)}} 元</view>
+        <view class="perm-tags" wx:if="{{item.permLabels.length}}">
+          <text class="perm-tag" wx:for="{{item.permLabels}}" wx:for-item="p" wx:key="*this">{{p}}</text>
+        </view>
+      </view>
+      <view class="member-arrow" wx:if="{{canManage && item.role !== 'leader'}}">›</view>
+    </view>
+    <view class="member-empty" wx:if="{{!loading && members.length === 0}}">暂无基金成员</view>
+  </view>
+
+  <!-- 添加成员半屏弹层 -->
+  <view class="mask" wx:if="{{showAdd}}" bindtap="closeAdd"></view>
+  <view class="sheet" wx:if="{{showAdd}}">
+    <view class="sheet-title">
+      <text>选择要添加的成员</text>
+      <text class="sheet-close" bindtap="closeAdd">✕</text>
+    </view>
+    <scroll-view scroll-y class="sheet-body">
+      <view class="candidate-item" wx:for="{{candidates}}" wx:key="memberId"
+            bindtap="addCandidate" data-id="{{item.memberId}}">
+        <view class="avatar">{{item.name ? item.name[0] : '?'}}</view>
+        <view class="candidate-name">{{item.name}}</view>
+        <view class="candidate-add">添加</view>
+      </view>
+    </scroll-view>
+  </view>
+
+  <!-- 成员编辑弹层 -->
+  <view class="mask" wx:if="{{showEdit}}" bindtap="closeEdit"></view>
+  <view class="sheet" wx:if="{{showEdit}}">
+    <view class="sheet-title">
+      <text>权限设置 · {{editing.name}}</text>
+      <text class="sheet-close" bindtap="closeEdit">✕</text>
+    </view>
+    <scroll-view scroll-y class="sheet-body">
+      <view class="edit-section">
+        <view class="edit-label">角色</view>
+        <picker mode="selector" range="{{roles}}" range-key="label" value="{{editRoleIndex}}" bindchange="onRoleChange">
+          <view class="picker-value">{{roles[editRoleIndex].label}} ▾</view>
+        </picker>
+      </view>
+      <view class="edit-section">
+        <view class="edit-label">操作权限</view>
+        <view class="perm-item" wx:for="{{permOptions}}" wx:key="key">
+          <view class="perm-info">
+            <view class="perm-name">{{item.label}}</view>
+            <view class="perm-desc">{{item.desc}}</view>
+          </view>
+          <switch checked="{{editPerms.includes(item.key)}}" data-key="{{item.key}}" bindchange="onPermChange" color="#8B1A1A" />
+        </view>
+      </view>
+      <view class="edit-btns">
+        <button class="btn-danger" bindtap="removeMember">移出基金</button>
+        <button class="btn-primary" bindtap="saveMember">保存权限</button>
+      </view>
+    </scroll-view>
+  </view>
+</view>

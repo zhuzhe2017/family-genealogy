@@ -94,6 +94,11 @@ Page({
     this.loadTreeData();
   },
 
+  onUnload() {
+    // 标记:从家谱树返回时,家族列表页本次不再自动跳转,允许切换/加入家族
+    app.globalData.skipAutoEnter = true;
+  },
+
   onShow() {
     // 首次进入不重复加载；从添加/编辑成员等页面返回时刷新树与列表
     if (this._loaded) {
@@ -1676,7 +1681,7 @@ Page({
     if (share) {
       wx.shareFileMessage({
         filePath,
-        fileName: '家族树.png',
+        fileName: '家谱树.png',
         success: () => {},
         fail: () => wx.showToast({ title: '分享失败', icon: 'none' })
       });

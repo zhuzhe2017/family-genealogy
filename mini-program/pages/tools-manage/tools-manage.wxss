@@ -1,0 +1,118 @@
+/* 工具管理页样式:复用应用中心/我的页的图标、卡片与排版 */
+.container {
+  padding: 24rpx;
+}
+
+/* 模块说明卡 */
+.intro-card {
+  background: linear-gradient(135deg, #E0F7FA, #F0FDFF);
+  border-radius: 24rpx;
+  padding: 28rpx 32rpx;
+  margin-bottom: 24rpx;
+  display: flex;
+  flex-direction: column;
+}
+
+.intro-title {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 8rpx;
+}
+
+.intro-desc {
+  font-size: 24rpx;
+  color: #666;
+  line-height: 1.6;
+}
+
+/* 工具列表卡 */
+.tool-card {
+  background: #FFFFFF;
+  border-radius: 24rpx;
+  padding: 8rpx 24rpx;
+  box-shadow: 0 4rpx 20rpx rgba(0,0,0,0.06);
+}
+
+.tool-item {
+  display: flex;
+  align-items: center;
+  padding: 24rpx 0;
+  border-bottom: 1rpx solid #F0F0F0;
+}
+
+.tool-item:last-child {
+  border-bottom: none;
+}
+
+.tool-icon {
+  width: 88rpx;
+  height: 88rpx;
+  border-radius: 24rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 24rpx;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.tool-icon-plugin {
+  background: #E0F7FA;
+}
+
+.tool-icon-img {
+  width: 100%;
+  height: 100%;
+}
+
+.tool-icon-text {
+  font-size: 40rpx;
+}
+
+.tool-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.tool-name {
+  font-size: 28rpx;
+  font-weight: 500;
+  color: #333;
+}
+
+.tool-desc {
+  font-size: 24rpx;
+  color: #999;
+  margin-top: 6rpx;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tool-arrow {
+  font-size: 36rpx;
+  color: #CCC;
+  margin-left: 16rpx;
+}
+
+.page-tip {
+  text-align: center;
+  font-size: 24rpx;
+  color: #999;
+  margin-top: 24rpx;
+}
+
+.empty {
+  padding: 120rpx 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.empty-text {
+  font-size: 26rpx;
+  color: #999;
+}

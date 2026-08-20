@@ -1,0 +1,29 @@
+<view class="container">
+  <!-- 模块说明:购买、授权及相关管理 -->
+  <view class="intro-card">
+    <text class="intro-title">工具管理</text>
+    <text class="intro-desc">对应用中心里的插件工具进行购买、授权及相关管理操作</text>
+  </view>
+
+  <!-- 工具列表:动态从后端 app_plugin 拉取 -->
+  <view class="tool-card" wx:if="{{tools.length > 0}}">
+    <view class="tool-item" wx:for="{{tools}}" wx:key="id" bindtap="openTool" data-item="{{item}}">
+      <view class="tool-icon tool-icon-plugin">
+        <image wx:if="{{item.iconImage}}" class="tool-icon-img" src="{{item.icon}}" mode="aspectFill" />
+        <text wx:else class="tool-icon-text">{{item.icon}}</text>
+      </view>
+      <view class="tool-info">
+        <text class="tool-name">{{item.name}}</text>
+        <text class="tool-desc" wx:if="{{item.description}}">{{item.description}}</text>
+      </view>
+      <text class="tool-arrow">›</text>
+    </view>
+  </view>
+
+  <!-- 空态:暂无可用工具 -->
+  <view class="empty" wx:if="{{!loading && tools.length === 0}}">
+    <text class="empty-text">暂无工具，敬请期待</text>
+  </view>
+
+  <view class="page-tip">更多工具持续接入中</view>
+</view>

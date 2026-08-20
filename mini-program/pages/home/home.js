@@ -8,8 +8,8 @@ Page({
   data: {
     currentFamily: {},
     quickActions: [
-      { id: 1, name: '家族树', icon: '🌳', bgColor: '#E8F5E9', url: '/pages/family-tree-detail/family-tree-detail' },
-      { id: 2, name: '家族成员', icon: '👥', bgColor: '#E3F2FD', url: '/pages/member-list/member-list' },
+      { id: 1, name: '宗亲聚会', icon: '🌳', bgColor: '#E8F5E9', url: '/pages/gathering/index' },
+      { id: 2, name: '家族基金', icon: '💰', bgColor: '#E3F2FD', url: '/pages/fund/index' },
       { id: 3, name: '家族资料', icon: '📚', bgColor: '#FFF3E0', url: '/pages/family-docs/family-docs' },
       { id: 4, name: '事件时间', icon: '📅', bgColor: '#F3E5F5', url: '/pages/timeline/timeline' },
       { id: 5, name: '相册影像', icon: '📷', bgColor: '#E0F2F1', url: '/pages/album/album' },
@@ -259,8 +259,13 @@ Page({
     }
     if (type === 'page') {
       const tabBarPages = ['/pages/home/home', '/pages/family-tree/family-tree', '/pages/dynamic/dynamic', '/pages/profile/profile'];
-      if (tabBarPages.includes(url)) {
-        wx.switchTab({ url });
+      const baseUrl = String(url).split('?')[0];
+      if (baseUrl === '/pages/dynamic/dynamic') {
+        // 显式进入动态列表:置位标记,避免"族成员" tab 劫持
+        app.globalData.dynamicFromHome = true;
+      }
+      if (tabBarPages.includes(baseUrl)) {
+        wx.switchTab({ url: baseUrl });
       } else {
         wx.navigateTo({ url });
       }
@@ -322,8 +327,13 @@ Page({
     const url = e.currentTarget.dataset.url;
     // tabBar 页面必须用 switchTab 跳转,其余用 navigateTo
     const tabBarPages = ['/pages/home/home', '/pages/family-tree/family-tree', '/pages/dynamic/dynamic', '/pages/profile/profile'];
-    if (tabBarPages.includes(url)) {
-      wx.switchTab({ url });
+    const baseUrl = String(url).split('?')[0];
+    if (baseUrl === '/pages/dynamic/dynamic') {
+      // 显式进入动态列表(金刚区/查看更多):置位标记,避免"族成员" tab 劫持
+      app.globalData.dynamicFromHome = true;
+    }
+    if (tabBarPages.includes(baseUrl)) {
+      wx.switchTab({ url: baseUrl });
     } else {
       wx.navigateTo({ url });
     }

@@ -230,6 +230,7 @@ const local: App.I18n.Schema = {
     'mini-program_overview': '小程序概览',
     'mini-program_members': '成员管理',
     'mini-program_family': '家族管理',
+    'mini-program_gathering': '宗亲聚会',
     'mini-program_family-tree': '家族树',
     'mini-program_generation-table': '字辈管理',
     'mini-program_content': '内容管理',

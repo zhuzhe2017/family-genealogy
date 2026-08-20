@@ -1,0 +1,135 @@
+<view class="page">
+  <!-- 加载中 -->
+  <view class="state" wx:if="{{loading}}">
+    <view class="state-icon">💰</view>
+    <text class="state-text">加载中...</text>
+  </view>
+
+  <!-- 未选择家族 -->
+  <view class="state" wx:elif="{{needChooseFamily}}">
+    <view class="state-icon">💰</view>
+    <text class="state-text">请先选择或加入家族</text>
+    <view class="state-btn" bindtap="goChooseFamily">去选择家族</view>
+  </view>
+
+  <!-- 未创建基金 -->
+  <view class="state" wx:elif="{{!hasFund}}">
+    <view class="state-icon">🏦</view>
+    <text class="state-text">该家族尚未创建家族基金</text>
+    <text class="state-sub">创建后可管理家族公共资金，支持成员存入、取出、转账与对账</text>
+    <view class="state-btn primary" bindtap="goCreate">创建家族基金</view>
+  </view>
+
+  <!-- 已创建 -->
+  <block wx:else>
+    <!-- 余额卡 -->
+    <view class="hero">
+      <view class="hero-top">
+        <view class="hero-name">{{fund.name || '家族基金'}}</view>
+        <view class="hero-badge">{{roleLabel}}</view>
+      </view>
+      <view class="hero-label">基金总额（元）</view>
+      <view class="hero-amount">{{fund.totalAmount.toFixed(2)}}</view>
+      <view class="hero-row">
+        <view class="hero-cell">
+          <view class="cell-label">我的余额</view>
+          <view class="cell-value">{{myBalance.toFixed(2)}}</view>
+        </view>
+        <view class="hero-cell">
+          <view class="cell-label">本月收入</view>
+          <view class="cell-value green">{{stats ? stats.monthIncome.toFixed(2) : '0.00'}}</view>
+        </view>
+        <view class="hero-cell">
+          <view class="cell-label">本月支出</view>
+          <view class="cell-value red">{{stats ? stats.monthExpense.toFixed(2) : '0.00'}}</view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 待审批提醒 -->
+    <view class="pending-card" wx:if="{{pendingCount > 0 && hasPerm('approve')}}" bindtap="goRecords">
+      <text>有 {{pendingCount}} 笔大额取出待审批，点击处理</text>
+      <text class="pending-arrow">›</text>
+    </view>
+
+    <!-- 快捷操作 -->
+    <view class="card">
+      <view class="card-title">资金操作</view>
+      <view class="grid">
+        <view class="grid-item" wx:if="{{hasPerm('deposit')}}" bindtap="goOp" data-type="deposit">
+          <view class="grid-icon">📥</view>
+          <text>存入</text>
+        </view>
+        <view class="grid-item" wx:if="{{hasPerm('withdraw')}}" bindtap="goOp" data-type="withdraw">
+          <view class="grid-icon">📤</view>
+          <text>取出</text>
+        </view>
+        <view class="grid-item" wx:if="{{hasPerm('transfer')}}" bindtap="goOp" data-type="transfer">
+          <view class="grid-icon">🔁</view>
+          <text>转账</text>
+        </view>
+        <view class="grid-item" wx:if="{{isLeader}}" bindtap="goOp" data-type="adjust">
+          <view class="grid-icon">⚖️</view>
+          <text>调账</text>
+        </view>
+      </view>
+    </view>
+
+    <view class="card">
+      <view class="card-title">基金管理</view>
+      <view class="menu-list">
+        <view class="menu-item" bindtap="goRecords">
+          <text>交易明细 / 对账</text>
+          <text class="menu-arrow">›</text>
+        </view>
+        <view class="menu-item" wx:if="{{hasPerm('manage_member')}}" bindtap="goMembers">
+          <text>成员与权限管理</text>
+          <text class="menu-arrow">›</text>
+        </view>
+        <view class="menu-item" wx:if="{{hasPerm('manage_rule')}}" bindtap="goSettings">
+          <text>基金设置与限额</text>
+          <text class="menu-arrow">›</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 今日概览 -->
+    <view class="card" wx:if="{{stats}}">
+      <view class="card-title">今日概览</view>
+      <view class="day-row">
+        <view class="day-cell">
+          <view class="day-label">今日收入</view>
+          <view class="day-value green">{{stats.todayIncome.toFixed(2)}}</view>
+        </view>
+        <view class="day-cell">
+          <view class="day-label">今日支出</view>
+          <view class="day-value red">{{stats.todayExpense.toFixed(2)}}</view>
+        </view>
+        <view class="day-cell">
+          <view class="day-label">我的累计存入</view>
+          <view class="day-value">{{stats.myDeposit.toFixed(2)}}</view>
+        </view>
+        <view class="day-cell">
+          <view class="day-label">我的累计取出</view>
+          <view class="day-value">{{stats.myWithdraw.toFixed(2)}}</view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 使用说明 -->
+    <view class="card help">
+      <view class="card-title" bindtap="toggleHelp">
+        <text>使用说明</text>
+        <text class="help-toggle">{{showHelp ? '收起' : '展开'}} ▾</text>
+      </view>
+      <view class="help-body" wx:if="{{showHelp}}">
+        <view class="help-line">1. 存入：成员可将资金存入基金公共池，受单次/每日/每月限额约束。</view>
+        <view class="help-line">2. 取出：需取出权限；超过审批阈值的金额将进入待审批，由族长或管理员审批。</view>
+        <view class="help-line">3. 转账：成员间资金流转，仅影响个人余额，公共池不变，计入取出限额。</view>
+        <view class="help-line">4. 调账：族长可直接调整公共池（如现金补入、更正差错）。</view>
+        <view class="help-line">5. 权限：族长可添加成员并为其分配存取、转账、审批等细粒度权限。</view>
+        <view class="help-line">6. 对账：交易明细按时间、类型、成员多维筛选，自动汇总收入与支出。</view>
+      </view>
+    </view>
+  </block>
+</view>

@@ -1,0 +1,227 @@
+/* 家族基金主页 */
+.page {
+  min-height: 100vh;
+  background: #F6F7FB;
+  padding-bottom: 60rpx;
+}
+
+/* 空状态 */
+.state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 180rpx 60rpx 0;
+}
+.state-icon {
+  font-size: 96rpx;
+  margin-bottom: 24rpx;
+}
+.state-text {
+  font-size: 30rpx;
+  color: #666;
+  margin-bottom: 16rpx;
+}
+.state-sub {
+  font-size: 26rpx;
+  color: #999;
+  text-align: center;
+  line-height: 1.6;
+  margin-bottom: 40rpx;
+}
+.state-btn {
+  padding: 18rpx 64rpx;
+  background: #F5F5F5;
+  color: #333;
+  font-size: 28rpx;
+  border-radius: 44rpx;
+}
+.state-btn.primary {
+  background: linear-gradient(135deg, #8B1A1A, #B22222);
+  color: #FFF;
+  font-weight: 500;
+}
+
+/* 余额卡 */
+.hero {
+  margin: 24rpx;
+  padding: 36rpx 32rpx 28rpx;
+  background: linear-gradient(135deg, #8B1A1A, #B22222);
+  border-radius: 24rpx;
+  color: #FFF;
+  box-shadow: 0 10rpx 30rpx rgba(139, 26, 26, 0.25);
+}
+.hero-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20rpx;
+}
+.hero-name {
+  font-size: 34rpx;
+  font-weight: 600;
+}
+.hero-badge {
+  font-size: 22rpx;
+  padding: 6rpx 20rpx;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 24rpx;
+}
+.hero-label {
+  font-size: 24rpx;
+  opacity: 0.85;
+  margin-bottom: 8rpx;
+}
+.hero-amount {
+  font-size: 64rpx;
+  font-weight: 700;
+  margin-bottom: 28rpx;
+}
+.hero-row {
+  display: flex;
+  border-top: 1rpx solid rgba(255, 255, 255, 0.2);
+  padding-top: 24rpx;
+}
+.hero-cell {
+  flex: 1;
+}
+.cell-label {
+  font-size: 22rpx;
+  opacity: 0.85;
+  margin-bottom: 6rpx;
+}
+.cell-value {
+  font-size: 30rpx;
+  font-weight: 600;
+}
+.cell-value.green {
+  color: #C8E6C9;
+}
+.cell-value.red {
+  color: #FFCDD2;
+}
+
+/* 待审批提醒 */
+.pending-card {
+  margin: 0 24rpx 20rpx;
+  padding: 22rpx 28rpx;
+  background: #FFF8E1;
+  color: #8D6E63;
+  font-size: 26rpx;
+  border-radius: 16rpx;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.pending-arrow {
+  font-size: 32rpx;
+}
+
+/* 卡片 */
+.card {
+  margin: 0 24rpx 20rpx;
+  background: #FFF;
+  border-radius: 20rpx;
+  padding: 28rpx;
+}
+.card-title {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 24rpx;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* 操作网格 */
+.grid {
+  display: flex;
+  flex-wrap: wrap;
+}
+.grid-item {
+  width: 25%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 12rpx 0 20rpx;
+  font-size: 24rpx;
+  color: #555;
+}
+.grid-icon {
+  width: 88rpx;
+  height: 88rpx;
+  border-radius: 50%;
+  background: #F5F0F0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 40rpx;
+  margin-bottom: 12rpx;
+}
+
+/* 菜单 */
+.menu-list {
+  display: flex;
+  flex-direction: column;
+}
+.menu-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 26rpx 0;
+  font-size: 28rpx;
+  color: #333;
+  border-bottom: 1rpx solid #F5F5F5;
+}
+.menu-item:last-child {
+  border-bottom: none;
+}
+.menu-arrow {
+  color: #CCC;
+  font-size: 32rpx;
+}
+
+/* 今日概览 */
+.day-row {
+  display: flex;
+  flex-wrap: wrap;
+}
+.day-cell {
+  width: 50%;
+  padding: 14rpx 0;
+}
+.day-label {
+  font-size: 24rpx;
+  color: #999;
+  margin-bottom: 6rpx;
+}
+.day-value {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: #333;
+}
+.day-value.green {
+  color: #2E7D32;
+}
+.day-value.red {
+  color: #C62828;
+}
+
+/* 使用说明 */
+.help {
+  background: #FAF7F2;
+}
+.help-toggle {
+  font-size: 24rpx;
+  color: #999;
+  font-weight: 400;
+}
+.help-body {
+  padding-top: 8rpx;
+}
+.help-line {
+  font-size: 25rpx;
+  color: #666;
+  line-height: 1.8;
+  margin-bottom: 8rpx;
+}

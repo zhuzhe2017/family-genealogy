@@ -20,7 +20,31 @@ Page({
 
   /** tabBar 页:每次可见时刷新(家族可能已切换、登录状态可能已变化) */
   onShow() {
-    this.loadDynamics({ silent: true });
+    // 显式进入动态列表(首页金刚区/查看更多):不做"族成员" tab 劫持
+    if (app.globalData.dynamicFromHome) {
+      app.globalData.dynamicFromHome = false;
+      this.loadDynamics({ silent: true });
+      return;
+    }
+    // "族成员" tab:已加入家族直达成员列表;未加入/未登录引导进入家族选择页
+    if (this.shouldAutoEnterMember()) {
+      const skip = app.globalData.skipMemberNav;
+      app.globalData.skipMemberNav = false;
+      if (skip) {
+        // 从成员列表页返回:本次停留在本页,允许继续浏览
+        this.loadDynamics({ silent: true });
+        return;
+      }
+      wx.navigateTo({ url: '/pages/member-list/member-list' });
+      return;
+    }
+    // 未加入任何家族:切换到家谱树 tab 的家族选择界面
+    wx.switchTab({ url: '/pages/family-tree/family-tree' });
+  },
+
+  /** 已加入家族(用户资料带 familyId)时返回 true,此时点击"族成员" tab 无需再选家族 */
+  shouldAutoEnterMember() {
+    return !!(app.globalData.userInfo && app.globalData.userInfo.familyId);
   },
 
   /**

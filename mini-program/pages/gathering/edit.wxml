@@ -1,0 +1,126 @@
+<view class="page">
+  <!-- 基本信息 -->
+  <view class="card">
+    <view class="section-title">基本信息</view>
+    <view class="field">
+      <text class="label">聚会名称 *</text>
+      <input class="input" value="{{form.title}}" data-key="title" bindinput="onInput" placeholder="如：2026 年中秋宗亲联谊会" maxlength="50" />
+    </view>
+    <view class="field">
+      <text class="label">聚会地点</text>
+      <input class="input" value="{{form.location}}" data-key="location" bindinput="onInput" placeholder="如：朱氏宗祠" maxlength="50" />
+    </view>
+    <view class="field">
+      <text class="label">详细地址</text>
+      <input class="input" value="{{form.addressDetail}}" data-key="addressDetail" bindinput="onInput" placeholder="如：XX省XX市XX区XX路 1 号" maxlength="100" />
+    </view>
+    <view class="field">
+      <text class="label">聚会介绍</text>
+      <textarea class="textarea" value="{{form.description}}" data-key="description" bindinput="onInput" placeholder="聚会主题、注意事项等" maxlength="1000" />
+    </view>
+    <view class="field">
+      <text class="label">人数上限</text>
+      <input class="input" type="number" value="{{form.capacity}}" data-key="capacity" bindinput="onInput" placeholder="0 表示不限" />
+    </view>
+  </view>
+
+  <!-- 时间安排 -->
+  <view class="card">
+    <view class="section-title">时间安排</view>
+    <view class="field-row">
+      <text class="label">开始时间</text>
+      <picker mode="date" value="{{form.startDate}}" data-key="startDate" bindchange="onDateChange">
+        <view class="picker">{{form.startDate || '选择日期'}}</view>
+      </picker>
+      <picker mode="time" value="{{form.startTime}}" data-key="startTime" bindchange="onTimeChange">
+        <view class="picker">{{form.startTime || '时间'}}</view>
+      </picker>
+    </view>
+    <view class="field-row">
+      <text class="label">结束时间</text>
+      <picker mode="date" value="{{form.endDate}}" data-key="endDate" bindchange="onDateChange">
+        <view class="picker">{{form.endDate || '选择日期'}}</view>
+      </picker>
+      <picker mode="time" value="{{form.endTime}}" data-key="endTime" bindchange="onTimeChange">
+        <view class="picker">{{form.endTime || '时间'}}</view>
+      </picker>
+    </view>
+    <view class="field-row">
+      <text class="label">报名截止</text>
+      <picker mode="date" value="{{form.deadlineDate}}" data-key="deadlineDate" bindchange="onDateChange">
+        <view class="picker">{{form.deadlineDate || '选择日期'}}</view>
+      </picker>
+      <picker mode="time" value="{{form.deadlineTime}}" data-key="deadlineTime" bindchange="onTimeChange">
+        <view class="picker">{{form.deadlineTime || '时间'}}</view>
+      </picker>
+    </view>
+  </view>
+
+  <!-- 场次 / 时间段 -->
+  <view class="card">
+    <view class="section-title">场次 / 时间段</view>
+    <view class="session-line" wx:for="{{sessions}}" wx:key="index">
+      <view class="line-head">
+        <text class="line-no">场次 {{index + 1}}</text>
+        <text class="line-del" data-index="{{index}}" bindtap="removeSession">删除</text>
+      </view>
+      <view class="field">
+        <text class="label">名称</text>
+        <input class="input" value="{{item.name}}" data-index="{{index}}" data-key="name" bindinput="onSessionInput" placeholder="如：上午场 / 宴席 18:00" />
+      </view>
+      <view class="field-row">
+        <text class="label">开始</text>
+        <picker mode="date" value="{{item.startDate}}" data-index="{{index}}" data-key="startDate" bindchange="onSessionDate">
+          <view class="picker">{{item.startDate || '日期'}}</view>
+        </picker>
+        <picker mode="time" value="{{item.startTime}}" data-index="{{index}}" data-key="startTime" bindchange="onSessionTime">
+          <view class="picker">{{item.startTime || '时间'}}</view>
+        </picker>
+      </view>
+      <view class="field-row">
+        <text class="label">结束</text>
+        <picker mode="date" value="{{item.endDate}}" data-index="{{index}}" data-key="endDate" bindchange="onSessionDate">
+          <view class="picker">{{item.endDate || '日期'}}</view>
+        </picker>
+        <picker mode="time" value="{{item.endTime}}" data-index="{{index}}" data-key="endTime" bindchange="onSessionTime">
+          <view class="picker">{{item.endTime || '时间'}}</view>
+        </picker>
+      </view>
+      <view class="field">
+        <text class="label">人数上限</text>
+        <input class="input" type="number" value="{{item.capacity}}" data-index="{{index}}" data-key="capacity" bindinput="onSessionInput" placeholder="0 表示不限" />
+      </view>
+    </view>
+    <view class="add-line" bindtap="addSession">＋ 添加场次</view>
+  </view>
+
+  <!-- 议程 -->
+  <view class="card">
+    <view class="section-title">议程安排</view>
+    <view class="agenda-line" wx:for="{{agenda}}" wx:key="index">
+      <view class="line-head">
+        <text class="line-no">议程 {{index + 1}}</text>
+        <text class="line-del" data-index="{{index}}" bindtap="removeAgenda">删除</text>
+      </view>
+      <view class="field">
+        <text class="label">时间</text>
+        <input class="input" value="{{item.time}}" data-index="{{index}}" data-key="time" bindinput="onAgendaInput" placeholder="如：09:00-09:30" />
+      </view>
+      <view class="field">
+        <text class="label">事项</text>
+        <input class="input" value="{{item.item}}" data-index="{{index}}" data-key="item" bindinput="onAgendaInput" placeholder="如：签到入场" />
+      </view>
+      <view class="field">
+        <text class="label">备注</text>
+        <input class="input" value="{{item.remark}}" data-index="{{index}}" data-key="remark" bindinput="onAgendaInput" placeholder="选填" />
+      </view>
+    </view>
+    <view class="add-line" bindtap="addAgenda">＋ 添加议程</view>
+  </view>
+
+  <!-- 提交 -->
+  <view class="footer">
+    <button class="btn-ghost" data-publish="0" bindtap="submit">保存草稿</button>
+    <button class="btn-primary" data-publish="1" bindtap="submit">发布聚会</button>
+  </view>
+</view>

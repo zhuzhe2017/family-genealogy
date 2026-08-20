@@ -1,0 +1,71 @@
+.page {
+  min-height: 100vh;
+  background: #F6F7FB;
+  padding-bottom: 40rpx;
+}
+
+.form-card {
+  margin: 24rpx;
+  background: #FFF;
+  border-radius: 20rpx;
+  padding: 8rpx 28rpx;
+}
+.form-item {
+  padding: 26rpx 0;
+  border-bottom: 1rpx solid #F5F5F5;
+}
+.form-item:last-child {
+  border-bottom: none;
+}
+.form-label {
+  font-size: 27rpx;
+  color: #333;
+  margin-bottom: 16rpx;
+}
+.required {
+  color: #E64340;
+  margin-left: 4rpx;
+}
+.input {
+  font-size: 28rpx;
+  height: 48rpx;
+}
+.picker-value {
+  font-size: 28rpx;
+  color: #333;
+  padding: 6rpx 0;
+}
+.empty-tip {
+  font-size: 25rpx;
+  color: #999;
+}
+
+.rule-card {
+  margin: 0 24rpx 20rpx;
+  background: #FFF8E1;
+  border-radius: 16rpx;
+  padding: 24rpx 28rpx;
+}
+.rule-line {
+  font-size: 25rpx;
+  color: #8D6E63;
+  line-height: 1.8;
+}
+
+.footer {
+  margin: 40rpx 24rpx;
+}
+.footer button {
+  width: 100%;
+  margin: 0;
+  height: 96rpx;
+  font-size: 32rpx;
+  font-weight: 500;
+  border-radius: 48rpx;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #8B1A1A, #B22222);
+  color: #FFF;
+}

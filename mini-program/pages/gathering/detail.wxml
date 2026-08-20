@@ -1,0 +1,112 @@
+<view class="page" wx:if="{{detail}}">
+  <!-- 标题与状态 -->
+  <view class="hero">
+    <image wx:if="{{detail.coverImage}}" class="hero-img" src="{{detail.coverImage}}" mode="aspectFill" />
+    <view class="hero-mask"></view>
+    <view class="hero-content">
+      <view class="hero-status s{{detail.status}}">{{detail.status === 0 ? '草稿' : detail.status === 1 ? '筹备中' : detail.status === 2 ? '进行中' : detail.status === 3 ? '已结束' : '已归档'}}</view>
+      <text class="hero-title">{{detail.title}}</text>
+      <text class="hero-sub" wx:if="{{detail.location}}">📍 {{detail.location}}</text>
+    </view>
+  </view>
+
+  <!-- 信息卡 -->
+  <view class="card">
+    <view class="info-row" wx:if="{{detail.startTime}}">
+      <text class="info-label">时间</text>
+      <text class="info-value">{{detail.startTime}}<text wx:if="{{detail.endTime}}"> ~ {{detail.endTime}}</text></text>
+    </view>
+    <view class="info-row" wx:if="{{detail.addressDetail}}">
+      <text class="info-label">地址</text>
+      <text class="info-value">{{detail.addressDetail}}</text>
+    </view>
+    <view class="info-row" wx:if="{{detail.signupDeadline}}">
+      <text class="info-label">报名截止</text>
+      <text class="info-value">{{detail.signupDeadline}}</text>
+    </view>
+    <view class="info-row">
+      <text class="info-label">报名进度</text>
+      <text class="info-value">{{detail.signedTotal}} 人报名<text wx:if="{{detail.capacity}}"> / 上限 {{detail.capacity}} 人</text><text wx:if="{{detail.checkinTotal}}">，{{detail.checkinTotal}} 人已签到</text></text>
+    </view>
+  </view>
+
+  <!-- 介绍 -->
+  <view class="card" wx:if="{{detail.description}}">
+    <view class="section-title">聚会介绍</view>
+    <text class="desc-text">{{detail.description}}</text>
+  </view>
+
+  <!-- 议程 -->
+  <view class="card" wx:if="{{detail.agenda.length > 0}}">
+    <view class="section-title">议程安排</view>
+    <view class="agenda-item" wx:for="{{detail.agenda}}" wx:key="index">
+      <text class="agenda-time" wx:if="{{item.time}}">{{item.time}}</text>
+      <text class="agenda-item-text">{{item.item}}</text>
+      <text class="agenda-remark" wx:if="{{item.remark}}">{{item.remark}}</text>
+    </view>
+  </view>
+
+  <!-- 场次 -->
+  <view class="card" wx:if="{{detail.sessions.length > 0}}">
+    <view class="section-title">场次 / 时间段</view>
+    <view class="session-item" wx:for="{{detail.sessions}}" wx:key="id">
+      <view class="session-info">
+        <text class="session-name">{{item.name}}</text>
+        <text class="session-time">{{item.startTime}}<text wx:if="{{item.endTime}}"> ~ {{item.endTime}}</text></text>
+      </view>
+      <text class="session-count" wx:if="{{item.capacity}}">{{item.signedCount}}/{{item.capacity}}人</text>
+      <text class="session-count" wx:else>{{item.signedCount}}人</text>
+    </view>
+  </view>
+
+  <!-- 我的报名 -->
+  <view class="card" wx:if="{{myReg}}">
+    <view class="section-title">我的报名</view>
+    <view class="reg-row"><text class="info-label">参会人</text><text class="info-value">{{myReg.name}}</text></view>
+    <view class="reg-row" wx:if="{{myReg.sessionName}}"><text class="info-label">场次</text><text class="info-value">{{myReg.sessionName}}</text></view>
+    <view class="reg-row"><text class="info-label">饮食</text><text class="info-value">{{myReg.dietLabel}}<text wx:if="{{myReg.dietNote}}">（{{myReg.dietNote}}）</text></text></view>
+    <view class="reg-row"><text class="info-label">状态</text>
+      <text class="info-value">{{myReg.status === 3 ? '已签到' : '已报名'}}<text wx:if="{{myReg.status === 3 && myReg.checkinTime}}"> {{myReg.checkinTime}}</text></text>
+    </view>
+    <view class="btn-group">
+      <button class="btn-primary" bindtap="goCheckin">{{myReg.status === 3 ? '查看签到' : '签到 / 签到码'}}</button>
+      <button class="btn-ghost" wx:if="{{myReg.status === 1}}" bindtap="cancelRegister">取消报名</button>
+    </view>
+  </view>
+
+  <!-- 未报名：立即报名 -->
+  <view class="card" wx:if="{{!myReg && detail.status > 0 && detail.status < 3}}">
+    <view class="section-title">参会报名</view>
+    <text class="desc-text">填写报名信息，选择场次，获取专属签到码</text>
+    <button class="btn-primary btn-full" bindtap="goRegister">立即报名</button>
+  </view>
+
+  <!-- 归档资料 -->
+  <view class="card" wx:if="{{archives.length > 0}}">
+    <view class="section-title">聚会资料归档</view>
+    <view class="archive-item" wx:for="{{archives}}" wx:key="id">
+      <image wx:if="{{item.fileType === 'image' && item.fileUrl}}" class="archive-img" src="{{item.fileUrl}}" mode="aspectFill" bindtap="previewArchive" data-url="{{item.fileUrl}}" />
+      <view class="archive-info">
+        <text class="archive-title">{{item.title}}</text>
+        <text class="archive-desc" wx:if="{{item.description}}">{{item.description}}</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 组织者管理 -->
+  <view class="card" wx:if="{{detail.isOrganizer}}">
+    <view class="section-title">组织者管理</view>
+    <view class="btn-group">
+      <button class="btn-primary" bindtap="goManage">报名名单 / 签到核销</button>
+      <button class="btn-ghost" bindtap="goEdit">编辑聚会</button>
+    </view>
+    <view class="btn-group" wx:if="{{statusAction}}">
+      <button class="btn-primary" bindtap="runStatusAction">{{statusAction.label}}</button>
+      <button class="btn-danger" bindtap="deleteGathering">删除</button>
+    </view>
+  </view>
+</view>
+
+<view class="empty" wx:if="{{!loading && !detail}}">
+  <text>聚会不存在或已删除</text>
+</view>

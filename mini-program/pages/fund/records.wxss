@@ -1,0 +1,177 @@
+.page {
+  min-height: 100vh;
+  background: #F6F7FB;
+  padding-bottom: 60rpx;
+}
+
+/* 对账卡 */
+.balance-card {
+  margin: 24rpx;
+  padding: 30rpx;
+  background: linear-gradient(135deg, #8B1A1A, #B22222);
+  border-radius: 20rpx;
+  display: flex;
+  color: #FFF;
+}
+.balance-cell {
+  flex: 1;
+}
+.balance-label {
+  font-size: 22rpx;
+  opacity: 0.85;
+  margin-bottom: 8rpx;
+}
+.balance-value {
+  font-size: 34rpx;
+  font-weight: 600;
+}
+.balance-value.green {
+  color: #C8E6C9;
+}
+.balance-value.red {
+  color: #FFCDD2;
+}
+
+/* 类型 tab */
+.tabs {
+  white-space: nowrap;
+  margin: 0 24rpx 16rpx;
+  background: #FFF;
+  border-radius: 16rpx;
+  padding: 10rpx;
+  display: flex;
+}
+.tab {
+  display: inline-block;
+  padding: 14rpx 30rpx;
+  font-size: 26rpx;
+  color: #666;
+  border-radius: 40rpx;
+  margin-right: 8rpx;
+}
+.tab.active {
+  background: linear-gradient(135deg, #8B1A1A, #B22222);
+  color: #FFF;
+  font-weight: 500;
+}
+
+/* 筛选 */
+.filter-bar {
+  display: flex;
+  margin: 0 24rpx 16rpx;
+  background: #FFF;
+  border-radius: 16rpx;
+  padding: 16rpx;
+}
+.filter-picker {
+  flex: 1;
+}
+.filter-value {
+  font-size: 24rpx;
+  color: #333;
+  text-align: center;
+  padding: 10rpx 8rpx;
+  background: #F7F7F9;
+  border-radius: 10rpx;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.filter-value.placeholder {
+  color: #999;
+}
+
+/* 列表 */
+.tx-list {
+  margin: 0 24rpx;
+  background: #FFF;
+  border-radius: 20rpx;
+  padding: 0 24rpx;
+}
+.tx-item {
+  display: flex;
+  align-items: flex-start;
+  padding: 26rpx 0;
+  border-bottom: 1rpx solid #F5F5F5;
+}
+.tx-item:last-child {
+  border-bottom: none;
+}
+.tx-icon {
+  width: 72rpx;
+  height: 72rpx;
+  border-radius: 50%;
+  background: #F5F0F0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 34rpx;
+  margin-right: 20rpx;
+  flex-shrink: 0;
+}
+.tx-main {
+  flex: 1;
+  min-width: 0;
+}
+.tx-title {
+  font-size: 29rpx;
+  color: #333;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+}
+.tx-badge {
+  font-size: 20rpx;
+  padding: 4rpx 14rpx;
+  border-radius: 20rpx;
+  margin-left: 12rpx;
+}
+.tx-badge.success {
+  background: #E8F5E9;
+  color: #2E7D32;
+}
+.tx-badge.pending {
+  background: #FFF8E1;
+  color: #F57F17;
+}
+.tx-badge.rejected {
+  background: #FFEBEE;
+  color: #C62828;
+}
+.tx-desc {
+  font-size: 24rpx;
+  color: #999;
+  margin-top: 8rpx;
+  line-height: 1.5;
+}
+.tx-time {
+  font-size: 22rpx;
+  color: #CCC;
+  margin-top: 8rpx;
+}
+.tx-amount {
+  font-size: 30rpx;
+  font-weight: 600;
+  margin-left: 16rpx;
+  flex-shrink: 0;
+}
+.tx-amount.in {
+  color: #2E7D32;
+}
+.tx-amount.out {
+  color: #C62828;
+}
+
+.tx-empty,
+.tx-more {
+  padding: 40rpx 0;
+  text-align: center;
+  font-size: 25rpx;
+  color: #999;
+}
+.approve-tip {
+  margin: 20rpx 24rpx 0;
+  font-size: 22rpx;
+  color: #999;
+  text-align: center;
+}

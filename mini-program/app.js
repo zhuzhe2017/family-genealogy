@@ -10,6 +10,12 @@ App({
     families: [],
     // 我的家族关联信息:{ familyId, family, memberId, member, shareCode }
     myFamily: null,
+    // 从家谱树页返回时置位,家族列表页据此避免无限自动跳转
+    skipAutoEnter: false,
+    // 从成员列表页返回时置位,"族成员" tab 入口页据此避免无限自动跳转
+    skipMemberNav: false,
+    // 首页金刚区/查看更多显式进入动态列表时置位,动态页据此跳过"族成员" tab 劫持
+    dynamicFromHome: false,
     systemInfo: null,
     // 是否已连接真实后端(API 不可用时降级到 mock 数据)
     isOnline: false

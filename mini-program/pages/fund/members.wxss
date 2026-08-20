@@ -1,0 +1,232 @@
+.page {
+  min-height: 100vh;
+  background: #F6F7FB;
+  padding-bottom: 60rpx;
+}
+
+.add-bar {
+  margin: 24rpx 24rpx 0;
+}
+.btn-ghost {
+  width: 100%;
+  height: 88rpx;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #FFF;
+  color: #8B1A1A;
+  font-size: 28rpx;
+  font-weight: 500;
+  border-radius: 44rpx;
+  margin: 0;
+}
+.tip-text {
+  margin: 16rpx 32rpx 0;
+  font-size: 22rpx;
+  color: #999;
+}
+
+.member-list {
+  margin: 20rpx 24rpx;
+  background: #FFF;
+  border-radius: 20rpx;
+  padding: 0 24rpx;
+}
+.member-item {
+  display: flex;
+  align-items: center;
+  padding: 26rpx 0;
+  border-bottom: 1rpx solid #F5F5F5;
+}
+.member-item:last-child {
+  border-bottom: none;
+}
+.avatar {
+  width: 84rpx;
+  height: 84rpx;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #8B1A1A, #B22222);
+  color: #FFF;
+  font-size: 34rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 20rpx;
+  flex-shrink: 0;
+}
+.member-main {
+  flex: 1;
+  min-width: 0;
+}
+.member-name {
+  font-size: 30rpx;
+  color: #333;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+}
+.role-badge {
+  font-size: 20rpx;
+  padding: 4rpx 14rpx;
+  border-radius: 20rpx;
+  margin-left: 12rpx;
+}
+.role-badge.leader {
+  background: #FFEBEE;
+  color: #C62828;
+}
+.role-badge.admin {
+  background: #FFF8E1;
+  color: #F57F17;
+}
+.role-badge.member {
+  background: #EEEEEE;
+  color: #666;
+}
+.member-balance {
+  font-size: 24rpx;
+  color: #999;
+  margin-top: 10rpx;
+}
+.perm-tags {
+  margin-top: 10rpx;
+}
+.perm-tag {
+  font-size: 20rpx;
+  color: #8B1A1A;
+  background: #F5F0F0;
+  padding: 4rpx 12rpx;
+  border-radius: 12rpx;
+  margin-right: 8rpx;
+}
+.member-arrow {
+  color: #CCC;
+  font-size: 34rpx;
+  margin-left: 12rpx;
+}
+.member-empty {
+  padding: 60rpx 0;
+  text-align: center;
+  font-size: 26rpx;
+  color: #999;
+}
+
+/* 半屏弹层 */
+.mask {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 90;
+}
+.sheet {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: #FFF;
+  border-radius: 24rpx 24rpx 0 0;
+  z-index: 100;
+  max-height: 78vh;
+  display: flex;
+  flex-direction: column;
+}
+.sheet-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 30rpx 32rpx;
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #333;
+  border-bottom: 1rpx solid #F5F5F5;
+}
+.sheet-close {
+  font-size: 32rpx;
+  color: #999;
+}
+.sheet-body {
+  padding: 20rpx 32rpx 40rpx;
+  max-height: 60vh;
+}
+
+.candidate-item {
+  display: flex;
+  align-items: center;
+  padding: 22rpx 0;
+  border-bottom: 1rpx solid #F5F5F5;
+}
+.candidate-item:last-child {
+  border-bottom: none;
+}
+.candidate-name {
+  flex: 1;
+  font-size: 28rpx;
+  color: #333;
+}
+.candidate-add {
+  font-size: 26rpx;
+  color: #8B1A1A;
+  background: #F5F0F0;
+  padding: 10rpx 30rpx;
+  border-radius: 30rpx;
+}
+
+.edit-section {
+  padding: 20rpx 0;
+  border-bottom: 1rpx solid #F5F5F5;
+}
+.edit-label {
+  font-size: 27rpx;
+  color: #333;
+  font-weight: 500;
+  margin-bottom: 16rpx;
+}
+.picker-value {
+  font-size: 28rpx;
+  color: #333;
+  padding: 6rpx 0;
+}
+.perm-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 18rpx 0;
+}
+.perm-name {
+  font-size: 28rpx;
+  color: #333;
+}
+.perm-desc {
+  font-size: 22rpx;
+  color: #999;
+  margin-top: 4rpx;
+}
+.edit-btns {
+  display: flex;
+  gap: 20rpx;
+  margin-top: 30rpx;
+}
+.edit-btns button {
+  flex: 1;
+  margin: 0;
+  height: 92rpx;
+  font-size: 30rpx;
+  font-weight: 500;
+  border-radius: 46rpx;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.btn-primary {
+  background: linear-gradient(135deg, #8B1A1A, #B22222);
+  color: #FFF;
+}
+.btn-danger {
+  background: #FFF1F0;
+  color: #E64340;
+}

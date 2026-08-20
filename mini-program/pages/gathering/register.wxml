@@ -1,0 +1,103 @@
+<view class="page">
+  <!-- 报名表单 -->
+  <block wx:if="{{!receipt}}">
+    <view class="card title-card">
+      <view class="g-title">{{title || '宗亲聚会报名'}}</view>
+      <view class="g-tip">请填写参会信息，提交后获取专属签到码</view>
+    </view>
+
+    <!-- 场次选择 -->
+    <view class="card" wx:if="{{sessions.length}}">
+      <view class="section-title">选择参与场次</view>
+      <picker range="{{sessions}}" range-key="name" value="{{sessionIndex}}" bindchange="onSessionChange">
+        <view class="session-option">
+          <view class="session-name">{{sessions[sessionIndex].name}}</view>
+          <view class="session-time">{{sessions[sessionIndex].startTime}} ~ {{sessions[sessionIndex].endTime}}</view>
+          <view class="session-capacity" wx:if="{{sessions[sessionIndex].capacity > 0}}">
+            剩余 {{sessions[sessionIndex].capacity - sessions[sessionIndex].signedCount}} 个名额
+          </view>
+        </view>
+      </picker>
+    </view>
+
+    <!-- 基本信息 -->
+    <view class="card">
+      <view class="section-title">参会人信息</view>
+      <view class="field">
+        <text class="label">姓名 *</text>
+        <input class="input" value="{{form.name}}" data-key="name" bindinput="onInput" placeholder="参会人姓名" maxlength="20" />
+      </view>
+      <view class="field">
+        <text class="label">联系电话</text>
+        <input class="input" type="number" value="{{form.phone}}" data-key="phone" bindinput="onInput" placeholder="便于组织者联系（选填）" maxlength="11" />
+      </view>
+      <view class="field">
+        <text class="label">随行人数</text>
+        <input class="input" type="number" value="{{form.guestCount}}" data-key="guestCount" bindinput="onGuestChange" placeholder="携带家属/亲友人数（选填）" />
+      </view>
+    </view>
+
+    <!-- 饮食偏好 -->
+    <view class="card">
+      <view class="section-title">饮食偏好</view>
+      <view class="diet-row">
+        <view
+          wx:for="{{dietOptions}}"
+          wx:key="value"
+          class="diet-chip {{form.dietType === item.value ? 'diet-active' : ''}}"
+          data-value="{{item.value}}"
+          bindtap="onDietChange"
+        >{{item.label}}</view>
+      </view>
+      <view class="field" wx:if="{{form.dietType === 'custom'}}">
+        <text class="label">偏好说明</text>
+        <input class="input" value="{{form.dietNote}}" data-key="dietNote" bindinput="onInput" placeholder="如：忌辛辣 / 海鲜过敏" maxlength="50" />
+      </view>
+      <view class="field" wx:else>
+        <text class="label">其他说明</text>
+        <input class="input" value="{{form.dietNote}}" data-key="dietNote" bindinput="onInput" placeholder="饮食/忌口备注（选填）" maxlength="50" />
+      </view>
+    </view>
+
+    <!-- 特殊需求 -->
+    <view class="card">
+      <view class="section-title">特殊需求</view>
+      <textarea class="textarea-full" value="{{form.specialNeed}}" data-key="specialNeed" bindinput="onInput" placeholder="无障碍通道、停车安排、儿童看护等（选填）" maxlength="200" />
+    </view>
+
+    <!-- 提交 -->
+    <view class="footer">
+      <button class="btn-primary" loading="{{loading}}" bindtap="submit">确认报名</button>
+    </view>
+  </block>
+
+  <!-- 报名成功回执 -->
+  <block wx:if="{{receipt}}">
+    <view class="receipt">
+      <view class="receipt-icon">✓</view>
+      <view class="receipt-title">报名成功</view>
+      <view class="receipt-sub">已通过应用内通知发送报名回执</view>
+
+      <view class="receipt-card">
+        <view class="receipt-row">
+          <text class="receipt-label">聚会</text>
+          <text class="receipt-value">{{receipt.gatheringTitle}}</text>
+        </view>
+        <view class="receipt-row" wx:if="{{receipt.startTime}}">
+          <text class="receipt-label">开始时间</text>
+          <text class="receipt-value">{{receipt.startTime}}</text>
+        </view>
+        <view class="receipt-row code-row">
+          <text class="receipt-label">签到码</text>
+          <text class="receipt-code">{{receipt.checkinCode}}</text>
+        </view>
+        <view class="receipt-tip">现场出示签到码或输入 6 位签到码即可签到</view>
+      </view>
+
+      <view class="footer-inner">
+        <button class="btn-ghost" bindtap="backDetail">返回详情</button>
+        <button class="btn-primary" bindtap="goCheckin">查看签到码</button>
+      </view>
+    </view>
+  </block>
+</view>

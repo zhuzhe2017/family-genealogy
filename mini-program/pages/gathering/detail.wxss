@@ -1,0 +1,246 @@
+.page {
+  min-height: 100vh;
+  background: #F5F1EA;
+  padding-bottom: 60rpx;
+}
+
+/* 头部 */
+.hero {
+  position: relative;
+  height: 260rpx;
+  overflow: hidden;
+}
+
+.hero-img {
+  width: 100%;
+  height: 100%;
+}
+
+.hero-mask {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.1) 0%, rgba(0, 0, 0, 0.55) 100%);
+}
+
+.hero-content {
+  position: absolute;
+  left: 32rpx;
+  right: 32rpx;
+  bottom: 32rpx;
+  display: flex;
+  flex-direction: column;
+  gap: 10rpx;
+}
+
+.hero-status {
+  align-self: flex-start;
+  font-size: 22rpx;
+  padding: 4rpx 20rpx;
+  border-radius: 20rpx;
+  background: rgba(255, 255, 255, 0.92);
+}
+
+.s0 { background: #ECEFF1; color: #607D8B; }
+.s1 { background: #FFF3E0; color: #E65100; }
+.s2 { background: #E3F2FD; color: #1565C0; }
+.s3 { background: #EEEEEE; color: #757575; }
+.s4 { background: #E8F5E9; color: #2E7D32; }
+
+.hero-title {
+  font-size: 40rpx;
+  font-weight: 700;
+  color: #FFF;
+  text-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.3);
+}
+
+.hero-sub {
+  font-size: 26rpx;
+  color: rgba(255, 255, 255, 0.92);
+}
+
+/* 卡片 */
+.card {
+  background: #FFF;
+  border-radius: 20rpx;
+  margin: 20rpx 24rpx 0;
+  padding: 24rpx;
+  box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.05);
+}
+
+.section-title {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 16rpx;
+}
+
+.info-row,
+.reg-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10rpx 0;
+}
+
+.info-label {
+  font-size: 26rpx;
+  color: #999;
+  flex-shrink: 0;
+  margin-right: 24rpx;
+}
+
+.info-value {
+  font-size: 26rpx;
+  color: #333;
+  text-align: right;
+  word-break: break-all;
+}
+
+.desc-text {
+  font-size: 26rpx;
+  color: #555;
+  line-height: 1.7;
+}
+
+/* 议程 */
+.agenda-item {
+  display: flex;
+  align-items: baseline;
+  padding: 10rpx 0;
+}
+
+.agenda-time {
+  font-size: 26rpx;
+  font-weight: 600;
+  color: #8B1A1A;
+  flex-shrink: 0;
+  width: 140rpx;
+}
+
+.agenda-item-text {
+  font-size: 26rpx;
+  color: #333;
+  flex: 1;
+}
+
+.agenda-remark {
+  font-size: 22rpx;
+  color: #999;
+}
+
+/* 场次 */
+.session-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14rpx 0;
+  border-bottom: 1rpx solid #F0F0F0;
+}
+
+.session-item:last-child {
+  border-bottom: none;
+}
+
+.session-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4rpx;
+}
+
+.session-name {
+  font-size: 28rpx;
+  color: #333;
+}
+
+.session-time {
+  font-size: 22rpx;
+  color: #999;
+}
+
+.session-count {
+  font-size: 26rpx;
+  color: #8B1A1A;
+}
+
+/* 按钮 */
+.btn-group {
+  display: flex;
+  gap: 16rpx;
+  margin-top: 20rpx;
+}
+
+.btn-group button {
+  flex: 1;
+  margin: 0;
+  font-size: 28rpx;
+  font-weight: 500;
+  border-radius: 44rpx;
+  line-height: 2.4;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, #8B1A1A, #B22222) !important;
+  color: #FFF !important;
+}
+
+.btn-primary::after,
+.btn-ghost::after,
+.btn-danger::after {
+  border: none;
+}
+
+.btn-ghost {
+  background: #F5F5F5 !important;
+  color: #333 !important;
+}
+
+.btn-danger {
+  background: #FFF1F0 !important;
+  color: #E64340 !important;
+}
+
+.btn-full {
+  margin-top: 20rpx;
+  border-radius: 44rpx;
+  font-size: 30rpx;
+  font-weight: 500;
+}
+
+/* 归档 */
+.archive-item {
+  display: flex;
+  gap: 16rpx;
+  padding: 12rpx 0;
+}
+
+.archive-img {
+  width: 140rpx;
+  height: 140rpx;
+  border-radius: 12rpx;
+  background: #F0EAE0;
+  flex-shrink: 0;
+}
+
+.archive-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6rpx;
+}
+
+.archive-title {
+  font-size: 28rpx;
+  color: #333;
+}
+
+.archive-desc {
+  font-size: 24rpx;
+  color: #999;
+}
+
+.empty {
+  padding: 200rpx 0;
+  text-align: center;
+  font-size: 26rpx;
+  color: #999;
+}

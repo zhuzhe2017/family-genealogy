@@ -1,0 +1,51 @@
+<view class="page">
+  <view class="form-card">
+    <!-- 金额 -->
+    <view class="form-item">
+      <view class="form-label">金额（元）<text class="required">*</text></view>
+      <input class="input" type="digit" value="{{amount}}" bindinput="onAmount" placeholder="请输入金额" />
+    </view>
+
+    <!-- 存入/取出：支付渠道 -->
+    <view class="form-item" wx:if="{{type === 'deposit' || type === 'withdraw'}}">
+      <view class="form-label">资金渠道</view>
+      <picker mode="selector" range="{{payments}}" value="{{paymentIndex}}" bindchange="onPaymentChange">
+        <view class="picker-value">{{payments[paymentIndex]}} ▾</view>
+      </picker>
+    </view>
+
+    <!-- 转账：接收人 -->
+    <view class="form-item" wx:if="{{type === 'transfer'}}">
+      <view class="form-label">接收人<text class="required">*</text></view>
+      <picker mode="selector" range="{{members}}" range-key="name" value="{{memberIndex}}" bindchange="onMemberChange" wx:if="{{members.length > 0}}">
+        <view class="picker-value">{{members[memberIndex].name || '请选择接收人'}} ▾</view>
+      </picker>
+      <view class="empty-tip" wx:else>暂无可转账对象（需对方已加入基金）</view>
+    </view>
+
+    <!-- 调账：方向 -->
+    <view class="form-item" wx:if="{{type === 'adjust'}}">
+      <view class="form-label">调整方向</view>
+      <picker mode="selector" range="{{['增加（补入）', '减少（支出）']}}" value="{{directionIndex}}" bindchange="onDirectionChange">
+        <view class="picker-value">{{directionIndex === 0 ? '增加（补入）' : '减少（支出）'}} ▾</view>
+      </picker>
+    </view>
+
+    <!-- 备注 -->
+    <view class="form-item">
+      <view class="form-label">备注</view>
+      <input class="input" value="{{remark}}" bindinput="onRemark" placeholder="选填，如用途说明" maxlength="200" />
+    </view>
+  </view>
+
+  <!-- 规则提示 -->
+  <view class="rule-card">
+    <view class="rule-line" wx:if="{{limitsText}}">💰 {{limitsText}}</view>
+    <view class="rule-line" wx:if="{{type === 'withdraw'}}">🛡 {{approveText}}</view>
+    <view class="rule-line" wx:if="{{type === 'withdraw' || type === 'transfer'}}">👤 我的可用余额：{{myBalance.toFixed(2)}} 元</view>
+  </view>
+
+  <view class="footer">
+    <button class="btn-primary" bindtap="submit" disabled="{{submitting}}">确认{{type === 'deposit' ? '存入' : type === 'withdraw' ? '取出' : type === 'transfer' ? '转账' : '调账'}}</button>
+  </view>
+</view>

@@ -1,0 +1,67 @@
+<view class="page">
+  <!-- 参会者：我的签到码 -->
+  <block wx:if="{{!isOrganizer}}">
+    <view class="loading" wx:if="{{loading}}">加载中...</view>
+
+    <block wx:if="{{myCode}}">
+      <view class="checkin-card">
+        <view class="status-badge {{myCode.alreadyCheckedIn ? 'done' : 'pending'}}">
+          {{myCode.alreadyCheckedIn ? '已签到' : '待签到'}}
+        </view>
+        <view class="user-name">{{myCode.name}}</view>
+        <view class="session-name" wx:if="{{myCode.sessionName}}">{{myCode.sessionName}}</view>
+
+        <!-- 二维码 -->
+        <image wx:if="{{myCode.qrCode}}" class="qrcode" src="{{myCode.qrCode}}" mode="aspectFit" show-menu-by-longpress />
+        <view class="code-display" wx:else>
+          <text class="code-text">{{myCode.checkinCode}}</text>
+        </view>
+
+        <view class="code-tip">现场出示二维码或签到码完成签到</view>
+        <view class="code-num" wx:if="{{myCode.qrCode}}">签到码：{{myCode.checkinCode}}</view>
+      </view>
+
+      <!-- 自助签到（未签到时可输入签到码） -->
+      <view class="card" wx:if="{{!myCode.alreadyCheckedIn}}">
+        <view class="section-title">自助签到</view>
+        <view class="verify-row">
+          <input class="verify-input" type="number" value="{{manualCode}}" bindinput="onManualInput" placeholder="输入 6 位签到码" maxlength="6" />
+          <button class="btn-primary btn-sm" bindtap="selfCheckin">签到</button>
+        </view>
+      </view>
+    </block>
+  </block>
+
+  <!-- 组织者：核销 -->
+  <block wx:if="{{isOrganizer}}">
+    <view class="card">
+      <view class="section-title">扫码核销</view>
+      <view class="scan-area" bindtap="scanCheckin">
+        <text class="scan-icon">⌘</text>
+        <text class="scan-text">扫描参会者二维码</text>
+      </view>
+    </view>
+
+    <view class="card">
+      <view class="section-title">手动核销</view>
+      <view class="verify-row">
+        <input class="verify-input" type="number" value="{{verifyCode}}" bindinput="onVerifyInput" placeholder="输入 6 位签到码" maxlength="6" />
+        <button class="btn-primary btn-sm" bindtap="manualVerify">核销</button>
+      </view>
+    </view>
+
+    <!-- 核销结果 -->
+    <view class="card" wx:if="{{verifyResult}}">
+      <view class="section-title">核销结果</view>
+      <view class="result-row">
+        <text class="result-name">{{verifyResult.name}}</text>
+        <text class="result-status {{verifyResult.already ? 'warn' : 'ok'}}">{{verifyResult.already ? '已签到过' : '签到成功'}}</text>
+      </view>
+      <view class="result-time" wx:if="{{verifyResult.checkinTime}}">签到时间：{{verifyResult.checkinTime}}</view>
+    </view>
+
+    <view class="card">
+      <view class="link-row" bindtap="goDetail">返回详情查看报名名单与统计 ›</view>
+    </view>
+  </block>
+</view>

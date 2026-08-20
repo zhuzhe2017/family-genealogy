@@ -252,4 +252,136 @@ const plugin = {
   }
 };
 
-module.exports = { auth, family, familyMember, content, subscription, worship, invitation, banner, plugin };
+/** 宗亲聚会相关接口（familyId 为当前家族ID，后端校验家族归属与组织者权限） */
+const gathering = {
+  /** 聚会分页列表 */
+  getList: function (familyId, params) {
+    return request({ url: '/user/gathering/list', data: Object.assign({ familyId: familyId }, params || {}) });
+  },
+  /** 聚会详情（含场次/我的报名/是否组织者/归档资料） */
+  getDetail: function (familyId, id) {
+    return request({ url: '/user/gathering/' + id, data: { familyId: familyId } });
+  },
+  /** 创建聚会 */
+  create: function (familyId, data) {
+    return request({ url: '/user/gathering', method: 'POST', data: data || {} });
+  },
+  /** 编辑聚会（组织者） */
+  update: function (familyId, id, data) {
+    return request({ url: '/user/gathering/' + id, method: 'PUT', data: data || {} });
+  },
+  /** 状态流转（组织者）：0-草稿 1-已发布 2-进行中 3-已结束 4-已归档 */
+  updateStatus: function (familyId, id, status) {
+    return request({ url: '/user/gathering/' + id + '/status', method: 'PUT', data: { status: status } });
+  },
+  /** 删除聚会（组织者） */
+  remove: function (familyId, id) {
+    return request({ url: '/user/gathering/' + id, method: 'DELETE' });
+  },
+  /** 报名（data: { sessionId?, name, phone?, dietType?, dietNote?, specialNeed?, guestCount? }） */
+  register: function (familyId, id, data) {
+    return request({ url: '/user/gathering/' + id + '/register', method: 'POST', data: data || {} });
+  },
+  /** 我的报名记录 */
+  getMyRegistration: function (familyId, id) {
+    return request({ url: '/user/gathering/' + id + '/registration/mine', data: { familyId: familyId } });
+  },
+  /** 取消报名 */
+  cancelRegistration: function (registrationId) {
+    return request({ url: '/user/gathering/registration/' + registrationId + '/cancel', method: 'PUT' });
+  },
+  /** 我的签到信息（6位签到码 + 二维码） */
+  getCheckinCode: function (familyId, id) {
+    return request({ url: '/user/gathering/' + id + '/checkin-code', data: { familyId: familyId } });
+  },
+  /** 现场签到（data: { code, method? }，双通道：手动输入/扫码核销） */
+  checkin: function (familyId, id, data) {
+    return request({ url: '/user/gathering/' + id + '/checkin', method: 'POST', data: data || {} });
+  },
+  /** 报名名单（组织者） */
+  getRegistrations: function (familyId, id, params) {
+    return request({ url: '/user/gathering/' + id + '/registrations', data: Object.assign({ familyId: familyId }, params || {}) });
+  },
+  /** 参会统计分析（组织者） */
+  getStats: function (familyId, id) {
+    return request({ url: '/user/gathering/' + id + '/stats', data: { familyId: familyId } });
+  },
+  /** 新增归档资料（组织者） */
+  createArchive: function (familyId, id, data) {
+    return request({ url: '/user/gathering/' + id + '/archive', method: 'POST', data: data || {} });
+  },
+  /** 删除归档资料（组织者） */
+  deleteArchive: function (familyId, id, archiveId) {
+    return request({ url: '/user/gathering/' + id + '/archive/' + archiveId, method: 'DELETE' });
+  }
+};
+
+/**
+ * 家族基金相关接口
+ * familyId 统一拼入 URL query（POST/PUT 也可携带，后端 @Query 取参）
+ * 后端校验家族归属、角色权限、限额与大额审批
+ */
+const fund = {
+  /** 基金信息 + 我的角色/权限（无基金时 hasFund=false） */
+  getInfo: function (familyId) {
+    return request({ url: '/user/fund/info?familyId=' + familyId });
+  },
+  /** 创建基金（每家族唯一，创建人自动成为族长） */
+  create: function (familyId, data) {
+    return request({ url: '/user/fund?familyId=' + familyId, method: 'POST', data: data || {} });
+  },
+  /** 更新基金基本信息与限额规则（manage_rule） */
+  updateSettings: function (familyId, data) {
+    return request({ url: '/user/fund/settings?familyId=' + familyId, method: 'PUT', data: data || {} });
+  },
+  /** 基金成员列表（view_all 可见全部，否则仅本人） */
+  getMembers: function (familyId) {
+    return request({ url: '/user/fund/members?familyId=' + familyId });
+  },
+  /** 添加基金成员（manage_member） */
+  addMember: function (familyId, data) {
+    return request({ url: '/user/fund/members?familyId=' + familyId, method: 'POST', data: data || {} });
+  },
+  /** 更新成员角色/权限（manage_member） */
+  updateMember: function (familyId, userId, data) {
+    return request({ url: '/user/fund/members/' + userId + '?familyId=' + familyId, method: 'PUT', data: data || {} });
+  },
+  /** 移除基金成员（manage_member） */
+  removeMember: function (familyId, userId) {
+    return request({ url: '/user/fund/members/' + userId + '?familyId=' + familyId, method: 'DELETE' });
+  },
+  /** 存入（data: { amount, paymentMethod?, remark? }） */
+  deposit: function (familyId, data) {
+    return request({ url: '/user/fund/deposit?familyId=' + familyId, method: 'POST', data: data || {} });
+  },
+  /** 取出（超阈值自动进入待审批） */
+  withdraw: function (familyId, data) {
+    return request({ url: '/user/fund/withdraw?familyId=' + familyId, method: 'POST', data: data || {} });
+  },
+  /** 成员间转账（data: { amount, targetUserId, remark? }） */
+  transfer: function (familyId, data) {
+    return request({ url: '/user/fund/transfer?familyId=' + familyId, method: 'POST', data: data || {} });
+  },
+  /** 调账（族长：data: { amount, direction, remark? }） */
+  adjust: function (familyId, data) {
+    return request({ url: '/user/fund/adjust?familyId=' + familyId, method: 'POST', data: data || {} });
+  },
+  /** 审批大额取出（approve：data: { approved, remark? }） */
+  approveTx: function (familyId, txId, data) {
+    return request({ url: '/user/fund/transactions/' + txId + '/approve?familyId=' + familyId, method: 'POST', data: data || {} });
+  },
+  /** 交易明细分页（params: { type?, status?, userId?, startDate?, endDate?, page?, pageSize? }） */
+  getTransactions: function (familyId, params) {
+    return request({ url: '/user/fund/transactions?familyId=' + familyId, data: params || {} });
+  },
+  /** 基金统计（余额/今日/本月/我的） */
+  getStats: function (familyId) {
+    return request({ url: '/user/fund/stats?familyId=' + familyId });
+  },
+  /** 解散基金（dissolve，公共池余额需为 0） */
+  dissolve: function (familyId, data) {
+    return request({ url: '/user/fund/dissolve?familyId=' + familyId, method: 'POST', data: data || {} });
+  }
+};
+
+module.exports = { auth, family, familyMember, content, subscription, worship, invitation, banner, plugin, gathering, fund };

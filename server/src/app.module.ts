@@ -29,6 +29,8 @@ import { UploadModule } from './common/upload/upload.module';
 import { InvitationModule } from './invitation/invitation.module';
 import { BannerModule } from './banner/banner.module';
 import { PluginModule } from './plugin/plugin.module';
+import { GatheringModule } from './gathering/gathering.module';
+import { FundModule } from './fund/fund.module';
 import { JwtAuthGuard } from './auth/guard/jwt-auth.guard';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 
@@ -70,7 +72,9 @@ import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
     UploadModule,
     InvitationModule,
     BannerModule,
-    PluginModule
+    PluginModule,
+    GatheringModule,
+    FundModule
   ],
   controllers: [AppController],
   providers: [

@@ -1,0 +1,153 @@
+.page {
+  min-height: 100vh;
+  background: #F5F1EA;
+  padding: 24rpx 24rpx 180rpx;
+  box-sizing: border-box;
+}
+
+.card {
+  background: #FFF;
+  border-radius: 20rpx;
+  padding: 24rpx;
+  margin-bottom: 20rpx;
+  box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.05);
+}
+
+.section-title {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 20rpx;
+}
+
+.field {
+  display: flex;
+  align-items: center;
+  margin-bottom: 20rpx;
+}
+
+.label {
+  font-size: 26rpx;
+  color: #666;
+  width: 160rpx;
+  flex-shrink: 0;
+}
+
+.input {
+  flex: 1;
+  font-size: 28rpx;
+  background: #F7F5F0;
+  border-radius: 12rpx;
+  padding: 14rpx 20rpx;
+  color: #333;
+}
+
+.textarea {
+  flex: 1;
+  font-size: 28rpx;
+  background: #F7F5F0;
+  border-radius: 12rpx;
+  padding: 14rpx 20rpx;
+  min-height: 120rpx;
+  color: #333;
+  width: auto;
+}
+
+/* 时间行 */
+.field-row {
+  display: flex;
+  align-items: center;
+  margin-bottom: 20rpx;
+  gap: 12rpx;
+}
+
+.field-row .label {
+  width: 160rpx;
+}
+
+.picker {
+  font-size: 26rpx;
+  color: #333;
+  background: #F7F5F0;
+  border-radius: 12rpx;
+  padding: 14rpx 20rpx;
+  flex: 1;
+  text-align: center;
+}
+
+/* 场次/议程动态行 */
+.session-line,
+.agenda-line {
+  border: 1rpx solid #EEE6D9;
+  border-radius: 16rpx;
+  padding: 20rpx;
+  margin-bottom: 20rpx;
+}
+
+.line-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16rpx;
+}
+
+.line-no {
+  font-size: 26rpx;
+  font-weight: 600;
+  color: #8B1A1A;
+}
+
+.line-del {
+  font-size: 24rpx;
+  color: #E64340;
+  padding: 4rpx 16rpx;
+}
+
+.add-line {
+  text-align: center;
+  font-size: 28rpx;
+  color: #8B1A1A;
+  padding: 16rpx 0;
+  border: 1rpx dashed #C9A227;
+  border-radius: 12rpx;
+}
+
+/* 底部按钮 */
+.footer {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  gap: 20rpx;
+  padding: 20rpx 24rpx calc(20rpx + env(safe-area-inset-bottom));
+  background: #FFF;
+  box-shadow: 0 -4rpx 16rpx rgba(0, 0, 0, 0.06);
+}
+
+.footer button {
+  flex: 1;
+  margin: 0;
+  height: 96rpx;
+  font-size: 32rpx;
+  font-weight: 500;
+  border-radius: 48rpx;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, #8B1A1A, #B22222) !important;
+  color: #FFF !important;
+}
+
+.btn-ghost {
+  background: #F5F5F5 !important;
+  color: #333 !important;
+}
+
+.footer button::after {
+  border: none;
+}

@@ -16,8 +16,25 @@ Page({
   },
 
   onShow() {
+    // 已加入家族:家谱树 tab 直达家谱树页面;未加入/未登录时正常显示家族选择界面
+    if (this.shouldAutoEnterTree()) {
+      const skip = app.globalData.skipAutoEnter;
+      app.globalData.skipAutoEnter = false;
+      if (skip) {
+        // 从家谱树页返回:本次停留在家族列表,允许切换/加入家族
+        this.loadFamilies();
+        return;
+      }
+      wx.navigateTo({ url: '/pages/family-tree-detail/family-tree-detail' });
+      return;
+    }
     // 每次显示刷新列表(如从创建家族页返回后能看到新家族)
     this.loadFamilies();
+  },
+
+  /** 已加入家族(用户资料带 familyId)时返回 true,此时点击家谱树 tab 无需再选家族 */
+  shouldAutoEnterTree() {
+    return !!(app.globalData.userInfo && app.globalData.userInfo.familyId);
   },
 
   /** 加载家族列表:在线时走后端刷新全局数据,离线/失败回退 globalData 缓存 */

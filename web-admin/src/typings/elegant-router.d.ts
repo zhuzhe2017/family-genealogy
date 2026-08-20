@@ -30,6 +30,7 @@ declare module "@elegant-router/types" {
     "mini-program_family": "/mini-program/family";
     "mini-program_family-invitation": "/mini-program/family-invitation";
     "mini-program_family-tree": "/mini-program/family-tree";
+    "mini-program_gathering": "/mini-program/gathering";
     "mini-program_generation-table": "/mini-program/generation-table";
     "mini-program_members": "/mini-program/members";
     "mini-program_overview": "/mini-program/overview";
@@ -110,6 +111,7 @@ declare module "@elegant-router/types" {
     | "mini-program_family-invitation"
     | "mini-program_family-tree"
     | "mini-program_family"
+    | "mini-program_gathering"
     | "mini-program_generation-table"
     | "mini-program_members"
     | "mini-program_overview"
@@ -192,7 +194,7 @@ declare module "@elegant-router/types" {
         component: `view.${K}`;
       }
     : never;
-  
+
   /**
    * the center level route
    */
@@ -215,7 +217,7 @@ declare module "@elegant-router/types" {
         children: (CenterLevelRoute<GetChildRouteKey<K>> | LastLevelRoute<GetChildRouteKey<K>>)[];
       }
     : never;
-  
+
   /**
    * the custom first level route
    */

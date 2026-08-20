@@ -1,0 +1,6 @@
+{
+  "navigationBarTitleText": "交易明细 / 对账",
+  "navigationBarBackgroundColor": "#8B1A1A",
+  "navigationBarTextStyle": "white",
+  "enablePullDownRefresh": true
+}
