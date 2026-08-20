@@ -10,15 +10,24 @@ Page({
     maleCount: 0,
     femaleCount: 0,
     groupedMembers: [],
-    allMembers: []
+    allMembers: [],
+    // 自定义导航栏适配（状态栏高度 + 导航栏高度）
+    statusBarHeight: 20,
+    navBarTotal: 64
   },
 
   onLoad() {
+    const win = wx.getWindowInfo ? wx.getWindowInfo() : wx.getSystemInfoSync();
+    const statusBarHeight = (win && win.statusBarHeight) || 20;
+    this.setData({ statusBarHeight, navBarTotal: statusBarHeight + 44 });
     this.loadMembers();
   },
 
-  /** 返回时置位标记,避免"族成员" tab 入口页再次自动跳转造成循环 */
+  /** 返回时置位标记,避免"族成员" tab 入口页再次自动跳转造成循环。
+   *  仅物理返回/返回手势(navigateBack 回入口页)需要防循环;
+   *  主动回首页(switchTab,不经过入口页)不置位,避免标记残留导致下次点 tab 停在动态页 */
   onUnload() {
+    if (this._homeExit) return;
     app.globalData.skipMemberNav = true;
   },
 
@@ -134,5 +143,12 @@ Page({
     wx.navigateTo({
       url: '/pages/add-member/add-member'
     });
+  },
+
+  /** 导航栏左上角返回：直接回首页（覆盖默认返回上一页）。
+   *  标记 _homeExit,onUnload 时不再置位防循环标记(回首页不经过"族成员"入口页,无需防循环) */
+  goHome() {
+    this._homeExit = true;
+    wx.switchTab({ url: '/pages/home/home' });
   }
 });

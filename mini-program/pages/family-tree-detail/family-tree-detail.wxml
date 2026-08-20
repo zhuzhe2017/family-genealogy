@@ -1,5 +1,14 @@
 <wxs src="../../utils/filters.wxs" module="f" />
 <view class="page-container">
+  <!-- 自定义导航栏（左上角返回直接回首页） -->
+  <view class="nav-bar" style="padding-top:{{statusBarHeight}}px;height:{{navBarTotal}}px;">
+    <view class="nav-back" bindtap="goHome">
+      <text class="nav-back-arrow">‹</text>
+    </view>
+    <text class="nav-title">家谱树</text>
+    <view class="nav-placeholder"></view>
+  </view>
+
   <!-- 顶部工具栏 -->
   <view class="tree-toolbar">
     <view class="toolbar-left">
@@ -35,7 +44,7 @@
   </view>
 
   <!-- 树状视图 -->
-  <view class="tree-view" wx:if="{{viewMode === 'tree'}}">
+  <view class="tree-view" style="height: calc(100vh - {{navBarTotal}}px - 220rpx);" wx:if="{{viewMode === 'tree'}}">
     <canvas
       type="2d"
       id="familyTreeCanvas"
@@ -52,7 +61,7 @@
   </view>
 
   <!-- 直系图视图 -->
-  <view class="tree-view" wx:if="{{viewMode === 'vertical'}}">
+  <view class="tree-view" style="height: calc(100vh - {{navBarTotal}}px - 220rpx);" wx:if="{{viewMode === 'vertical'}}">
     <canvas
       type="2d"
       id="verticalTreeCanvas"

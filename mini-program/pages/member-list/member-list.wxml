@@ -1,5 +1,14 @@
 <wxs src="../../utils/filters.wxs" module="f" />
 <view class="page-container">
+  <!-- 自定义导航栏（左上角返回直接回首页） -->
+  <view class="nav-bar" style="padding-top:{{statusBarHeight}}px;height:{{navBarTotal}}px;">
+    <view class="nav-back" bindtap="goHome">
+      <text class="nav-back-arrow">‹</text>
+    </view>
+    <text class="nav-title">家族成员</text>
+    <view class="nav-placeholder"></view>
+  </view>
+
   <!-- 搜索和筛选 -->
   <view class="search-filter-bar">
     <view class="search-box">

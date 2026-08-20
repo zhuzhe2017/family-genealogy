@@ -1,6 +1,53 @@
 .page-container {
-  padding: 24rpx;
-  padding-bottom: 120rpx;
+  padding: 0 24rpx 120rpx;
+  padding-top: 0;
+  background: #F5F5F5;
+  min-height: 100vh;
+  box-sizing: border-box;
+}
+
+/* 自定义导航栏 */
+.nav-bar {
+  position: sticky;
+  top: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  background: linear-gradient(135deg, #8B1A1A, #6B0F0F);
+  box-sizing: border-box;
+  margin: 0 -24rpx;
+  margin-bottom: 24rpx;
+  z-index: 100;
+}
+
+.nav-back {
+  width: 88rpx;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.nav-back-arrow {
+  font-size: 48rpx;
+  color: #FFFFFF;
+  line-height: 1;
+}
+
+.nav-title {
+  flex: 1;
+  text-align: center;
+  font-size: 34rpx;
+  font-weight: 600;
+  color: #FFFFFF;
+  white-space: nowrap;
+}
+
+.nav-placeholder {
+  width: 88rpx;
+  flex-shrink: 0;
 }
 
 /* 搜索筛选栏 */

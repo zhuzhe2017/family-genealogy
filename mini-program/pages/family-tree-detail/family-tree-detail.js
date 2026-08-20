@@ -91,12 +91,25 @@ Page({
   avatarCache: {},          // 头像图片缓存 url -> { img, loaded, failed }，避免重复加载
 
   onLoad() {
+    const win = wx.getWindowInfo ? wx.getWindowInfo() : wx.getSystemInfoSync();
+    const statusBarHeight = (win && win.statusBarHeight) || 20;
+    this.setData({ statusBarHeight, navBarTotal: statusBarHeight + 44 });
     this.loadTreeData();
   },
 
+  /** 返回时置位标记,避免家谱树列表页再次自动跳转造成循环。
+   *  仅物理返回/返回手势(navigateBack 回列表页)需要防循环;
+   *  主动回首页(switchTab,不经过列表页)不置位,避免标记残留导致下次点"家谱树" tab 停在家族列表 */
   onUnload() {
-    // 标记:从家谱树返回时,家族列表页本次不再自动跳转,允许切换/加入家族
+    if (this._homeExit) return;
     app.globalData.skipAutoEnter = true;
+  },
+
+  /** 导航栏左上角返回：直接回首页（覆盖默认返回上一页）。
+   *  标记 _homeExit,onUnload 时不再置位防循环标记(回首页不经过家谱树列表页,无需防循环) */
+  goHome() {
+    this._homeExit = true;
+    wx.switchTab({ url: '/pages/home/home' });
   },
 
   onShow() {
