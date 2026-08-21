@@ -822,6 +822,7 @@ INSERT INTO `sys_menu` (`parent_id`, `name`, `type`, `path`, `component`, `route
 (@mini_program_dir, '家族管理', 'menu', '/mini-program/family', 'view.mini-program_family', 'mini-program_family', 'mdi:account-group-outline', 'system:family:list', 5, 1, 1, 1),
 (@mini_program_dir, '姓氏管理', 'menu', '/mini-program/surname', 'view.mini-program_surname', 'mini-program_surname', '', 'system:surname:list', 6, 1, 1, 1),
 (@mini_program_dir, '字辈管理', 'menu', '/mini-program/generation-table', 'view.mini-program_generation-table', 'mini-program_generation-table', '', 'system:generation-table:list', 7, 1, 1, 1),
+(@system_dir, '管理员管理', 'menu', '/system/admin', 'view.system_admin', 'system_admin', '', 'system:admin:list', 0, 1, 1, 1),
 (@system_dir, '菜单管理', 'menu', '/system/menu', 'view.system_menu', 'system_menu', '', 'system:menu:list', 1, 1, 1, 1),
 (@system_dir, '权限管理', 'menu', '/system/permission', 'view.system_permission', 'system_permission', '', 'system:permission:list', 2, 1, 1, 1),
 (@system_dir, '角色管理', 'menu', '/system/role', 'view.system_role', 'system_role', '', 'system:role:list', 3, 1, 1, 1),
