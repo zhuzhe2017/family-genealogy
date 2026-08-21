@@ -28,6 +28,13 @@
   z-index: var(--soy-sider-z-index);
 }
 
+/* Mobile sider collapsed: width 0 instead of `w-0` utility,
+   to avoid the production css ordering making `w-0` override `layout-sider` */
+.layout-mobile-sider_collapsed {
+  width: 0;
+  z-index: var(--soy-sider-z-index);
+}
+
 .layout-mobile-sider-mask {
   z-index: var(--soy-mobile-sider-z-index);
 }

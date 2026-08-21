@@ -5,6 +5,7 @@ declare const styles: {
   readonly 'layout-tab-placement': string;
   readonly 'layout-sider': string;
   readonly 'layout-mobile-sider': string;
+  readonly 'layout-mobile-sider_collapsed': string;
   readonly 'layout-mobile-sider-mask': string;
   readonly 'layout-sider_collapsed': string;
   readonly 'layout-footer': string;
