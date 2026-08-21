@@ -81,6 +81,16 @@ describe('MemberImportService', () => {
       expect(result.errors.some(e => e.includes('父亲与母亲外部ID不能相同'))).toBe(true);
     });
 
+    it('父为空时同名不判重；父非空时才做同名同父亲去重', () => {
+      const result = service.parseSpreadsheet(
+        csv(`外部ID,姓名,父亲外部ID\n,朱氏,\n,朱氏,\nf1,朱大,f2\nf2,朱父,\nf3,朱大,f2\n`),
+        'members.csv'
+      );
+      expect(result.items).toHaveLength(4);
+      expect(result.total).toBe(5);
+      expect(result.errors.some(e => e.includes('第 6 行：与第 4 行重复（同名同父亲）'))).toBe(true);
+    });
+
     it('缺少姓名列时抛 BAD_REQUEST', () => {
       expect(() => service.parseSpreadsheet(csv('foo,bar\n1,2\n'), 'members.csv')).toThrow(/姓名/);
     });

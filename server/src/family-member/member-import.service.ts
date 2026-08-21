@@ -219,15 +219,17 @@ export class MemberImportService {
 
       const fatherRefId = cell(raw, 'fatherRefId');
       const motherRefId = cell(raw, 'motherRefId');
-      // 文件内同名同父亲去重（与系统「同父同名唯一」规则一致）
-      const dupKey = `${name}|${fatherRefId}`;
-      const firstRow = seenNameFather.get(dupKey);
-      if (firstRow) {
-        errors.push(`第 ${rowNo} 行：与第 ${firstRow} 行重复（同名同父亲）`);
-        rejected++;
-        continue;
+      // 文件内同名同父亲去重（与系统「同父同名唯一」规则一致：父亲为空时不校验）
+      if (fatherRefId) {
+        const dupKey = `${name}|${fatherRefId}`;
+        const firstRow = seenNameFather.get(dupKey);
+        if (firstRow) {
+          errors.push(`第 ${rowNo} 行：与第 ${firstRow} 行重复（同名同父亲）`);
+          rejected++;
+          continue;
+        }
+        seenNameFather.set(dupKey, rowNo);
       }
-      seenNameFather.set(dupKey, rowNo);
       if (refId) seenRef.add(refId);
 
       items.push({
