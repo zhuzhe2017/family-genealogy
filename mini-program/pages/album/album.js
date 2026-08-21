@@ -420,14 +420,14 @@ Page({
   /** Mock 相册数据(开发期) */
   mockPhotos() {
     const list = [
-      { id: 1, url: '', title: '张太公遗照', year: '1950', category: 'ancestor' },
+      { id: 1, url: '', title: '朱太公遗照', year: '1950', category: 'ancestor' },
       { id: 2, url: '', title: '家族祠堂', year: '1960', category: 'buildings' },
       { id: 3, url: '', title: '1950年全家福', year: '1950', category: 'family' },
       { id: 4, url: '', title: '祭祖大典', year: '2024', category: 'events' },
       { id: 5, url: '', title: '族谱封面', year: '2024', category: 'documents' },
       { id: 6, url: '', title: '家族聚会', year: '2023', category: 'events' },
       { id: 7, url: '', title: '老宅照片', year: '1970', category: 'buildings' },
-      { id: 8, url: '', title: '张大肖像', year: '1940', category: 'ancestor' },
+      { id: 8, url: '', title: '朱大肖像', year: '1940', category: 'ancestor' },
       { id: 9, url: '', title: '2024年全家福', year: '2024', category: 'family' }
     ];
     return list.map(normalizePhoto);

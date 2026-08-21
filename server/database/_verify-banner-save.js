@@ -20,7 +20,10 @@ const TEST_PWD = 'Test@123456';
 const PNG_BASE64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
 
 async function main() {
-  const env = loadEnv('../.env');
+  const envPath = fs.existsSync(path.resolve(__dirname, '..', '.env.local'))
+    ? path.resolve(__dirname, '..', '.env.local')
+    : path.resolve(__dirname, '..', '.env');
+  const env = loadEnv(envPath);
   const c = await mysql.createConnection({
     host: env.DB_HOST || 'localhost',
     port: Number(env.DB_PORT || 3306),
@@ -34,11 +37,25 @@ async function main() {
   await c.query('DELETE FROM sys_admin WHERE username = ?', [TEST_USER]);
   await c.query('INSERT INTO sys_admin (username, password, nickname, role, status) VALUES (?, ?, ?, ?, 1)', [TEST_USER, hash, '临时验证', 'super']);
 
+  // 登录前先获取图形验证码（SVG 文本为明文，可直接解析）
+  const captcha = {};
+  try {
+    const capRes = await fetch(`${BASE}/system-security/captcha`);
+    const capJson = await capRes.json();
+    const svg = capJson?.data?.svg || '';
+    const code = [...svg.matchAll(/<text[^>]*>([^<]+)<\/text>/g)].map(m => m[1]).join('');
+    console.log('获取验证码:', capJson?.data?.token ? `OK code=${code}` : JSON.stringify(capJson));
+    captcha.captchaToken = capJson?.data?.token || '';
+    captcha.captchaCode = code;
+  } catch (e) {
+    console.log('验证码获取失败，尝试无验证码登录:', e.message);
+  }
+
   // 登录
   const loginRes = await fetch(`${BASE}/auth/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ userName: TEST_USER, password: TEST_PWD })
+    body: JSON.stringify({ userName: TEST_USER, password: TEST_PWD, ...captcha })
   });
   const loginJson = await loginRes.json();
   const token = loginJson?.data?.token;
@@ -65,9 +82,10 @@ async function main() {
   const createJson = await createRes.json();
   console.log('新增广告:', createRes.status, createJson.msg || 'OK');
 
-  // 列表确认
-  const listRes = await fetch(`${BASE}/banner/list?page=1&pageSize=10&keyword=保存链路验证`, { headers: authHeaders });
+  // 列表确认（中文关键字需编码）
+  const listRes = await fetch(`${BASE}/banner/list?page=1&pageSize=10&keyword=${encodeURIComponent('保存链路验证')}`, { headers: authHeaders });
   const listJson = await listRes.json();
+  console.log('列表响应:', JSON.stringify(listJson));
   const row = (listJson?.data?.list || [])[0];
   console.log('列表确认:', row ? `id=${row.id} imageUrl=${row.imageUrl}` : '未找到');
 

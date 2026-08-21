@@ -536,7 +536,7 @@ onMounted(() => {
           <div class="text-12px text-gray-400 mt-4px">选填，小程序端聚会让封面展示</div>
         </NFormItem>
         <NFormItem label="聚会地点">
-          <NInput v-model:value="form.location" placeholder="例如：张氏宗祠" maxlength="50" />
+          <NInput v-model:value="form.location" placeholder="例如：朱氏宗祠" maxlength="50" />
         </NFormItem>
         <NFormItem label="详细地址">
           <NInput v-model:value="form.addressDetail" placeholder="省市区 + 街道门牌" maxlength="100" />

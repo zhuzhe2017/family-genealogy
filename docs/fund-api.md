@@ -1,6 +1,6 @@
 # 家族基金模块 — 接口与数据结构文档
 
-> 模块代号：fund ｜ 服务端：`server/src/fund` ｜ 迁移脚本：`server/database/migrations/20260820-family-fund.sql`
+> 模块代号：fund ｜ 服务端：`server/src/fund` ｜ 建表结构：`server/database/schema.sql` 第 38 节（原迁移 `migrations/20260820-family-fund.sql` 已于 2026-08-21 整合进 schema.sql）
 > 用户端（小程序）路由前缀：`/user/fund`；统一使用 `UserJwtAuthGuard`（Bearer Token）。
 
 ---

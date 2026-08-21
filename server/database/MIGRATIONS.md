@@ -4,25 +4,41 @@
 
 ## 执行方式
 
-- `schema.sql`：数据库完整结构 + 初始化种子（幂等），**全新环境直接执行**。
-- `migrations/*.sql`：存量库增量迁移（幂等，可重复执行），执行：
-  `node database/run-migration.js migrations/<file>.sql`
+- `schema.sql`：数据库完整结构 + 初始化种子（幂等，**2026-08-21 起为唯一主库升级脚本**），全新环境直接执行：
+  `mysql -u<user> -p<password> family_genealogy < schema.sql`
+- 已无独立的 `migrations/*.sql` 增量迁移文件——全部内容已合并进 `schema.sql`（详见 `MERGE_LOG.md`）。
 
-## 当前保留的迁移文件
+## 当前状态（2026-08-21 起）
 
-| 文件 | 用途 | 为什么保留 |
+原 `migrations/*.sql` 共 16 个 SQL 升级文件已于 **2026-08-21** 全部审核、整合进 `schema.sql` 后删除：
+
+| 原文件 | 合并位置（schema.sql） | 备注 |
 |---|---|---|
-| `migrations/20260815-membership-init.sql` | 会员系统初始化：`subscription_plan` / `family_subscription` / `subscription_order` / `family_quota` / `storage_usage_record` 5 张表 + 套餐种子 | schema.sql **未包含**这 5 张订阅表，本脚本是唯一建表来源 |
-| `migrations/add-subscription-admin-permissions.sql` | 订阅管理权限码 + 菜单 | schema.sql 未包含 `system:subscription:*` 权限与 `mini-program_subscription` 菜单 |
-| `migrations/add-user-auth-identity.sql` | 多端账号统一：`user_auth_identity` / `user_sms_code` 建表 + 存量 openid 回填 | 含**数据回填逻辑**（存量 user.openid → wechat 绑定），不可由 schema.sql 重建 |
-| `migrations/add-user-family-association.sql` | 会员家族关联：user 表 `family_id` / `member_id` / `share_code` + 索引 | 当前会员-家族功能依赖的增量迁移，e2e 测试引用 |
-| `migrations/sync-family-member-count.sql` | 一次性重算 `family.member_count` 冗余列 | 存量数据修复工具，成员数不一致时仍可使用 |
-| `migrations/20260819-app-plugin.sql` | 应用插件注册表 `app_plugin` + 权限/菜单 | 应用中心「应用」分区动态数据源，schema.sql 未包含，本脚本是唯一建表来源 |
-| `migrations/20260819-banner-click-count.sql` | `family_banner.click_count` 点击统计列 | 幂等加列，schema.sql 未包含 |
+| `20260815-membership-init.sql` | 37 会员订阅 5 表 + 套餐种子 | |
+| `20260817-family-invitation.sql` | 35 邀请表 / user.family_role / 40-41 权限菜单 | |
+| `20260817-worship-admin.sql` | 40-41 祭祀权限菜单 | |
+| `20260817-worship-memorial.sql` | 已含于 18.1 节 | 原内容已被 schema.sql 覆盖 |
+| `20260818-family-banner.sql` | 34 广告轮播表 / 40-41 权限菜单 | |
+| `20260819-app-center-menu.sql` | 41 应用中心菜单升级 | 依赖应用插件菜单 |
+| `20260819-app-plugin.sql` | 36 应用插件表 / 40-41 权限菜单 | |
+| `20260819-banner-click-count.sql` | 34 click_count 列 | |
+| `20260819-family-seed-share-code.sql` | family 唯一索引 / 42b 回填 | |
+| `20260819-family-share.sql` | 35 邀请表 4 列 / 回填 | |
+| `20260820-family-fund.sql` | 38 基金 3 表 | |
+| `20260820-family-gathering.sql` | 39 聚会 4 表 / 40-41 权限菜单 | |
+| `add-subscription-admin-permissions.sql` | 40-41 订阅权限菜单 | |
+| `add-user-auth-identity.sql` | 已含于 1.1/1.2 节；42a 回填 | 建表已被覆盖 |
+| `add-user-family-association.sql` | 已含于 user 表定义 | 原内容已被 schema.sql 覆盖 |
+| `sync-family-member-count.sql` | 42c 重算工具 | 幂等，新库自动跳过 |
 
-## 已删除的迁移文件（2026-08-17）
+> 合并明细、文件来源映射、删除清单与审计结论见 **`MERGE_LOG.md`**。
+> 被删文件内容均保留于 git 历史，存量库需要补执行时可按 `MERGE_LOG.md` 第二节映射恢复。
 
-以下文件因「已被 schema.sql 完整覆盖」或「一次性迁移已生效、重复执行有风险/无意义」被移除。删除前已核实数据库当前结构与 schema.sql 完全一致，不影响现有数据。
+## 已删除的迁移文件（历史）
+
+以下文件此前因「已被 schema.sql 完整覆盖」或「一次性迁移已生效」被移除，保留记录备查。
+
+### 2026-08-17 删除
 
 | 删除的文件 | 删除原因 |
 |---|---|
@@ -36,6 +52,10 @@
 | `migrations/add-member-avatar-url.sql` | 为 family_member 基表与全部分表补 `avatar_url` 列。当前库基表与分表均已含该列；新分表创建逻辑（family.service.ts）已带该列，脚本不再需要 |
 | `migration-system-settings.sql` | 系统设置：`sys_config` / `sys_log` 建表 + 配置/权限/菜单种子。schema.sql 已完整覆盖，当前库已生效 |
 | `migration-drop-spouse-id.sql` | 废弃 `spouse_id` 列并迁移至 `spouse_info`。非幂等（直接 DROP COLUMN），已生效（基表与分表均无 spouse_id），重复执行会报错；schema.sql 无该列 |
+
+### 2026-08-21 删除（整合入 schema.sql）
+
+见上方「当前状态」表与 `MERGE_LOG.md`。
 
 ## 其他文件说明
 

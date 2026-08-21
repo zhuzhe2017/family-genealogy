@@ -49,24 +49,24 @@ Page({
 
   getMockMembers() {
     return [
-      { id: '1', name: '张太公', gender: 'male', generation: 1, generationName: '文', birthYear: '1880', spouseInfo: { name: '张太婆' } },
-      { id: '2', name: '张大', gender: 'male', generation: 2, generationName: '德', birthYear: '1910', spouseInfo: { name: '李氏' } },
-      { id: '3', name: '张二', gender: 'male', generation: 2, generationName: '德', birthYear: '1912', spouseInfo: { name: '王氏' } },
-      { id: '4', name: '张三', gender: 'male', generation: 2, generationName: '德', birthYear: '1915', spouseInfo: { name: '陈氏' } },
-      { id: '5', name: '张强', gender: 'male', generation: 3, generationName: '永', birthYear: '1940', spouseInfo: { name: '刘氏' } },
-      { id: '6', name: '张明', gender: 'male', generation: 3, generationName: '永', birthYear: '1942', spouseInfo: { name: '赵氏' } },
-      { id: '7', name: '张华', gender: 'male', generation: 3, generationName: '永', birthYear: '1945', spouseInfo: { name: '孙氏' } },
-      { id: '8', name: '张丽', gender: 'female', generation: 3, generationName: '永', birthYear: '1948', spouseInfo: { name: '周先生' } },
-      { id: '9', name: '张芳', gender: 'female', generation: 3, generationName: '永', birthYear: '1950', spouseInfo: { name: '吴先生' } },
-      { id: '10', name: '张伟', gender: 'male', generation: 4, generationName: '世', birthYear: '1970', spouseInfo: { name: '郑氏' } },
-      { id: '11', name: '张敏', gender: 'female', generation: 4, generationName: '世', birthYear: '1972', spouseInfo: { name: '王先生' } },
-      { id: '12', name: '张军', gender: 'male', generation: 4, generationName: '世', birthYear: '1975' },
-      { id: '13', name: '张燕', gender: 'female', generation: 4, generationName: '世', birthYear: '1978', spouseInfo: { name: '李先生' } },
-      { id: '14', name: '张鹏', gender: 'male', generation: 4, generationName: '世', birthYear: '1980', spouseInfo: { name: '周氏' } },
-      { id: '15', name: '张浩', gender: 'male', generation: 5, generationName: '兴', birthYear: '2000' },
-      { id: '16', name: '张悦', gender: 'female', generation: 5, generationName: '兴', birthYear: '2005' },
-      { id: '17', name: '张晨', gender: 'male', generation: 5, generationName: '兴', birthYear: '2010' },
-      { id: '18', name: '张雪', gender: 'female', generation: 5, generationName: '兴', birthYear: '2012' }
+      { id: '1', name: '朱太公', gender: 'male', generation: 1, generationName: '文', birthYear: '1880', spouseInfo: { name: '朱太婆' } },
+      { id: '2', name: '朱大', gender: 'male', generation: 2, generationName: '德', birthYear: '1910', spouseInfo: { name: '李氏' } },
+      { id: '3', name: '朱二', gender: 'male', generation: 2, generationName: '德', birthYear: '1912', spouseInfo: { name: '王氏' } },
+      { id: '4', name: '朱三', gender: 'male', generation: 2, generationName: '德', birthYear: '1915', spouseInfo: { name: '陈氏' } },
+      { id: '5', name: '朱强', gender: 'male', generation: 3, generationName: '永', birthYear: '1940', spouseInfo: { name: '刘氏' } },
+      { id: '6', name: '朱明', gender: 'male', generation: 3, generationName: '永', birthYear: '1942', spouseInfo: { name: '赵氏' } },
+      { id: '7', name: '朱华', gender: 'male', generation: 3, generationName: '永', birthYear: '1945', spouseInfo: { name: '孙氏' } },
+      { id: '8', name: '朱丽', gender: 'female', generation: 3, generationName: '永', birthYear: '1948', spouseInfo: { name: '周先生' } },
+      { id: '9', name: '朱芳', gender: 'female', generation: 3, generationName: '永', birthYear: '1950', spouseInfo: { name: '吴先生' } },
+      { id: '10', name: '朱伟', gender: 'male', generation: 4, generationName: '世', birthYear: '1970', spouseInfo: { name: '郑氏' } },
+      { id: '11', name: '朱敏', gender: 'female', generation: 4, generationName: '世', birthYear: '1972', spouseInfo: { name: '王先生' } },
+      { id: '12', name: '朱军', gender: 'male', generation: 4, generationName: '世', birthYear: '1975' },
+      { id: '13', name: '朱燕', gender: 'female', generation: 4, generationName: '世', birthYear: '1978', spouseInfo: { name: '李先生' } },
+      { id: '14', name: '朱鹏', gender: 'male', generation: 4, generationName: '世', birthYear: '1980', spouseInfo: { name: '周氏' } },
+      { id: '15', name: '朱浩', gender: 'male', generation: 5, generationName: '兴', birthYear: '2000' },
+      { id: '16', name: '朱悦', gender: 'female', generation: 5, generationName: '兴', birthYear: '2005' },
+      { id: '17', name: '朱晨', gender: 'male', generation: 5, generationName: '兴', birthYear: '2010' },
+      { id: '18', name: '朱雪', gender: 'female', generation: 5, generationName: '兴', birthYear: '2012' }
     ];
   },
 

@@ -17,7 +17,7 @@ import { ResponseInterceptor } from '../src/common/interceptors/response.interce
  * - 已加入家族的会员：可新增成员
  * - 未加入家族：禁止新增/编辑（403）
  *
- * 依赖：本地 MySQL（.env 配置）已执行迁移 add-user-family-association.sql
+ * 依赖：本地 MySQL（.env 配置）已含 user 表 family_id/member_id/share_code 结构（原迁移 add-user-family-association.sql 已整合进 schema.sql）
  */
 describe('会员家族关联（支系归属/成员绑定/分享码/编辑权限）(e2e)', () => {
   let app: INestApplication;

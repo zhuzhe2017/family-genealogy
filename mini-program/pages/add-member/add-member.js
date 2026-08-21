@@ -128,7 +128,7 @@ Page({
 
   setMockEditData() {
     this.setData({
-      'form.name': '张太公',
+      'form.name': '朱太公',
       'form.gender': 'male',
       'form.birthDate': '1880-03-15',
       'form.birthPlace': '山东省济南市',

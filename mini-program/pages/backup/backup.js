@@ -1,8 +1,8 @@
 Page({
   data: {
     records: [
-      { id: 1, name: '张氏家族数据备份', time: '2024-07-20 14:30', status: '成功' },
-      { id: 2, name: '张氏家族数据备份', time: '2024-06-15 10:00', status: '成功' }
+      { id: 1, name: '朱氏家族数据备份', time: '2024-07-20 14:30', status: '成功' },
+      { id: 2, name: '朱氏家族数据备份', time: '2024-06-15 10:00', status: '成功' }
     ]
   },
 
@@ -15,7 +15,7 @@ Page({
       const records = this.data.records;
       records.unshift({
         id: Date.now(),
-        name: '张氏家族数据备份',
+        name: '朱氏家族数据备份',
         time: this.formatTime(new Date()),
         status: '成功'
       });

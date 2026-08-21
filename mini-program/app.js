@@ -129,7 +129,7 @@ App({
   mockLogin() {
     this.globalData.userInfo = {
       id: 'user001',
-      nickName: '张家族人',
+      nickName: '朱家族人',
       avatarUrl: '',
       role: 'admin'
     };
@@ -289,24 +289,24 @@ App({
     this.globalData.families = [
       {
         id: 'fam001',
-        name: '张氏家族',
+        name: '朱氏家族',
         logo: '',
         memberCount: 126,
         generationCount: 8,
         generationNames: '文、德、永、世、兴、明、道、广',
-        founder: '张太公',
+        founder: '朱太公',
         origin: '山东济南',
         createTime: '2024-01-15',
         isAdmin: true
       },
       {
         id: 'fam002',
-        name: '李氏宗族',
+        name: '朱氏宗族',
         logo: '',
         memberCount: 89,
         generationCount: 6,
         generationNames: '宗、邦、维、振、家、声',
-        founder: '李老太',
+        founder: '朱老太',
         origin: '河南开封',
         createTime: '2024-03-20',
         isAdmin: false

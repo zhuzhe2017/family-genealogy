@@ -1,5 +1,5 @@
 /**
- * 一次性脚本：生成小程序演示数据（张氏家族 5 代）
+ * 一次性脚本：生成小程序演示数据（朱氏家族 5 代）
  * 流程：模拟微信登录 → 创建家族 → 添加成员(建立父子关系) → 发布动态/事件/相册
  * 幂等：家族已存在则跳过成员/内容创建
  */
@@ -44,11 +44,11 @@ async function main() {
   const conn = await mysql.createConnection({
     host: '127.0.0.1', port: 3306, user: 'root', password: 'root', database: 'family_genealogy'
   });
-  const [surnames] = await conn.query("SELECT id FROM surname WHERE surname = '张'");
+  const [surnames] = await conn.query("SELECT id FROM surname WHERE surname = '朱'");
   let surnameId = surnames[0]?.id;
   if (!surnameId) {
     const [r] = await conn.query(
-      "INSERT INTO surname (surname, pinyin, initial, ranking, origin, description, status) VALUES ('张','zhang','Z',3,'起源于姬姓，始祖挥公。','张姓为中华大姓之一，人口众多。',1)"
+      "INSERT INTO surname (surname, pinyin, initial, ranking, origin, description, status) VALUES ('朱','zhu','Z',14,'朱姓源远流长，为中华大姓之一。','朱姓为中华大姓之一，人口众多。',1)"
     );
     surnameId = r.insertId;
   }
@@ -56,17 +56,17 @@ async function main() {
 
   // 3. 创建家族（已存在则复用）
   let families = await api('GET', '/user/family/all');
-  let family = families.find((f) => f.name === '张氏宗族');
+  let family = families.find((f) => f.name === '朱氏宗族');
   if (family) {
     familyId = Number(family.id);
     console.log('[3/7] 家族已存在, familyId =', familyId);
   } else {
     const created = await api('POST', '/user/family/create', {
       surnameId,
-      name: '张氏宗族',
-      founder: '张伯言',
+      name: '朱氏宗族',
+      founder: '朱伯言',
       origin: '浙江绍兴',
-      description: '张氏一脉自明末迁居绍兴，耕读传家，至今五代。',
+      description: '朱氏一脉自明末迁居绍兴，耕读传家，至今五代。',
       isPublic: 1,
       allowJoin: 1
     });
@@ -76,19 +76,19 @@ async function main() {
 
   // 4. 添加成员（父子关系链，父先于子创建）
   const memberDefs = [
-    { name: '张伯言', gender: 'male', generation: 1, generationName: '伯', birthDate: '1880-03-15', birthPlace: '浙江绍兴', isAlive: 0, deathDate: '1955-07-20', deathPlace: '浙江绍兴', bio: '一世祖，明末清初迁居绍兴，开基立业。', sortOrder: 1 },
-    { name: '张仲德', gender: 'male', generation: 2, generationName: '仲', birthDate: '1905-09-10', birthPlace: '浙江绍兴', isAlive: 0, deathDate: '1978-12-03', deathPlace: '浙江绍兴', bio: '二世长子，继承家业，兴修族谱。', fatherId: null, sortOrder: 1 },
-    { name: '张叔和', gender: 'male', generation: 2, generationName: '叔', birthDate: '1908-05-20', birthPlace: '浙江绍兴', isAlive: 0, deathDate: '1985-02-14', deathPlace: '浙江杭州', bio: '二世次子，经商起家。', fatherId: null, sortOrder: 2 },
-    { name: '张文远', gender: 'male', generation: 3, generationName: '文', birthDate: '1935-06-01', birthPlace: '浙江绍兴', isAlive: 1, bio: '三世长孙，从事教育工作。', fatherId: null, sortOrder: 1 },
-    { name: '张秀英', gender: 'female', generation: 3, generationName: '文', birthDate: '1938-02-11', birthPlace: '浙江绍兴', isAlive: 1, bio: '三世长女。', fatherId: null, sortOrder: 2 },
-    { name: '张建国', gender: 'male', generation: 3, generationName: '文', birthDate: '1965-04-10', birthPlace: '浙江杭州', isAlive: 1, bio: '三世次孙，工程师。', fatherId: null, sortOrder: 3 },
-    { name: '张伟民', gender: 'male', generation: 4, generationName: '德', birthDate: '1968-08-22', birthPlace: '浙江杭州', isAlive: 1, bio: '四世长孙。', fatherId: null, sortOrder: 1 },
-    { name: '张丽华', gender: 'female', generation: 4, generationName: '德', birthDate: '1972-01-05', birthPlace: '浙江杭州', isAlive: 1, bio: '四世长女，医生。', fatherId: null, sortOrder: 2 },
-    { name: '张思远', gender: 'male', generation: 5, generationName: '世', birthDate: '2000-09-18', birthPlace: '浙江杭州', isAlive: 1, bio: '五世长孙，大学生。', fatherId: null, sortOrder: 1 },
-    { name: '张思源', gender: 'female', generation: 5, generationName: '世', birthDate: '2003-12-28', birthPlace: '浙江杭州', isAlive: 1, bio: '五世长女，高中生。', fatherId: null, sortOrder: 2 }
+    { name: '朱伯言', gender: 'male', generation: 1, generationName: '伯', birthDate: '1880-03-15', birthPlace: '浙江绍兴', isAlive: 0, deathDate: '1955-07-20', deathPlace: '浙江绍兴', bio: '一世祖，明末清初迁居绍兴，开基立业。', sortOrder: 1 },
+    { name: '朱仲德', gender: 'male', generation: 2, generationName: '仲', birthDate: '1905-09-10', birthPlace: '浙江绍兴', isAlive: 0, deathDate: '1978-12-03', deathPlace: '浙江绍兴', bio: '二世长子，继承家业，兴修族谱。', fatherId: null, sortOrder: 1 },
+    { name: '朱叔和', gender: 'male', generation: 2, generationName: '叔', birthDate: '1908-05-20', birthPlace: '浙江绍兴', isAlive: 0, deathDate: '1985-02-14', deathPlace: '浙江杭州', bio: '二世次子，经商起家。', fatherId: null, sortOrder: 2 },
+    { name: '朱文远', gender: 'male', generation: 3, generationName: '文', birthDate: '1935-06-01', birthPlace: '浙江绍兴', isAlive: 1, bio: '三世长孙，从事教育工作。', fatherId: null, sortOrder: 1 },
+    { name: '朱秀英', gender: 'female', generation: 3, generationName: '文', birthDate: '1938-02-11', birthPlace: '浙江绍兴', isAlive: 1, bio: '三世长女。', fatherId: null, sortOrder: 2 },
+    { name: '朱建国', gender: 'male', generation: 3, generationName: '文', birthDate: '1965-04-10', birthPlace: '浙江杭州', isAlive: 1, bio: '三世次孙，工程师。', fatherId: null, sortOrder: 3 },
+    { name: '朱伟民', gender: 'male', generation: 4, generationName: '德', birthDate: '1968-08-22', birthPlace: '浙江杭州', isAlive: 1, bio: '四世长孙。', fatherId: null, sortOrder: 1 },
+    { name: '朱丽华', gender: 'female', generation: 4, generationName: '德', birthDate: '1972-01-05', birthPlace: '浙江杭州', isAlive: 1, bio: '四世长女，医生。', fatherId: null, sortOrder: 2 },
+    { name: '朱思远', gender: 'male', generation: 5, generationName: '世', birthDate: '2000-09-18', birthPlace: '浙江杭州', isAlive: 1, bio: '五世长孙，大学生。', fatherId: null, sortOrder: 1 },
+    { name: '朱思源', gender: 'female', generation: 5, generationName: '世', birthDate: '2003-12-28', birthPlace: '浙江杭州', isAlive: 1, bio: '五世长女，高中生。', fatherId: null, sortOrder: 2 }
   ];
   // father 映射：伯言→[仲德,叔和]，仲德→[文远,秀英]，叔和→[建国]，建国→[伟民]，文远→[丽华]，伟民→[思远,思源]
-  const fatherOf = { 张仲德: '张伯言', 张叔和: '张伯言', 张文远: '张仲德', 张秀英: '张仲德', 张建国: '张叔和', 张伟民: '张建国', 张丽华: '张文远', 张思远: '张伟民', 张思源: '张伟民' };
+  const fatherOf = { 朱仲德: '朱伯言', 朱叔和: '朱伯言', 朱文远: '朱仲德', 朱秀英: '朱仲德', 朱建国: '朱叔和', 朱伟民: '朱建国', 朱丽华: '朱文远', 朱思远: '朱伟民', 朱思源: '朱伟民' };
 
   const members = await api('GET', `/user/family/${familyId}/members`);
   if (members.length > 0) {
@@ -112,9 +112,9 @@ async function main() {
     console.log('[5/7] 动态已存在, 跳过创建');
   } else {
     const dynamics = [
-      { familyId, content: '清明时节，家族成员齐聚绍兴祭祖，缅怀先祖张伯言公。', images: [IMAGES[0], IMAGES[1]] },
+      { familyId, content: '清明时节，家族成员齐聚绍兴祭祖，缅怀先祖朱伯言公。', images: [IMAGES[0], IMAGES[1]] },
       { familyId, content: '整理家族老照片，翻到祖父辈的珍贵合影，仿佛时光倒流。', images: [IMAGES[2]] },
-      { familyId, content: '恭喜家族晚辈张思远同学金榜题名！为家族争光！', images: [] }
+      { familyId, content: '恭喜家族晚辈朱思远同学金榜题名！为家族争光！', images: [] }
     ];
     for (const d of dynamics) {
       await api('POST', '/user/content/dynamic/create', d);
@@ -130,9 +130,9 @@ async function main() {
     const all = await api('GET', `/user/family/${familyId}/members`);
     const byName = Object.fromEntries(all.map((m) => [m.name, m]));
     const events = [
-      { familyId, year: 1880, month: 3, day: 15, title: '张伯言出生', description: '始祖张伯言公出生于浙江绍兴。', type: 'birth', typeName: '出生', relatedMembers: [{ id: byName['张伯言'].id, name: '张伯言', gender: 'male', relation: '本人' }] },
-      { familyId, year: 1955, month: 7, day: 20, title: '张伯言逝世', description: '始祖张伯言公仙逝，享年七十五岁。', type: 'death', typeName: '逝世', relatedMembers: [{ id: byName['张伯言'].id, name: '张伯言', gender: 'male', relation: '本人' }] },
-      { familyId, year: 2024, month: 4, day: 4, title: '清明祭祖大典', description: '家族三十余人齐聚绍兴祖宅举行祭祖仪式。', type: 'other', typeName: '其他', relatedMembers: [{ id: byName['张建国'].id, name: '张建国', gender: 'male', relation: '主祭人' }] }
+      { familyId, year: 1880, month: 3, day: 15, title: '朱伯言出生', description: '始祖朱伯言公出生于浙江绍兴。', type: 'birth', typeName: '出生', relatedMembers: [{ id: byName['朱伯言'].id, name: '朱伯言', gender: 'male', relation: '本人' }] },
+      { familyId, year: 1955, month: 7, day: 20, title: '朱伯言逝世', description: '始祖朱伯言公仙逝，享年七十五岁。', type: 'death', typeName: '逝世', relatedMembers: [{ id: byName['朱伯言'].id, name: '朱伯言', gender: 'male', relation: '本人' }] },
+      { familyId, year: 2024, month: 4, day: 4, title: '清明祭祖大典', description: '家族三十余人齐聚绍兴祖宅举行祭祖仪式。', type: 'other', typeName: '其他', relatedMembers: [{ id: byName['朱建国'].id, name: '朱建国', gender: 'male', relation: '主祭人' }] }
     ];
     for (const e of events) {
       await api('POST', '/user/content/event/create', e);

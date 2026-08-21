@@ -289,7 +289,7 @@ Page({
     return [
       {
         id: 1,
-        userName: '张三',
+        userName: '朱三',
         gender: 'male',
         time: '2小时前',
         content: '今天整理了家族的老照片，发现了很多珍贵的历史资料，分享给大家看看。这些照片记录了家族近百年的发展历程，非常珍贵。',
@@ -298,13 +298,13 @@ Page({
         commentCount: 5,
         isLiked: false,
         comments: [
-          { id: 1, userName: '李四', content: '太珍贵了！' },
-          { id: 2, userName: '王五', content: '感谢分享，这些都是宝贵的历史资料。' }
+          { id: 1, userName: '朱四', content: '太珍贵了！' },
+          { id: 2, userName: '朱五', content: '感谢分享，这些都是宝贵的历史资料。' }
         ]
       },
       {
         id: 2,
-        userName: '李四',
+        userName: '朱四',
         gender: 'female',
         time: '5小时前',
         content: '清明节家族祭祖活动圆满结束，感谢各位族人的参与！这次共有50多位族人从各地赶来参加，场面非常感人。',
@@ -313,13 +313,13 @@ Page({
         commentCount: 12,
         isLiked: true,
         comments: [
-          { id: 3, userName: '张三', content: '明年一定参加！' },
-          { id: 4, userName: '赵六', content: '辛苦了组织者！' }
+          { id: 3, userName: '朱三', content: '明年一定参加！' },
+          { id: 4, userName: '朱六', content: '辛苦了组织者！' }
         ]
       },
       {
         id: 3,
-        userName: '王五',
+        userName: '朱五',
         gender: 'male',
         time: '昨天',
         content: '新添了家族成员信息，欢迎小明加入我们的大家庭！希望家族越来越兴旺。',
@@ -328,7 +328,7 @@ Page({
         commentCount: 3,
         isLiked: false,
         comments: [
-          { id: 5, userName: '张三', content: '欢迎新成员！' }
+          { id: 5, userName: '朱三', content: '欢迎新成员！' }
         ]
       }
     ];

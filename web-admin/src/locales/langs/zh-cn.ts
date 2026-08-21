@@ -225,6 +225,7 @@ const local: App.I18n.Schema = {
     404: '页面不存在',
     500: '服务器错误',
     'iframe-page': '外链页面',
+    'app-center': '应用中心',
     home: '首页',
     'mini-program': '小程序管理',
     'mini-program_overview': '小程序概览',

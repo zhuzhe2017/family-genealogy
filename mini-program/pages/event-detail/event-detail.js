@@ -57,19 +57,19 @@ Page({
       year: 1880,
       month: 3,
       day: 15,
-      title: '张太公出生',
-      description: '家族始祖张太公出生于山东省济南市历城区的一个书香门第。其父为当地知名学者，自幼受到良好教育。张太公一生勤劳朴实，为家族发展奠定了坚实基础。',
+      title: '朱太公出生',
+      description: '家族始祖朱太公出生于山东省济南市历城区的一个书香门第。其父为当地知名学者，自幼受到良好教育。朱太公一生勤劳朴实，为家族发展奠定了坚实基础。',
       type: 'birth',
       typeName: '出生',
       details: [
         { label: '出生时间', value: '1880年3月15日' },
         { label: '出生地点', value: '山东省济南市历城区' },
-        { label: '父亲', value: '张老先生' },
-        { label: '母亲', value: '张老夫人' }
+        { label: '父亲', value: '朱老先生' },
+        { label: '母亲', value: '朱老夫人' }
       ],
       relatedMembers: [
-        { id: '1', name: '张太公', gender: 'male', relation: '本人' },
-        { id: '2', name: '张太婆', gender: 'female', relation: '配偶' }
+        { id: '1', name: '朱太公', gender: 'male', relation: '本人' },
+        { id: '2', name: '朱太婆', gender: 'female', relation: '配偶' }
       ],
       photos: []
     };

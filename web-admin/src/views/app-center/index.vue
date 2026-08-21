@@ -3,6 +3,8 @@ import { h, ref, reactive, onMounted } from 'vue';
 import type { DataTableColumn } from 'naive-ui';
 import { useMessage, useDialog, NTag, NButton, NSpace, NSelect, NInput, NInputNumber, NForm, NFormItem, NDataTable, NModal, NSwitch, NCard } from 'naive-ui';
 import { useAuth } from '@/hooks/business/auth';
+import ImageUpload from '@/components/common/image-upload/index.vue';
+import { resolveImageUrl } from '@/utils/image-url';
 import {
   fetchAdminPluginList,
   fetchCreateAdminPlugin,
@@ -35,12 +37,19 @@ function formatTime(v: string | null | undefined) {
   return v ? String(v).replace('T', ' ').slice(0, 19) : '-';
 }
 
+/** 图标是否为图片（上传返回 /uploads/ 相对路径或完整 http 地址），否则视为 emoji 文本 */
+function isImageIcon(icon: string) {
+  return /^https?:\/\//.test(icon) || icon.startsWith('/uploads/');
+}
+
 const columns: DataTableColumn<AdminPluginItem>[] = [
   { title: 'ID', key: 'id', width: 60 },
   { title: '编码', key: 'code', width: 120, ellipsis: { tooltip: true } },
   {
-    title: '图标', key: 'icon', width: 70, align: 'center',
-    render: row => h('span', { style: 'font-size: 24px; line-height: 1' }, row.icon)
+    title: '图标', key: 'icon', width: 80, align: 'center',
+    render: row => isImageIcon(row.icon)
+      ? h('img', { src: resolveImageUrl(row.icon), alt: row.name, style: 'width: 32px; height: 32px; border-radius: 6px; object-fit: cover; display: inline-block; vertical-align: middle' })
+      : h('span', { style: 'font-size: 24px; line-height: 1' }, row.icon || '🧩')
   },
   { title: '名称', key: 'name', minWidth: 120, ellipsis: { tooltip: true } },
   { title: '简介', key: 'description', minWidth: 160, ellipsis: { tooltip: true }, render: row => row.description || '-' },
@@ -147,7 +156,7 @@ async function handleSave() {
     return;
   }
   if (!form.icon.trim()) {
-    message.warning('请填写应用图标（emoji 或图片URL）');
+    message.warning('请上传应用图标');
     return;
   }
   if (!form.entryValue.trim()) {
@@ -240,8 +249,8 @@ onMounted(loadList);
           <NInput v-model:value="form.name" placeholder="例如：电子罗盘" maxlength="64" />
         </NFormItem>
         <NFormItem label="应用图标">
-          <NInput v-model:value="form.icon" placeholder="emoji 或图片URL，如 🧭" maxlength="255" />
-          <div class="text-12px text-gray-400 mt-4px">小程序端以 emoji 底色块展示，推荐直接填 emoji</div>
+          <ImageUpload v-model:value="form.icon" :size="80" />
+          <div class="text-12px text-gray-400 mt-4px">上传应用图标图片（png/jpg/gif/webp，≤ 5MB），建议使用 1:1 正方形图</div>
         </NFormItem>
         <NFormItem label="应用简介">
           <NInput v-model:value="form.description" type="textarea" :rows="2" placeholder="一句话说明用途" maxlength="255" />

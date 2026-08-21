@@ -229,6 +229,7 @@ const local: App.I18n.Schema = {
     404: 'Page Not Found',
     500: 'Server Error',
     'iframe-page': 'Iframe Page',
+    'app-center': 'App Center',
     home: 'Home',
     'mini-program': 'Mini Program',
     'mini-program_overview': 'Mini Program Overview',

@@ -64,7 +64,7 @@ Page({
   getMockMember(id) {
     return {
       id: id,
-      name: '张太公',
+      name: '朱太公',
       gender: 'male',
       generation: 1,
       generationName: '文',
@@ -72,22 +72,22 @@ Page({
       deathDate: '1955年8月20日',
       birthPlace: '山东省济南市',
       isAlive: false,
-      bio: '张太公，字子远，生于清光绪六年。早年从商，后回乡办学，为家族发展奠定了坚实基础。为人正直，乐善好施，深受乡邻敬重。',
+      bio: '朱太公，字子远，生于清光绪六年。早年从商，后回乡办学，为家族发展奠定了坚实基础。为人正直，乐善好施，深受乡邻敬重。',
       spouseInfo: {
-        name: '张太婆',
+        name: '朱太婆',
         birthDate: '1882年5月12日',
-        bio: '张太婆，贤良淑德，相夫教子，为家族培养了三子。',
+        bio: '朱太婆，贤良淑德，相夫教子，为家族培养了三子。',
         deathDate: '1960年11月8日',
-        deathPlace: '山东省济南市张氏祖坟',
+        deathPlace: '山东省济南市朱氏祖坟',
         longitude: '117.000923',
         latitude: '36.675807'
       },
       father: '',
       mother: '',
       children: [
-        { id: '2', name: '张大', gender: 'male' },
-        { id: '3', name: '张二', gender: 'male' },
-        { id: '4', name: '张三', gender: 'male' }
+        { id: '2', name: '朱大', gender: 'male' },
+        { id: '3', name: '朱二', gender: 'male' },
+        { id: '4', name: '朱三', gender: 'male' }
       ],
       photos: ['', '', '']
     };

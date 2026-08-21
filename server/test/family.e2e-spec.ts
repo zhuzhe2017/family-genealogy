@@ -61,7 +61,7 @@ describe('FamilyController (e2e)', () => {
     it('返回标准响应结构 {code,data,msg}', async () => {
       queryMock
         .mockResolvedValueOnce([{ total: 1 }])
-        .mockResolvedValueOnce([{ id: 'f1', name: '张氏家族', status: 1 }])
+        .mockResolvedValueOnce([{ id: 'f1', name: '朱氏家族', status: 1 }])
         .mockResolvedValueOnce([{ family_id: 'f1', cnt: 3 }]) // member
         .mockResolvedValueOnce([]) // event
         .mockResolvedValueOnce([]) // photo
@@ -91,11 +91,11 @@ describe('FamilyController (e2e)', () => {
         .mockResolvedValueOnce([])
         .mockResolvedValueOnce([]);
 
-      const res = await request(app.getHttpServer()).get('/family/list?keyword=张');
+      const res = await request(app.getHttpServer()).get('/family/list?keyword=朱');
 
       expect(res.status).toBe(200);
       // 验证 count 查询参数包含 keyword
-      expect(queryMock.mock.calls[0][1]).toContain('%张%');
+      expect(queryMock.mock.calls[0][1]).toContain('%朱%');
     });
   });
 
@@ -109,7 +109,7 @@ describe('FamilyController (e2e)', () => {
 
     it('存在时返回详情', async () => {
       queryMock
-        .mockResolvedValueOnce([{ id: 123456, name: '张氏', status: 1 }])
+        .mockResolvedValueOnce([{ id: 123456, name: '朱氏', status: 1 }])
         .mockResolvedValueOnce([{ family_id: 123456, cnt: 2 }])
         .mockResolvedValueOnce([])
         .mockResolvedValueOnce([])

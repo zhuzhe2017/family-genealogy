@@ -43,11 +43,11 @@ async function main() {
   const gen4Id = genId();
 
   const members = [
-    [gen1Id,    2, '张伯言', 'male',   1, '伯', '1880-03-15', '浙江绍兴', 0, '1955-07-20', '浙江绍兴', 120.5800000, 30.0300000, '一世祖',       '',       '', JSON.stringify([{name:'王氏',birthDate:'1882',isAlive:0,deathDate:'1940',deathPlace:'浙江绍兴'}]), 1, 1],
-    [gen2Id1,   2, '张仲德', 'male',   2, '仲', '1905-09-10', '浙江绍兴', 0, '1978-12-03', '浙江绍兴', null, null, '二世长子',     gen1Id,   '', null, 1, 1],
-    [gen2Id2,   2, '张叔和', 'male',   2, '叔', '1908-05-20', '浙江绍兴', 0, '1985-02-14', '浙江杭州', null, null, '二世次子',     gen1Id,   '', null, 2, 1],
-    [gen3Id,    2, '张文远', 'male',   3, '文', '1935-06-01', '浙江绍兴', 1, '',           '',         null, null, '三世长孙',     gen2Id1,  '', null, 1, 1],
-    [gen4Id,    2, '张建国', 'male',   4, '建', '1965-04-10', '浙江杭州', 1, '',           '',         null, null, '工程师',       gen3Id,   '', JSON.stringify([{name:'李氏',birthDate:'1967',isAlive:1},{name:'周氏',birthDate:'1970',isAlive:0,deathDate:'2005'}]), 1, 1],
+    [gen1Id,    2, '朱伯言', 'male',   1, '伯', '1880-03-15', '浙江绍兴', 0, '1955-07-20', '浙江绍兴', 120.5800000, 30.0300000, '一世祖',       '',       '', JSON.stringify([{name:'王氏',birthDate:'1882',isAlive:0,deathDate:'1940',deathPlace:'浙江绍兴'}]), 1, 1],
+    [gen2Id1,   2, '朱仲德', 'male',   2, '仲', '1905-09-10', '浙江绍兴', 0, '1978-12-03', '浙江绍兴', null, null, '二世长子',     gen1Id,   '', null, 1, 1],
+    [gen2Id2,   2, '朱叔和', 'male',   2, '叔', '1908-05-20', '浙江绍兴', 0, '1985-02-14', '浙江杭州', null, null, '二世次子',     gen1Id,   '', null, 2, 1],
+    [gen3Id,    2, '朱文远', 'male',   3, '文', '1935-06-01', '浙江绍兴', 1, '',           '',         null, null, '三世长孙',     gen2Id1,  '', null, 1, 1],
+    [gen4Id,    2, '朱建国', 'male',   4, '建', '1965-04-10', '浙江杭州', 1, '',           '',         null, null, '工程师',       gen3Id,   '', JSON.stringify([{name:'李氏',birthDate:'1967',isAlive:1},{name:'周氏',birthDate:'1970',isAlive:0,deathDate:'2005'}]), 1, 1],
   ];
 
   for (const m of members) {

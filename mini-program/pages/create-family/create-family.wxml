@@ -5,7 +5,7 @@
 
       <view class="form-group">
         <text class="form-label required">家族名称</text>
-        <input class="form-input" placeholder="请输入家族名称，如：张氏家族" value="{{form.name}}" bindinput="inputChange" data-field="name"/>
+        <input class="form-input" placeholder="请输入家族名称，如：朱氏家族" value="{{form.name}}" bindinput="inputChange" data-field="name"/>
       </view>
 
       <view class="form-group">

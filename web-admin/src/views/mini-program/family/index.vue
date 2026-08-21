@@ -129,9 +129,23 @@ const columns: DataTableColumn<FamilyItem>[] = [
     }
   },
   { title: '发源地', key: 'origin', ellipsis: { tooltip: true }, width: 140 },
-  {
-    title: '成员数', key: 'realMemberCount', width: 80, align: 'center',
+  { title: '成员数', key: 'realMemberCount', width: 80, align: 'center',
     render: row => row.realMemberCount ?? row.member_count ?? 0
+  },
+  {
+    title: '种子邀请码', key: 'seed_share_code', width: 150,
+    render: row => {
+      if (!row.seed_share_code) return h('span', { class: 'text-gray-400' }, '-');
+      return h(NSpace, { size: 4, align: 'center' }, {
+        default: () => [
+          h('span', { style: 'font-family: monospace; font-weight: 500;' }, row.seed_share_code),
+          h(NButton, {
+            size: 'tiny', quaternary: true, type: 'primary',
+            onClick: () => copySeedCode(row.seed_share_code!)
+          }, { default: () => '复制' })
+        ]
+      });
+    }
   },
   { title: '代数', key: 'gen_count', width: 70, align: 'center' },
   { title: '事件', key: 'eventCount', width: 70, align: 'center' },
@@ -169,6 +183,16 @@ const columns: DataTableColumn<FamilyItem>[] = [
 function handleSearch() {
   pagination.page = 1;
   loadData();
+}
+
+/** 复制种子邀请码 */
+async function copySeedCode(code: string) {
+  try {
+    await navigator.clipboard.writeText(code);
+    message.success('种子邀请码已复制，可发给会员加入家族');
+  } catch {
+    message.error('复制失败，请手动复制');
+  }
 }
 
 function handleReset() {
@@ -276,8 +300,8 @@ async function handleSubmit() {
       await fetchUpdateFamily(editId.value, formData);
       message.success('更新成功');
     } else {
-      await fetchCreateFamily(formData);
-      message.success('新增成功');
+      const { data } = await fetchCreateFamily(formData);
+      message.success(data?.seedShareCode ? `新增成功，种子邀请码：${data.seedShareCode}` : '新增成功');
     }
     showModal.value = false;
     loadData();

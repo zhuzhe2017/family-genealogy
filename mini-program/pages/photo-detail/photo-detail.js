@@ -40,11 +40,11 @@ Page({
     return {
       id: id,
       url: '',
-      title: '张太公遗照',
+      title: '朱太公遗照',
       year: '1950',
-      description: '这是张太公晚年留下的珍贵照片，拍摄于家族老宅。照片记录了张太公慈祥的面容，是家族珍贵的历史资料。',
+      description: '这是朱太公晚年留下的珍贵照片，拍摄于家族老宅。照片记录了朱太公慈祥的面容，是家族珍贵的历史资料。',
       categoryName: '先祖照片',
-      uploader: '张三',
+      uploader: '朱三',
       uploadTime: '2024-01-15'
     };
   },

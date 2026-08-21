@@ -17,6 +17,7 @@ export interface FamilyItem {
   allow_join: number;
   member_count: number;
   gen_count: number;
+  seed_share_code?: string;
   creator_id: number;
   status: number;
   create_time: string;
@@ -88,7 +89,7 @@ export function fetchFamilyById(id: number) {
 
 /** 创建 */
 export function fetchCreateFamily(data: CreateFamilyData) {
-  return request<{ id: number }>({ url: '/family/create', method: 'post', data });
+  return request<{ id: number; seedShareCode?: string }>({ url: '/family/create', method: 'post', data });
 }
 
 /** 更新 */

@@ -30,7 +30,7 @@ describe('FamilyMemberService', () => {
       mockTableExists();
       queryMock
         .mockResolvedValueOnce([{ total: 2 }])
-        .mockResolvedValueOnce([{ id: 'a1', name: '张三' }, { id: 'a2', name: '李四' }]);
+        .mockResolvedValueOnce([{ id: 'a1', name: '朱三' }, { id: 'a2', name: '朱四' }]);
 
       const result = await service.getList(1, { page: 1, pageSize: 10 });
 
@@ -78,11 +78,11 @@ describe('FamilyMemberService', () => {
     it('正确返回成员详情并附带照片', async () => {
       mockTableExists();
       queryMock
-        .mockResolvedValueOnce([{ id: 'm1', name: '张三' }]) // 成员行
+        .mockResolvedValueOnce([{ id: 'm1', name: '朱三' }]) // 成员行
         .mockResolvedValueOnce([{ exists: 1 }]) // 照片分表存在
         .mockResolvedValueOnce([{ photo_url: '/uploads/a.jpg' }, { photo_url: '/uploads/b.jpg' }]); // 照片列表
       const result = await service.getById(1, 'm1');
-      expect(result.name).toBe('张三');
+      expect(result.name).toBe('朱三');
       expect(result.photos).toEqual(['/uploads/a.jpg', '/uploads/b.jpg']);
     });
   });
@@ -97,7 +97,7 @@ describe('FamilyMemberService', () => {
 
     it('性别非法时抛出 BAD_REQUEST', async () => {
       mockTableExists();
-      await expect(service.create(1, { name: '张三', gender: 'unknown' })).rejects.toMatchObject({
+      await expect(service.create(1, { name: '朱三', gender: 'unknown' })).rejects.toMatchObject({
         status: HttpStatus.BAD_REQUEST
       });
     });
@@ -108,14 +108,14 @@ describe('FamilyMemberService', () => {
         .mockResolvedValueOnce({ affectedRows: 1 }) // INSERT
         .mockResolvedValueOnce({ affectedRows: 1 }); // member_count +1
 
-      const result = await service.create(1, { name: '张三', generation: 1 });
+      const result = await service.create(1, { name: '朱三', generation: 1 });
 
       expect(result.id).toMatch(/^[a-f0-9]{32}$/);
       const sql = queryMock.mock.calls[1][0];
       expect(sql).toContain('INSERT INTO `family_members_1`');
       expect(queryMock.mock.calls[1][1]).toContain(1); // family_id
       expect(queryMock.mock.calls[1][1]).toContain(1); // generation
-      expect(queryMock.mock.calls[1][1]).toContain('张三');
+      expect(queryMock.mock.calls[1][1]).toContain('朱三');
       expect(queryMock.mock.calls[1][1]).toContain(''); // father_id 为空
 
       // 创建后 member_count 原子 +1
@@ -134,14 +134,14 @@ describe('FamilyMemberService', () => {
         .mockResolvedValueOnce({ affectedRows: 1 }) // INSERT
         .mockResolvedValueOnce({ affectedRows: 1 }); // member_count +1
 
-      const result = await service.create(1, { name: '张三', generation: 2, fatherId: 'f1' });
+      const result = await service.create(1, { name: '朱三', generation: 2, fatherId: 'f1' });
 
       expect(result.id).toMatch(/^[a-f0-9]{32}$/);
       const sql = queryMock.mock.calls[4][0];
       expect(sql).toContain('INSERT INTO `family_members_1`');
       expect(queryMock.mock.calls[4][1]).toContain(1); // family_id
       expect(queryMock.mock.calls[4][1]).toContain(2); // generation
-      expect(queryMock.mock.calls[4][1]).toContain('张三');
+      expect(queryMock.mock.calls[4][1]).toContain('朱三');
       expect(queryMock.mock.calls[4][1]).toContain('f1'); // father_id
 
       // 创建后 member_count 原子 +1
@@ -153,21 +153,21 @@ describe('FamilyMemberService', () => {
 
     it('第2代及以上未选父亲时抛出 BAD_REQUEST', async () => {
       mockTableExists();
-      await expect(service.create(1, { name: '张三', generation: 2 })).rejects.toMatchObject({
+      await expect(service.create(1, { name: '朱三', generation: 2 })).rejects.toMatchObject({
         status: HttpStatus.BAD_REQUEST
       });
     });
 
     it('第1代设置父亲时抛出 BAD_REQUEST', async () => {
       mockTableExists();
-      await expect(service.create(1, { name: '张三', generation: 1, fatherId: 'f1' })).rejects.toMatchObject({
+      await expect(service.create(1, { name: '朱三', generation: 1, fatherId: 'f1' })).rejects.toMatchObject({
         status: HttpStatus.BAD_REQUEST
       });
     });
 
     it('父与母为同一成员时抛出 BAD_REQUEST', async () => {
       mockTableExists();
-      await expect(service.create(1, { name: '张三', generation: 2, fatherId: 'f1', motherId: 'f1' })).rejects.toMatchObject({
+      await expect(service.create(1, { name: '朱三', generation: 2, fatherId: 'f1', motherId: 'f1' })).rejects.toMatchObject({
         status: HttpStatus.BAD_REQUEST
       });
     });
@@ -175,7 +175,7 @@ describe('FamilyMemberService', () => {
     it('父/母成员不存在时抛出 BAD_REQUEST', async () => {
       mockTableExists();
       queryMock.mockResolvedValueOnce([]); // 查询父/母返回空
-      await expect(service.create(1, { name: '张三', generation: 2, fatherId: 'f1' })).rejects.toMatchObject({
+      await expect(service.create(1, { name: '朱三', generation: 2, fatherId: 'f1' })).rejects.toMatchObject({
         status: HttpStatus.BAD_REQUEST
       });
     });
@@ -188,7 +188,7 @@ describe('FamilyMemberService', () => {
         .mockResolvedValueOnce([]) // 同父同名唯一性校验：不存在
         .mockResolvedValueOnce({ affectedRows: 1 }); // INSERT
 
-      const result = await service.create(1, { name: '张三', generation: 2, fatherId: 'f1' });
+      const result = await service.create(1, { name: '朱三', generation: 2, fatherId: 'f1' });
 
       expect(result.id).toMatch(/^[a-f0-9]{32}$/);
       const insertSql = queryMock.mock.calls[4][0];
@@ -203,7 +203,7 @@ describe('FamilyMemberService', () => {
         .mockResolvedValueOnce([{ exists: 1 }]) // checkDuplicate 内部 ensureTable
         .mockResolvedValueOnce([{ id: 'dup' }]); // 唯一性校验：已存在同名成员
 
-      await expect(service.create(1, { name: '张三', generation: 2, fatherId: 'f1' })).rejects.toMatchObject({
+      await expect(service.create(1, { name: '朱三', generation: 2, fatherId: 'f1' })).rejects.toMatchObject({
         status: HttpStatus.BAD_REQUEST,
         message: '成员已经存在'
       });
@@ -214,7 +214,7 @@ describe('FamilyMemberService', () => {
     it('成员不存在时抛出 NOT_FOUND', async () => {
       mockTableExists();
       queryMock.mockResolvedValueOnce([]);
-      await expect(service.update(1, 'x', { name: '李四' })).rejects.toMatchObject({
+      await expect(service.update(1, 'x', { name: '朱四' })).rejects.toMatchObject({
         status: HttpStatus.NOT_FOUND
       });
     });
@@ -233,13 +233,13 @@ describe('FamilyMemberService', () => {
         .mockResolvedValueOnce([{ id: 'x', status: 1 }])
         .mockResolvedValueOnce({ affectedRows: 1 }); // UPDATE
 
-      await service.update(1, 'x', { name: '李四', generation: 1 });
+      await service.update(1, 'x', { name: '朱四', generation: 1 });
 
       const sql = queryMock.mock.calls[2][0];
       expect(sql).toContain('UPDATE `family_members_1`');
       expect(sql).toContain('`name` = ?');
       expect(sql).toContain('`generation` = ?');
-      expect(queryMock.mock.calls[2][1]).toContain('李四');
+      expect(queryMock.mock.calls[2][1]).toContain('朱四');
       expect(queryMock.mock.calls[2][1]).toContain(1);
 
       // 未变更 status，不触发计数调整
@@ -322,7 +322,7 @@ describe('FamilyMemberService', () => {
         .mockResolvedValueOnce([{ exists: 1 }]) // checkDuplicate 内部 ensureTable
         .mockResolvedValueOnce([{ id: 'dup' }]); // 唯一性校验：其他成员已同名
 
-      await expect(service.update(1, 'x', { name: '张三', generation: 2, fatherId: 'f1' })).rejects.toMatchObject({
+      await expect(service.update(1, 'x', { name: '朱三', generation: 2, fatherId: 'f1' })).rejects.toMatchObject({
         status: HttpStatus.BAD_REQUEST,
         message: '成员已经存在'
       });
@@ -412,21 +412,21 @@ describe('FamilyMemberService', () => {
     it('同一父亲下存在同名成员时返回 exists=true', async () => {
       mockTableExists();
       queryMock.mockResolvedValueOnce([{ id: 'dup' }]);
-      const result = await service.checkDuplicate(1, '张三', 'f1', '');
+      const result = await service.checkDuplicate(1, '朱三', 'f1', '');
       expect(result.exists).toBe(true);
     });
 
     it('不存在同名成员时返回 exists=false', async () => {
       mockTableExists();
       queryMock.mockResolvedValueOnce([]);
-      const result = await service.checkDuplicate(1, '张三', 'f1', '');
+      const result = await service.checkDuplicate(1, '朱三', 'f1', '');
       expect(result.exists).toBe(false);
     });
 
     it('排除自身后同名不误判', async () => {
       mockTableExists();
       queryMock.mockResolvedValueOnce([]);
-      const result = await service.checkDuplicate(1, '张三', 'f1', 'self');
+      const result = await service.checkDuplicate(1, '朱三', 'f1', 'self');
       expect(result.exists).toBe(false);
       expect(queryMock.mock.calls[1][1]).toContain('self');
     });
@@ -453,14 +453,14 @@ describe('FamilyMemberService', () => {
         .mockResolvedValueOnce({ affectedRows: 1 }) // INSERT
         .mockResolvedValueOnce({ affectedRows: 1 }); // member_count +1
 
-      const result = await service.batchImport(1, [{ name: '张三', generation: 3 }]);
+      const result = await service.batchImport(1, [{ name: '朱三', generation: 3 }]);
 
       expect(result.imported).toBe(1);
       expect(result.total).toBe(1);
       expect(result.errors).toHaveLength(0);
       const insertSql = queryMock.mock.calls[1][0];
       expect(insertSql).toContain('INSERT INTO `family_members_1`');
-      expect(queryMock.mock.calls[1][1]).toContain('张三');
+      expect(queryMock.mock.calls[1][1]).toContain('朱三');
 
       // 导入后 member_count 原子 +imported
       const incSql = queryMock.mock.calls[2][0];
@@ -476,10 +476,10 @@ describe('FamilyMemberService', () => {
         .mockResolvedValueOnce({ affectedRows: 1 }); // 第 3 行 INSERT
 
       const result = await service.batchImport(1, [
-        { name: '李四' },
+        { name: '朱四' },
         { name: '', gender: 'male' },
-        { name: '王五', gender: 'unknown' },
-        { name: '赵六' }
+        { name: '朱五', gender: 'unknown' },
+        { name: '朱六' }
       ]);
 
       expect(result.imported).toBe(2);

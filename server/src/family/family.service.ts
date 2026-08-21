@@ -89,7 +89,7 @@ export class FamilyService {
               \`gt\`.\`founder\` AS \`generation_table_founder\`,
               \`gt\`.\`generation_sequence\` AS \`generation_sequence\`,
               \`f\`.\`name\`, \`f\`.\`logo\`, \`f\`.\`founder\`, \`f\`.\`origin\`, \`f\`.\`description\`,
-              \`f\`.\`is_public\`, \`f\`.\`allow_join\`, \`f\`.\`member_count\`, \`f\`.\`gen_count\`,
+              \`f\`.\`is_public\`, \`f\`.\`allow_join\`, \`f\`.\`member_count\`, \`f\`.\`gen_count\`, \`f\`.\`seed_share_code\`,
               \`f\`.\`creator_id\`, \`f\`.\`creator_user_id\`, \`f\`.\`status\`, \`f\`.\`create_time\`, \`f\`.\`update_time\`
        FROM \`family\` \`f\`
        LEFT JOIN \`surname\` \`s\` ON \`f\`.\`surname_id\` = \`s\`.\`id\`
@@ -167,7 +167,7 @@ export class FamilyService {
               \`gt\`.\`founder\` AS \`generation_table_founder\`,
               \`gt\`.\`generation_sequence\` AS \`generation_sequence\`,
               \`f\`.\`name\`, \`f\`.\`logo\`, \`f\`.\`founder\`, \`f\`.\`origin\`, \`f\`.\`description\`,
-              \`f\`.\`is_public\`, \`f\`.\`allow_join\`, \`f\`.\`member_count\`, \`f\`.\`gen_count\`,
+              \`f\`.\`is_public\`, \`f\`.\`allow_join\`, \`f\`.\`member_count\`, \`f\`.\`gen_count\`, \`f\`.\`seed_share_code\`,
               \`f\`.\`creator_id\`, \`f\`.\`creator_user_id\`, \`f\`.\`status\`, \`f\`.\`create_time\`, \`f\`.\`update_time\`
        FROM \`family\` \`f\`
        LEFT JOIN \`surname\` \`s\` ON \`f\`.\`surname_id\` = \`s\`.\`id\`

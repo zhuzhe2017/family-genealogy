@@ -1,5 +1,6 @@
 /** 应用中心:全部应用来自后端 app_plugin 表(动态),管理员可在后台增删/启停 */
 const { plugin } = require('../../utils/api');
+const { resolveImageUrl } = require('../../utils/format');
 const TAB_BAR_PAGES = ['/pages/home/home', '/pages/family-tree/family-tree', '/pages/dynamic/dynamic', '/pages/profile/profile'];
 
 Page({
@@ -26,7 +27,9 @@ Page({
             description: item.description || '',
             entryType: item.entryType || 'page',
             entryValue: item.entryValue || '',
-            iconImage: /^https?:\/\//.test(item.icon || '')
+            // 图标为图片(上传的 /uploads/ 相对路径或完整 http 地址)时以 <image> 展示,否则按 emoji 文本
+            iconImage: /^https?:\/\//.test(item.icon || '') || (item.icon || '').indexOf('/uploads/') === 0,
+            iconSrc: resolveImageUrl(item.icon)
           })),
           loading: false
         });

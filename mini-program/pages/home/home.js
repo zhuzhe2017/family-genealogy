@@ -344,21 +344,21 @@ Page({
     return [
       {
         id: 1,
-        userName: '张三',
+        userName: '朱三',
         time: '2小时前',
         content: '今天整理了家族的老照片，发现了很多珍贵的历史资料，分享给大家看看。',
         images: ['', '', '']
       },
       {
         id: 2,
-        userName: '李四',
+        userName: '朱四',
         time: '5小时前',
         content: '清明节家族祭祖活动圆满结束，感谢各位族人的参与！',
         images: []
       },
       {
         id: 3,
-        userName: '王五',
+        userName: '朱五',
         time: '昨天',
         content: '新添了家族成员信息，欢迎小明加入我们的大家庭！',
         images: []
@@ -378,11 +378,11 @@ Page({
   /** 开发模式模拟家族名人 */
   getMockFamous() {
     return [
-      { id: 1, name: '张太公', title: '家族始祖' },
-      { id: 2, name: '张文远', title: '清朝进士' },
-      { id: 3, name: '张明德', title: '民国教育家' },
-      { id: 4, name: '张国强', title: '现代企业家' },
-      { id: 5, name: '张丽华', title: '著名学者' }
+      { id: 1, name: '朱太公', title: '家族始祖' },
+      { id: 2, name: '朱文远', title: '清朝进士' },
+      { id: 3, name: '朱明德', title: '民国教育家' },
+      { id: 4, name: '朱国强', title: '现代企业家' },
+      { id: 5, name: '朱丽华', title: '著名学者' }
     ];
   }
 });

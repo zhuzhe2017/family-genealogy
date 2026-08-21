@@ -1,6 +1,8 @@
 -- ============================================================
 -- 数字家谱 - 数据库结构定义
--- 数据库类型: MySQL / MariaDB
+-- 数据库类型: MySQL / MariaDB（5.7.22+ / 8.0）
+-- 说明: 2026-08-21 起为完整主库升级脚本，已合并原 migrations/*.sql
+--       全部内容，原迁移文件已删除，合并明细见 MIGRATIONS.md / MERGE_LOG.md
 -- ============================================================
 
 CREATE DATABASE IF NOT EXISTS `family_genealogy`
@@ -23,6 +25,7 @@ CREATE TABLE `user` (
   `unionid`     VARCHAR(64)   DEFAULT '' COMMENT '微信unionid',
   `family_id`   INT UNSIGNED  DEFAULT NULL COMMENT '关联家族支系ID（会员所属家族支系，family.id）',
   `member_id`   VARCHAR(32)   DEFAULT '' COMMENT '关联成员ID（会员与家族成员的绑定关系，family_members_{familyId}.id）',
+  `family_role` VARCHAR(20)   DEFAULT 'member' COMMENT '家族角色 member-普通会员 admin-家族管理员 creator-家族创建者',
   `share_code`  VARCHAR(16)   DEFAULT NULL COMMENT '分享码（家族邀请/加入，全局唯一，仅已入族会员持有）',
   `status`      TINYINT(1)    DEFAULT 1 COMMENT '状态 1-正常 0-禁用',
   `create_time` DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
@@ -123,6 +126,7 @@ CREATE TABLE `family` (
   INDEX `idx_creator_user` (`creator_user_id`),
   INDEX `idx_name` (`name`),
   INDEX `idx_surname` (`surname_id`),
+  UNIQUE INDEX `uk_family_seed_share_code` (`seed_share_code`),
   CONSTRAINT `fk_family_surname` FOREIGN KEY (`surname_id`) REFERENCES `surname` (`id`) ON DELETE SET NULL ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='家族表';
 
@@ -866,3 +870,562 @@ SELECT r.`id`, m.`id` FROM `sys_role` r, `sys_menu` m WHERE r.`code` = 'super';
 -- ALTER TABLE `family_member` ADD COLUMN `spouse_name_old` VARCHAR(50) AFTER `spouse_id`;
 -- UPDATE `family_member` SET `spouse_name_old` = `spouse_name`;
 -- 迁移完成后再执行 DROP COLUMN `spouse_name_old`; 和 DROP COLUMN `marriage_date`;
+
+-- ============================================================
+-- ============================================================
+-- 以下内容合并自 server/database/migrations/*.sql（2026-08-21 整合）
+-- 目的：schema.sql 作为唯一主库升级脚本；原迁移文件已删除。
+--       各文件来源与删除清单见 MIGRATIONS.md / MERGE_LOG.md
+-- 兼容性：MySQL 5.7.22+ / 8.0（JSON、PREPARE、information_schema 幂等判断、存储过程）
+-- 全部语句幂等，可重复执行
+-- ============================================================
+-- ============================================================
+
+-- ------------------------------------------------------------
+-- 34. 家族广告轮播表（来源: 20260818-family-banner.sql + 20260819-banner-click-count.sql）
+-- ------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS `family_banner` (
+  `id`              INT UNSIGNED  NOT NULL AUTO_INCREMENT COMMENT 'ID',
+  `family_id`       INT UNSIGNED  NOT NULL DEFAULT 0 COMMENT '家族ID（0=全局广告，对所有家族展示）',
+  `title`           VARCHAR(100)  NOT NULL COMMENT '广告标题',
+  `image_url`       VARCHAR(500)  NOT NULL COMMENT '广告图片URL',
+  `link_type`       VARCHAR(20)   NOT NULL DEFAULT 'none' COMMENT '跳转类型 none-无 page-小程序页面 url-外部链接',
+  `link_url`        VARCHAR(500)  NOT NULL DEFAULT '' COMMENT '跳转地址（小程序页面路径或外部链接）',
+  `click_count`     INT UNSIGNED  NOT NULL DEFAULT 0 COMMENT '点击次数（运营统计用）',
+  `sort_order`      INT           NOT NULL DEFAULT 0 COMMENT '排序值（小在前）',
+  `status`          TINYINT(1)    NOT NULL DEFAULT 1 COMMENT '状态 1-启用 0-停用',
+  `start_time`      DATETIME      DEFAULT NULL COMMENT '生效时间（空=立即生效）',
+  `end_time`        DATETIME      DEFAULT NULL COMMENT '失效时间（空=永久有效）',
+  `creator_user_id` VARCHAR(32)   NOT NULL DEFAULT '' COMMENT '创建人用户ID',
+  `create_time`     DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `update_time`     DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  PRIMARY KEY (`id`),
+  INDEX `idx_family_status` (`family_id`, `status`, `sort_order`),
+  INDEX `idx_time_range` (`start_time`, `end_time`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='家族广告轮播表';
+
+-- 轮播切换时间全局配置（毫秒，默认 3000）
+INSERT IGNORE INTO `sys_config` (`config_key`, `config_name`, `config_value`, `value_type`, `group`, `remark`, `sort_order`, `status`, `is_system`)
+VALUES ('banner_interval', '轮播图切换时间(毫秒)', '3000', 'number', 'basic', '小程序首页广告轮播自动切换间隔，单位毫秒，默认 3000', 40, 1, 0);
+
+-- ------------------------------------------------------------
+-- 35. 家族邀请记录表（来源: 20260817-family-invitation.sql + 20260819-family-share.sql）
+-- ------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS `family_invitation` (
+  `id`              BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '邀请ID',
+  `family_id`       INT UNSIGNED  NOT NULL COMMENT '目标家族ID',
+  `inviter_user_id` VARCHAR(32)   NOT NULL COMMENT '邀请人用户ID',
+  `invitee_user_id` VARCHAR(32)   DEFAULT NULL COMMENT '被邀请人用户ID（已注册用户）',
+  `invitee_phone`   VARCHAR(20)   DEFAULT '' COMMENT '被邀请人手机号（可选）',
+  `invitee_email`   VARCHAR(100)  DEFAULT '' COMMENT '被邀请人邮箱（可选）',
+  `invite_code`     VARCHAR(16)   NOT NULL COMMENT '邀请码（全局唯一，8-16位）',
+  `invite_link`     VARCHAR(500)  DEFAULT '' COMMENT '邀请链接（小程序路径/URL）',
+  `channel`         VARCHAR(20)   DEFAULT 'link' COMMENT '分享渠道 link-链接 sms-短信 email-邮件 wechat-微信 qrcode-扫码 poster-海报',
+  `poster_url`      VARCHAR(500)  DEFAULT '' COMMENT '分享海报/小程序码图片URL（/uploads/xxx）',
+  `share_count`     INT UNSIGNED  NOT NULL DEFAULT 0 COMMENT '分享次数',
+  `joined_count`    INT UNSIGNED  NOT NULL DEFAULT 0 COMMENT '通过该邀请加入的人数',
+  `role`            VARCHAR(20)   DEFAULT 'member' COMMENT '邀请角色 member-普通会员 admin-家族管理员',
+  `status`          TINYINT(1)    DEFAULT 1 COMMENT '状态 0-已失效 1-待接受 2-已接受 3-已拒绝 4-已过期',
+  `expires_at`      DATETIME      NOT NULL COMMENT '过期时间',
+  `accepted_at`     DATETIME      DEFAULT NULL COMMENT '接受时间',
+  `rejected_at`     DATETIME      DEFAULT NULL COMMENT '拒绝时间',
+  `processed_by`    VARCHAR(32)   DEFAULT NULL COMMENT '处理人用户ID',
+  `remark`          VARCHAR(200)  DEFAULT '' COMMENT '备注/拒绝原因',
+  `create_time`     DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `update_time`     DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_invite_code` (`invite_code`),
+  INDEX `idx_family_id` (`family_id`),
+  INDEX `idx_inviter_user_id` (`inviter_user_id`),
+  INDEX `idx_invitee_user_id` (`invitee_user_id`),
+  INDEX `idx_invitee_phone` (`invitee_phone`),
+  INDEX `idx_status_expires` (`status`, `expires_at`),
+  INDEX `idx_create_time` (`create_time`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='家族邀请记录表';
+
+-- 存量邀请默认视为 link 渠道（幂等）
+UPDATE `family_invitation` SET `channel` = 'link' WHERE `channel` = '' OR `channel` IS NULL;
+
+-- ------------------------------------------------------------
+-- 36. 应用插件注册表（来源: 20260819-app-plugin.sql）
+-- ------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS `app_plugin` (
+  `id`              INT UNSIGNED  NOT NULL AUTO_INCREMENT COMMENT 'ID',
+  `code`            VARCHAR(64)   NOT NULL COMMENT '插件编码（唯一）',
+  `name`            VARCHAR(64)   NOT NULL COMMENT '插件名称',
+  `icon`            VARCHAR(255)  NOT NULL DEFAULT '' COMMENT '图标（emoji 或图片URL）',
+  `description`     VARCHAR(255)  NOT NULL DEFAULT '' COMMENT '插件简介',
+  `entry_type`      VARCHAR(16)   NOT NULL DEFAULT 'page' COMMENT '入口类型 page-小程序页面 url-外部H5链接',
+  `entry_value`     VARCHAR(500)  NOT NULL DEFAULT '' COMMENT '入口地址（小程序页面路径或H5链接）',
+  `sort_order`      INT           NOT NULL DEFAULT 0 COMMENT '排序值（小在前）',
+  `status`          TINYINT(1)    NOT NULL DEFAULT 1 COMMENT '状态 1-启用 0-停用',
+  `creator_user_id` VARCHAR(32)   NOT NULL DEFAULT '' COMMENT '创建人用户ID',
+  `create_time`     DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `update_time`     DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_code` (`code`),
+  INDEX `idx_status_sort` (`status`, `sort_order`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='应用插件注册表';
+
+-- ------------------------------------------------------------
+-- 37. 会员订阅系统 5 张表 + 套餐种子（来源: 20260815-membership-init.sql）
+-- ------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS `subscription_plan` (
+  `id`             INT UNSIGNED   NOT NULL AUTO_INCREMENT COMMENT '套餐ID',
+  `code`           VARCHAR(30)    NOT NULL COMMENT '套餐编码 free/family/premium',
+  `name`           VARCHAR(50)    NOT NULL COMMENT '套餐名称',
+  `price_annual`   DECIMAL(10,2)  NOT NULL DEFAULT 0.00 COMMENT '年费（元）',
+  `capabilities`   JSON           NOT NULL COMMENT '能力点集合 ["backup","export",...]',
+  `storage_limit`  BIGINT UNSIGNED DEFAULT 0 COMMENT '存储上限(字节)，0=不限',
+  `quota_rules`    JSON           DEFAULT NULL COMMENT '按次额度 {"ai_restore":10,"worship_pro":50}',
+  `sort_order`     INT UNSIGNED   DEFAULT 0 COMMENT '排序',
+  `status`         TINYINT(1)     DEFAULT 1 COMMENT '1-启用 0-停用',
+  `create_time`    DATETIME       NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `update_time`    DATETIME       NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_code` (`code`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='订阅套餐表';
+
+-- 家族订阅表（订阅跟随家族，家族成员共享权益）
+CREATE TABLE IF NOT EXISTS `family_subscription` (
+  `id`            INT UNSIGNED  NOT NULL AUTO_INCREMENT COMMENT '订阅ID',
+  `family_id`     INT UNSIGNED  NOT NULL COMMENT '家族ID',
+  `plan_code`     VARCHAR(30)   NOT NULL DEFAULT 'free' COMMENT '当前套餐',
+  `status`        VARCHAR(20)   NOT NULL DEFAULT 'active' COMMENT 'active-有效 grace-宽限 frozen-冻结 expired-已过期',
+  `owner_user_id` VARCHAR(32)   DEFAULT '' COMMENT '订阅支付人（小程序用户ID，32位hex）',
+  `auto_renew`    TINYINT(1)    DEFAULT 0 COMMENT '自动续费开关（一期默认关）',
+  `paid_at`       DATETIME      DEFAULT NULL COMMENT '最近一次付费时间',
+  `expire_at`     DATETIME      DEFAULT NULL COMMENT '当前周期到期时间',
+  `grace_until`   DATETIME      DEFAULT NULL COMMENT '宽限期截止',
+  `cancel_reason` VARCHAR(200)  DEFAULT '' COMMENT '取消/冻结原因',
+  `create_time`   DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `update_time`   DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_family` (`family_id`),
+  INDEX `idx_status` (`status`),
+  INDEX `idx_expire` (`expire_at`),
+  CONSTRAINT `fk_subscription_family` FOREIGN KEY (`family_id`) REFERENCES `family` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='家族订阅表';
+
+-- 订阅订单表（微信支付）
+CREATE TABLE IF NOT EXISTS `subscription_order` (
+  `id`             INT UNSIGNED   NOT NULL AUTO_INCREMENT COMMENT '订单ID',
+  `order_no`       VARCHAR(64)    NOT NULL COMMENT '平台订单号',
+  `out_trade_no`   VARCHAR(64)    NOT NULL COMMENT '商户订单号（微信支付）',
+  `family_id`      INT UNSIGNED   NOT NULL COMMENT '家族ID',
+  `user_id`        VARCHAR(32)    NOT NULL COMMENT '支付人用户ID',
+  `plan_code`      VARCHAR(30)    NOT NULL COMMENT '购买的套餐',
+  `amount`         DECIMAL(10,2)  NOT NULL COMMENT '实付金额（元）',
+  `period_months`  INT UNSIGNED   DEFAULT 12 COMMENT '订阅时长（月）',
+  `status`         VARCHAR(20)    NOT NULL DEFAULT 'pending' COMMENT 'pending/paid/failed/refunded/closed',
+  `transaction_id` VARCHAR(64)    DEFAULT '' COMMENT '微信支付单号',
+  `pay_time`       DATETIME       DEFAULT NULL COMMENT '支付时间',
+  `refund_time`    DATETIME       DEFAULT NULL COMMENT '退款时间',
+  `create_time`    DATETIME       NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `update_time`    DATETIME       NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_out_trade_no` (`out_trade_no`),
+  INDEX `idx_family` (`family_id`),
+  INDEX `idx_user` (`user_id`),
+  CONSTRAINT `fk_order_family` FOREIGN KEY (`family_id`) REFERENCES `family` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='订阅订单表';
+
+-- 家族额度账户表（存储用量 + 按次额度）
+CREATE TABLE IF NOT EXISTS `family_quota` (
+  `id`                 INT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT 'ID',
+  `family_id`          INT UNSIGNED NOT NULL COMMENT '家族ID',
+  `storage_used`       BIGINT UNSIGNED DEFAULT 0 COMMENT '已用存储(字节)，冗余列+定时对账',
+  `ai_restore_used`    INT UNSIGNED DEFAULT 0 COMMENT 'AI修复已用张数（当前订阅周期）',
+  `worship_pro_used`   INT UNSIGNED DEFAULT 0 COMMENT '祭祀增值已用次数（当前订阅周期）',
+  `quota_period_start` DATE DEFAULT NULL COMMENT '额度周期起点',
+  `quota_period_end`   DATE DEFAULT NULL COMMENT '额度周期终点',
+  `create_time`        DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `update_time`        DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_family` (`family_id`),
+  CONSTRAINT `fk_quota_family` FOREIGN KEY (`family_id`) REFERENCES `family` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='家族额度账户表';
+
+-- 存储占用明细表（支持「删除即释放」与精确对账）
+CREATE TABLE IF NOT EXISTS `storage_usage_record` (
+  `id`          INT UNSIGNED  NOT NULL AUTO_INCREMENT COMMENT 'ID',
+  `family_id`   INT UNSIGNED  NOT NULL COMMENT '家族ID',
+  `file_key`    VARCHAR(200)  NOT NULL COMMENT '文件标识（/uploads/xxx.png）',
+  `file_size`   BIGINT UNSIGNED NOT NULL COMMENT '占用字节数',
+  `biz_type`    VARCHAR(30)   NOT NULL COMMENT '业务类型 photo/document/dynamic/album/member_avatar',
+  `biz_id`      VARCHAR(64)   DEFAULT '' COMMENT '业务记录ID',
+  `user_id`     VARCHAR(32)   DEFAULT '' COMMENT '上传人（小程序用户ID）',
+  `status`      TINYINT(1)    DEFAULT 1 COMMENT '1-占用 0-已释放',
+  `create_time` DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `update_time` DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  INDEX `idx_family_status` (`family_id`, `status`),
+  INDEX `idx_file_key` (`file_key`),
+  CONSTRAINT `fk_storage_family` FOREIGN KEY (`family_id`) REFERENCES `family` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='存储占用明细表';
+
+-- 套餐种子数据（能力点模型，幂等更新）
+INSERT INTO `subscription_plan`
+  (`code`, `name`, `price_annual`, `capabilities`, `storage_limit`, `quota_rules`, `sort_order`, `status`)
+VALUES
+  ('free',    '免费版', 0.00,
+   JSON_ARRAY(),
+   524288000,  -- 500MB
+   NULL,
+   1, 1),
+  ('family',  '家族版', 199.00,
+   JSON_ARRAY('backup', 'export', 'permission', 'reminder', 'digest', 'theme', 'badge', 'ai_restore', 'worship_pro'),
+   10737418240,  -- 10GB
+   JSON_OBJECT('ai_restore', 10, 'worship_pro', 50),
+   2, 1),
+  ('premium', '尊享版', 599.00,
+   JSON_ARRAY('backup', 'export', 'permission', 'reminder', 'digest', 'theme', 'badge', 'print', 'worship_pro', 'ai_restore', 'advisor', 'support', 'no_ads'),
+   0,  -- 0=不限
+   JSON_OBJECT('ai_restore', 100, 'worship_pro', 999),
+   3, 1)
+ON DUPLICATE KEY UPDATE
+  `name`          = VALUES(`name`),
+  `price_annual`  = VALUES(`price_annual`),
+  `capabilities`  = VALUES(`capabilities`),
+  `storage_limit` = VALUES(`storage_limit`),
+  `quota_rules`   = VALUES(`quota_rules`),
+  `sort_order`    = VALUES(`sort_order`),
+  `status`        = VALUES(`status`);
+
+-- ------------------------------------------------------------
+-- 38. 家族基金模块 3 张表（来源: 20260820-family-fund.sql）
+-- ------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS `family_fund` (
+  `id`                       INT UNSIGNED  NOT NULL AUTO_INCREMENT COMMENT 'ID',
+  `family_id`                INT UNSIGNED  NOT NULL COMMENT '家族ID',
+  `name`                     VARCHAR(50)   NOT NULL COMMENT '基金名称',
+  `logo_url`                 VARCHAR(500)  NOT NULL DEFAULT '' COMMENT '图标URL',
+  `description`              VARCHAR(500)  NOT NULL DEFAULT '' COMMENT '基金简介',
+  `total_amount`             DECIMAL(12,2) NOT NULL DEFAULT 0.00 COMMENT '基金当前总额(元)',
+  `single_deposit_limit`     DECIMAL(12,2) NOT NULL DEFAULT 1000.00 COMMENT '单次存入限额(元)',
+  `single_withdraw_limit`    DECIMAL(12,2) NOT NULL DEFAULT 1000.00 COMMENT '单次取出限额(元)',
+  `daily_deposit_limit`      DECIMAL(12,2) NOT NULL DEFAULT 2000.00 COMMENT '每日存入限额(元)',
+  `daily_withdraw_limit`     DECIMAL(12,2) NOT NULL DEFAULT 2000.00 COMMENT '每日取出限额(元)',
+  `monthly_deposit_limit`    DECIMAL(12,2) NOT NULL DEFAULT 5000.00 COMMENT '每月存入限额(元)',
+  `monthly_withdraw_limit`   DECIMAL(12,2) NOT NULL DEFAULT 5000.00 COMMENT '每月取出限额(元)',
+  `withdraw_approval_threshold` DECIMAL(12,2) NOT NULL DEFAULT 500.00 COMMENT '大额取出审批阈值(元),超过需审批',
+  `need_approval`            TINYINT(1)    NOT NULL DEFAULT 1 COMMENT '是否需要大额取出审批 1-是 0-否',
+  `status`                   TINYINT(1)    NOT NULL DEFAULT 1 COMMENT '状态 1-正常 2-已解散',
+  `creator_user_id`          VARCHAR(32)   NOT NULL DEFAULT '' COMMENT '创建人用户ID',
+  `dissolved_at`             DATETIME      DEFAULT NULL COMMENT '解散时间',
+  `dissolve_reason`          VARCHAR(200)  NOT NULL DEFAULT '' COMMENT '解散原因',
+  `create_time`              DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `update_time`              DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_fund_family` (`family_id`),
+  INDEX `idx_fund_creator` (`creator_user_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='家族基金主表';
+
+-- 基金成员权限表(显式参与名单 + 角色 + 精细权限)
+CREATE TABLE IF NOT EXISTS `family_fund_member` (
+  `id`           INT UNSIGNED  NOT NULL AUTO_INCREMENT COMMENT 'ID',
+  `fund_id`      INT UNSIGNED  NOT NULL COMMENT '基金ID',
+  `family_id`    INT UNSIGNED  NOT NULL COMMENT '家族ID',
+  `user_id`      VARCHAR(32)   NOT NULL COMMENT '用户ID',
+  `member_id`    VARCHAR(32)   NOT NULL DEFAULT '' COMMENT '关联家族成员ID(冗余展示)',
+  `name`         VARCHAR(50)   NOT NULL DEFAULT '' COMMENT '成员姓名(冗余展示)',
+  `role`         VARCHAR(20)   NOT NULL DEFAULT 'member' COMMENT '角色 leader-族长 admin-管理员 member-普通成员',
+  `permissions`  JSON          DEFAULT NULL COMMENT '权限码数组',
+  `balance`      DECIMAL(12,2) NOT NULL DEFAULT 0.00 COMMENT '个人净余额(元)',
+  `status`       TINYINT(1)    NOT NULL DEFAULT 1 COMMENT '状态 1-正常 0-已移除',
+  `create_time`  DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `update_time`  DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_fund_user` (`fund_id`, `user_id`),
+  INDEX `idx_fund_member` (`fund_id`, `status`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='家族基金成员权限表';
+
+-- 资金交易流水表(所有资金变动的唯一事实来源)
+CREATE TABLE IF NOT EXISTS `family_fund_transaction` (
+  `id`             BIGINT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT 'ID',
+  `fund_id`        INT UNSIGNED    NOT NULL COMMENT '基金ID',
+  `family_id`      INT UNSIGNED    NOT NULL COMMENT '家族ID',
+  `type`           VARCHAR(20)     NOT NULL COMMENT '类型 init/deposit/withdraw/transfer/adjust',
+  `amount`         DECIMAL(12,2)   NOT NULL COMMENT '金额(正数)',
+  `direction`      TINYINT(1)      NOT NULL DEFAULT 1 COMMENT '资金方向 1-流入 -1-流出',
+  `operator_user_id` VARCHAR(32)   NOT NULL DEFAULT '' COMMENT '操作人用户ID',
+  `target_user_id` VARCHAR(32)     NOT NULL DEFAULT '' COMMENT '对方用户ID(转账接收方/审批人)',
+  `payment_method` VARCHAR(20)     NOT NULL DEFAULT '' COMMENT '资金渠道 cash-现金 wechat-微信 alipay-支付宝 bank-银行',
+  `status`         TINYINT(1)      NOT NULL DEFAULT 1 COMMENT '状态 1-成功 0-失败 2-待审批 3-已驳回',
+  `remark`         VARCHAR(200)    NOT NULL DEFAULT '' COMMENT '备注',
+  `balance_after`  DECIMAL(12,2)   NOT NULL DEFAULT 0.00 COMMENT '操作后基金余额(成功流水)',
+  `approve_user_id` VARCHAR(32)    NOT NULL DEFAULT '' COMMENT '审批人用户ID',
+  `approve_time`   DATETIME        DEFAULT NULL COMMENT '审批时间',
+  `approve_remark` VARCHAR(200)    NOT NULL DEFAULT '' COMMENT '审批备注',
+  `create_time`    DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  PRIMARY KEY (`id`),
+  INDEX `idx_fund_time` (`fund_id`, `create_time`),
+  INDEX `idx_fund_type` (`fund_id`, `type`),
+  INDEX `idx_fund_user` (`fund_id`, `operator_user_id`),
+  INDEX `idx_fund_target` (`fund_id`, `target_user_id`),
+  INDEX `idx_fund_status` (`fund_id`, `status`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='家族基金资金交易流水表';
+
+-- ------------------------------------------------------------
+-- 39. 宗亲聚会模块 4 张表（来源: 20260820-family-gathering.sql）
+-- ------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS `family_gathering` (
+  `id`                INT UNSIGNED  NOT NULL AUTO_INCREMENT COMMENT 'ID',
+  `family_id`         INT UNSIGNED  NOT NULL COMMENT '家族ID',
+  `title`             VARCHAR(100)  NOT NULL COMMENT '聚会名称',
+  `description`       TEXT          COMMENT '聚会介绍',
+  `cover_image`       VARCHAR(500)  NOT NULL DEFAULT '' COMMENT '封面图URL',
+  `location`          VARCHAR(200)  NOT NULL DEFAULT '' COMMENT '聚会地点(简)',
+  `address_detail`    VARCHAR(500)  NOT NULL DEFAULT '' COMMENT '详细地址',
+  `start_time`        DATETIME      DEFAULT NULL COMMENT '开始时间',
+  `end_time`          DATETIME      DEFAULT NULL COMMENT '结束时间',
+  `signup_deadline`   DATETIME      DEFAULT NULL COMMENT '报名截止时间(空=截止到开始前)',
+  `agenda`            TEXT          COMMENT '议程(JSON数组 [{time,item,remark}])',
+  `capacity`          INT           NOT NULL DEFAULT 0 COMMENT '总人数上限(0=不限)',
+  `status`            TINYINT       NOT NULL DEFAULT 0 COMMENT '状态 0-草稿 1-已发布 2-进行中 3-已结束 4-已归档',
+  `organizer_user_id` VARCHAR(32)   NOT NULL DEFAULT '' COMMENT '组织者用户ID(创建人)',
+  `create_time`       DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `update_time`       DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  PRIMARY KEY (`id`),
+  INDEX `idx_family_status` (`family_id`, `status`, `start_time`),
+  INDEX `idx_organizer` (`organizer_user_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='宗亲聚会主表';
+
+-- 聚会场次/时间段表
+CREATE TABLE IF NOT EXISTS `family_gathering_session` (
+  `id`           INT UNSIGNED NOT NULL AUTO_INCREMENT COMMENT 'ID',
+  `gathering_id` INT UNSIGNED NOT NULL COMMENT '聚会ID',
+  `name`         VARCHAR(100) NOT NULL DEFAULT '' COMMENT '场次/时间段名称(如:上午场)',
+  `start_time`   DATETIME     DEFAULT NULL COMMENT '场次开始时间',
+  `end_time`     DATETIME     DEFAULT NULL COMMENT '场次结束时间',
+  `capacity`     INT          NOT NULL DEFAULT 0 COMMENT '本场人数上限(0=不限)',
+  `signed_count` INT          NOT NULL DEFAULT 0 COMMENT '已报名人数',
+  `create_time`  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  PRIMARY KEY (`id`),
+  INDEX `idx_gathering` (`gathering_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='宗亲聚会场次/时间段表';
+
+-- 报名登记表
+CREATE TABLE IF NOT EXISTS `family_gathering_registration` (
+  `id`            INT UNSIGNED  NOT NULL AUTO_INCREMENT COMMENT 'ID',
+  `gathering_id`  INT UNSIGNED  NOT NULL COMMENT '聚会ID',
+  `session_id`    INT UNSIGNED  NOT NULL DEFAULT 0 COMMENT '场次ID(0=不选场次)',
+  `user_id`       VARCHAR(32)   NOT NULL COMMENT '报名用户ID',
+  `member_id`     INT UNSIGNED  NOT NULL DEFAULT 0 COMMENT '关联家族成员ID(0=未关联)',
+  `name`          VARCHAR(50)   NOT NULL COMMENT '参会人姓名',
+  `phone`         VARCHAR(20)   NOT NULL DEFAULT '' COMMENT '联系电话',
+  `diet_type`     VARCHAR(20)   NOT NULL DEFAULT 'normal' COMMENT '饮食偏好 normal-无要求 vegetarian-素食 halal-清真 custom-其他',
+  `diet_note`     VARCHAR(200)  NOT NULL DEFAULT '' COMMENT '饮食备注',
+  `special_need`  VARCHAR(500)  NOT NULL DEFAULT '' COMMENT '特殊需求',
+  `guest_count`   INT           NOT NULL DEFAULT 0 COMMENT '随行人数',
+  `status`        TINYINT       NOT NULL DEFAULT 1 COMMENT '状态 1-已报名 2-已取消 3-已签到',
+  `checkin_code`  VARCHAR(6)    NOT NULL DEFAULT '' COMMENT '签到码(6位数字)',
+  `checkin_time`  DATETIME      DEFAULT NULL COMMENT '签到时间',
+  `checkin_method` VARCHAR(10)  NOT NULL DEFAULT '' COMMENT '签到方式 qr-扫码 manual-手动输入',
+  `create_time`   DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `update_time`   DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  PRIMARY KEY (`id`),
+  INDEX `idx_gathering_session` (`gathering_id`, `session_id`),
+  INDEX `idx_user_gathering` (`user_id`, `gathering_id`),
+  INDEX `idx_checkin_code` (`checkin_code`),
+  INDEX `idx_status` (`status`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='宗亲聚会报名登记表';
+
+-- 聚会资料归档表
+CREATE TABLE IF NOT EXISTS `family_gathering_archive` (
+  `id`               INT UNSIGNED  NOT NULL AUTO_INCREMENT COMMENT 'ID',
+  `gathering_id`     INT UNSIGNED  NOT NULL COMMENT '聚会ID',
+  `title`            VARCHAR(200)  NOT NULL COMMENT '资料标题',
+  `file_url`         VARCHAR(500)  NOT NULL DEFAULT '' COMMENT '文件/图片URL',
+  `file_type`        VARCHAR(20)   NOT NULL DEFAULT 'image' COMMENT '类型 image-图片 file-文件 link-链接',
+  `description`      VARCHAR(500)  NOT NULL DEFAULT '' COMMENT '说明',
+  `creator_user_id`  VARCHAR(32)   NOT NULL DEFAULT '' COMMENT '上传人用户ID',
+  `create_time`      DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  PRIMARY KEY (`id`),
+  INDEX `idx_gathering` (`gathering_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='宗亲聚会资料归档表';
+
+-- ------------------------------------------------------------
+-- 40. 合并迁移：后台权限码（幂等）
+-- 来源: add-subscription-admin-permissions.sql / 20260817-worship-admin.sql /
+--       20260818-family-banner.sql / 20260817-family-invitation.sql /
+--       20260819-app-plugin.sql / 20260820-family-gathering.sql
+-- ------------------------------------------------------------
+INSERT IGNORE INTO `sys_permission` (`name`, `code`, `status`) VALUES
+('订阅查询', 'system:subscription:list', 1),
+('套餐新增', 'system:subscription:create', 1),
+('订阅更新', 'system:subscription:update', 1),
+('祭祀记录查询', 'system:worship:list', 1),
+('祭祀数据删除', 'system:worship:delete', 1),
+('广告轮播查询', 'system:family-banner:list', 1),
+('广告轮播新增', 'system:family-banner:create', 1),
+('广告轮播编辑', 'system:family-banner:update', 1),
+('广告轮播删除', 'system:family-banner:delete', 1),
+('家族邀请查询', 'system:family-invitation:list', 1),
+('家族邀请删除', 'system:family-invitation:delete', 1),
+('应用插件查询', 'system:app-plugin:list', 1),
+('应用插件新增', 'system:app-plugin:create', 1),
+('应用插件编辑', 'system:app-plugin:update', 1),
+('应用插件删除', 'system:app-plugin:delete', 1),
+('宗亲聚会查询', 'system:gathering:list', 1),
+('宗亲聚会新增', 'system:gathering:create', 1),
+('宗亲聚会编辑', 'system:gathering:update', 1),
+('宗亲聚会删除', 'system:gathering:delete', 1);
+
+-- 将上述新增权限授予超级管理员角色（幂等）
+INSERT IGNORE INTO `sys_role_permission` (`role_id`, `permission_id`)
+SELECT r.`id`, p.`id` FROM `sys_role` r, `sys_permission` p
+WHERE r.`code` = 'super' AND (
+  p.`code` LIKE 'system:subscription:%' OR p.`code` LIKE 'system:worship:%' OR
+  p.`code` LIKE 'system:family-banner:%' OR p.`code` LIKE 'system:family-invitation:%' OR
+  p.`code` LIKE 'system:app-plugin:%' OR p.`code` LIKE 'system:gathering:%'
+);
+
+-- ------------------------------------------------------------
+-- 41. 合并迁移：后台菜单 + 应用中心升级
+-- ------------------------------------------------------------
+SET @mini_program_dir := (SELECT `id` FROM `sys_menu` WHERE `route_name` = 'mini-program' LIMIT 1);
+
+INSERT IGNORE INTO `sys_menu` (`parent_id`, `name`, `type`, `path`, `component`, `route_name`, `icon`, `permission`, `sort_order`, `status`, `visible`, `keep_alive`) VALUES
+(@mini_program_dir, '订阅管理', 'menu', '/mini-program/subscription', 'view.mini-program_subscription', 'mini-program_subscription', 'mdi:crown-outline', 'system:subscription:list', 8, 1, 1, 1),
+(@mini_program_dir, '祭祀管理', 'menu', '/mini-program/worship', 'view.mini-program_worship', 'mini-program_worship', 'mdi:incense', 'system:worship:list', 9, 1, 1, 1),
+(@mini_program_dir, '家族邀请', 'menu', '/mini-program/family-invitation', 'view.mini-program_family-invitation', 'mini-program_family-invitation', 'mdi:email-send', 'system:family-invitation:list', 10, 1, 1, 1),
+(@mini_program_dir, '广告轮播', 'menu', '/mini-program/banner', 'view.mini-program_banner', 'mini-program_banner', 'mdi:image-carousel', 'system:family-banner:list', 11, 1, 1, 1),
+(@mini_program_dir, '应用插件', 'menu', '/mini-program/plugin', 'view.mini-program_plugin', 'mini-program_plugin', 'mdi:puzzle', 'system:app-plugin:list', 12, 1, 1, 1),
+(@mini_program_dir, '宗亲聚会', 'menu', '/mini-program/gathering', 'view.mini-program_gathering', 'mini-program_gathering', 'mdi:account-group', 'system:gathering:list', 12, 1, 1, 1);
+
+-- 将新增菜单授予超级管理员角色（幂等）
+INSERT IGNORE INTO `sys_role_menu` (`role_id`, `menu_id`)
+SELECT r.`id`, m.`id` FROM `sys_role` r, `sys_menu` m
+WHERE r.`code` = 'super' AND m.`route_name` IN (
+  'mini-program_subscription', 'mini-program_worship', 'mini-program_family-invitation',
+  'mini-program_banner', 'mini-program_plugin', 'mini-program_gathering'
+);
+
+-- "应用插件"菜单升级为顶级"应用中心"（来源: 20260819-app-center-menu.sql，依赖上方应用插件菜单）
+UPDATE `sys_menu`
+SET `parent_id`  = 0,
+    `name`       = '应用中心',
+    `type`       = 'menu',
+    `path`       = '/app-center',
+    `component`  = 'layout.base$view.app-center',
+    `route_name` = 'app-center',
+    `icon`       = 'mdi:puzzle',
+    `permission` = 'system:app-plugin:list',
+    `sort_order` = 4,
+    `status`     = 1,
+    `visible`    = 1,
+    `keep_alive` = 1
+WHERE `route_name` = 'mini-program_plugin';
+
+-- 兜底：若不存在旧"应用插件"菜单，直接创建顶级"应用中心"菜单
+INSERT IGNORE INTO `sys_menu` (`parent_id`, `name`, `type`, `path`, `component`, `route_name`, `icon`, `permission`, `sort_order`, `status`, `visible`, `keep_alive`)
+SELECT 0, '应用中心', 'menu', '/app-center', 'layout.base$view.app-center', 'app-center', 'mdi:puzzle', 'system:app-plugin:list', 4, 1, 1, 1
+FROM DUAL
+WHERE NOT EXISTS (SELECT 1 FROM `sys_menu` WHERE `route_name` = 'app-center');
+
+-- 清理残留旧嵌套"应用插件"菜单，防止新旧并存
+DELETE FROM `sys_menu` WHERE `route_name` = 'mini-program_plugin';
+
+-- 确保"应用中心"菜单已授权给超级管理员角色（幂等）
+INSERT IGNORE INTO `sys_role_menu` (`role_id`, `menu_id`)
+SELECT r.`id`, m.`id` FROM `sys_role` r, `sys_menu` m
+WHERE r.`code` = 'super' AND m.`route_name` = 'app-center';
+
+-- ------------------------------------------------------------
+-- 42. 数据回填与存量修复工具（幂等；新库无存量数据时自动跳过）
+--   a) 存量微信绑定回填（来源: add-user-auth-identity.sql Step 3）
+--   b) 存量家族种子分享码生成（来源: 20260819-family-seed-share-code.sql Step 3-4）
+--   c) family.member_count 重算（来源: sync-family-member-count.sql）
+-- ------------------------------------------------------------
+
+-- a) 存量 user.openid / unionid → wechat 认证绑定回填（老用户无感迁移）
+INSERT INTO `user_auth_identity` (`user_id`, `provider`, `provider_uid`, `unionid`)
+SELECT `id`, 'wechat', `openid`, `unionid`
+FROM `user`
+WHERE `openid` <> ''
+  AND NOT EXISTS (
+    SELECT 1 FROM `user_auth_identity` b
+    WHERE b.`provider` = 'wechat' AND b.`provider_uid` = `user`.`openid`
+  );
+
+-- b) 为缺失种子分享码的存量家族生成 8 位唯一码（字符表去除 0/O/1/I）
+DELIMITER //
+DROP PROCEDURE IF EXISTS `sp_generate_family_seed_share_codes`//
+CREATE PROCEDURE `sp_generate_family_seed_share_codes`()
+BEGIN
+  DECLARE done INT DEFAULT FALSE;
+  DECLARE v_family_id INT UNSIGNED;
+  DECLARE v_code VARCHAR(16);
+  DECLARE v_dup INT;
+  DECLARE cur CURSOR FOR
+    SELECT `id` FROM `family`
+    WHERE `status` = 1 AND (`seed_share_code` IS NULL OR `seed_share_code` = '');
+  DECLARE CONTINUE HANDLER FOR NOT FOUND SET done = TRUE;
+
+  OPEN cur;
+  read_loop: LOOP
+    FETCH cur INTO v_family_id;
+    IF done THEN LEAVE read_loop; END IF;
+
+    SET v_code = '';
+    gen_loop: LOOP
+      SET v_code = UPPER(SUBSTRING(MD5(RAND()), 1, 8));
+      -- 替换易混淆字符为安全字符
+      SET v_code = REPLACE(REPLACE(REPLACE(REPLACE(v_code, '0', 'Z'), 'O', 'Y'), '1', 'X'), 'I', 'W');
+      SELECT COUNT(*) INTO v_dup FROM `family` WHERE `seed_share_code` = v_code;
+      IF v_dup = 0 THEN LEAVE gen_loop; END IF;
+    END LOOP gen_loop;
+
+    UPDATE `family` SET `seed_share_code` = v_code WHERE `id` = v_family_id;
+  END LOOP read_loop;
+  CLOSE cur;
+END//
+DELIMITER ;
+
+CALL `sp_generate_family_seed_share_codes`();
+DROP PROCEDURE IF EXISTS `sp_generate_family_seed_share_codes`;
+
+-- 避免 NULL 值导致空字符串语义混淆
+UPDATE `family` SET `seed_share_code` = NULL WHERE `seed_share_code` = '';
+
+-- c) 一次性重算 family.member_count（按成员分表 status=1 数量，幂等）
+DROP PROCEDURE IF EXISTS sp_sync_family_member_count;
+
+DELIMITER //
+
+CREATE PROCEDURE sp_sync_family_member_count()
+BEGIN
+  DECLARE v_id INT UNSIGNED DEFAULT 0;
+  DECLARE v_cnt INT DEFAULT 0;
+  DECLARE done INT DEFAULT 0;
+  DECLARE cur CURSOR FOR SELECT `id` FROM `family`;
+  DECLARE CONTINUE HANDLER FOR NOT FOUND SET done = 1;
+  -- 分表不存在等异常直接跳过该家族
+  DECLARE CONTINUE HANDLER FOR SQLEXCEPTION SET v_cnt = 0;
+
+  OPEN cur;
+  read_loop: LOOP
+    FETCH cur INTO v_id;
+    IF done = 1 THEN
+      LEAVE read_loop;
+    END IF;
+
+    SET @tbl = CONCAT('family_members_', v_id);
+    SET @cnt = NULL;
+    SET @sql = CONCAT('SELECT COUNT(*) INTO @cnt FROM `', @tbl, '` WHERE `status` = 1');
+    PREPARE stmt FROM @sql;
+    EXECUTE stmt;
+    DEALLOCATE PREPARE stmt;
+    SET v_cnt = IFNULL(@cnt, 0);
+
+    UPDATE `family` SET `member_count` = v_cnt WHERE `id` = v_id;
+  END LOOP;
+
+  CLOSE cur;
+END //
+
+DELIMITER ;
+
+CALL sp_sync_family_member_count();
+DROP PROCEDURE sp_sync_family_member_count;

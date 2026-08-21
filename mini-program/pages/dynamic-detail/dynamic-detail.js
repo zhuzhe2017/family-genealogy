@@ -236,7 +236,7 @@ Page({
     return {
       detail: {
         id: 1,
-        userName: '张三',
+        userName: '朱三',
         gender: 'male',
         time: '2小时前',
         content: '今天整理了家族的老照片，发现了很多珍贵的历史资料，分享给大家看看。这些照片记录了家族近百年的发展历程，非常珍贵。',
@@ -246,8 +246,8 @@ Page({
         isLiked: false
       },
       comments: [
-        { id: 1, userName: '李四', content: '太珍贵了！' },
-        { id: 2, userName: '王五', content: '感谢分享！' }
+        { id: 1, userName: '朱四', content: '太珍贵了！' },
+        { id: 2, userName: '朱五', content: '感谢分享！' }
       ]
     };
   }

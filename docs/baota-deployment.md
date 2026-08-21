@@ -35,29 +35,18 @@
 ### 4.1 全新环境
 
 1. 宝塔「数据库」→ 添加数据库 `family_genealogy`，字符集 `utf8mb4`，记录用户名密码。
-2. 导入基础结构（含全部表结构与初始化种子，幂等）：
+2. 导入完整结构（含全部表结构、初始化种子与历史迁移整合内容，幂等）：
 
 ```bash
 cd /www/wwwroot/jiapuadmin/server/database
 mysql -u<user> -p<password> family_genealogy < schema.sql
 ```
 
-3. 执行 schema.sql **未覆盖**的增量迁移（均为幂等脚本，可重复执行）：
-
-```bash
-node run-migration.js migrations/20260815-membership-init.sql        # 订阅系统 5 张表
-node run-migration.js migrations/add-subscription-admin-permissions.sql  # 订阅管理权限+菜单
-node run-migration.js migrations/20260817-worship-admin.sql          # 祭祀管理权限+菜单
-node run-migration.js migrations/20260817-worship-memorial.sql       # 纪念对象补充数据
-node run-migration.js migrations/20260817-family-invitation.sql      # 家族邀请表+权限
-node run-migration.js migrations/20260818-family-banner.sql          # 广告轮播表+权限+菜单
-```
-
-> 迁移文件清单与用途详见 `server/database/MIGRATIONS.md`。
+> `schema.sql` 为唯一主库升级脚本：2026-08-21 已把原 `migrations/*.sql` 全部整合进其中（原迁移文件已删除），全新环境无需再执行任何增量迁移文件。整合明细见 `server/database/MERGE_LOG.md`。
 
 ### 4.2 存量库升级
 
-按 `MIGRATIONS.md` 逐项执行尚未生效的迁移脚本，方式同上 `node run-migration.js migrations/<file>.sql`。
+先备份数据库，然后按 `server/database/MERGE_LOG.md` 第二节「文件 → 主脚本映射」定位尚未生效的迁移内容，从 git 历史恢复对应语句手动执行（原迁移均为幂等脚本）；或直接对临时库重新导入 `schema.sql` 后核对结构差异。
 
 ## 5. 后端部署
 
@@ -195,8 +184,9 @@ pm2 restart family-genealogy-server
 cd /www/wwwroot/jiapuadmin/web-admin && pnpm build
 rm -rf /www/wwwroot/jiapuadmin/dist && cp -r dist /www/wwwroot/jiapuadmin/dist
 
-# 数据库有增量迁移时
-cd /www/wwwroot/jiapuadmin/server/database && node run-migration.js migrations/<file>.sql
+# 数据库有增量变更时：原 migrations/*.sql 已整合进 schema.sql（见 4.1），
+# 存量库按 MERGE_LOG.md 第二节映射补执行对应语句后重启后端
+cd /www/wwwroot/jiapuadmin/server && pm2 restart family-genealogy-server
 ```
 
 ## 11. 常见问题排查

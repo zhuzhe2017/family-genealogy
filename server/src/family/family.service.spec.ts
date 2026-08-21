@@ -19,7 +19,7 @@ describe('FamilyService', () => {
     it('默认带 status=1 过滤并按 create_time 倒序', async () => {
       queryMock
         .mockResolvedValueOnce([{ total: 1 }]) // count
-        .mockResolvedValueOnce([{ id: 1, name: '张氏家族', status: 1, generation_sequence: '[]' }]) // list
+        .mockResolvedValueOnce([{ id: 1, name: '朱氏家族', status: 1, generation_sequence: '[]' }]) // list
         .mockResolvedValueOnce([]) // memberCount
         .mockResolvedValueOnce([]) // eventCount
         .mockResolvedValueOnce([]) // photoCount
@@ -49,7 +49,7 @@ describe('FamilyService', () => {
         .mockResolvedValueOnce([])
         .mockResolvedValueOnce([]);
 
-      await service.getList({ page: 1, pageSize: 10, keyword: '张' });
+      await service.getList({ page: 1, pageSize: 10, keyword: '朱' });
 
       const sql = queryMock.mock.calls[0][0];
       expect(sql).toContain('`gt`.`surname` LIKE ?');
@@ -76,7 +76,7 @@ describe('FamilyService', () => {
 
   describe('getAll', () => {
     it('返回数据含字辈信息', async () => {
-      queryMock.mockResolvedValueOnce([{ id: 1, name: '张氏', generation_sequence: '[]' }]);
+      queryMock.mockResolvedValueOnce([{ id: 1, name: '朱氏', generation_sequence: '[]' }]);
       const result = await service.getAll({});
       expect(result).toHaveLength(1);
       expect(result[0].generation_sequence).toEqual([]);
@@ -93,7 +93,7 @@ describe('FamilyService', () => {
 
     it('返回时附带关联统计与字辈序列', async () => {
       queryMock
-        .mockResolvedValueOnce([{ id: 1, name: '张氏', status: 1, generation_sequence: '["文","武"]' }]) // 主查询
+        .mockResolvedValueOnce([{ id: 1, name: '朱氏', status: 1, generation_sequence: '["文","武"]' }]) // 主查询
         .mockResolvedValueOnce([{ family_id: 1, cnt: 5 }]) // member
         .mockResolvedValueOnce([]) // event
         .mockResolvedValueOnce([{ family_id: 1, cnt: 2 }]) // photo
@@ -102,7 +102,7 @@ describe('FamilyService', () => {
         .mockResolvedValueOnce([{ family_id: 1, cnt: 1 }]); // admin
 
       const result = await service.getById(1);
-      expect(result.name).toBe('张氏');
+      expect(result.name).toBe('朱氏');
       expect(result.generation_sequence).toEqual(['文', '武']);
       expect(result.memberCount).toBe(5);
       expect(result.photoCount).toBe(2);
@@ -125,7 +125,7 @@ describe('FamilyService', () => {
 
     it('名称重复时抛出 BAD_REQUEST', async () => {
       queryMock.mockResolvedValueOnce([{ id: 1 }]);
-      await expect(service.create({ name: '张氏家族' })).rejects.toMatchObject({
+      await expect(service.create({ name: '朱氏家族' })).rejects.toMatchObject({
         status: HttpStatus.BAD_REQUEST
       });
     });

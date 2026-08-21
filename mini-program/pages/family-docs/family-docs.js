@@ -18,16 +18,16 @@ Page({
     documents: [
       {
         id: 1,
-        name: '张氏族谱·卷之一',
+        name: '朱氏族谱·卷之一',
         volume: '卷一',
-        description: '记录张氏家族从始祖张太公开始的家族谱系，包含第一代至第三代的详细记载。',
+        description: '记录朱氏家族从始祖朱太公开始的家族谱系，包含第一代至第三代的详细记载。',
         updateTime: '2024-01-15',
         pages: 156,
         category: 'genealogy'
       },
       {
         id: 2,
-        name: '张氏族谱·卷之二',
+        name: '朱氏族谱·卷之二',
         volume: '卷二',
         description: '记录第四代至第六代的家族谱系，包含重要家族事件的详细记载。',
         updateTime: '2024-02-20',
@@ -36,7 +36,7 @@ Page({
       },
       {
         id: 3,
-        name: '张氏家族史话',
+        name: '朱氏家族史话',
         volume: '上册',
         description: '从清末到民国时期的家族发展历程，记录家族在动荡年代的变迁与坚守。',
         updateTime: '2024-03-10',
@@ -45,7 +45,7 @@ Page({
       },
       {
         id: 4,
-        name: '张氏家训',
+        name: '朱氏家训',
         volume: '全册',
         description: '传承百年的家族家训，包含修身、齐家、治国、平天下的家训格言。',
         updateTime: '2024-01-05',

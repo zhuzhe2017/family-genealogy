@@ -5,7 +5,7 @@
     <view class="app-grid">
       <view class="app-item" wx:for="{{apps}}" wx:key="id" bindtap="openApp" data-item="{{item}}">
         <view class="app-icon app-icon-plugin">
-          <image wx:if="{{item.iconImage}}" class="app-icon-img" src="{{item.icon}}" mode="aspectFill" />
+          <image wx:if="{{item.iconImage}}" class="app-icon-img" src="{{item.iconSrc}}" mode="aspectFill" />
           <text wx:else class="app-icon-text">{{item.icon}}</text>
         </view>
         <text class="app-name">{{item.name}}</text>
