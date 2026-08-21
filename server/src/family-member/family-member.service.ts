@@ -45,8 +45,8 @@ export class FamilyMemberService {
     return trimmed;
   }
 
-  /** 确保家族成员分表存在 */
-  private async ensureTable(familyId: number): Promise<void> {
+  /** 确保家族成员分表存在（文件导入等服务复用） */
+  async ensureTable(familyId: number): Promise<void> {
     const tableName = getSafeMemberTableName(familyId);
     const [rows] = await this.dataSource.query<{ exists: 0 | 1 }[]>(
       `SELECT EXISTS (SELECT 1 FROM information_schema.tables
@@ -763,38 +763,56 @@ export class FamilyMemberService {
     }
   }
 
-  /** 批量导入 */
-  async batchImport(familyId: number, items: FamilyMemberImportItem[]) {
-    await this.ensureTable(familyId);
-    const tableName = getSafeMemberTableName(familyId);
+  /**
+   * 批量导入核心（JSON 批量导入与文件导入共用）：
+   * 两遍处理，导入行顺序无关——
+   * 1. 先校验并插入全部合法行（父/母关系暂置空），记录 外部refId -> 新成员ID 映射；
+   * 2. 再按 fatherRefId / motherRefId 回填父/母关系（换算为系统生成的成员ID）。
+   *
+   * query 为查询执行函数：JSON 导入传连接查询；文件导入传事务内查询（保证原子性）。
+   * rowNos 可选：当 items 下标与原始文件行号不一致时（解析阶段已过滤非法行），
+   * 用于让错误提示指向正确的原始行号；缺省时按 items 下标 +1 提示。
+   */
+  async importItems(
+    query: (sql: string, params?: QueryValues) => Promise<any>,
+    tableName: string,
+    familyId: number,
+    items: FamilyMemberImportItem[],
+    errors: string[],
+    rowNos?: number[]
+  ): Promise<number> {
+    const label = (i: number) => (rowNos ? `第 ${rowNos[i]} 行` : `第 ${i + 1} 行`);
+    // 与 items 下标对齐：成功插入的行记录 { refId, memberId }，失败行为 null
+    const rows: ({ refId: string; memberId: string } | null)[] = new Array(items.length).fill(null);
+    const seenRef = new Set<string>();
 
-    if (!items || items.length === 0) {
-      throw new HttpException('导入数据不能为空', HttpStatus.BAD_REQUEST);
-    }
-
-    const errors: string[] = [];
-    let imported = 0;
-
+    // ---------- 第一遍：校验并插入全部合法行 ----------
     for (let i = 0; i < items.length; i++) {
       const item = items[i];
+      const refId = (item.refId || '').trim();
       if (!item.name || !item.name.trim()) {
-        errors.push(`第 ${i + 1} 行：姓名不能为空`);
+        errors.push(`${label(i)}：姓名不能为空`);
         continue;
       }
       const gender = item.gender || 'male';
       if (!['male', 'female'].includes(gender)) {
-        errors.push(`第 ${i + 1} 行：性别参数非法`);
+        errors.push(`${label(i)}：性别参数非法`);
         continue;
       }
       const generation = item.generation ?? 1;
       if (generation < 1) {
-        errors.push(`第 ${i + 1} 行：代数必须为正整数`);
+        errors.push(`${label(i)}：代数必须为正整数`);
         continue;
       }
+      if (refId && seenRef.has(refId)) {
+        errors.push(`${label(i)}：refId '${refId}' 重复`);
+        continue;
+      }
+      if (refId) seenRef.add(refId);
 
       const memberId = this.generateMemberId();
       try {
-        await this.dataSource.query(
+        await query(
           `INSERT INTO \`${tableName}\`
             (\`id\`, \`family_id\`, \`name\`, \`gender\`, \`generation\`, \`generation_name\`,
              \`birth_date\`, \`birth_place\`, \`is_alive\`, \`death_date\`, \`death_place\`,
@@ -809,11 +827,80 @@ export class FamilyMemberService {
             '', '', JSON.stringify([]), item.sortOrder ?? 0, 1
           ]
         );
-        imported++;
+        rows[i] = { refId, memberId };
       } catch (err: any) {
-        errors.push(`第 ${i + 1} 行：${err.message || '导入失败'}`);
+        errors.push(`${label(i)}：${err.message || '导入失败'}`);
       }
     }
+
+    const imported = rows.filter((row) => row !== null).length;
+    if (imported === 0) return 0;
+
+    // ---------- 第二遍：回填父/母关系（refId -> 新成员ID） ----------
+    const idMap = new Map<string, string>();
+    for (const row of rows) {
+      if (row) idMap.set(row.refId, row.memberId);
+    }
+
+    for (let i = 0; i < items.length; i++) {
+      const row = rows[i];
+      if (!row) continue;
+      const item = items[i];
+
+      let fatherId = '';
+      let motherId = '';
+      if (item.fatherRefId) {
+        const fr = String(item.fatherRefId).trim();
+        if (fr === row.refId) {
+          errors.push(`${label(i)}：父亲 refId 不能指向自己`);
+        } else if (!idMap.has(fr)) {
+          errors.push(`${label(i)}：父亲 refId '${fr}' 不存在`);
+        } else {
+          fatherId = idMap.get(fr)!;
+        }
+      }
+      if (item.motherRefId) {
+        const mr = String(item.motherRefId).trim();
+        if (mr === row.refId) {
+          errors.push(`${label(i)}：母亲 refId 不能指向自己`);
+        } else if (!idMap.has(mr)) {
+          errors.push(`${label(i)}：母亲 refId '${mr}' 不存在`);
+        } else {
+          motherId = idMap.get(mr)!;
+        }
+      }
+      if (fatherId && motherId && fatherId === motherId) {
+        errors.push(`${label(i)}：父亲与母亲不能是同一人`);
+        continue;
+      }
+      if (!fatherId && !motherId) continue;
+
+      await query(
+        `UPDATE \`${tableName}\` SET \`father_id\` = ?, \`mother_id\` = ? WHERE \`id\` = ?`,
+        [fatherId, motherId, row.memberId]
+      );
+    }
+
+    return imported;
+  }
+
+  /** 批量导入（JSON 数组，来自管理后台/小程序接口） */
+  async batchImport(familyId: number, items: FamilyMemberImportItem[]) {
+    await this.ensureTable(familyId);
+    const tableName = getSafeMemberTableName(familyId);
+
+    if (!items || items.length === 0) {
+      throw new HttpException('导入数据不能为空', HttpStatus.BAD_REQUEST);
+    }
+
+    const errors: string[] = [];
+    const imported = await this.importItems(
+      (sql, params) => this.dataSource.query(sql, params),
+      tableName,
+      familyId,
+      items,
+      errors
+    );
 
     if (imported > 0) {
       await this.dataSource.query(

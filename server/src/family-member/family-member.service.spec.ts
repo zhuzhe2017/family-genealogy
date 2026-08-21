@@ -488,5 +488,73 @@ describe('FamilyMemberService', () => {
       expect(result.errors[0]).toContain('第 2 行');
       expect(result.errors[1]).toContain('第 3 行');
     });
+
+    it('支持 refId 父子关系一次性导入（子行先于父行，顺序无关）', async () => {
+      mockTableExists();
+      queryMock
+        .mockResolvedValueOnce({ affectedRows: 1 }) // INSERT 子
+        .mockResolvedValueOnce({ affectedRows: 1 }) // INSERT 父
+        .mockResolvedValueOnce({ affectedRows: 1 }) // UPDATE 父子关系
+        .mockResolvedValueOnce({ affectedRows: 1 }); // member_count +1
+
+      const result = await service.batchImport(1, [
+        { refId: 'c1', name: '朱子', generation: 2, fatherRefId: 'f1' },
+        { refId: 'f1', name: '朱父', generation: 1 }
+      ]);
+
+      expect(result.imported).toBe(2);
+      expect(result.total).toBe(2);
+      expect(result.errors).toHaveLength(0);
+
+      // 两个 INSERT 时父/母暂为空
+      expect(queryMock.mock.calls[1][0]).toContain('INSERT INTO `family_members_1`');
+      expect(queryMock.mock.calls[2][0]).toContain('INSERT INTO `family_members_1`');
+
+      // 关系 UPDATE：father_id 换算为系统生成的新ID，而非外部 refId
+      const updateSql = queryMock.mock.calls[3][0];
+      expect(updateSql).toContain('UPDATE `family_members_1`');
+      expect(updateSql).toContain('`father_id`');
+      const updateParams = queryMock.mock.calls[3][1];
+      expect(updateParams[0]).toMatch(/^[a-f0-9]{32}$/); // father_id
+      expect(updateParams[1]).toBe('');                  // mother_id
+      expect(updateParams[2]).toMatch(/^[a-f0-9]{32}$/); // 子行 id
+      expect(updateParams[0]).not.toBe('f1');
+      expect(updateParams[2]).not.toBe('c1');
+    });
+
+    it('引用的 refId 不存在时，该行仍导入但记录错误且不回填关系', async () => {
+      mockTableExists();
+      queryMock
+        .mockResolvedValueOnce({ affectedRows: 1 }) // INSERT 第1行
+        .mockResolvedValueOnce({ affectedRows: 1 }) // INSERT 第2行
+        .mockResolvedValueOnce({ affectedRows: 1 }); // member_count +1（无有效关系，不触发关系 UPDATE）
+
+      const result = await service.batchImport(1, [
+        { refId: 'a', name: '朱甲', generation: 1, fatherRefId: 'missing' },
+        { refId: 'b', name: '朱乙', generation: 1 }
+      ]);
+
+      expect(result.imported).toBe(2);
+      expect(result.errors).toHaveLength(1);
+      expect(result.errors[0]).toContain("父亲 refId 'missing' 不存在");
+      // 关系 UPDATE 不应发生，直接到 member_count 更新
+      expect(queryMock.mock.calls[3][0]).toContain('UPDATE `family`');
+    });
+
+    it('refId 重复时仅第一条生效，重复行被跳过', async () => {
+      mockTableExists();
+      queryMock
+        .mockResolvedValueOnce({ affectedRows: 1 }) // INSERT 第1行
+        .mockResolvedValueOnce({ affectedRows: 1 }); // member_count +1
+
+      const result = await service.batchImport(1, [
+        { refId: 'x', name: '朱甲', generation: 1 },
+        { refId: 'x', name: '朱乙', generation: 1 }
+      ]);
+
+      expect(result.imported).toBe(1);
+      expect(result.errors).toHaveLength(1);
+      expect(result.errors[0]).toContain("refId 'x' 重复");
+    });
   });
 });

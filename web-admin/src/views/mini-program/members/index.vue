@@ -3,20 +3,20 @@ import { h, ref, reactive, onMounted, watch, computed } from 'vue';
 import {
   useMessage, useDialog, NTag, NSwitch, NButton, NSpace, NSelect,
   NModal, NInput, NInputNumber, NForm, NFormItem, NRadio, NRadioGroup, NCard,
-  NScrollbar, NAlert, NCode, NUpload
+  NScrollbar, NAlert, NUpload, NProgress
 } from 'naive-ui';
-import type { DataTableColumn, FormInst, FormRules, SelectOption, UploadCustomRequestOptions } from 'naive-ui';
+import type { DataTableColumn, FormInst, FormRules, SelectOption, UploadCustomRequestOptions, UploadFileInfo } from 'naive-ui';
 import { useAuth } from '@/hooks/business/auth';
 import {
   fetchAllFamilies,
   fetchMemberList, fetchCreateMember, fetchUpdateMember,
   fetchMemberById,
   fetchDeleteMember, fetchToggleMemberAlive,
-  fetchAllMembers, fetchBatchImportMembers,
+  fetchAllMembers, fetchImportMembersFile, fetchMemberImportTemplate,
   fetchFatherCandidates, fetchFatherSpouses,
   checkDuplicateMember, uploadImage
 } from '@/service/api';
-import type { FamilyMemberItem, FatherCandidate, FatherSpouse } from '@/service/api';
+import type { FamilyMemberItem, FatherCandidate, FatherSpouse, MemberImportFileResult } from '@/service/api';
 import { resolveImageUrl } from '@/utils/image-url';
 
 const message = useMessage();
@@ -709,70 +709,101 @@ async function handleToggleAlive(row: FamilyMemberItem) {
   loadData();
 }
 
-// ===== 批量导入 =====
+// ===== 批量导入（文件上传） =====
 const showImportModal = ref(false);
-const importData = ref('');
 const importing = ref(false);
-const importResult = ref<any>(null);
-
-const importTemplate = `[
-  {
-    "name": "朱建国",
-    "gender": "male",
-    "generation": 4,
-    "generationName": "建",
-    "birthDate": "1965-04-10",
-    "birthPlace": "浙江杭州",
-    "isAlive": 1,
-    "bio": "工程师",
-    "sortOrder": 1
-  },
-  {
-    "name": "李秀英",
-    "gender": "female",
-    "generation": 4,
-    "generationName": "建",
-    "birthDate": "1967-08-20",
-    "birthPlace": "浙江绍兴",
-    "isAlive": 1,
-    "sortOrder": 2
-  }
-]`;
+const importResult = ref<MemberImportFileResult | null>(null);
+const importFileName = ref('');
+const importPercent = ref(0);
+const importErrorMsg = ref('');
+/** 每次打开弹窗递增，强制 NUpload 重新挂载以清空已选文件 */
+const importUploadKey = ref(0);
+/** NUpload 内部文件列表，上传结束后清空以便重新选择 */
+const importFileList = ref<UploadFileInfo[]>([]);
 
 function handleBatchImport() {
   if (!selectedFamilyId.value) {
     message.warning('请先选择家族');
     return;
   }
-  importData.value = '';
+  importUploadKey.value += 1;
+  importFileList.value = [];
   importResult.value = null;
+  importFileName.value = '';
+  importPercent.value = 0;
+  importErrorMsg.value = '';
   showImportModal.value = true;
 }
 
-async function handleDoImport() {
-  if (!selectedFamilyId.value) return;
-  let items: any[] = [];
-  try {
-    items = JSON.parse(importData.value);
-  } catch {
-    message.error('导入数据不是合法的 JSON');
-    return;
+/** 上传前本地校验：文件格式与大小 */
+function validateImportFile(file: File): string | null {
+  const ext = (file.name.split('.').pop() || '').toLowerCase();
+  if (!['xlsx', 'xls', 'csv'].includes(ext)) {
+    return '仅支持 .xlsx / .xls / .csv 格式的文件';
   }
-  if (!Array.isArray(items) || items.length === 0) {
-    message.error('导入数据必须是数组且不能为空');
+  if (file.size > 20 * 1024 * 1024) {
+    return '文件大小不能超过 20MB';
+  }
+  return null;
+}
+
+/** NUpload 自定义上传：调用后端文件导入接口并展示上传/处理进度 */
+async function handleImportUpload({ file, onProgress, onFinish, onError }: UploadCustomRequestOptions) {
+  if (!selectedFamilyId.value) return;
+  const rawFile = file.file;
+  if (!rawFile) return;
+  const errMsg = validateImportFile(rawFile);
+  if (errMsg) {
+    importErrorMsg.value = errMsg;
+    message.error(errMsg);
+    onError();
     return;
   }
   importing.value = true;
+  importErrorMsg.value = '';
+  importResult.value = null;
+  importFileName.value = rawFile.name;
+  importPercent.value = 0;
   try {
-    const { data, error } = await fetchBatchImportMembers(selectedFamilyId.value, items);
-    if (error) return;
-    importResult.value = data;
+    const { data, error } = await fetchImportMembersFile(selectedFamilyId.value, rawFile, p => {
+      importPercent.value = p;
+      onProgress?.({ percent: p });
+    });
+    if (error) {
+      importErrorMsg.value = error.message;
+      message.error(error.message);
+      onError();
+      return;
+    }
+    importPercent.value = 100;
+    importResult.value = data || null;
     if (data && data.imported > 0) loadData();
-  } catch (err: any) {
-    message.error(err?.msg || '导入失败');
+    onFinish();
+  } catch (e: any) {
+    importErrorMsg.value = e?.message || '导入失败';
+    message.error(importErrorMsg.value);
+    onError();
   } finally {
     importing.value = false;
   }
+}
+
+/** 下载 CSV 导入模板 */
+async function handleDownloadTemplate() {
+  if (!selectedFamilyId.value) return;
+  const { data, error } = await fetchMemberImportTemplate(selectedFamilyId.value);
+  if (error) {
+    message.error(error.message);
+    return;
+  }
+  const blob = data as Blob;
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'member-import-template.csv';
+  a.click();
+  URL.revokeObjectURL(url);
+  message.success('模板已下载');
 }
 
 // ===== 导出 =====
@@ -1178,11 +1209,37 @@ onMounted(() => { loadFamilyOptions(); });
       <NModal v-model:show="showImportModal" title="批量导入成员" preset="card" style="width: 640px" :mask-closable="false">
         <NSpace vertical :size="12">
           <NAlert type="info" :show-icon="false">
-            <div>粘贴 JSON 数组格式的成员数据。导入暂不支持父/母关系，导入后可在「编辑成员」中补充。</div>
+            <div>支持 .xlsx / .xls / .csv 格式文件（≤ 20MB，最多 20000 行）。</div>
+            <div>通过模板中的「外部ID / 父亲外部ID / 母亲外部ID」列可一次性建立父子关系，未填写则导入后可在「编辑成员」中补充。</div>
           </NAlert>
-          <NCode :code="importTemplate" language="json" :word-wrap="true" />
-          <NInput v-model:value="importData" type="textarea" :rows="8" placeholder="请粘贴 JSON 数组数据..." />
-          <div v-if="importResult" class="mt-12px">
+          <NSpace>
+            <NButton size="small" @click="handleDownloadTemplate">下载导入模板</NButton>
+            <span class="text-12px text-gray-500">模板含示例数据，请按规范准备后上传</span>
+          </NSpace>
+          <NUpload
+            :key="importUploadKey"
+            v-model:file-list="importFileList"
+            accept=".xlsx,.xls,.csv"
+            :max="1"
+            :show-file-list="false"
+            :custom-request="handleImportUpload"
+            :disabled="importing"
+          >
+            <NButton type="primary" :loading="importing">{{ importFileName ? '重新选择文件' : '选择文件并导入' }}</NButton>
+          </NUpload>
+          <div v-if="importFileName" class="text-13px text-gray-500">已选择: {{ importFileName }}</div>
+          <NProgress
+            v-if="importing || importPercent > 0"
+            type="line"
+            :percentage="importPercent"
+            :processing="importing"
+            :show-indicator="true"
+            :height="12"
+          />
+          <NAlert v-if="importErrorMsg" type="error" :show-icon="false">
+            <div>{{ importErrorMsg }}</div>
+          </NAlert>
+          <div v-if="importResult">
             <NAlert :type="importResult.errors.length > 0 ? 'warning' : 'success'" :show-icon="false">
               <div>导入成功: {{ importResult.imported }} 条</div>
               <div v-if="importResult.skipped > 0">跳过: {{ importResult.skipped }} 条</div>
@@ -1195,7 +1252,6 @@ onMounted(() => { loadFamilyOptions(); });
         <template #footer>
           <NSpace justify="end">
             <NButton @click="showImportModal = false">关闭</NButton>
-            <NButton type="primary" :loading="importing" @click="handleDoImport">导入</NButton>
           </NSpace>
         </template>
       </NModal>

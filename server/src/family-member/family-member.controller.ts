@@ -1,15 +1,22 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards, ParseIntPipe, HttpException, HttpStatus } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards, ParseIntPipe, HttpException, HttpStatus, UploadedFile, Req, UseInterceptors, BadRequestException, Header } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { memoryStorage } from 'multer';
 import { FamilyMemberService } from './family-member.service';
+import { MemberImportService, IMPORT_SUPPORTED_EXTS, MAX_IMPORT_FILE_SIZE } from './member-import.service';
 import { JwtAuthGuard } from '../auth/guard/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { PermissionsGuard } from '../common/guards/permissions.guard';
 import { Permissions } from '../common/decorators/permissions.decorator';
+import { type AuthenticatedRequest } from '../common/types/common';
 import { type FamilyMemberCreateData, type FamilyMemberUpdateData, type FamilyMemberImportItem } from './types/family-member.types';
 
 @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
 @Controller('family-member/:familyId')
 export class FamilyMemberController {
-  constructor(private readonly familyMemberService: FamilyMemberService) {}
+  constructor(
+    private readonly familyMemberService: FamilyMemberService,
+    private readonly memberImportService: MemberImportService
+  ) {}
 
   @Permissions('system:family-member:list')
   @Get('list')
@@ -80,6 +87,15 @@ export class FamilyMemberController {
     return this.familyMemberService.checkDuplicate(familyId, name || '', fatherId || '', excludeId || '');
   }
 
+  /** 下载 CSV 导入模板（需在 :id 路由之前注册，避免被参数路由吞掉） */
+  @Permissions('system:family-member:import')
+  @Get('import-template')
+  @Header('Content-Type', 'text/csv; charset=utf-8')
+  @Header('Content-Disposition', 'attachment; filename="member-import-template.csv"')
+  getImportTemplate() {
+    return this.memberImportService.buildTemplate();
+  }
+
   @Permissions('system:family-member:list')
   @Get(':id')
   async getById(
@@ -123,6 +139,36 @@ export class FamilyMemberController {
     @Body() body: { items: FamilyMemberImportItem[] }
   ) {
     return this.familyMemberService.batchImport(familyId, body?.items || []);
+  }
+
+  /** 文件批量导入（Excel/CSV，multipart，字段名 file） */
+  @Permissions('system:family-member:import')
+  @Post('import')
+  @UseInterceptors(
+    FileInterceptor('file', {
+      storage: memoryStorage(),
+      limits: { fileSize: MAX_IMPORT_FILE_SIZE },
+      fileFilter: (_req, file, cb) => {
+        const ext = (file.originalname.split('.').pop() || '').toLowerCase();
+        if (!IMPORT_SUPPORTED_EXTS.includes(ext)) {
+          return cb(new BadRequestException('仅支持 .xlsx / .xls / .csv 格式的文件', '400'), false);
+        }
+        cb(null, true);
+      }
+    })
+  )
+  async importFile(
+    @Param('familyId', ParseIntPipe) familyId: number,
+    @UploadedFile() file?: Express.Multer.File,
+    @Req() req?: AuthenticatedRequest
+  ) {
+    if (!file) {
+      throw new BadRequestException('请选择要上传的文件', '400');
+    }
+    return this.memberImportService.importFromFile(familyId, file, {
+      username: req?.user?.username || 'admin',
+      id: typeof req?.user?.id === 'number' ? req.user.id : undefined
+    });
   }
 
   @Permissions('system:family-member:update')

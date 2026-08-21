@@ -34,6 +34,8 @@ export function describeAction(method: string, path: string): string {
   if (p.includes('toggle-status')) return '切换状态';
   if (p.includes('batch-import')) return '批量导入';
   if (p.includes('save-batch')) return '批量保存';
+  if (p.includes('import-template')) return '下载导入模板';
+  if (p.includes('/import')) return '批量导入成员';
   if (p.includes('reset')) return '恢复默认';
   if (p.includes('clean')) return '清理日志';
   if (p.includes('bind-family')) return '绑定家族';

@@ -1,4 +1,7 @@
+import axios from 'axios';
 import { request } from '../request';
+import { getServiceBaseURL } from '@/utils/service';
+import { getAuthorization } from '../request/shared';
 
 export interface FamilyMemberItem {
   id: string;
@@ -166,8 +169,14 @@ export function fetchToggleMemberAlive(familyId: number, memberId: string) {
   return request<{ id: string; isAlive: number }>({ url: `/family-member/${familyId}/toggle-alive/${memberId}`, method: 'post' });
 }
 
-/** 批量导入成员数据（不含父/母关系，导入后可在编辑中补充） */
+/** 批量导入成员数据（支持通过 refId / fatherRefId / motherRefId 一次性导入父子关系） */
 export interface FamilyMemberImportItem {
+  /** 外部行号/原表ID，用于父子关系引用（仅作为关系映射键，不落库）；同一批内必须唯一 */
+  refId?: string;
+  /** 父亲在导入表中的 refId */
+  fatherRefId?: string;
+  /** 母亲在导入表中的 refId */
+  motherRefId?: string;
   name: string;
   gender?: string;
   generation?: number;
@@ -190,7 +199,72 @@ export interface FamilyMemberBatchImportResult {
   total: number;
 }
 
-/** 批量导入 */
+/** 文件批量导入结果报告 */
+export interface MemberImportFileResult {
+  fileName: string;
+  total: number;
+  imported: number;
+  skipped: number;
+  errors: string[];
+}
+
+/** 批量导入（JSON 数组） */
 export function fetchBatchImportMembers(familyId: number, items: FamilyMemberImportItem[]) {
   return request<FamilyMemberBatchImportResult>({ url: `/family-member/${familyId}/batch-import`, method: 'post', data: { items } });
+}
+
+/** 文件批量导入（Excel/CSV），支持上传进度回调（0-100） */
+export async function fetchImportMembersFile(
+  familyId: number,
+  file: File,
+  onProgress?: (percent: number) => void
+): Promise<{ data?: MemberImportFileResult; error?: any }> {
+  const isHttpProxy = import.meta.env.DEV && import.meta.env.VITE_HTTP_PROXY === 'Y';
+  const { baseURL } = getServiceBaseURL(import.meta.env, isHttpProxy);
+
+  const form = new FormData();
+  form.append('file', file);
+
+  try {
+    const response = await axios.post<App.Service.Response<MemberImportFileResult>>(
+      `${baseURL}/family-member/${familyId}/import`,
+      form,
+      {
+        headers: {
+          Authorization: getAuthorization() || '',
+          'Content-Type': 'multipart/form-data'
+        },
+        onUploadProgress: progressEvent => {
+          const total = progressEvent.total || 0;
+          const percent = total > 0 ? Math.round((progressEvent.loaded * 100) / total) : 0;
+          onProgress?.(percent);
+        }
+      }
+    );
+    const body = response.data;
+    if (String(body.code) === import.meta.env.VITE_SERVICE_SUCCESS_CODE) {
+      return { data: body.data };
+    }
+    return { error: new Error(body.msg || '导入失败') };
+  } catch (error: any) {
+    const msg = error?.response?.data?.msg || error?.message || '导入失败';
+    return { error: new Error(msg) };
+  }
+}
+
+/** 下载 CSV 导入模板 */
+export async function fetchMemberImportTemplate(familyId: number): Promise<{ data?: Blob; error?: any }> {
+  const isHttpProxy = import.meta.env.DEV && import.meta.env.VITE_HTTP_PROXY === 'Y';
+  const { baseURL } = getServiceBaseURL(import.meta.env, isHttpProxy);
+
+  try {
+    const response = await axios.get<Blob>(`${baseURL}/family-member/${familyId}/import-template`, {
+      headers: { Authorization: getAuthorization() || '' },
+      responseType: 'blob'
+    });
+    return { data: response.data };
+  } catch (error: any) {
+    const msg = error?.response?.data?.msg || error?.message || '模板下载失败';
+    return { error: new Error(msg) };
+  }
 }

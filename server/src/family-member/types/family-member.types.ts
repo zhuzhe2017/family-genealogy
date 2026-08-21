@@ -109,8 +109,14 @@ export interface FatherSpouse {
   isAlive?: number;
 }
 
-/** 家族成员批量导入数据（不含父/母关系，导入后可在编辑中补充） */
+/** 家族成员批量导入数据（支持通过 refId / fatherRefId / motherRefId 一次性导入父子关系） */
 export interface FamilyMemberImportItem {
+  /** 外部行号/原表ID，用于父子关系引用（仅作为关系映射键，不落库）；同一批内必须唯一 */
+  refId?: string;
+  /** 父亲在导入表中的 refId（不落库，导入时换算为系统生成的成员ID） */
+  fatherRefId?: string;
+  /** 母亲在导入表中的 refId（不落库，导入时换算为系统生成的成员ID） */
+  motherRefId?: string;
   name: string;
   gender?: string;
   generation?: number;
