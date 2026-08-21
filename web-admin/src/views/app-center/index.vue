@@ -1,10 +1,15 @@
 <script setup lang="ts">
 import { h, ref, reactive, onMounted } from 'vue';
 import type { DataTableColumn } from 'naive-ui';
-import { useMessage, useDialog, NTag, NButton, NSpace, NSelect, NInput, NInputNumber, NForm, NFormItem, NDataTable, NModal, NSwitch, NCard } from 'naive-ui';
+import { useMessage, useDialog, NTag, NButton, NSpace, NSelect, NInput, NInputNumber, NForm, NFormItem, NDataTable, NModal, NSwitch, NCard, NImage } from 'naive-ui';
 import { useAuth } from '@/hooks/business/auth';
+<<<<<<< HEAD
 import ImageUpload from '@/components/common/image-upload/index.vue';
 import { resolveImageUrl } from '@/utils/image-url';
+=======
+import { resolveImageUrl } from '@/utils/image-url';
+import ImageUpload from '@/components/common/image-upload/index.vue';
+>>>>>>> b5210823ba78146fc6e2f84efb9c39eef7b7fea6
 import {
   fetchAdminPluginList,
   fetchCreateAdminPlugin,
@@ -46,10 +51,21 @@ const columns: DataTableColumn<AdminPluginItem>[] = [
   { title: 'ID', key: 'id', width: 60 },
   { title: '编码', key: 'code', width: 120, ellipsis: { tooltip: true } },
   {
+<<<<<<< HEAD
     title: '图标', key: 'icon', width: 80, align: 'center',
     render: row => isImageIcon(row.icon)
       ? h('img', { src: resolveImageUrl(row.icon), alt: row.name, style: 'width: 32px; height: 32px; border-radius: 6px; object-fit: cover; display: inline-block; vertical-align: middle' })
       : h('span', { style: 'font-size: 24px; line-height: 1' }, row.icon || '🧩')
+=======
+    title: '图标', key: 'icon', width: 90, align: 'center',
+    render: row => {
+      const icon = row.icon || '';
+      // 上传图片以 http(s) 或 /uploads/ 开头,其余按 emoji 文本展示(兼容存量数据)
+      return /^(https?:\/\/|\/uploads\/)/.test(icon)
+        ? h(NImage, { src: resolveImageUrl(icon), width: 36, height: 36, objectFit: 'cover', fallbackSrc: 'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 40 40%22%3E%3Crect fill=%22%23f0f0f0%22 width=%2240%22 height=%2240%22/%3E%3C/svg%3E' })
+        : h('span', { style: 'font-size: 24px; line-height: 1' }, icon);
+    }
+>>>>>>> b5210823ba78146fc6e2f84efb9c39eef7b7fea6
   },
   { title: '名称', key: 'name', minWidth: 120, ellipsis: { tooltip: true } },
   { title: '简介', key: 'description', minWidth: 160, ellipsis: { tooltip: true }, render: row => row.description || '-' },
@@ -249,8 +265,13 @@ onMounted(loadList);
           <NInput v-model:value="form.name" placeholder="例如：电子罗盘" maxlength="64" />
         </NFormItem>
         <NFormItem label="应用图标">
+<<<<<<< HEAD
           <ImageUpload v-model:value="form.icon" :size="80" />
           <div class="text-12px text-gray-400 mt-4px">上传应用图标图片（png/jpg/gif/webp，≤ 5MB），建议使用 1:1 正方形图</div>
+=======
+          <ImageUpload v-model:value="form.icon" :size="96" :max-size="2" />
+          <div class="text-12px text-gray-400 mt-4px">上传图标图片（png/jpg/gif/webp，≤2MB），建议方形图片</div>
+>>>>>>> b5210823ba78146fc6e2f84efb9c39eef7b7fea6
         </NFormItem>
         <NFormItem label="应用简介">
           <NInput v-model:value="form.description" type="textarea" :rows="2" placeholder="一句话说明用途" maxlength="255" />
