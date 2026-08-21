@@ -289,8 +289,8 @@ onMounted(() => {
           <NInput v-model:value="form.title" placeholder="例如：家族文化节活动" maxlength="100" />
         </NFormItem>
         <NFormItem label="广告图片">
-          <ImageUpload v-model:value="form.imageUrl" :size="160" :min-width="750" :min-height="260" />
-          <div class="text-12px text-gray-400 mt-4px">推荐尺寸 750×260 像素（约 2.88:1），以保证小程序端展示完整不被拉伸</div>
+          <ImageUpload v-model:value="form.imageUrl" :size="160" :min-width="750" :min-height="300" />
+          <div class="text-12px text-gray-400 mt-4px">推荐尺寸 750×300 像素（约 2.5:1），以保证小程序端展示完整不被拉伸</div>
         </NFormItem>
         <NFormItem label="跳转类型">
           <NSelect v-model:value="form.linkType" :options="linkTypeOptions" style="width: 180px" />

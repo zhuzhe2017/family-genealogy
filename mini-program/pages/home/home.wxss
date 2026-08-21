@@ -12,14 +12,14 @@
 
 /* 广告轮播:位于状态栏下沿,卡片悬浮于红色背景上 */
 .banner-section {
-  margin: 16rpx 32rpx 0;
+  margin: 16rpx 0 0;
   position: relative;
   z-index: 2;
 }
 
 .banner-swiper {
-  width: 100%;
-  height: 260rpx;
+  width: 750rpx;
+  height: 300rpx;
   border-radius: 20rpx;
   overflow: hidden;
   box-shadow: 0 8rpx 24rpx rgba(0, 0, 0, 0.12);
