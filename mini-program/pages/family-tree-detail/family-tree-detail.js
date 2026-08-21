@@ -987,6 +987,8 @@ Page({
     const x = layout.x;
     const y = layout.y;
     const isFemale = node.gender === 'female';
+    // 已逝成员：卡片整体灰化（底色/边框/头像/名字），任意缩放级别（含 LOD0 色块）都能一眼区分
+    const isDead = node.isAlive === false;
 
     // 主节点背景（所有 LOD 都绘制色块，性别色保留；轻阴影增强与背景的区分度）
     this.roundRect(ctx, x, y, NODE_W, NODE_H, 10);
@@ -994,10 +996,10 @@ Page({
     ctx.shadowColor = 'rgba(0, 0, 0, 0.1)';
     ctx.shadowBlur = 5;
     ctx.shadowOffsetY = 2;
-    ctx.fillStyle = isFemale ? '#FFF0F3' : '#FFFFFF';
+    ctx.fillStyle = isDead ? '#EFEFEC' : (isFemale ? '#FFF0F3' : '#FFFFFF');
     ctx.fill();
     ctx.restore();
-    ctx.strokeStyle = isFemale ? '#E695A5' : '#D9C5AC';
+    ctx.strokeStyle = isDead ? '#BDBDB6' : (isFemale ? '#E695A5' : '#D9C5AC');
     ctx.lineWidth = 1;
     ctx.stroke();
 
@@ -1012,7 +1014,7 @@ Page({
 
     // LOD1 中距视图：只画名字（垂直居中），跳过头像/徽标/标签与配偶细节
     if (cardScreenW < LOD_MEDIUM_THRESHOLD) {
-      this.drawName(ctx, node, x, y, NODE_W - 44 - 8, y + NODE_H / 2);
+      this.drawName(ctx, node, x, y, NODE_W - 44 - 8, y + NODE_H / 2, isDead ? '#9A9A94' : '');
       this.drawSpouseBlock(ctx, layout);
       return;
     }
@@ -1103,9 +1105,9 @@ Page({
     }
   },
 
-  /** 绘制名字（按可用宽度截断，默认位于卡片上部） */
-  drawName(ctx, node, x, y, maxW, centerY) {
-    ctx.fillStyle = '#333333';
+  /** 绘制名字（按可用宽度截断，默认位于卡片上部）；color 为空时使用默认深灰 */
+  drawName(ctx, node, x, y, maxW, centerY, color) {
+    ctx.fillStyle = color || '#333333';
     ctx.font = 'bold 12px sans-serif';
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
