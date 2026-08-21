@@ -19,7 +19,6 @@ Page({
       .getList()
       .then((res) => {
         this.setData({
-<<<<<<< HEAD
           apps: (res.list || []).map((item) => ({
             id: item.id,
             code: item.code,
@@ -32,22 +31,6 @@ Page({
             iconImage: /^https?:\/\//.test(item.icon || '') || (item.icon || '').indexOf('/uploads/') === 0,
             iconSrc: resolveImageUrl(item.icon)
           })),
-=======
-          apps: (res.list || []).map((item) => {
-            const icon = item.icon || '';
-            const iconImage = /^(https?:\/\/|\/uploads\/)/.test(icon);
-            return {
-              id: item.id,
-              code: item.code,
-              name: item.name,
-              icon: iconImage ? resolveImageUrl(icon) : (icon || '🧩'),
-              description: item.description || '',
-              entryType: item.entryType || 'page',
-              entryValue: item.entryValue || '',
-              iconImage
-            };
-          }),
->>>>>>> b5210823ba78146fc6e2f84efb9c39eef7b7fea6
           loading: false
         });
       })
