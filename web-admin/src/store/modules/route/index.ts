@@ -182,7 +182,7 @@ export const useRouteStore = defineStore(SetupStoreId.Route, () => {
     }
 
     if (authRouteMode.value === 'static') {
-      initStaticAuthRoute();
+      await initStaticAuthRoute();
     } else {
       await initDynamicAuthRoute();
     }
@@ -190,16 +190,32 @@ export const useRouteStore = defineStore(SetupStoreId.Route, () => {
     tabStore.initHomeTab();
   }
 
-  /** Init static auth route */
-  function initStaticAuthRoute() {
-    const { authRoutes: staticAuthRoutes } = createStaticRoutes();
+  /**
+   * Init static auth route
+   *
+   * 混合模式：常量路由仍用前端静态定义（登录/403/404 等不受影响），
+   * 而菜单（auth routes）改为从后端 /route/getUserRoutes 加载（数据源 sys_menu），
+   * 管理后台修改菜单名称/排序后刷新即可生效；后端不可用时回退到前端静态路由。
+   */
+  async function initStaticAuthRoute() {
+    const { data, error } = await fetchGetUserRoutes();
 
-    if (authStore.isStaticSuper) {
-      addAuthRoutes(staticAuthRoutes);
+    if (!error && data?.routes?.length) {
+      addAuthRoutes(data.routes);
+
+      setRouteHome(data.home);
+
+      handleUpdateRootRouteRedirect(data.home);
     } else {
-      const filteredAuthRoutes = filterAuthRoutesByRoles(staticAuthRoutes, authStore.userInfo.roles);
+      const { authRoutes: staticAuthRoutes } = createStaticRoutes();
 
-      addAuthRoutes(filteredAuthRoutes);
+      if (authStore.isStaticSuper) {
+        addAuthRoutes(staticAuthRoutes);
+      } else {
+        const filteredAuthRoutes = filterAuthRoutesByRoles(staticAuthRoutes, authStore.userInfo.roles);
+
+        addAuthRoutes(filteredAuthRoutes);
+      }
     }
 
     handleConstantAndAuthRoutes();
