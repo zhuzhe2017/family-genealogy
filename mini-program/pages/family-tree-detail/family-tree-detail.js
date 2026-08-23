@@ -71,7 +71,11 @@ Page({
     showSearchBar: false,
     searchKeyword: '',
     canvasScale: 1,
-    canvasStyle: ''
+    canvasStyle: '',
+    loading: false,
+    empty: false,
+    loadError: '',
+    memberCount: 0
   },
 
   // 画布状态（不放入 data，避免频繁 setData 重绘）
@@ -106,6 +110,12 @@ Page({
   collapsedIds: new Set(),  // 已折叠（隐藏其后代）的节点 id 集合
   nodeMap: {},              // id -> node 快速索引
   avatarCache: {},          // 头像图片缓存 url -> { img, loaded, failed }，避免重复加载
+  _boundsCache: null,       // 内容边界缓存（布局变化时失效，避免每帧 O(n) 重算）
+  _contentSizeCache: null,  // 内容尺寸缓存
+  _genIndex: null,          // 空间索引：generation -> 按 x 升序的布局数组（视口裁剪/命中检测）
+  highlightId: '',          // 当前高亮定位的成员 id
+  _pendingLocateId: '',     // 待定位成员 id（当前窗口未加载该成员时，切到全部后定位）
+  _pendingCenterLayout: null, // canvas 尚未就绪时暂存的居中布局
 
   onLoad() {
     const win = wx.getWindowInfo ? wx.getWindowInfo() : wx.getSystemInfoSync();
@@ -186,6 +196,13 @@ Page({
           } else {
             this.renderTree();
           }
+          // canvas 就绪后应用此前暂存的居中定位（定位到我 / 搜索命中时画布尚未初始化）
+          if (this._pendingCenterLayout && this.data.viewMode !== 'vertical') {
+            const layout = this._pendingCenterLayout;
+            this._pendingCenterLayout = null;
+            this.centerOn(layout);
+            this.renderTree();
+          }
         });
       });
   },
@@ -202,8 +219,12 @@ Page({
       this.buildTree(cache[genKey]);
       return;
     }
+    this.setData({ loading: true, loadError: '', empty: false });
     wx.showLoading({ title: '家谱加载中...', mask: true });
-    const finishLoading = () => wx.hideLoading();
+    const finishLoading = () => {
+      wx.hideLoading();
+      this.setData({ loading: false });
+    };
     const doMock = () => {
       console.log('loadTreeData: 使用 mock 数据');
       this.generateTreeData();
@@ -219,16 +240,28 @@ Page({
           console.log('loadTreeData: API 返回', genKey, (res || []).length, '人');
           const members = (res || []).map(normalizeMember);
           cache[genKey] = members;
+          this.setData({ empty: members.length === 0 });
           this.buildTree(members);
           finishLoading();
         })
         .catch((err) => {
-          console.error('家族树加载失败,使用 mock', err);
-          doMock();
+          console.error('家族树加载失败', err);
+          if (USE_MOCK || !getToken()) {
+            doMock();
+          } else {
+            this.setData({ loadError: (err && err.message) || '家谱加载失败，请检查网络' });
+            finishLoading();
+          }
         });
     } else {
       doMock();
     }
+  },
+
+  /** 加载失败后重试：清空窗口缓存并重新加载当前代数窗口 */
+  retryLoad() {
+    this._genCache = {};
+    this.loadTreeData(this.data.selectedGen);
   },
 
   /**
@@ -240,6 +273,7 @@ Page({
     this.renderSearch = kw || '';
     this.setData({ searchKeyword: this.renderSearch });
     if (!this.renderSearch) {
+      this.clearHighlight();
       this.loadTreeData(this.data.selectedGen);
       return;
     }
@@ -250,6 +284,8 @@ Page({
           console.log('searchMembers: 命中子图', (res || []).length, '人');
           this.buildTree((res || []).map(normalizeMember));
           wx.hideLoading();
+          // 搜索命中后自动居中高亮首个命中成员，避免大族中「找不到人」
+          this.locateFirstMatch(this.renderSearch);
         })
         .catch((err) => {
           console.error('搜索失败,本地过滤兜底', err);
@@ -258,6 +294,7 @@ Page({
         });
     } else {
       this.applyFilter();
+      this.locateFirstMatch(this.renderSearch);
     }
   },
 
@@ -316,11 +353,19 @@ Page({
     this.allNodes = nodeValues;
     this.rootNodes = roots;
     this.nodeMap = nodeMap;
+    // 统一在此更新成员数（缓存命中 / mock / 搜索子图等入口都会经过 buildTree）
+    this.setData({ memberCount: members.length });
     // 树与列表统一由 applyFilter 驱动（含代数过滤与列表分页）
     this.applyFilter();
     // canvas 可能尚未初始化，重新尝试渲染
     if (!this.canvasCtx) {
       this.initCanvas();
+    }
+    // 「定位到我」等待成员就绪后定位（当前窗口可能未加载该成员，切换到全部后在此触发）
+    if (this._pendingLocateId && this.nodeMap[this._pendingLocateId]) {
+      const id = this._pendingLocateId;
+      this._pendingLocateId = '';
+      this.locateMember(id);
     }
   },
 
@@ -488,6 +533,60 @@ Page({
 
     this.rootNodes.forEach(traverse);
     this.layoutMap = layoutMap;
+    // 布局变化：失效尺寸缓存并重建空间索引（供视口裁剪/命中检测 O(log n) 定位）
+    this.invalidateLayoutCache();
+    this.buildSpatialIndex();
+  },
+
+  /** 失效内容尺寸缓存（布局或画布尺寸变化时调用） */
+  invalidateLayoutCache() {
+    this._boundsCache = null;
+    this._contentSizeCache = null;
+    this._genIndex = null;
+  },
+
+  /** 构建空间索引：按代分层，代内按 x 升序排序 */
+  buildSpatialIndex() {
+    const index = {};
+    (this.renderNodes || []).forEach(n => {
+      const l = this.layoutMap[n.id];
+      if (!l) return;
+      const gen = n.generation || 1;
+      (index[gen] = index[gen] || []).push(l);
+    });
+    Object.keys(index).forEach(g => index[g].sort((a, b) => a.x - b.x));
+    this._genIndex = index;
+  },
+
+  /** 由视口 y 范围反推代际范围（含父代余量，供连线跨代裁剪） */
+  visibleGenRange(viewTop, viewBottom, extraAbove) {
+    let gMin = Math.floor((viewTop - PADDING) / LEVEL_H) + 1;
+    let gMax = Math.ceil((viewBottom - PADDING) / LEVEL_H) + 1;
+    if (extraAbove) gMin = Math.max(1, gMin - 1);
+    return { gMin, gMax };
+  },
+
+  /** 遍历视口内节点（分层 + 代内 x 二分，避免全量扫描） */
+  forEachVisibleLayout(viewTop, viewBottom, viewLeft, viewRight, extraAbove, cb) {
+    const index = this._genIndex;
+    if (!index) return;
+    const { gMin, gMax } = this.visibleGenRange(viewTop, viewBottom, extraAbove);
+    for (let g = Math.max(1, gMin); g <= gMax; g++) {
+      const arr = index[g];
+      if (!arr || !arr.length) continue;
+      let lo = 0;
+      let hi = arr.length;
+      while (lo < hi) {
+        const mid = (lo + hi) >> 1;
+        if (arr[mid].x + arr[mid].width < viewLeft) lo = mid + 1;
+        else hi = mid;
+      }
+      for (let i = lo; i < arr.length; i++) {
+        const l = arr[i];
+        if (l.x > viewRight) break;
+        cb(l.node, l);
+      }
+    }
   },
 
   /** 计算直系图布局：以选中的 vRootId（或当前过滤结果中最合适节点）为中心，
@@ -920,10 +1019,8 @@ Page({
 
     const visibleSet = new Set(this.renderNodes.map(n => n.id));
 
-    // 1. 绘制连线（父节点或其任一可见子节点在视口内才绘制）
-    this.renderNodes.forEach(node => {
-      const layout = this.layoutMap[node.id];
-      if (!layout) return;
+    // 1. 绘制连线：仅遍历视口覆盖代际（含父代余量），避免全量节点扫描
+    this.forEachVisibleLayout(viewTop, viewBottom, viewLeft, viewRight, true, (node, layout) => {
       const visibleChildren = node.children.filter(c => visibleSet.has(c.id));
       if (visibleChildren.length === 0) return;
       const anyChildInView = visibleChildren.some(c => {
@@ -935,15 +1032,15 @@ Page({
     });
 
     // 2. 绘制节点（仅视口内，按缩放比例分级 LOD）
-    this.renderNodes.forEach(node => {
-      const layout = this.layoutMap[node.id];
-      if (layout && inView(layout)) this.drawNode(ctx, layout, scale);
+    this.forEachVisibleLayout(viewTop, viewBottom, viewLeft, viewRight, false, (node, layout) => {
+      if (inView(layout)) this.drawNode(ctx, layout, scale);
     });
 
     ctx.restore();
   },
 
   getBounds() {
+    if (this._boundsCache) return this._boundsCache;
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
     const layoutKeys = [];
     Object.keys(this.layoutMap).forEach(k => layoutKeys.push(this.layoutMap[k]));
@@ -954,18 +1051,21 @@ Page({
       maxX = Math.max(maxX, l.x + w);
       maxY = Math.max(maxY, l.y + NODE_H);
     });
-    return {
+    this._boundsCache = {
       width: maxX - minX || NODE_W,
       height: maxY - minY || NODE_H,
       minX: minX === Infinity ? PADDING : minX,
       minY: minY === Infinity ? PADDING : minY
     };
+    return this._boundsCache;
   },
 
   /** 内容尺寸（世界坐标范围 + 边距） */
   getContentSize() {
+    if (this._contentSizeCache) return this._contentSizeCache;
     const bounds = this.getBounds();
-    return { contentW: bounds.width + PADDING * 2, contentH: bounds.height + PADDING * 2 };
+    this._contentSizeCache = { contentW: bounds.width + PADDING * 2, contentH: bounds.height + PADDING * 2 };
+    return this._contentSizeCache;
   },
 
   /** 基础适配缩放：小树放大到可读尺寸，大树按宽度适配，超大宽树整体缩小 */
@@ -1075,6 +1175,16 @@ Page({
     ctx.strokeStyle = isDead ? '#BDBDB6' : (isFemale ? '#E695A5' : '#D9C5AC');
     ctx.lineWidth = 1;
     ctx.stroke();
+
+    // 定位高亮：命中成员外圈描红，任意 LOD 均可见，便于快速定位
+    if (this.highlightId === node.id) {
+      ctx.save();
+      ctx.strokeStyle = '#E07A5F';
+      ctx.lineWidth = 2.5;
+      this.roundRect(ctx, x - 3, y - 3, NODE_W + 6, NODE_H + 6, 12);
+      ctx.stroke();
+      ctx.restore();
+    }
 
     // 卡片在屏幕上的实际宽度决定细节等级
     const cardScreenW = NODE_W * scale;
@@ -1281,6 +1391,7 @@ Page({
     const gen = e.currentTarget.dataset.gen;
     this.renderGen = gen;
     this.setData({ selectedGen: gen });
+    this.clearHighlight();
     this.loadTreeData(gen);
   },
 
@@ -1502,6 +1613,86 @@ Page({
     this.renderVerticalTree();
   },
 
+  /** 「定位到我」：定位当前用户绑定的成员；当前窗口未加载时先切到全部代 */
+  locateMe() {
+    const me = (app.globalData.myFamily && app.globalData.myFamily.memberId)
+      || (app.globalData.userInfo && app.globalData.userInfo.memberId);
+    if (!me) {
+      wx.showToast({ title: '尚未绑定家族成员', icon: 'none' });
+      return;
+    }
+    if (this.data.viewMode === 'vertical') {
+      this.setData({ viewMode: 'tree' }, () => {
+        this.canvasCtx = null;
+        this.canvasNode = null;
+        this.canvasReady = false;
+        wx.nextTick(() => this.locateMember(me));
+      });
+      return;
+    }
+    if (this.nodeMap[me]) {
+      this.locateMember(me);
+      return;
+    }
+    // 当前代数窗口未加载该成员：切到「全部」加载后定位
+    this._pendingLocateId = me;
+    this.renderGen = 'all';
+    this.setData({ selectedGen: 'all' });
+    this.loadTreeData('all');
+  },
+
+  /** 定位并高亮指定成员（搜索命中 / 定位到我共用） */
+  locateMember(id) {
+    const node = this.nodeMap[id];
+    if (!node) return;
+    this.highlightId = id;
+    if (this.data.viewMode === 'vertical') {
+      this.setVerticalRoot(node);
+      return;
+    }
+    const layout = this.layoutMap[id];
+    if (!layout) return;
+    if (!this.canvasReady || !this.canvasWidth) {
+      this._pendingCenterLayout = layout;
+      return;
+    }
+    this.centerOn(layout);
+    this.renderTree();
+  },
+
+  /** 平移/缩放画布，使指定布局居中到视口中央（至少放大到可读细节等级） */
+  centerOn(layout) {
+    if (!this.canvasWidth || !this.canvasHeight) return;
+    const { contentW, contentH } = this.getContentSize();
+    const baseScale = this.computeFitScale(contentW, contentH);
+    // 定位时保证卡片 ≥ 90px（完整细节等级），过大的树不强制放大以免偏离
+    const targetScale = Math.max(baseScale, Math.min(MAX_INITIAL_SCALE, MIN_FIT_SCALE));
+    this.zoom = targetScale / baseScale;
+    const scale = baseScale * this.zoom;
+    const cx = layout.x + layout.width / 2;
+    const cy = layout.y + NODE_H / 2;
+    this.pan.x = this.canvasWidth / 2 - cx * scale - (this.canvasWidth - contentW * scale) / 2;
+    if (contentH * scale <= this.canvasHeight) {
+      this.pan.y = this.canvasHeight / 2 - cy * scale - (this.canvasHeight - contentH * scale) / 2;
+    } else {
+      this.pan.y = this.canvasHeight / 2 - cy * scale - 16;
+    }
+  },
+
+  /** 搜索后定位到首个命中成员（高亮 + 居中） */
+  locateFirstMatch(kw) {
+    const k = (kw || '').trim().toLowerCase();
+    if (!k) return;
+    const hit = (this.renderNodes || []).find(n => (n.name || '').toLowerCase().indexOf(k) > -1);
+    if (hit) this.locateMember(hit.id);
+  },
+
+  /** 清除高亮 */
+  clearHighlight() {
+    this.highlightId = '';
+    this.requestRender();
+  },
+
   /** 折叠/展开节点：折叠后隐藏其后代，展开后恢复 */
   toggleCollapse(id) {
     const node = this.nodeMap[id];
@@ -1556,9 +1747,8 @@ Page({
     const worldY = (y - offsetY) / scale;
 
     let hit = null;
-    this.renderNodes.forEach(node => {
-      const l = this.layoutMap[node.id];
-      if (!l) return;
+    // 空间索引：仅命中点所在代际、x 相邻的节点，避免全量遍历
+    this.forEachVisibleLayout(worldY - 1, worldY + NODE_H, worldX, worldX, false, (node, l) => {
       const w = l.width;
       if (worldX >= l.x && worldX <= l.x + w && worldY >= l.y && worldY <= l.y + NODE_H) {
         hit = node;
