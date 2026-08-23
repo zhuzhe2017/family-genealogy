@@ -4,13 +4,27 @@ const { normalizeMember } = require('../../utils/format');
 const { USE_MOCK } = require('../../utils/config');
 const { getToken } = require('../../utils/request');
 
+const PAGE_SIZE = 15;
+
 Page({
   data: {
     totalMembers: 0,
     maleCount: 0,
     femaleCount: 0,
     groupedMembers: [],
-    allMembers: [],
+    // 搜索状态
+    keyword: '',          // 输入框内容
+    searching: false,     // 是否处于搜索态（点击搜索按钮后置 true）
+    showSearchBtn: false, // 输入 >=2 字符时显示搜索按钮
+    // 分页状态
+    page: 1,
+    hasMore: true,
+    loading: false,       // 首页/搜索/重置加载
+    loadingMore: false,   // 上拉加载
+    noMore: false,        // 已加载全部
+    loadError: false,     // 加载失败（用于展示重试）
+    // 筛选状态
+    filter: { gender: '', sort: '' },
     // 自定义导航栏适配（状态栏高度 + 导航栏高度）
     statusBarHeight: 20,
     navBarTotal: 64
@@ -20,7 +34,7 @@ Page({
     const win = wx.getWindowInfo ? wx.getWindowInfo() : wx.getSystemInfoSync();
     const statusBarHeight = (win && win.statusBarHeight) || 20;
     this.setData({ statusBarHeight, navBarTotal: statusBarHeight + 44 });
-    this.loadMembers();
+    this.refresh();
   },
 
   /** 返回时置位标记,避免"族成员" tab 入口页再次自动跳转造成循环。
@@ -31,20 +45,129 @@ Page({
     app.globalData.skipMemberNav = true;
   },
 
-  loadMembers() {
+  /** 重置并加载第一页 */
+  refresh() {
+    this._all = [];
+    this.setData({ loading: true, loadError: false, noMore: false, groupedMembers: [] });
+    this.fetchPage(1, true);
+  },
+
+  /** 拉取一页数据。reset 为 true 表示第一页（清空已加载列表） */
+  fetchPage(page, reset) {
     const familyId = (app.globalData.currentFamily || {}).id;
+    const kw = this.data.searching ? this.data.keyword.trim() : '';
+    const { gender, sort } = this.data.filter;
+
+    const done = (res) => {
+      const list = ((res && res.list) || []).map(normalizeMember);
+      const pageSize = res && res.pageSize ? Number(res.pageSize) : PAGE_SIZE;
+      const total = res ? Number(res.total || 0) : list.length;
+      const hasMore = res ? !!res.hasMore : list.length >= pageSize;
+      this._all = (reset ? [] : (this._all || [])).concat(list);
+      this.setData({
+        totalMembers: res ? Number(res.totalMembers ?? total) : total,
+        maleCount: res ? Number(res.maleCount || 0) : 0,
+        femaleCount: res ? Number(res.femaleCount || 0) : 0,
+        page: res ? Number(res.page || 1) : page,
+        hasMore,
+        noMore: !hasMore && this._all.length > 0,
+        loading: false,
+        loadingMore: false,
+        loadError: false
+      });
+      this.regroupMembers(this._all);
+    };
+
+    this.setData({ loading: reset, loadingMore: !reset });
+
     if (!USE_MOCK && getToken() && familyId) {
-      familyMember.getAll(familyId)
-        .then((res) => {
-          this.renderMembers((res || []).map(normalizeMember));
-        })
+      const params = { page, pageSize: PAGE_SIZE };
+      if (kw) params.keyword = kw;
+      if (gender) params.gender = gender;
+      if (sort) params.sort = sort;
+      familyMember.getAll(familyId, params)
+        .then(done)
         .catch((err) => {
-          console.error('成员加载失败,使用 mock', err);
-          this.renderMembers(this.getMockMembers());
+          console.error('成员分页加载失败', err);
+          this.setData({ loading: false, loadingMore: false, loadError: true });
+          if (!reset) wx.showToast({ title: '加载失败，请重试', icon: 'none' });
         });
     } else {
-      this.renderMembers(this.getMockMembers());
+      // mock：本地分页，模拟服务端行为
+      const all = this.getMockMembers();
+      const filtered = all.filter(m => {
+        const hitName = !kw || (m.name || '').includes(kw);
+        const hitGender = !gender || m.gender === gender;
+        return hitName && hitGender;
+      });
+      const start = (page - 1) * PAGE_SIZE;
+      const pageList = filtered.slice(start, start + PAGE_SIZE);
+      done({
+        list: pageList,
+        total: filtered.length,
+        page,
+        pageSize: PAGE_SIZE,
+        totalMembers: filtered.length,
+        maleCount: filtered.filter(m => m.gender === 'male').length,
+        femaleCount: filtered.filter(m => m.gender === 'female').length,
+        hasMore: start + pageList.length < filtered.length
+      });
     }
+  },
+
+  /** 上拉加载下一页（防抖：加载中/无更多数据时直接返回） */
+  onReachBottom() {
+    if (this.data.loading || this.data.loadingMore || !this.data.hasMore) return;
+    this.fetchPage((this.data.page || 0) + 1, false);
+  },
+
+  /** 搜索输入：仅更新输入内容与搜索按钮显隐，不自动搜索 */
+  onSearch(e) {
+    const kw = (e.detail.value || '').trim();
+    this.setData({ keyword: kw, showSearchBtn: kw.length >= 2 });
+  },
+
+  /** 点击搜索按钮执行搜索 */
+  doSearch() {
+    const kw = this.data.keyword.trim();
+    if (kw.length < 2) {
+      wx.showToast({ title: '请输入至少2个字符', icon: 'none' });
+      return;
+    }
+    this.setData({ searching: true });
+    this.refresh();
+  },
+
+  /** 清空搜索词，恢复全部成员列表 */
+  clearSearch() {
+    this.setData({ keyword: '', showSearchBtn: false, searching: false });
+    this.refresh();
+  },
+
+  /** 筛选（服务端筛选 + 排序） */
+  showFilter() {
+    const cur = this.data.filter;
+    wx.showActionSheet({
+      itemList: ['默认排序', '按姓名排序', '按出生年份排序', '只看男性', '只看女性', '清除筛选'],
+      success: (res) => {
+        let filter = { gender: '', sort: '' };
+        switch (res.tapIndex) {
+          case 1: filter = { gender: cur.gender, sort: 'name' }; break;
+          case 2: filter = { gender: cur.gender, sort: 'birthYear' }; break;
+          case 3: filter = { gender: 'male', sort: cur.sort }; break;
+          case 4: filter = { gender: 'female', sort: cur.sort }; break;
+          case 5: filter = { gender: '', sort: '' }; break;
+          default: return;
+        }
+        this.setData({ filter });
+        this.refresh();
+      }
+    });
+  },
+
+  /** 加载失败重试 */
+  retryLoad() {
+    this.refresh();
   },
 
   getMockMembers() {
@@ -71,23 +194,6 @@ Page({
   },
 
   /** 渲染成员统计与按代分组 */
-  renderMembers(allMembers) {
-    const maleCount = allMembers.filter(m => m.gender === 'male').length;
-    const femaleCount = allMembers.filter(m => m.gender === 'female').length;
-    this.setData({ allMembers, totalMembers: allMembers.length, maleCount, femaleCount });
-    this.regroupMembers(allMembers);
-  },
-
-  onSearch(e) {
-    const keyword = e.detail.value;
-    if (!keyword) {
-      this.loadMembers();
-      return;
-    }
-    const filtered = this.data.allMembers.filter(m => m.name.includes(keyword));
-    this.regroupMembers(filtered);
-  },
-
   regroupMembers(members) {
     const grouped = {};
     members.forEach(m => {
@@ -99,37 +205,6 @@ Page({
       members: grouped[gen]
     }));
     this.setData({ groupedMembers });
-  },
-
-  showFilter() {
-    const all = this.data.allMembers;
-    wx.showActionSheet({
-      itemList: ['按姓名排序', '按出生年份排序', '只看男性', '只看女性'],
-      success: (res) => {
-        let result = all.slice();
-        switch (res.tapIndex) {
-          case 0: // 按姓名排序
-            result.sort((a, b) => (a.name || '').localeCompare(b.name || '', 'zh'));
-            break;
-          case 1: // 按出生年份排序(未知年份排最后)
-            result.sort((a, b) => {
-              const ay = a.birthYear || '';
-              const by = b.birthYear || '';
-              return ay === by ? 0 : (ay === '' ? 1 : (by === '' ? -1 : ay.localeCompare(by)));
-            });
-            break;
-          case 2: // 只看男性
-            result = result.filter(m => m.gender === 'male');
-            break;
-          case 3: // 只看女性
-            result = result.filter(m => m.gender === 'female');
-            break;
-          default:
-            return;
-        }
-        this.regroupMembers(result);
-      }
-    });
   },
 
   viewMember(e) {

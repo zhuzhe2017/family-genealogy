@@ -13,10 +13,17 @@
   <view class="search-filter-bar">
     <view class="search-box">
       <text class="search-icon">🔍</text>
-      <input class="search-input" placeholder="搜索成员姓名" placeholder-class="placeholder" bindinput="onSearch"/>
+      <input class="search-input" placeholder="搜索成员姓名（至少2个字）" placeholder-class="placeholder"
+             value="{{keyword}}" bindinput="onSearch" confirm-type="search" bindconfirm="doSearch"/>
+      <text class="search-clear" wx:if="{{keyword}}" bindtap="clearSearch">✕</text>
+    </view>
+    <!-- 搜索键：输入 >=2 字符时显示，位于筛选键左侧 -->
+    <view class="search-btn {{showSearchBtn ? 'show' : ''}}" bindtap="doSearch">
+      <text>搜索</text>
     </view>
     <view class="filter-btn" bindtap="showFilter">
       <text>筛选</text>
+      <text class="filter-dot" wx:if="{{filter.gender || filter.sort}}"></text>
     </view>
   </view>
 
@@ -63,6 +70,27 @@
         </view>
       </view>
     </view>
+  </view>
+
+  <!-- 加载/分页/错误/空态状态区 -->
+  <view class="list-status" wx:if="{{loading}}">
+    <view class="loading-spinner"></view>
+    <text>加载中...</text>
+  </view>
+  <view class="list-status" wx:if="{{loadingMore}}">
+    <view class="loading-spinner small"></view>
+    <text>加载中...</text>
+  </view>
+  <view class="list-status" wx:if="{{noMore}}">
+    <text>— 已加载全部 {{totalMembers}} 位成员 —</text>
+  </view>
+  <view class="list-status error" wx:if="{{loadError}}">
+    <text>加载失败，请检查网络</text>
+    <view class="retry-btn" bindtap="retryLoad">点击重试</view>
+  </view>
+  <view class="list-empty" wx:if="{{!loading && !loadError && groupedMembers.length === 0}}">
+    <text class="empty-icon">🔍</text>
+    <text>未找到相关成员</text>
   </view>
 
   <!-- 添加按钮 -->

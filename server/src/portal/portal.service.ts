@@ -53,8 +53,33 @@ export class PortalService {
     return row;
   }
 
-  /** 家族全部成员（按代排序，仅启用中） */
-  getFamilyMembers(familyId: number) {
+  /**
+   * 家族成员列表，支持三种模式：
+   * - 分页模式（page 存在）：返回分页列表（keyword 为姓名模糊匹配，含统计）
+   * - 搜索模式（keyword 无 page）：返回命中成员 + 祖先链 + 后3代子图
+   * - 窗口模式（generations）：从家族最顶层代数起返回 N 代
+   */
+  async getFamilyMembers(familyId: number, opts: { generations?: number; keyword?: string; page?: number; pageSize?: number; gender?: string; sort?: string } = {}) {
+    // 分页模式
+    if (opts.page !== undefined) {
+      return this.familyMemberService.getPaged(familyId, {
+        page: opts.page,
+        pageSize: opts.pageSize,
+        keyword: opts.keyword,
+        gender: opts.gender,
+        sort: opts.sort
+      });
+    }
+    // 搜索：返回命中成员 + 祖先链 + 后 3 代子孙（递归子图）
+    if (opts.keyword) {
+      return this.familyMemberService.searchSubtree(familyId, opts.keyword, 3);
+    }
+    // 代数窗口：从家族最顶层代数起返回 N 代
+    if (opts.generations && opts.generations > 0) {
+      const minGen = await this.familyMemberService.getMinGeneration(familyId);
+      if (minGen === null) return [];
+      return this.familyMemberService.getAll(familyId, { status: 1, maxGeneration: minGen + opts.generations - 1 });
+    }
     return this.familyMemberService.getAll(familyId, { status: 1 });
   }
 

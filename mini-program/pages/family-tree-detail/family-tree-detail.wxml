@@ -15,9 +15,9 @@
       <view class="generation-filter">
         <text class="filter-label">显示代数：</text>
         <view class="filter-options">
-          <view class="filter-item {{selectedGen === 'all' ? 'active' : ''}}" bindtap="filterGen" data-gen="all">全部</view>
-          <view class="filter-item {{selectedGen === '3' ? 'active' : ''}}" bindtap="filterGen" data-gen="3">3代</view>
+          <view class="filter-item {{selectedGen === 'default' ? 'active' : ''}}" bindtap="filterGen" data-gen="default">默认</view>
           <view class="filter-item {{selectedGen === '5' ? 'active' : ''}}" bindtap="filterGen" data-gen="5">5代</view>
+          <view class="filter-item {{selectedGen === '7' ? 'active' : ''}}" bindtap="filterGen" data-gen="7">7代</view>
         </view>
       </view>
     </view>
@@ -100,6 +100,8 @@
       <text>加载更多</text>
     </view>
   </view> -->
+
+  <!-- 加载状态：改用 wx.showLoading 原生提示（真机更流畅，此处无自定义动画层） -->
 
   <!-- 底部操作栏 -->
   <view class="bottom-actions">

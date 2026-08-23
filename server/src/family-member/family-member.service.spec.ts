@@ -64,6 +64,89 @@ describe('FamilyMemberService', () => {
       const sql = queryMock.mock.calls[1][0];
       expect(sql).toContain('ORDER BY `generation` ASC');
     });
+
+    it('maxGeneration 生成 generation <= 窗口上限', async () => {
+      mockTableExists();
+      queryMock.mockResolvedValueOnce([]);
+
+      await service.getAll(1, { status: 1, maxGeneration: 3 });
+
+      const sql = queryMock.mock.calls[1][0];
+      expect(sql).toContain('`generation` <= ?');
+      expect(queryMock.mock.calls[1][1]).toContain(3);
+    });
+  });
+
+  describe('getMinGeneration', () => {
+    it('返回启用成员中的最小代数', async () => {
+      mockTableExists();
+      queryMock.mockResolvedValueOnce([{ minGen: 2 }]);
+
+      await expect(service.getMinGeneration(1)).resolves.toBe(2);
+      const sql = queryMock.mock.calls[1][0];
+      expect(sql).toContain('MIN(`generation`)');
+      expect(sql).toContain('`status` = 1');
+    });
+
+    it('无启用成员时返回 null', async () => {
+      mockTableExists();
+      queryMock.mockResolvedValueOnce([{ minGen: null }]);
+
+      await expect(service.getMinGeneration(1)).resolves.toBeNull();
+    });
+  });
+
+  describe('searchSubtree', () => {
+    it('生成递归 CTE 查询并返回命中子图', async () => {
+      mockTableExists();
+      queryMock.mockResolvedValueOnce([
+        { id: 'p1', name: '朱伯言', generation: 1 },
+        { id: 'c1', name: '朱文远', generation: 2 }
+      ]);
+
+      const result = await service.searchSubtree(1, '文远', 3);
+
+      const sql = queryMock.mock.calls[1][0];
+      expect(sql).toContain('WITH RECURSIVE hit');
+      expect(sql).toContain('father_id = d.id OR m.mother_id = d.id');
+      expect(sql).toContain('ORDER BY m.generation ASC');
+      expect(queryMock.mock.calls[1][1]).toEqual(['%文远%', 3]);
+      expect(result).toHaveLength(2);
+    });
+  });
+
+  describe('getPaged', () => {
+    it('返回分页列表与统计，含 hasMore 判断', async () => {
+      mockTableExists();
+      queryMock
+        .mockResolvedValueOnce([{ total: 18, maleCount: 10, femaleCount: 8 }])
+        .mockResolvedValueOnce([{ id: 'a', name: 'A', generation: 1 }]);
+
+      const result = await service.getPaged(1, { page: 1, pageSize: 15 });
+
+      const statsSql = queryMock.mock.calls[1][0];
+      expect(statsSql).toContain('SUM(CASE WHEN `gender`');
+      const listSql = queryMock.mock.calls[2][0];
+      expect(listSql).toContain('LIMIT ? OFFSET ?');
+      expect(queryMock.mock.calls[2][1]).toEqual([1, 15, 0]);
+      expect(result.totalMembers).toBe(18);
+      expect(result.maleCount).toBe(10);
+      expect(result.femaleCount).toBe(8);
+      expect(result.hasMore).toBe(true);
+      expect(result.list).toHaveLength(1);
+    });
+
+    it('支持 keyword 与 gender 过滤，pageSize 上限 100', async () => {
+      mockTableExists();
+      queryMock.mockResolvedValueOnce([{ total: 1, maleCount: 1, femaleCount: 0 }]).mockResolvedValueOnce([]);
+
+      await service.getPaged(1, { page: 2, pageSize: 500, keyword: '朱', gender: 'male' });
+
+      const statsSql = queryMock.mock.calls[1][0];
+      expect(statsSql).toContain('`name` LIKE ?');
+      expect(statsSql).toContain('`gender` = ?');
+      expect(queryMock.mock.calls[2][1]).toEqual([1, '%朱%', 'male', 100, 100]);
+    });
   });
 
   describe('getById', () => {

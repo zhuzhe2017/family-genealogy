@@ -140,10 +140,10 @@ export class FamilyMemberService {
   }
 
   /** 全部成员（不分页，用于家谱树等） */
-  async getAll(familyId: number, params: { keyword?: string; generation?: number; status?: number } = {}) {
+  async getAll(familyId: number, params: { keyword?: string; generation?: number; status?: number; maxGeneration?: number } = {}) {
     await this.ensureTable(familyId);
     const tableName = getSafeMemberTableName(familyId);
-    const { keyword, generation, status } = params;
+    const { keyword, generation, status, maxGeneration } = params;
     const where: string[] = ['1=1'];
     const values: QueryValues = [];
 
@@ -154,6 +154,10 @@ export class FamilyMemberService {
     if (generation !== undefined) {
       where.push('`generation` = ?');
       values.push(generation);
+    }
+    if (maxGeneration !== undefined) {
+      where.push('`generation` <= ?');
+      values.push(maxGeneration);
     }
     if (status !== undefined) {
       where.push('`status` = ?');
@@ -168,6 +172,105 @@ export class FamilyMemberService {
        ORDER BY \`generation\` ASC, \`sort_order\` ASC, \`create_time\` ASC`,
       values
     );
+  }
+
+  /**
+   * 成员分页查询（含统计），供家族成员列表页使用。
+   * 支持 keyword 姓名模糊、gender 性别过滤、sort 排序（default/name/birthYear）。
+   */
+  async getPaged(
+    familyId: number,
+    params: { page?: number; pageSize?: number; keyword?: string; gender?: string; sort?: string } = {}
+  ) {
+    await this.ensureTable(familyId);
+    const tableName = getSafeMemberTableName(familyId);
+    const { page = 1, pageSize = 15, keyword, gender, sort } = params;
+    const safePageSize = Math.min(Math.max(pageSize, 1), 100);
+    const where: string[] = ['`status` = ?'];
+    const values: QueryValues = [1];
+    if (keyword) {
+      where.push('`name` LIKE ?');
+      values.push(`%${keyword}%`);
+    }
+    if (gender === 'male' || gender === 'female') {
+      where.push('`gender` = ?');
+      values.push(gender);
+    }
+    const whereSql = where.join(' AND ');
+    // 统计（一次查询同时取总数与性别分布）
+    const [stats] = await this.dataSource.query<{ total: string | number; maleCount: string | number; femaleCount: string | number }[]>(
+      `SELECT COUNT(*) AS total,
+              SUM(CASE WHEN \`gender\` = 'male' THEN 1 ELSE 0 END) AS maleCount,
+              SUM(CASE WHEN \`gender\` = 'female' THEN 1 ELSE 0 END) AS femaleCount
+       FROM \`${tableName}\` WHERE ${whereSql}`,
+      values
+    );
+    // 排序
+    let orderBy = '`generation` ASC, `sort_order` ASC, `create_time` ASC';
+    if (sort === 'name') {
+      orderBy = '`name` ASC, `generation` ASC';
+    } else if (sort === 'birthYear') {
+      orderBy = '(`birth_date` = \'\' OR `birth_date` IS NULL) ASC, `birth_date` ASC, `generation` ASC';
+    }
+    const list = await this.dataSource.query<FamilyMemberRow[]>(
+      `SELECT * FROM \`${tableName}\` WHERE ${whereSql} ORDER BY ${orderBy} LIMIT ? OFFSET ?`,
+      [...values, safePageSize, (page - 1) * safePageSize]
+    );
+    const total = Number(stats?.total || 0);
+    return {
+      list,
+      total,
+      page,
+      pageSize: safePageSize,
+      totalMembers: total,
+      maleCount: Number(stats?.maleCount || 0),
+      femaleCount: Number(stats?.femaleCount || 0),
+      hasMore: page * safePageSize < total
+    };
+  }
+
+  /** 家族最顶层代数（启用成员中的最小 generation）；无启用成员返回 null */
+  async getMinGeneration(familyId: number): Promise<number | null> {
+    await this.ensureTable(familyId);
+    const tableName = getSafeMemberTableName(familyId);
+    const [row] = await this.dataSource.query<{ minGen: string | number | null }[]>(
+      `SELECT MIN(\`generation\`) AS minGen FROM \`${tableName}\` WHERE \`status\` = 1`
+    );
+    const v = row && row.minGen !== null && row.minGen !== undefined ? Number(row.minGen) : null;
+    return Number.isFinite(v) ? v : null;
+  }
+
+  /**
+   * 搜索成员并返回子图：命中成员 + 祖先链 + 后 depth 代子孙（递归 CTE，MySQL 8）。
+   * 用于小程序家谱树搜索，避免全量传输。
+   */
+  async searchSubtree(familyId: number, keyword: string, depth = 3): Promise<FamilyMemberRow[]> {
+    await this.ensureTable(familyId);
+    const tableName = getSafeMemberTableName(familyId);
+    const like = `%${keyword}%`;
+    const sql = `
+      WITH RECURSIVE hit AS (
+        SELECT id, father_id, mother_id, generation FROM \`${tableName}\`
+        WHERE status = 1 AND name LIKE ?
+      ),
+      up AS (
+        SELECT id, father_id, mother_id, generation, 0 AS d FROM hit
+        UNION ALL
+        SELECT m.id, m.father_id, m.mother_id, m.generation, u.d + 1
+        FROM \`${tableName}\` m JOIN up u ON m.id = u.father_id OR m.id = u.mother_id
+        WHERE u.d < 50
+      ),
+      down AS (
+        SELECT id, father_id, mother_id, generation, 0 AS d FROM hit
+        UNION ALL
+        SELECT m.id, m.father_id, m.mother_id, m.generation, d.d + 1
+        FROM \`${tableName}\` m JOIN down d ON m.father_id = d.id OR m.mother_id = d.id
+        WHERE d.d < ?
+      )
+      SELECT DISTINCT m.* FROM \`${tableName}\` m
+      WHERE m.id IN (SELECT id FROM up) OR m.id IN (SELECT id FROM down)
+      ORDER BY m.generation ASC, m.sort_order ASC, m.create_time ASC`;
+    return this.dataSource.query<FamilyMemberRow[]>(sql, [like, depth]);
   }
 
   /** 单条成员详情 */

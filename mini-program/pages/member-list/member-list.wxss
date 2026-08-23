@@ -271,3 +271,112 @@
   box-shadow: 0 8rpx 24rpx rgba(139, 26, 26, 0.3);
   z-index: 100;
 }
+
+/* 搜索清除按钮 */
+.search-clear {
+  font-size: 28rpx;
+  color: #BBB;
+  padding: 0 8rpx;
+  flex-shrink: 0;
+}
+
+/* 搜索键：与筛选键视觉一致，条件显示时带过渡动画 */
+.search-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #8B1A1A;
+  border-radius: 16rpx;
+  padding: 0 28rpx;
+  font-size: 26rpx;
+  color: #FFFFFF;
+  box-shadow: 0 2rpx 8rpx rgba(139, 26, 26, 0.2);
+  opacity: 0;
+  transform: scale(0.8);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  flex-shrink: 0;
+}
+
+.search-btn.show {
+  opacity: 1;
+  transform: scale(1);
+}
+
+/* 筛选激活小圆点 */
+.filter-btn {
+  position: relative;
+}
+
+.filter-dot {
+  position: absolute;
+  top: 10rpx;
+  right: 10rpx;
+  width: 12rpx;
+  height: 12rpx;
+  border-radius: 50%;
+  background: #8B1A1A;
+  border: 2rpx solid #FFFFFF;
+}
+
+/* 列表状态区（加载/分页/错误/空态） */
+.list-status {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 32rpx 0;
+  font-size: 24rpx;
+  color: #999;
+}
+
+.list-status.error {
+  color: #E6A23C;
+}
+
+.loading-spinner {
+  width: 48rpx;
+  height: 48rpx;
+  border: 4rpx solid rgba(139, 26, 26, 0.15);
+  border-top-color: #8B1A1A;
+  border-radius: 50%;
+  animation: list-spin 0.7s linear infinite;
+  margin-bottom: 16rpx;
+}
+
+.loading-spinner.small {
+  width: 36rpx;
+  height: 36rpx;
+  border-width: 3rpx;
+  margin-bottom: 12rpx;
+}
+
+@keyframes list-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.retry-btn {
+  margin-top: 16rpx;
+  padding: 12rpx 40rpx;
+  border-radius: 32rpx;
+  background: #8B1A1A;
+  color: #FFFFFF;
+  font-size: 26rpx;
+}
+
+/* 空态 */
+.list-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 100rpx 0;
+  color: #999;
+  font-size: 26rpx;
+}
+
+.empty-icon {
+  font-size: 64rpx;
+  margin-bottom: 20rpx;
+}

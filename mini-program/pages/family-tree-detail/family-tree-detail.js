@@ -44,7 +44,7 @@ const AVATAR_TIMEOUT = 10000;                                      // 头像加�
 Page({
   data: {
     viewMode: 'tree',
-    selectedGen: 'all',
+    selectedGen: 'default',
     showModal: false,
     selectedNode: {},
     selectedCollapsed: false,
@@ -68,7 +68,7 @@ Page({
   renderNodes: [],    // 当前要渲染的节点列表
   vLayoutMap: {},     // 直系图布局 id -> {x,y,node,spouseX,role}
   vRootId: '',        // 直系图展示的中心人物 id
-  renderGen: 'all',
+  renderGen: 'default',
   pan: { x: 0, y: 0, startX: 0, startY: 0, touching: false },
   zoom: 1,          // 用户缩放倍率（双指缩放/重置调整）
   vPan: { x: 0, y: 0, startX: 0, startY: 0, touching: false }, // 直系图平移
@@ -94,7 +94,8 @@ Page({
     const win = wx.getWindowInfo ? wx.getWindowInfo() : wx.getSystemInfoSync();
     const statusBarHeight = (win && win.statusBarHeight) || 20;
     this.setData({ statusBarHeight, navBarTotal: statusBarHeight + 44 });
-    this.loadTreeData();
+    // 默认按「默认(3代)」窗口加载
+    this.loadTreeData(this.data.selectedGen);
   },
 
   /** 返回时置位标记,避免家谱树列表页再次自动跳转造成循环。
@@ -115,7 +116,11 @@ Page({
   onShow() {
     // 首次进入不重复加载；从添加/编辑成员等页面返回时刷新树与列表
     if (this._loaded) {
-      this.loadTreeData();
+      if ((this.renderSearch || '').trim()) {
+        this.searchMembers(this.renderSearch);
+      } else {
+        this.loadTreeData(this.data.selectedGen);
+      }
     }
     this._loaded = true;
   },
@@ -168,18 +173,37 @@ Page({
       });
   },
 
-  /** 加载家族树:优先走后端 API,失败回退 mock */
-  loadTreeData() {
+  /**
+   * 加载家族树：按代数窗口请求服务端（默认=3代、5代、7代；all=全量）。
+   * 结果按窗口缓存，切换代数命中缓存时不重复请求；失败回退 mock。
+   */
+  loadTreeData(gen) {
     const familyId = (app.globalData.currentFamily || {}).id;
+    const genKey = gen === undefined || gen === null || gen === '' ? 'all' : gen;
+    const cache = (this._genCache = this._genCache || {});
+    if (cache[genKey]) {
+      this.buildTree(cache[genKey]);
+      return;
+    }
+    wx.showLoading({ title: '家谱加载中...', mask: true });
+    const finishLoading = () => wx.hideLoading();
     const doMock = () => {
       console.log('loadTreeData: 使用 mock 数据');
       this.generateTreeData();
+      finishLoading();
     };
     if (!USE_MOCK && getToken() && familyId) {
-      familyMember.getAll(familyId)
+      const params = {};
+      if (genKey !== 'all') {
+        params.generations = genKey === 'default' ? 3 : Number(genKey);
+      }
+      familyMember.getAll(familyId, params)
         .then((res) => {
-          console.log('loadTreeData: API 返回', res);
-          this.buildTree((res || []).map(normalizeMember));
+          console.log('loadTreeData: API 返回', genKey, (res || []).length, '人');
+          const members = (res || []).map(normalizeMember);
+          cache[genKey] = members;
+          this.buildTree(members);
+          finishLoading();
         })
         .catch((err) => {
           console.error('家族树加载失败,使用 mock', err);
@@ -187,6 +211,36 @@ Page({
         });
     } else {
       doMock();
+    }
+  },
+
+  /**
+   * 搜索成员：请求服务端返回「命中成员 + 祖先链 + 后3代」子图后重建树；
+   * 清空关键字时恢复当前代数窗口。mock/离线时退回本地过滤。
+   */
+  searchMembers(kw) {
+    const familyId = (app.globalData.currentFamily || {}).id;
+    this.renderSearch = kw || '';
+    this.setData({ searchKeyword: this.renderSearch });
+    if (!this.renderSearch) {
+      this.loadTreeData(this.data.selectedGen);
+      return;
+    }
+    if (!USE_MOCK && getToken() && familyId) {
+      wx.showLoading({ title: '搜索中...', mask: true });
+      familyMember.getAll(familyId, { keyword: this.renderSearch })
+        .then((res) => {
+          console.log('searchMembers: 命中子图', (res || []).length, '人');
+          this.buildTree((res || []).map(normalizeMember));
+          wx.hideLoading();
+        })
+        .catch((err) => {
+          console.error('搜索失败,本地过滤兜底', err);
+          wx.hideLoading();
+          this.applyFilter();
+        });
+    } else {
+      this.applyFilter();
     }
   },
 
@@ -283,8 +337,10 @@ Page({
     const gen = this.renderGen;
     const kw = (this.renderSearch || '').trim().toLowerCase();
     let nodes = this.allNodes;
-    if (gen !== 'all') {
-      const maxGen = Number(gen);
+    // 搜索时后端已返回完整子图（命中+祖先+后3代），跳过代数裁剪，避免剪掉窗口外祖先
+    if (gen && gen !== 'all' && !kw) {
+      // 'default' 默认显示 3 代；'5'/'7' 显示对应代数
+      const maxGen = gen === 'default' ? 3 : Number(gen);
       const keep = new Set();
       const collect = (node) => {
         if (node.generation > maxGen) return;
@@ -1208,7 +1264,7 @@ Page({
     const gen = e.currentTarget.dataset.gen;
     this.renderGen = gen;
     this.setData({ selectedGen: gen });
-    this.applyFilter();
+    this.loadTreeData(gen);
   },
 
   resetView() {
@@ -1483,35 +1539,30 @@ Page({
     return hit;
   },
 
-  /** 展开/收起搜索栏（收起时清空搜索并恢复完整视图） */
+  /** 展开/收起搜索栏（收起时清空搜索并恢复当前代数窗口） */
   onSearchToggle() {
     const show = !this.data.showSearchBar;
     this.setData({ showSearchBar: show });
     if (!show) {
       if (this._searchTimer) clearTimeout(this._searchTimer);
-      this.renderSearch = '';
-      this.setData({ searchKeyword: '' });
-      this.applyFilter();
+      this.searchMembers('');
     }
   },
 
-  /** 搜索输入：防抖过滤树与列表 */
+  /** 搜索输入：防抖后请求后端「命中+祖先+后3代」子图 */
   onSearchInput(e) {
     const kw = e.detail.value;
     this.setData({ searchKeyword: kw });
     if (this._searchTimer) clearTimeout(this._searchTimer);
     this._searchTimer = setTimeout(() => {
-      this.renderSearch = kw;
-      this.applyFilter();
+      this.searchMembers(kw);
     }, 200);
   },
 
-  /** 清空搜索（保留搜索栏，仅恢复全部结果） */
+  /** 清空搜索（保留搜索栏，恢复当前代数窗口） */
   clearSearch() {
     if (this._searchTimer) clearTimeout(this._searchTimer);
-    this.renderSearch = '';
-    this.setData({ searchKeyword: '' });
-    this.applyFilter();
+    this.searchMembers('');
   },
 
   /** 以当前弹窗中的节点为直系图中心，并关闭弹窗 */

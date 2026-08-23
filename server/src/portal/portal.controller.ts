@@ -53,8 +53,26 @@ export class PortalController {
   // ---------- 成员 ----------
 
   @Get('family/:familyId/members')
-  getFamilyMembers(@Param('familyId', ParseIntPipe) familyId: number) {
-    return this.portalService.getFamilyMembers(familyId);
+  getFamilyMembers(
+    @Param('familyId', ParseIntPipe) familyId: number,
+    @Query('page') page?: string,
+    @Query('pageSize') pageSize?: string,
+    @Query('keyword') keyword?: string,
+    @Query('gender') gender?: string,
+    @Query('sort') sort?: string,
+    @Query('generations') generations?: string
+  ) {
+    const p = page !== undefined && page !== '' ? Number(page) : undefined;
+    const ps = pageSize !== undefined && pageSize !== '' ? Number(pageSize) : undefined;
+    const n = generations !== undefined && generations !== '' ? Number(generations) : undefined;
+    return this.portalService.getFamilyMembers(familyId, {
+      page: p && Number.isInteger(p) && p > 0 ? p : undefined,
+      pageSize: ps && Number.isInteger(ps) && ps > 0 ? ps : undefined,
+      keyword: keyword || undefined,
+      gender: gender || undefined,
+      sort: sort || undefined,
+      generations: n && Number.isInteger(n) && n > 0 ? n : undefined
+    });
   }
 
   @Get('family/:familyId/members/:id')
