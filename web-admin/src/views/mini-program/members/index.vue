@@ -127,6 +127,17 @@ const columns: DataTableColumn<FamilyMemberItem>[] = [
   },
   { title: '出生日期', key: 'birth_date', width: 110, render: row => row.birth_date || '-' },
   {
+    title: '配偶信息', key: 'spouse_info', width: 160,
+    render: row => {
+      const spouses = parseSpouseInfo(row.spouse_info);
+      if (!spouses.length) return '-';
+      const text = spouses.map(s => s.name).join('、');
+      return h('span', {
+        style: 'display:inline-block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;'
+      }, text);
+    }
+  },
+  {
     title: '状态', key: 'status', width: 75, align: 'center',
     render: row => h(NTag, {
       type: row.status === 1 ? 'success' : 'error',
