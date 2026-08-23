@@ -1,0 +1,222 @@
+.page {
+  min-height: 100vh;
+  background: #F8F6F3;
+  padding: 24rpx;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ===== 顶部说明 ===== */
+.demo-intro {
+  background: #FFFFFF;
+  border-radius: 16rpx;
+  padding: 20rpx 24rpx;
+  margin-bottom: 20rpx;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.demo-title {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #8B1A1A;
+}
+
+.demo-sub {
+  margin-top: 8rpx;
+  font-size: 24rpx;
+  line-height: 1.6;
+  color: #666;
+}
+
+/* ===== 画布容器：Canvas 与 DOM 覆盖层同层叠加 ===== */
+.canvas-wrap {
+  position: relative;
+  width: 100%;
+  height: 560px;
+  border-radius: 16rpx;
+  overflow: hidden;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+  background: #F5EFE3;
+}
+
+.tree-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* ===== DOM 覆盖层：容器 0x0，不阻挡画布触摸 ===== */
+.tooltip-layer {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 0;
+  height: 0;
+  z-index: 20;
+}
+
+/* ===== 气泡（DOM 渲染，样式/动画与画布解耦） ===== */
+.tooltip {
+  position: absolute;
+  width: 220px;
+  background: #FFFFFF;
+  border-radius: 10px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.18);
+  padding: 12px 14px 10px;
+  box-sizing: border-box;
+  transform: translate(-50%, calc(-100% - 8px));
+  animation: tooltip-pop 0.18s ease-out;
+}
+
+/* 上方空间不足时翻转到节点下方 */
+.tooltip-below {
+  transform: translate(-50%, 8px);
+  animation: tooltip-pop-below 0.18s ease-out;
+}
+
+/* 指向节点的箭头 */
+.tooltip-arrow {
+  position: absolute;
+  left: 50%;
+  bottom: -6px;
+  width: 12px;
+  height: 12px;
+  background: #FFFFFF;
+  transform: translateX(-50%) rotate(45deg);
+  border-right: 1px solid rgba(0, 0, 0, 0.06);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  border-radius: 2px;
+}
+
+.tooltip-below .tooltip-arrow {
+  bottom: auto;
+  top: -6px;
+  border-right: none;
+  border-bottom: none;
+  border-left: 1px solid rgba(0, 0, 0, 0.06);
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+/* 气泡头部：头像 + 姓名（姓名过长时 CSS 自动换行） */
+.tooltip-head {
+  display: flex;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.tooltip-avatar {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: #8B1A1A;
+  color: #FFFFFF;
+  font-size: 18px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 10px;
+}
+
+.tooltip-name-wrap {
+  flex: 1;
+  min-width: 0;
+}
+
+.tooltip-name {
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+  line-height: 1.35;
+  word-break: break-all;
+}
+
+.tooltip-tags {
+  margin-top: 4px;
+  display: flex;
+  gap: 6px;
+}
+
+.tooltip-tag {
+  font-size: 11px;
+  line-height: 1;
+  padding: 3px 8px;
+  border-radius: 999px;
+}
+
+.tag-gender {
+  background: #EFE7DA;
+  color: #7A6A56;
+}
+
+.tag-alive {
+  background: rgba(90, 160, 90, 0.12);
+  color: #3E7C3E;
+}
+
+.tag-dead {
+  background: rgba(139, 26, 26, 0.12);
+  color: #8B1A1A;
+}
+
+.tooltip-row {
+  display: flex;
+  font-size: 13px;
+  line-height: 1.8;
+}
+
+.tooltip-label {
+  width: 44px;
+  flex-shrink: 0;
+  color: #999;
+}
+
+.tooltip-value {
+  flex: 1;
+  min-width: 0;
+  color: #444;
+  word-break: break-all;
+}
+
+.tooltip-note {
+  margin-top: 6px;
+  padding-top: 8px;
+  border-top: 1px solid #F0F0F0;
+  font-size: 11px;
+  color: #B0A89A;
+  text-align: center;
+}
+
+/* 气泡入场动画（CSS 声明式，Canvas 侧无需任何改动） */
+@keyframes tooltip-pop {
+  from {
+    opacity: 0;
+    transform: translate(-50%, calc(-100% + 2px)) scale(0.92);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, calc(-100% - 8px)) scale(1);
+  }
+}
+
+@keyframes tooltip-pop-below {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -2px) scale(0.92);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 8px) scale(1);
+  }
+}
+
+/* ===== 底部操作提示 ===== */
+.demo-hint {
+  margin-top: 20rpx;
+  font-size: 24rpx;
+  line-height: 1.6;
+  color: #8A8A8A;
+  padding: 0 8rpx;
+}

@@ -1,0 +1,58 @@
+<view class="page">
+  <!-- 顶部说明 -->
+  <view class="demo-intro">
+    <view class="demo-title">Canvas 绘制 + DOM 覆盖层 混合方案</view>
+    <view class="demo-sub">树形、连线、节点卡片由 Canvas 2D 绘制；点击节点后，气泡提示由画布上方的 DOM 视图层渲染，样式与动画与画布完全解耦。</view>
+  </view>
+
+  <!-- 画布容器：Canvas 与 DOM 覆盖层同层叠加 -->
+  <view class="canvas-wrap">
+    <canvas
+      type="2d"
+      id="hybridTreeCanvas"
+      class="tree-canvas"
+      bindtouchstart="onTouchStart"
+      catchtouchmove="onTouchMove"
+      bindtouchend="onTouchEnd"
+      bindtap="onCanvasTap" />
+
+    <!--
+      DOM 覆盖层：容器 0x0 不阻挡画布触摸；气泡相对画布左上角定位，
+      通过 transform 对齐到节点，实现「画布绘制 + DOM 气泡」的分层渲染。
+    -->
+    <view class="tooltip-layer">
+      <view
+        class="tooltip {{tooltip.below ? 'tooltip-below' : ''}}"
+        wx:if="{{tooltip.show}}"
+        style="left:{{tooltip.x}}px;top:{{tooltip.y}}px;"
+        bindtap="hideTooltip"
+        catchtouchmove="noop">
+        <view class="tooltip-arrow"></view>
+
+        <view class="tooltip-head">
+          <view class="tooltip-avatar">{{tooltip.firstChar}}</view>
+          <view class="tooltip-name-wrap">
+            <view class="tooltip-name">{{tooltip.name}}</view>
+            <view class="tooltip-tags">
+              <text class="tooltip-tag tag-gender">{{tooltip.genderText}}</text>
+              <text class="tooltip-tag {{tooltip.statusText === '已故' ? 'tag-dead' : 'tag-alive'}}">{{tooltip.statusText}}</text>
+            </view>
+          </view>
+        </view>
+
+        <view class="tooltip-row">
+          <text class="tooltip-label">生年</text>
+          <text class="tooltip-value">{{tooltip.birthText}}</text>
+        </view>
+        <view class="tooltip-row">
+          <text class="tooltip-label">配偶</text>
+          <text class="tooltip-value">{{tooltip.spouseText}}</text>
+        </view>
+
+        <view class="tooltip-note">DOM 气泡 · CSS 样式/动画 · 不触发画布重绘</view>
+      </view>
+    </view>
+  </view>
+
+  <view class="demo-hint">点击节点查看气泡（画布高亮 + DOM 气泡联动）；拖动平移、双指缩放。拖动/缩放时气泡自动隐藏，重新点击节点后按新位置吸附。</view>
+</view>

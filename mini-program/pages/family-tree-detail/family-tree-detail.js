@@ -41,6 +41,10 @@ const AVATAR_STATUS_ALIVE = '#4CAF50';                             // 在世状�
 const AVATAR_STATUS_DEAD = '#9E9E9E';                              // 已逝状态圆点色
 const AVATAR_TIMEOUT = 10000;                                      // 头像加载超时（ms）
 
+// DOM 覆盖层气泡常量（混合方案：Canvas 绘制树体，气泡由 DOM 视图层渲染）
+const TOOLTIP_W = 220;    // 气泡宽度（用于视口边缘夹取）
+const TOOLTIP_H = 118;    // 气泡估算高度（用于上方空间不足时翻转到下方）
+
 Page({
   data: {
     viewMode: 'tree',
@@ -49,6 +53,19 @@ Page({
     selectedNode: {},
     selectedCollapsed: false,
     modalAnimation: {},
+    tooltip: {
+      show: false,
+      x: 0,
+      y: 0,
+      below: false,
+      name: '',
+      firstChar: '',
+      genderText: '',
+      birthText: '',
+      statusText: '',
+      spouseText: '',
+      genText: ''
+    },
     memberList: [],
     listHasMore: false,
     showSearchBar: false,
@@ -1306,6 +1323,8 @@ Page({
       const dist = this.touchDist(touches);
       const next = Math.max(MIN_SCALE, Math.min(MAX_SCALE, this.pinchStartZoom * (dist / this.pinchStartDist)));
       if (Math.abs(next - this.zoom) > 0.001) {
+        // 缩放期间画布内容变化，隐藏 DOM 气泡避免错位
+        this.hideTooltip();
         this.applyZoomAt(next, touches);
       }
       return;
@@ -1316,6 +1335,7 @@ Page({
     if (this.tapInfo &&
       (Math.abs(t.clientX - this.tapInfo.x) > 10 || Math.abs(t.clientY - this.tapInfo.y) > 10)) {
       this.tapInfo = null;
+      this.hideTooltip();
     }
     this.pan.x = t.clientX - this.pan.startX;
     this.pan.y = t.clientY - this.pan.startY;
@@ -1356,11 +1376,15 @@ Page({
     if (this.hitCollapseToggle(touch.x, touch.y)) return;
     const node = this.hitTest(touch.x, touch.y);
     if (node) {
+      // 混合方案：画布命中后由 DOM 覆盖层气泡承接轻量信息展示
       this.setData({
-        showModal: true,
         selectedNode: node,
         selectedCollapsed: this.collapsedIds.has(node.id)
       });
+      this.showTooltip(node);
+    } else if (this.data.tooltip.show) {
+      // 点空白区域关闭气泡
+      this.setData({ 'tooltip.show': false });
     }
   },
 
@@ -1387,6 +1411,7 @@ Page({
       const dist = this.touchDist(touches);
       const next = Math.max(MIN_SCALE, Math.min(MAX_SCALE, this.vPinchStartZoom * (dist / this.vPinchStartDist)));
       if (Math.abs(next - this.vZoom) > 0.001) {
+        this.hideTooltip();
         this.applyVerticalZoomAt(next, touches);
       }
       return;
@@ -1396,6 +1421,7 @@ Page({
     if (this.vTapInfo &&
       (Math.abs(t.clientX - this.vTapInfo.x) > 10 || Math.abs(t.clientY - this.vTapInfo.y) > 10)) {
       this.vTapInfo = null;
+      this.hideTooltip();
     }
     this.vPan.x = t.clientX - this.vPan.startX;
     this.vPan.y = t.clientY - this.vPan.startY;
@@ -1428,17 +1454,19 @@ Page({
     this.requestRender();
   },
 
-  /** 直系图点击：命中头像（含配偶）后弹出详情 */
+  /** 直系图点击：命中头像（含配偶）后由 DOM 覆盖层气泡展示详情 */
   onVerticalTap(e) {
     if (!this.vTapInfo) return;
     const touch = e.detail;
     const node = this.hitVerticalTest(touch.x, touch.y);
     if (node) {
       this.setData({
-        showModal: true,
         selectedNode: node,
         selectedCollapsed: this.collapsedIds.has(node.id)
       });
+      this.showTooltip(node);
+    } else if (this.data.tooltip.show) {
+      this.setData({ 'tooltip.show': false });
     }
   },
 
@@ -1600,6 +1628,91 @@ Page({
       this.setData({ showModal: false });
     }, 200);
   },
+
+  /**
+   * 显示 DOM 覆盖层气泡（混合方案：Canvas 绘制树体，气泡由视图层渲染）。
+   * 定位逻辑：节点世界坐标经与绘制共用的同一套 getViewTransform/getVerticalTransform
+   * 转换为屏幕坐标，并按画布可视范围夹取；上方空间不足时翻转到节点下方。
+   */
+  showTooltip(node) {
+    const isVertical = this.data.viewMode === 'vertical';
+    const transform = isVertical ? this.getVerticalTransform() : this.getViewTransform();
+    const scale = transform.scale;
+    let sx;    // 节点左上角屏幕 x
+    let sy;    // 节点左上角屏幕 y
+    let nodeW; // 节点世界宽（用于下方翻转定位）
+    let nodeH; // 节点世界高
+    let cx;    // 节点水平中心（世界坐标）
+
+    if (isVertical) {
+      const l = this.vLayoutMap[node.id];
+      if (!l) return;
+      nodeW = V_AVATAR_R * 2;
+      nodeH = V_AVATAR_R * 2;
+      sx = transform.offsetX + l.x * scale;
+      sy = transform.offsetY + l.y * scale;
+      cx = l.x + V_AVATAR_R;
+    } else {
+      const l = this.layoutMap[node.id];
+      if (!l) return;
+      nodeW = l.width;
+      nodeH = NODE_H;
+      sx = transform.offsetX + l.x * scale;
+      sy = transform.offsetY + l.y * scale;
+      cx = l.x + l.width / 2;
+    }
+
+    const screenCx = transform.offsetX + cx * scale;
+
+    // 默认气泡在节点上方（底部贴节点顶部上方 8px，箭头指向节点顶边）
+    let below = false;
+    let y = sy;
+    if (y < TOOLTIP_H + 8) {
+      const belowY = sy + nodeH * scale + 8;
+      if (belowY + TOOLTIP_H + 8 <= this.canvasHeight) {
+        below = true;
+        y = belowY;
+      }
+    }
+    // 水平夹取，避免气泡超出画布左右边缘
+    const half = TOOLTIP_W / 2;
+    let x = screenCx;
+    if (x < half + 8) x = half + 8;
+    if (x > this.canvasWidth - half - 8) x = this.canvasWidth - half - 8;
+
+    const genText = node.generationName ? node.generationName + '字辈'
+      : (node.generation ? node.generation + '代' : '');
+    this.setData({
+      tooltip: {
+        show: true,
+        x,
+        y,
+        below,
+        name: node.name || '',
+        firstChar: (node.name || '?').charAt(0),
+        genderText: node.gender === 'female' ? '女' : '男',
+        birthText: node.birthYear ? String(node.birthYear) : '未知',
+        statusText: node.isAlive === false ? '已故' : '在世',
+        spouseText: (node.spouseInfo && node.spouseInfo.name) ? node.spouseInfo.name : '未记录',
+        genText
+      }
+    });
+  },
+
+  /** 隐藏 DOM 覆盖层气泡 */
+  hideTooltip() {
+    if (this.data.tooltip.show) this.setData({ 'tooltip.show': false });
+  },
+
+  /** 气泡「更多操作」：打开完整节点详情弹窗（保留编辑/添加子女/折叠等能力） */
+  openNodeModal() {
+    const node = this.data.selectedNode;
+    if (node && node.id) this.openModal(node);
+    this.hideTooltip();
+  },
+
+  /** 气泡内禁止滚动透传（占位处理） */
+  noop() {},
 
   /** 预览当前选中成员头像大图（无头像时忽略） */
   previewNodeAvatar() {

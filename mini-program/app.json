@@ -4,6 +4,7 @@
     "pages/home/home",
     "pages/family-tree/family-tree",
     "pages/family-tree-detail/family-tree-detail",
+    "pages/demo-hybrid-tree/demo-hybrid-tree",
     "pages/member-list/member-list",
     "pages/member-detail/member-detail",
     "pages/add-member/add-member",
