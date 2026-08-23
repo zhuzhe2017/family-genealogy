@@ -37,12 +37,15 @@
     </view>
   </view>
 
-  <!-- 搜索栏 -->
+  <!-- 搜索栏（手动触发：输入≥2字符后点击搜索按钮/键盘搜索键执行，输入过程不自动搜索） -->
   <view class="search-bar" wx:if="{{showSearchBar}}">
-    <view class="search-input-wrap">
-      <text class="search-icon">🔍</text>
-      <input class="search-input" placeholder="搜索成员姓名" placeholder-class="placeholder" value="{{searchKeyword}}" bindinput="onSearchInput" confirm-type="search"/>
-      <text class="search-clear" wx:if="{{searchKeyword}}" bindtap="clearSearch">×</text>
+    <view class="search-row">
+      <view class="search-input-wrap">
+        <text class="search-icon">🔍</text>
+        <input class="search-input" placeholder="搜索成员姓名（至少2个字符）" placeholder-class="placeholder" value="{{searchKeyword}}" bindinput="onSearchInput" bindconfirm="onSearchConfirm" confirm-type="search"/>
+        <text class="search-clear" wx:if="{{searchKeyword}}" bindtap="clearSearch">×</text>
+      </view>
+      <view class="search-btn {{canSearch ? '' : 'disabled'}}" bindtap="doSearch">搜索</view>
     </view>
   </view>
 

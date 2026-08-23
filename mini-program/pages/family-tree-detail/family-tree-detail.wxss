@@ -114,13 +114,21 @@
   border-bottom: 1rpx solid #F0F0F0;
 }
 
+.search-row {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+}
+
 .search-input-wrap {
+  flex: 1;
   display: flex;
   align-items: center;
   background: #F5F5F5;
   border-radius: 32rpx;
   padding: 0 24rpx;
   height: 64rpx;
+  min-width: 0;
 }
 
 .search-icon {
@@ -139,6 +147,23 @@
   font-size: 36rpx;
   color: #999;
   padding: 0 8rpx;
+}
+
+/* 搜索按钮:输入≥2字符前置灰 */
+.search-btn {
+  flex-shrink: 0;
+  padding: 0 32rpx;
+  height: 64rpx;
+  line-height: 64rpx;
+  background: #8B1A1A;
+  color: #FFFFFF;
+  font-size: 26rpx;
+  border-radius: 32rpx;
+  text-align: center;
+}
+
+.search-btn.disabled {
+  background: #D9CFC4;
 }
 
 /* 树状视图 */

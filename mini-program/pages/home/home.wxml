@@ -162,26 +162,42 @@
     </view>
   </view>
 
-  <!-- 家族名人 -->
+  <!-- 慈善榜单（数据源：家族基金成功存入流水聚合） -->
   <view class="section-card">
     <view class="section-header">
-      <text class="section-title">家族名人</text>
-      <text class="section-more">查看更多 ></text>
+      <text class="section-title">慈善榜单</text>
+      <text class="section-more" bindtap="navigateTo" data-url="/pages/fund/records?familyId={{currentFamily.id}}">查看更多 ></text>
     </view>
-    <scroll-view class="famous-scroll" scroll-x enhanced show-scrollbar="{{false}}" wx:if="{{famousMembers.length > 0}}">
-      <view class="famous-list">
-        <view class="famous-item" wx:for="{{famousMembers}}" wx:key="id">
-          <view class="famous-avatar">
-            <text>{{f.firstChar(item.name)}}</text>
-          </view>
-          <text class="famous-name">{{item.name}}</text>
-          <text class="famous-title">{{item.title}}</text>
+
+    <!-- 加载中 -->
+    <view class="home-state" wx:if="{{loadingCharity}}">
+      <text class="home-state-text">加载中...</text>
+    </view>
+
+    <!-- 加载失败:可重试 -->
+    <view class="home-state" wx:elif="{{charityFailed}}">
+      <text class="home-state-text">加载失败,请稍后重试</text>
+      <text class="home-state-btn" bindtap="loadCharityRank">重新加载</text>
+    </view>
+
+    <!-- 空态:已登录但暂无捐赠记录 -->
+    <view class="home-state" wx:elif="{{charityEmpty}}">
+      <text class="home-state-text">暂无慈善捐赠数据</text>
+    </view>
+
+    <!-- 榜单列表 -->
+    <view class="charity-list" wx:elif="{{charityRank.length > 0}}">
+      <view class="charity-item" wx:for="{{charityRank}}" wx:key="rank">
+        <view class="charity-rank {{item.rank <= 3 ? 'rank-' + item.rank : 'rank-other'}}">{{item.rank}}</view>
+        <view class="charity-avatar">
+          <text>{{f.firstChar(item.name)}}</text>
         </view>
+        <view class="charity-info">
+          <text class="charity-name">{{item.name}}</text>
+          <text class="charity-project">{{item.project}}{{item.time ? ' · ' + item.time : ''}}</text>
+        </view>
+        <text class="charity-amount">¥{{item.amount}}</text>
       </view>
-    </scroll-view>
-    <!-- 无真实数据源时显示空态,不展示假数据 -->
-    <view class="home-state" wx:else>
-      <text class="home-state-text">暂无名人数据</text>
     </view>
   </view>
 </view>

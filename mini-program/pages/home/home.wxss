@@ -460,54 +460,97 @@ swiper-item {
   display: block;
 }
 
-/* 名人横向滚动 */
-.famous-scroll {
-  width: 100%;
-  white-space: nowrap;
-}
-
-.famous-list {
+/* 慈善榜单 */
+.charity-list {
   display: flex;
-  gap: 24rpx;
+  flex-direction: column;
   padding: 8rpx 4rpx;
 }
 
-.famous-item {
+.charity-item {
   display: flex;
-  flex-direction: column;
   align-items: center;
-  min-width: 140rpx;
+  padding: 20rpx 8rpx;
+  border-bottom: 1rpx solid #F5F0E8;
 }
 
-.famous-avatar {
-  width: 120rpx;
-  height: 120rpx;
+/* 名次徽标:前三名金/银/铜色,其余灰色 */
+.charity-rank {
+  width: 44rpx;
+  height: 44rpx;
   border-radius: 50%;
-  background: linear-gradient(135deg, #D4A574, #C9A96E);
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: 12rpx;
-  border: 3rpx solid #F0E6D8;
-}
-
-.famous-avatar text {
-  font-size: 40rpx;
-  color: #FFFFFF;
+  font-size: 24rpx;
   font-weight: bold;
-  font-family: 'KaiTi', serif;
+  margin-right: 20rpx;
+  background: #F0EBE3;
+  color: #8C8578;
+  flex-shrink: 0;
 }
 
-.famous-name {
+.charity-rank.rank-1 {
+  background: linear-gradient(135deg, #F5D76E, #E8B430);
+  color: #8B1A1A;
+}
+
+.charity-rank.rank-2 {
+  background: linear-gradient(135deg, #D8D8D8, #B8B8B8);
+  color: #5A5A5A;
+}
+
+.charity-rank.rank-3 {
+  background: linear-gradient(135deg, #E8A87C, #C97B4A);
+  color: #6B3A1A;
+}
+
+.charity-avatar {
+  width: 64rpx;
+  height: 64rpx;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #8B1A1A, #A93226);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 20rpx;
+  flex-shrink: 0;
+}
+
+.charity-avatar text {
   font-size: 26rpx;
+  color: #FFFFFF;
+  font-weight: 500;
+}
+
+.charity-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6rpx;
+}
+
+.charity-name {
+  font-size: 28rpx;
   color: #333;
   font-weight: 500;
-  margin-bottom: 4rpx;
 }
 
-.famous-title {
+.charity-project {
   font-size: 22rpx;
   color: #999;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.charity-amount {
+  font-size: 30rpx;
+  color: #8B1A1A;
+  font-weight: bold;
+  margin-left: 16rpx;
+  flex-shrink: 0;
 }
 
 /* 状态占位:加载/登录引导/失败/空态 */

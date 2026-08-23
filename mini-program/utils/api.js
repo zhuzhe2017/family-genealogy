@@ -382,6 +382,10 @@ const fund = {
   getTransactions: function (familyId, params) {
     return request({ url: '/user/fund/transactions?familyId=' + familyId, data: params || {} });
   },
+  /** 慈善榜单（params: { limit? }，默认10条） */
+  rank: function (familyId, params) {
+    return request({ url: '/user/fund/rank?familyId=' + familyId, data: params || {} });
+  },
   /** 基金统计（余额/今日/本月/我的） */
   getStats: function (familyId) {
     return request({ url: '/user/fund/stats?familyId=' + familyId });

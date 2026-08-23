@@ -63,6 +63,21 @@ export interface FundTxRow {
   create_time: string;
 }
 
+/** 慈善榜单聚合行（按捐赠者分组：累计金额/次数） */
+export interface RankTotalRow {
+  userId: string;
+  donorName: string;
+  totalAmount: string | number;
+  donationCount: number | string;
+}
+
+/** 慈善榜单最近一次捐赠行（项目/时间） */
+export interface RankLatestRow {
+  userId: string;
+  project: string;
+  lastTime: string;
+}
+
 /** 交易类型常量 */
 export const TX_TYPE = {
   INIT: 'init',

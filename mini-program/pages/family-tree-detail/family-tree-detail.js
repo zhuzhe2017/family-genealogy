@@ -73,6 +73,7 @@ Page({
     listHasMore: false,
     showSearchBar: false,
     searchKeyword: '',
+    canSearch: false,         // 输入≥2字符后搜索按钮可用（手动搜索）
     canvasScale: 1,
     canvasStyle: '',
     loading: false,
@@ -1770,23 +1771,36 @@ Page({
     this.setData({ showSearchBar: show });
     if (!show) {
       if (this._searchTimer) clearTimeout(this._searchTimer);
+      this.setData({ canSearch: false });
       this.searchMembers('');
     }
   },
 
-  /** 搜索输入：防抖后请求后端「命中+祖先+后3代」子图 */
+  /** 搜索输入：仅记录关键字与按钮可用态，不自动发起请求（手动触发） */
   onSearchInput(e) {
     const kw = e.detail.value;
-    this.setData({ searchKeyword: kw });
-    if (this._searchTimer) clearTimeout(this._searchTimer);
-    this._searchTimer = setTimeout(() => {
-      this.searchMembers(kw);
-    }, 200);
+    this.setData({ searchKeyword: kw, canSearch: kw.trim().length >= 2 });
+  },
+
+  /** 键盘搜索键确认：等效点击搜索按钮 */
+  onSearchConfirm() {
+    this.doSearch();
+  },
+
+  /** 手动触发搜索：至少输入 2 个字符，否则提示且不执行 */
+  doSearch() {
+    const kw = (this.data.searchKeyword || '').trim();
+    if (kw.length < 2) {
+      wx.showToast({ title: '请输入至少2个字符', icon: 'none' });
+      return;
+    }
+    this.searchMembers(kw);
   },
 
   /** 清空搜索（保留搜索栏，恢复当前代数窗口） */
   clearSearch() {
     if (this._searchTimer) clearTimeout(this._searchTimer);
+    this.setData({ canSearch: false });
     this.searchMembers('');
   },
 

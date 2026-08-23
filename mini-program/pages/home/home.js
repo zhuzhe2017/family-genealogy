@@ -1,14 +1,17 @@
 const app = getApp();
-const { content, banner } = require('../../utils/api');
+const { content, banner, fund } = require('../../utils/api');
 const { normalizeDynamic, normalizeEvent, resolveImageUrl } = require('../../utils/format');
 const { USE_MOCK } = require('../../utils/config');
 const { getToken } = require('../../utils/request');
+
+/** 慈善榜单缓存有效期（毫秒） */
+const CHARITY_RANK_TTL = 5 * 60 * 1000;
 
 Page({
   data: {
     currentFamily: {},
     quickActions: [
-      { id: 1, name: '宗亲聚会', icon: '🌳', bgColor: '#E8F5E9', url: '/pages/gathering/index' },
+      { id: 1, name: '宗亲聚会', icon: '🎉', bgColor: '#E8F5E9', url: '/pages/gathering/index' },
       { id: 2, name: '家族基金', icon: '💰', bgColor: '#E3F2FD', url: '/pages/fund/index' },
       { id: 3, name: '家族资料', icon: '📚', bgColor: '#FFF3E0', url: '/pages/family-docs/family-docs' },
       { id: 4, name: '事件时间', icon: '📅', bgColor: '#F3E5F5', url: '/pages/timeline/timeline' },
@@ -23,9 +26,13 @@ Page({
     needLogin: false,       // 未登录:引导登录
     dynamicsFailed: false,  // 请求失败:错误占位
     dynamicsEmpty: false,   // 已登录但无动态
-    // 最近活动/家族名人:仅开发模式有模拟数据,真实模式无数据源时显示空态
+    // 最近活动:仅开发模式有模拟数据,真实模式无数据源时显示空态
     recentActivities: [],
-    famousMembers: [],
+    // 慈善榜单:从家族基金成功存入流水聚合,带缓存/加载/失败状态
+    charityRank: [],
+    loadingCharity: false,  // 加载中
+    charityFailed: false,   // 加载失败
+    charityEmpty: false,    // 暂无捐赠数据
     isMock: false,           // 开发模式模拟数据角标
     // 广告轮播
     banners: [],             // 轮播广告列表
@@ -72,12 +79,15 @@ Page({
       this.setData({
         recentDynamics: this.getMockDynamics(),
         recentActivities: this.getMockActivities(),
-        famousMembers: this.getMockFamous(),
+        charityRank: this.getMockCharityRank(),
         isMock: true,
         loadingDynamics: false,
         needLogin: false,
         dynamicsFailed: false,
-        dynamicsEmpty: false
+        dynamicsEmpty: false,
+        loadingCharity: false,
+        charityFailed: false,
+        charityEmpty: false
       });
       return;
     }
@@ -87,12 +97,15 @@ Page({
       this.setData({
         recentDynamics: [],
         recentActivities: [],
-        famousMembers: [],
+        charityRank: [],
         needLogin: true,
         loadingDynamics: false,
         dynamicsFailed: false,
         dynamicsEmpty: false,
-        isMock: false
+        isMock: false,
+        loadingCharity: false,
+        charityFailed: false,
+        charityEmpty: false
       });
       return;
     }
@@ -102,12 +115,15 @@ Page({
       this.setData({
         recentDynamics: [],
         recentActivities: [],
-        famousMembers: [],
+        charityRank: [],
         needLogin: false,
         loadingDynamics: false,
         dynamicsFailed: false,
         dynamicsEmpty: true,
-        isMock: false
+        isMock: false,
+        loadingCharity: false,
+        charityFailed: false,
+        charityEmpty: true
       });
       return;
     }
@@ -142,6 +158,9 @@ Page({
 
     // 并行加载最近活动(家族事件)
     this.loadActivities(familyId);
+
+    // 并行加载慈善榜单(家族基金成功存入流水聚合)
+    this.loadCharityRank();
   },
 
   /**
@@ -168,6 +187,61 @@ Page({
       .catch((err) => {
         console.error('最近活动加载失败', err);
         this.setData({ recentActivities: [] });
+      });
+  },
+
+  /**
+   * 加载慈善榜单:从家族基金成功存入流水聚合 Top10
+   * - 本地缓存(5分钟)优先渲染,避免每次进入首页都请求,随后后台刷新
+   * - 请求失败时保留缓存旧数据;无缓存则显示失败态可重试
+   */
+  loadCharityRank() {
+    const familyId = (app.globalData.currentFamily || {}).id;
+    if (!familyId) return;
+    const cacheKey = 'charity_rank_cache_' + familyId;
+
+    // 缓存未过期则先渲染,避免加载闪烁
+    let cached = null;
+    try {
+      cached = wx.getStorageSync(cacheKey);
+    } catch (e) { /* 缓存读取失败忽略 */ }
+    const cacheValid = cached && cached.time && (Date.now() - cached.time) < CHARITY_RANK_TTL;
+    if (cacheValid && cached.list) {
+      this.setData({
+        charityRank: cached.list,
+        loadingCharity: false,
+        charityEmpty: cached.list.length === 0,
+        charityFailed: false
+      });
+    } else {
+      this.setData({
+        loadingCharity: this.data.charityRank.length === 0,
+        charityFailed: false
+      });
+    }
+
+    fund.rank(familyId, { limit: 10 })
+      .then((res) => {
+        const list = (res.list || []).map((item) => ({
+          rank: item.rank,
+          name: item.donorName,
+          amount: item.totalAmount,
+          project: item.project,
+          time: item.lastTime ? String(item.lastTime).slice(0, 10) : ''
+        }));
+        this.setData({
+          charityRank: list,
+          loadingCharity: false,
+          charityEmpty: list.length === 0,
+          charityFailed: false
+        });
+        // 刷新缓存
+        try { wx.setStorageSync(cacheKey, { time: Date.now(), list }); } catch (e) { /* 缓存写入失败忽略 */ }
+      })
+      .catch((err) => {
+        console.error('慈善榜单加载失败', err);
+        // 已有内容(缓存或上次数据)时保留,避免闪错;否则显示失败态
+        this.setData({ loadingCharity: false, charityFailed: this.data.charityRank.length === 0 });
       });
   },
 
@@ -375,14 +449,14 @@ Page({
     ];
   },
 
-  /** 开发模式模拟家族名人 */
-  getMockFamous() {
+  /** 开发模式模拟慈善榜单 */
+  getMockCharityRank() {
     return [
-      { id: 1, name: '朱太公', title: '家族始祖' },
-      { id: 2, name: '朱文远', title: '清朝进士' },
-      { id: 3, name: '朱明德', title: '民国教育家' },
-      { id: 4, name: '朱国强', title: '现代企业家' },
-      { id: 5, name: '朱丽华', title: '著名学者' }
+      { rank: 1, name: '朱国强', amount: 88800, project: '修缮祖祠', time: '2025-03-18' },
+      { rank: 2, name: '朱文远', amount: 50000, project: '家族助学基金', time: '2025-05-02' },
+      { rank: 3, name: '朱丽华', amount: 30000, project: '清明祭祖大典', time: '2025-02-14' },
+      { rank: 4, name: '朱明德', amount: 12000, project: '族老慰问金', time: '2025-06-01' },
+      { rank: 5, name: '朱晓峰', amount: 8000, project: '宗亲聚会', time: '2025-07-22' }
     ];
   }
 });

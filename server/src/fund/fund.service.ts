@@ -4,6 +4,8 @@ import {
   type FundRow,
   type FundMemberRow,
   type FundTxRow,
+  type RankTotalRow,
+  type RankLatestRow,
   type FundCreateData,
   type FundUpdateData,
   type FundOpData,
@@ -165,6 +167,56 @@ export class FundService {
       income: this.num(sumRow?.income || 0),
       expense: this.num(sumRow?.expense || 0)
     };
+  }
+
+  /** 慈善榜单：按成员成功存入金额聚合，返回捐赠者/累计金额/捐赠项目/最近捐赠时间 */
+  async getRank(userId: string, familyId: number, limit = 10) {
+    this.requireFamilyId(familyId);
+    const fund = await this.requireFund(familyId, userId);
+    const top = Math.min(20, Math.max(1, Number(limit) || 10));
+
+    // 各捐赠者成功存入的总金额与次数（姓名优先取基金成员名，缺失回退用户昵称）
+    const [totalRows, latestRows] = await Promise.all([
+      this.dataSource.query<RankTotalRow[]>(
+        `SELECT t.\`operator_user_id\` AS userId,
+                COALESCE(fm.\`name\`, u.\`nickname\`) AS donorName,
+                SUM(t.\`amount\`) AS totalAmount,
+                COUNT(*) AS donationCount
+         FROM \`family_fund_transaction\` t
+         LEFT JOIN \`family_fund_member\` fm
+           ON fm.\`fund_id\` = t.\`fund_id\` AND fm.\`user_id\` = t.\`operator_user_id\` AND fm.\`status\` = 1
+         LEFT JOIN \`user\` u ON u.\`id\` = t.\`operator_user_id\`
+         WHERE t.\`fund_id\` = ? AND t.\`type\` = 'deposit' AND t.\`status\` = ?
+         GROUP BY t.\`operator_user_id\`, fm.\`name\`, u.\`nickname\`
+         ORDER BY totalAmount DESC
+         LIMIT ?`,
+        [fund.id, TX_STATUS.SUCCESS, top]
+      ),
+      // 每位捐赠者最近一次成功存入的备注(捐赠项目)与时间
+      this.dataSource.query<RankLatestRow[]>(
+        `SELECT l.\`operator_user_id\` AS userId, l.\`remark\` AS project, l.\`create_time\` AS lastTime
+         FROM \`family_fund_transaction\` l
+         JOIN (
+           SELECT \`operator_user_id\`, MAX(\`id\`) AS max_id
+           FROM \`family_fund_transaction\`
+           WHERE \`fund_id\` = ? AND \`type\` = 'deposit' AND \`status\` = ?
+           GROUP BY \`operator_user_id\`
+         ) m ON m.max_id = l.\`id\``,
+        [fund.id, TX_STATUS.SUCCESS]
+      )
+    ]);
+
+    const latestMap = new Map(latestRows.map(r => [r.userId, r]));
+    const list = totalRows.map((r, i) => ({
+      rank: i + 1,
+      userId: r.userId,
+      donorName: r.donorName || '匿名捐赠',
+      totalAmount: this.num(r.totalAmount),
+      donationCount: Number(r.donationCount),
+      project: latestMap.get(r.userId)?.project || '家族基金捐赠',
+      lastTime: latestMap.get(r.userId)?.lastTime || null
+    }));
+    return { list, total: list.length };
   }
 
   /** 统计：基金总额 + 今日/本月收支 + 我的余额与累计 */

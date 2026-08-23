@@ -127,6 +127,12 @@ export class FundController {
     });
   }
 
+  /** 慈善榜单（?familyId=&limit=，默认10条，最多20条） */
+  @Get('rank')
+  getRank(@Req() req: AuthenticatedRequest, @Query('familyId') familyId: string, @Query('limit') limit?: string) {
+    return this.fundService.getRank(String(req.user.id), Number(familyId) || 0, Number(limit) || 10);
+  }
+
   /** 基金统计（余额/今日/本月/我的） */
   @Get('stats')
   getStats(@Req() req: AuthenticatedRequest, @Query('familyId') familyId: string) {
