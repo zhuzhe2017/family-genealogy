@@ -33,14 +33,14 @@ describe('MemberImportService', () => {
   describe('parseSpreadsheet', () => {
     it('解析 CSV：中文表头、性别/在世换算、父子关系映射', () => {
       const result = service.parseSpreadsheet(
-        csv(`外部ID,姓名,性别,代数,字辈,出生日期,是否在世,父亲外部ID,母亲外部ID\nf1,朱伯言,男,1,伯,1880-03-15,否,,\nm1,陈氏,女,1,,1885-06-01,否,,\nc1,朱文远,男,2,文,1905-09-10,是,f1,m1\n`),
+        csv(`外部ID,姓名,性别,代数,字辈,出生日期,是否在世,父亲外部ID,母亲ID\nf1,朱伯言,男,1,伯,1880-03-15,否,,\nm1,陈氏,女,1,,1885-06-01,否,,\nc1,朱文远,男,2,文,1905-09-10,是,f1,0\n`),
         'members.csv'
       );
       expect(result.items).toHaveLength(3);
       expect(result.errors).toHaveLength(0);
       expect(result.total).toBe(3);
       expect(result.items[0]).toMatchObject({ refId: 'f1', name: '朱伯言', gender: 'male', generation: 1, isAlive: 0 });
-      expect(result.items[2]).toMatchObject({ fatherRefId: 'f1', motherRefId: 'm1', isAlive: 1 });
+      expect(result.items[2]).toMatchObject({ fatherRefId: 'f1', motherRefId: '0', isAlive: 1 });
       expect(result.rowNos).toEqual([2, 3, 4]);
     });
 
@@ -70,15 +70,15 @@ describe('MemberImportService', () => {
       expect(result.errors.some(e => e.includes('第 4 行'))).toBe(true);
     });
 
-    it('父子关系引用校验：引用不存在/指向自己/父子相同', () => {
+    it('父子关系引用校验：父亲引用不存在/指向自己；母亲ID必须是数字序号', () => {
       const result = service.parseSpreadsheet(
-        csv(`外部ID,姓名,代数,父亲外部ID,母亲外部ID\nc1,朱子,2,missing,\nc2,朱二,2,c2,\nc3,朱三,2,p1,p1\n`),
+        csv(`外部ID,姓名,代数,父亲外部ID,母亲ID\nc1,朱子,2,missing,\nc2,朱二,2,c2,\nc3,朱三,2,,abc\n`),
         'members.csv'
       );
-      expect(result.items).toHaveLength(3);
+      expect(result.items).toHaveLength(2);
       expect(result.errors.some(e => e.includes('父亲外部ID「missing」不存在'))).toBe(true);
       expect(result.errors.some(e => e.includes('父亲外部ID不能指向自己'))).toBe(true);
-      expect(result.errors.some(e => e.includes('父亲与母亲外部ID不能相同'))).toBe(true);
+      expect(result.errors.some(e => e.includes('母亲ID必须是数字'))).toBe(true);
     });
 
     it('父为空时同名不判重；父非空时才做同名同父亲去重', () => {
@@ -89,6 +89,62 @@ describe('MemberImportService', () => {
       expect(result.items).toHaveLength(4);
       expect(result.total).toBe(5);
       expect(result.errors.some(e => e.includes('第 6 行：与第 4 行重复（同名同父亲）'))).toBe(true);
+    });
+
+    it('支持「父亲ID」列名与32位hex系统ID引用（引用库中已有成员）', () => {
+      const sysId = 'a'.repeat(32);
+      const result = service.parseSpreadsheet(
+        csv(`外部ID,姓名,父亲ID\nc1,朱子,${sysId}\n`),
+        'members.csv'
+      );
+      expect(result.items).toHaveLength(1);
+      expect(result.errors).toHaveLength(0);
+      expect(result.items[0]).toMatchObject({ refId: 'c1', name: '朱子', fatherRefId: sysId });
+    });
+
+    it('支持外部表导出格式：ID列 + 父亲ID列（父亲也在文件内，两遍映射）', () => {
+      const result = service.parseSpreadsheet(
+        csv(`ID,姓名,代数,父亲ID\n1,朱伯言,1,\n2,朱文远,2,1\n`),
+        'members.csv'
+      );
+      expect(result.items).toHaveLength(2);
+      expect(result.errors).toHaveLength(0);
+      expect(result.items[0]).toMatchObject({ refId: '1', name: '朱伯言' });
+      expect(result.items[1]).toMatchObject({ refId: '2', name: '朱文远', fatherRefId: '1' });
+    });
+
+    it('解析配偶信息列：分号分隔的姓名列表，数组顺序即母亲序号', () => {
+      const result = service.parseSpreadsheet(
+        csv(`外部ID,姓名,配偶信息\nf1,朱伯言,陈氏;李氏;王氏\n`),
+        'members.csv'
+      );
+      expect(result.items).toHaveLength(1);
+      expect(result.errors).toHaveLength(0);
+      expect(result.items[0].spouseInfo).toEqual([
+        { name: '陈氏' },
+        { name: '李氏' },
+        { name: '王氏' }
+      ]);
+    });
+
+    it('解析配偶信息列：空字符串/连续分号/首尾分号均忽略，输出合法JSON数组', () => {
+      const cases: [string, { name: string }[]][] = [
+        ['', []],
+        [';', []],
+        [';;陈氏;;', [{ name: '陈氏' }]],
+        [';陈氏;', [{ name: '陈氏' }]],
+        ['陈氏; ;', [{ name: '陈氏' }]],
+        ['陈氏;李氏', [{ name: '陈氏' }, { name: '李氏' }]]
+      ];
+      for (const [input, expected] of cases) {
+        const result = service.parseSpreadsheet(
+          csv(`外部ID,姓名,配偶信息\nf1,朱伯言,${input}\n`),
+          'members.csv'
+        );
+        expect(result.items[0].spouseInfo).toEqual(expected);
+        // 结果必须能被标准 JSON 解析
+        expect(() => JSON.parse(JSON.stringify(result.items[0].spouseInfo))).not.toThrow();
+      }
     });
 
     it('缺少姓名列时抛 BAD_REQUEST', () => {
@@ -140,6 +196,8 @@ describe('MemberImportService', () => {
       expect(tpl).toContain('外部ID');
       expect(tpl).toContain('姓名');
       expect(tpl).toContain('父亲外部ID');
+      expect(tpl).toContain('母亲ID');
+      expect(tpl).toContain('配偶信息');
       expect(tpl).toContain('朱伯言');
     });
   });

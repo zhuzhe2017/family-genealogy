@@ -98,9 +98,8 @@ export interface FatherCandidate {
   spouse_names?: string;
 }
 
-/** 父亲配偶（候选母亲） */
+/** 父亲配偶（候选母亲）。数组下标即配偶序号（从0开始），用作母亲ID */
 export interface FatherSpouse {
-  rank: number;
   name: string;
   birthDate?: string;
   deathDate?: string;
@@ -115,7 +114,7 @@ export interface FamilyMemberImportItem {
   refId?: string;
   /** 父亲在导入表中的 refId（不落库，导入时换算为系统生成的成员ID） */
   fatherRefId?: string;
-  /** 母亲在导入表中的 refId（不落库，导入时换算为系统生成的成员ID） */
+  /** 母亲ID：父亲配偶数组中的序号（数字，从0开始），非成员ID */
   motherRefId?: string;
   name: string;
   gender?: string;
@@ -129,6 +128,8 @@ export interface FamilyMemberImportItem {
   longitude?: number;
   latitude?: number;
   bio?: string;
+  /** 配偶数组（[{name}]），数组顺序即配偶序号，对应母亲ID */
+  spouseInfo?: { name: string }[];
   sortOrder?: number;
 }
 

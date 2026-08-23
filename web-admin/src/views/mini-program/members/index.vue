@@ -203,12 +203,12 @@ async function loadData() {
       { id: 'c3d4e5f6', family_id: selectedFamilyId.value!, name: '朱叔和', gender: 'male', generation: 2, generation_name: '叔', birth_date: '1908-05-20', birth_place: '浙江绍兴', is_alive: 0, death_date: '1985-02-14', death_place: '浙江杭州', longitude: null, latitude: null, bio: '二世次子', avatar_url: '', father_id: 'a1b2c3d4', mother_id: '', spouse_info: null, sort_order: 2, status: 1, create_time: '2024-01-03 10:00:00', update_time: '2024-01-03 10:00:00' },
       { id: 'd4e5f6a7', family_id: selectedFamilyId.value!, name: '朱季芳', gender: 'female', generation: 2, generation_name: '季', birth_date: '1912-11-08', birth_place: '浙江绍兴', is_alive: 0, death_date: '1990-08-22', death_place: '浙江绍兴', longitude: null, latitude: null, bio: '二世长女', avatar_url: '', father_id: 'a1b2c3d4', mother_id: '', spouse_info: null, sort_order: 3, status: 1, create_time: '2024-01-04 10:00:00', update_time: '2024-01-04 10:00:00' },
       { id: 'e5f6a7b8', family_id: selectedFamilyId.value!, name: '朱文远', gender: 'male', generation: 3, generation_name: '文', birth_date: '1935-06-01', birth_place: '浙江绍兴', is_alive: 1, death_date: '', death_place: '', longitude: null, latitude: null, bio: '三世长孙', avatar_url: '', father_id: 'b2c3d4e5', mother_id: '', spouse_info: null, sort_order: 1, status: 1, create_time: '2024-02-01 10:00:00', update_time: '2024-02-01 10:00:00' },
-      { id: 'f6a7b8c9', family_id: selectedFamilyId.value!, name: '朱文华', gender: 'male', generation: 3, generation_name: '文', birth_date: '1938-03-12', birth_place: '浙江杭州', is_alive: 1, death_date: '', death_place: '', longitude: null, latitude: null, bio: '', avatar_url: '', father_id: 'c3d4e5f6', mother_id: '', spouse_info: null, sort_order: 1, status: 1, create_time: '2024-02-02 10:00:00', update_time: '2024-02-02 10:00:00' },
+      { id: 'f6a7b8c9', family_id: selectedFamilyId.value!, name: '朱文华', gender: 'male', generation: 3, generation_name: '文', birth_date: '1938-03-12',  is_alive: 1, death_date: '', death_place: '', longitude: null, latitude: null, bio: '', avatar_url: '', father_id: 'c3d4e5f6', mother_id: '', spouse_info: null, sort_order: 1, status: 1, create_time: '2024-02-02 10:00:00', update_time: '2024-02-02 10:00:00' },
       { id: 'a7b8c9d0', family_id: selectedFamilyId.value!, name: '朱文静', gender: 'female', generation: 3, generation_name: '文', birth_date: '1940-08-20', birth_place: '浙江绍兴', is_alive: 1, death_date: '', death_place: '', longitude: null, latitude: null, bio: '', avatar_url: '', father_id: 'b2c3d4e5', mother_id: '', spouse_info: null, sort_order: 2, status: 1, create_time: '2024-02-03 10:00:00', update_time: '2024-02-03 10:00:00' },
-      { id: 'b8c9d0e1', family_id: selectedFamilyId.value!, name: '朱建国', gender: 'male', generation: 4, generation_name: '建', birth_date: '1965-04-10', birth_place: '浙江杭州', is_alive: 1, death_date: '', death_place: '', longitude: null, latitude: null, bio: '工程师', avatar_url: '', father_id: 'e5f6a7b8', mother_id: '', spouse_info: '[{"name":"李氏","birthDate":"1967","isAlive":1},{"name":"周氏","birthDate":"1970","isAlive":0,"deathDate":"2005"}]', sort_order: 1, status: 1, create_time: '2024-03-01 10:00:00', update_time: '2024-03-01 10:00:00' },
+      { id: 'b8c9d0e1', family_id: selectedFamilyId.value!, name: '朱建国', gender: 'male', generation: 4, generation_name: '建', birth_date: '1965-04-10',  is_alive: 1, death_date: '', death_place: '', longitude: null, latitude: null, bio: '工程师', avatar_url: '', father_id: 'e5f6a7b8', mother_id: '', spouse_info: '[{"name":"李氏","birthDate":"1967","isAlive":1},{"name":"周氏","birthDate":"1970","isAlive":0,"deathDate":"2005"}]', sort_order: 1, status: 1, create_time: '2024-03-01 10:00:00', update_time: '2024-03-01 10:00:00' },
       { id: 'c9d0e1f2', family_id: selectedFamilyId.value!, name: '朱建民', gender: 'male', generation: 4, generation_name: '建', birth_date: '1968-07-15', birth_place: '浙江绍兴', is_alive: 1, death_date: '', death_place: '', longitude: null, latitude: null, bio: '教师', avatar_url: '', father_id: 'f6a7b8c9', mother_id: '', spouse_info: null, sort_order: 1, status: 1, create_time: '2024-03-02 10:00:00', update_time: '2024-03-02 10:00:00' },
-      { id: 'd0e1f2a3', family_id: selectedFamilyId.value!, name: '朱小明', gender: 'male', generation: 5, generation_name: '小', birth_date: '1995-01-20', birth_place: '浙江杭州', is_alive: 1, death_date: '', death_place: '', longitude: null, latitude: null, bio: '', avatar_url: '', father_id: 'b8c9d0e1', mother_id: '', spouse_info: null, sort_order: 1, status: 1, create_time: '2024-04-01 10:00:00', update_time: '2024-04-01 10:00:00' },
-      { id: 'e1f2a3b4', family_id: selectedFamilyId.value!, name: '朱小红', gender: 'female', generation: 5, generation_name: '小', birth_date: '1998-06-30', birth_place: '浙江杭州', is_alive: 1, death_date: '', death_place: '', longitude: null, latitude: null, bio: '', avatar_url: '', father_id: 'b8c9d0e1', mother_id: '', spouse_info: null, sort_order: 2, status: 1, create_time: '2024-04-02 10:00:00', update_time: '2024-04-02 10:00:00' }
+      { id: 'd0e1f2a3', family_id: selectedFamilyId.value!, name: '朱小明', gender: 'male', generation: 5, generation_name: '小', birth_date: '1995-01-20',  is_alive: 1, death_date: '', death_place: '', longitude: null, latitude: null, bio: '', avatar_url: '', father_id: 'b8c9d0e1', mother_id: '', spouse_info: null, sort_order: 1, status: 1, create_time: '2024-04-01 10:00:00', update_time: '2024-04-01 10:00:00' },
+      { id: 'e1f2a3b4', family_id: selectedFamilyId.value!, name: '朱小红', gender: 'female', generation: 5, generation_name: '小', birth_date: '1998-06-30',  is_alive: 1, death_date: '', death_place: '', longitude: null, latitude: null, bio: '', avatar_url: '', father_id: 'b8c9d0e1', mother_id: '', spouse_info: null, sort_order: 2, status: 1, create_time: '2024-04-02 10:00:00', update_time: '2024-04-02 10:00:00' }
     ];
     const offset = (pagination.page - 1) * pagination.pageSize;
     tableData.value = allMockMembers.slice(offset, offset + pagination.pageSize);
@@ -268,7 +268,7 @@ const selectedFatherInfo = ref<{ id: string; name: string; generation: number } 
 // 弹窗内联合选择母亲
 const selectedCandidateId = ref<string | null>(null);
 const candidateMotherMap = ref<Record<string, FatherSpouse[]>>({});
-const selectedCandidateMotherRank = ref<string | null>(null);
+const selectedCandidateMotherIndex = ref<string | null>(null);
 const loadingCandidateMothers = ref<Record<string, boolean>>({});
 
 // 母亲选择相关状态
@@ -294,7 +294,6 @@ function resetForm() {
   formData.generation = 1;
   formData.generationName = '';
   formData.birthDate = '';
-  formData.birthPlace = '';
   formData.isAlive = 1;
   formData.deathDate = '';
   formData.deathPlace = '';
@@ -312,7 +311,7 @@ function resetForm() {
   fatherSearchKeyword.value = '';
   fatherCandidates.value = [];
   selectedCandidateId.value = null;
-  selectedCandidateMotherRank.value = null;
+  selectedCandidateMotherIndex.value = null;
   candidateMotherMap.value = {};
   loadingCandidateMothers.value = {};
   duplicateNameError.value = null;
@@ -353,11 +352,11 @@ async function loadMotherCandidates(familyId: number, fatherId: string) {
     if (error) { motherCandidates.value = []; return; }
     const list = (data || []).filter(s => s.name);
     motherCandidates.value = list;
-    // 编辑回填时保留已保存的母亲选择；新增时仅当唯一配偶自动选中
+    // 编辑回填时保留已保存的母亲选择（母亲ID即配偶数组下标）；新增时仅当唯一配偶自动选中
     const current = formData.motherId;
-    if (list.some(s => String(s.rank) === current)) return;
+    if (list.some((_s, i) => String(i) === current)) return;
     if (list.length === 1) {
-      formData.motherId = String(list[0].rank);
+      formData.motherId = '0';
     }
   } finally {
     motherLoading.value = false;
@@ -510,7 +509,7 @@ async function openFatherSearch() {
   fatherSearchKeyword.value = '';
   fatherCandidates.value = [];
   selectedCandidateId.value = null;
-  selectedCandidateMotherRank.value = null;
+  selectedCandidateMotherIndex.value = null;
   candidateMotherMap.value = {};
   loadingCandidateMothers.value = {};
   showFatherModal.value = true;
@@ -531,7 +530,7 @@ async function searchFatherCandidates() {
   if (!selectedFamilyId.value || fatherSearchKeyword.value.trim().length < 1) return;
   fatherSearchLoading.value = true;
   selectedCandidateId.value = null;
-  selectedCandidateMotherRank.value = null;
+  selectedCandidateMotherIndex.value = null;
   candidateMotherMap.value = {};
   loadingCandidateMothers.value = {};
   try {
@@ -549,7 +548,7 @@ async function searchFatherCandidates() {
 
 async function onSelectCandidate(candidate: FatherCandidate) {
   selectedCandidateId.value = candidate.id;
-  selectedCandidateMotherRank.value = null;
+  selectedCandidateMotherIndex.value = null;
 
   // 已缓存则直接复用
   if (candidateMotherMap.value[candidate.id]) return;
@@ -564,9 +563,9 @@ async function onSelectCandidate(candidate: FatherCandidate) {
     }
     const list = (data || []).filter(s => s.name);
     candidateMotherMap.value[candidate.id] = list;
-    // 仅一位配偶时默认选中
+    // 仅一位配偶时默认选中（母亲ID即配偶数组下标）
     if (list.length === 1) {
-      selectedCandidateMotherRank.value = String(list[0].rank);
+      selectedCandidateMotherIndex.value = '0';
     }
   } finally {
     loadingCandidateMothers.value[candidate.id] = false;
@@ -581,7 +580,7 @@ function confirmSelectFather() {
   }
   const mothers = candidateMotherMap.value[candidate.id] || [];
   const hasMultipleMothers = mothers.length > 1;
-  if (hasMultipleMothers && !selectedCandidateMotherRank.value) {
+  if (hasMultipleMothers && !selectedCandidateMotherIndex.value) {
     message.warning('该父亲有多位配偶，请选择母亲');
     return;
   }
@@ -590,16 +589,16 @@ function confirmSelectFather() {
   selectedFatherInfo.value = { id: candidate.id, name: candidate.name, generation: candidate.generation };
 
   if (mothers.length === 1) {
-    formData.motherId = String(mothers[0].rank);
-  } else if (mothers.length > 1 && selectedCandidateMotherRank.value) {
-    formData.motherId = selectedCandidateMotherRank.value;
+    formData.motherId = '0';
+  } else if (mothers.length > 1 && selectedCandidateMotherIndex.value) {
+    formData.motherId = selectedCandidateMotherIndex.value;
   } else {
     formData.motherId = '';
   }
 
   showFatherModal.value = false;
   selectedCandidateId.value = null;
-  selectedCandidateMotherRank.value = null;
+  selectedCandidateMotherIndex.value = null;
   candidateMotherMap.value = {};
 }
 
@@ -624,7 +623,6 @@ function buildSubmitData() {
     generation: formData.generation,
     generationName: formData.generationName || undefined,
     birthDate: formData.birthDate || undefined,
-    birthPlace: formData.birthPlace || undefined,
     isAlive: formData.isAlive,
     deathDate: formData.deathDate || undefined,
     deathPlace: formData.deathPlace || undefined,
@@ -1071,7 +1069,7 @@ onMounted(() => { loadFamilyOptions(); });
                   v-model:value="formData.motherId"
                   placeholder="请选择母亲（根据父亲配偶信息）"
                   clearable
-                  :options="motherCandidates.map(s => ({ label: s.name, value: String(s.rank) }))"
+                  :options="motherCandidates.map((s, i) => ({ label: s.name, value: String(i) }))"
                   style="width: 300px"
                 />
                 <div v-if="motherCandidates.length > 1" class="text-12px text-orange-500">
@@ -1179,12 +1177,12 @@ onMounted(() => { loadFamilyOptions(); });
               <div v-if="selectedCandidateId === c.id" class="mt-8px pl-12px border-l-2 border-primary">
                 <div v-if="loadingCandidateMothers[c.id]" class="text-12px text-gray-500">加载母亲信息...</div>
                 <div v-else-if="(candidateMotherMap[c.id] || []).length === 0" class="text-12px text-gray-500">暂无配偶信息</div>
-                <NRadioGroup v-else v-model:value="selectedCandidateMotherRank" class="mother-radio-group">
+                <NRadioGroup v-else v-model:value="selectedCandidateMotherIndex" class="mother-radio-group">
                   <NSpace vertical :size="4">
                     <NRadio
-                      v-for="m in candidateMotherMap[c.id]"
-                      :key="m.rank"
-                      :value="String(m.rank)"
+                      v-for="(m, mi) in candidateMotherMap[c.id]"
+                      :key="mi"
+                      :value="String(mi)"
                     >
                       {{ m.name }}
                       <span v-if="m.birthDate" class="text-12px text-gray-500">（{{ m.birthDate }}）</span>
@@ -1210,7 +1208,7 @@ onMounted(() => { loadFamilyOptions(); });
         <NSpace vertical :size="12">
           <NAlert type="info" :show-icon="false">
             <div>支持 .xlsx / .xls / .csv 格式文件（≤ 20MB，最多 20000 行）。</div>
-            <div>通过模板中的「外部ID / 父亲外部ID / 母亲外部ID」列可一次性建立父子关系，未填写则导入后可在「编辑成员」中补充。</div>
+            <div>「外部ID」供文件内互引；「父亲外部ID」填文件内某行的外部ID或库中已有成员ID；「配偶信息」填配偶姓名（多个用分号「；」分隔）；「母亲ID」填该父亲「配偶信息」数组的序号（如 0、1、2）。未填写则导入后可在「编辑成员」中补充。</div>
           </NAlert>
           <NSpace>
             <NButton size="small" @click="handleDownloadTemplate">下载导入模板</NButton>

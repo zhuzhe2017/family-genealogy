@@ -301,7 +301,7 @@ describe('FamilyMemberService', () => {
       mockTableExists();
       queryMock
         .mockResolvedValueOnce([{ id: 'x' }]) // 查找成员
-        .mockResolvedValueOnce([{ id: 'f1', gender: 'male', generation: 1 }]) // 关系校验：f1 存在且有效（motherId 为配偶 rank，不校验成员身份）
+        .mockResolvedValueOnce([{ id: 'f1', gender: 'male', generation: 1 }]) // 关系校验：f1 存在且有效（motherId 为配偶下标，不校验成员身份）
         .mockResolvedValueOnce([{ id: 'f1', father_id: '', mother_id: '' }]) // 追溯 f1 祖先，无循环
         .mockResolvedValueOnce({ affectedRows: 1 }); // UPDATE
 
@@ -520,6 +520,61 @@ describe('FamilyMemberService', () => {
       expect(updateParams[2]).toMatch(/^[a-f0-9]{32}$/); // 子行 id
       expect(updateParams[0]).not.toBe('f1');
       expect(updateParams[2]).not.toBe('c1');
+    });
+
+    it('支持引用库中已有成员的系统ID作为父亲，母亲存配偶数组序号', async () => {
+      mockTableExists();
+      const sysFather = 'f'.repeat(32);
+      queryMock
+        .mockResolvedValueOnce({ affectedRows: 1 })   // INSERT 子
+        .mockResolvedValueOnce([{ id: sysFather }])    // SELECT 父亲存在于库中
+        .mockResolvedValueOnce({ affectedRows: 1 })    // UPDATE 关系
+        .mockResolvedValueOnce({ affectedRows: 1 });   // member_count +1
+
+      const result = await service.batchImport(1, [
+        { refId: 'c1', name: '朱子', generation: 2, fatherRefId: sysFather, motherRefId: '1' }
+      ]);
+
+      expect(result.imported).toBe(1);
+      expect(result.total).toBe(1);
+      expect(result.errors).toHaveLength(0);
+
+      // 关系 UPDATE：father_id=库中已有成员ID（32hex），mother_id=配偶数组序号（数字）
+      const updateParams = queryMock.mock.calls[3][1];
+      expect(updateParams[0]).toBe(sysFather);
+      expect(updateParams[1]).toBe('1');
+    });
+
+    it('母亲ID未指定有效父亲时，该行仍导入但记录错误且不回填关系', async () => {
+      mockTableExists();
+      queryMock
+        .mockResolvedValueOnce({ affectedRows: 1 })   // INSERT 子
+        .mockResolvedValueOnce({ affectedRows: 1 });   // member_count +1（无有效关系，不触发关系 UPDATE）
+
+      const result = await service.batchImport(1, [
+        { refId: 'c1', name: '朱子', generation: 2, motherRefId: '0' }
+      ]);
+
+      expect(result.imported).toBe(1);
+      expect(result.errors).toHaveLength(1);
+      expect(result.errors[0]).toContain('母亲ID需要先指定有效的父亲');
+    });
+
+    it('引用的系统ID在库中不存在时，该行仍导入但记录错误且不回填关系', async () => {
+      mockTableExists();
+      const sysFather = 'f'.repeat(32);
+      queryMock
+        .mockResolvedValueOnce({ affectedRows: 1 })   // INSERT 子
+        .mockResolvedValueOnce([])                     // SELECT 父亲不存在
+        .mockResolvedValueOnce({ affectedRows: 1 });   // member_count +1（无有效关系，不触发关系 UPDATE）
+
+      const result = await service.batchImport(1, [
+        { refId: 'c1', name: '朱子', generation: 2, fatherRefId: sysFather }
+      ]);
+
+      expect(result.imported).toBe(1);
+      expect(result.errors).toHaveLength(1);
+      expect(result.errors[0]).toContain(`父亲ID「${sysFather}」不存在`);
     });
 
     it('引用的 refId 不存在时，该行仍导入但记录错误且不回填关系', async () => {

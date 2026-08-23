@@ -169,7 +169,7 @@ CREATE TABLE `family_member` (
   `bio`           TEXT          COMMENT '生平简介',
   `avatar_url`    VARCHAR(500)  NOT NULL DEFAULT '' COMMENT '头像URL（/uploads/xxx 或 http(s) 完整地址，最多500字符）',
   `father_id`     VARCHAR(32)   DEFAULT '' COMMENT '父亲成员ID',
-  `mother_id`     VARCHAR(32)   DEFAULT '' COMMENT '母亲成员ID',
+  `mother_id`     INT           NOT NULL DEFAULT 0 COMMENT '母亲在父亲配偶信息数组中的序号（rank）',
   `spouse_info`   JSON          DEFAULT NULL COMMENT '配偶信息JSON数组：[{name,birthDate,rank,bio,deathDate,deathPlace,longitude,latitude}]',
   `sort_order`    INT UNSIGNED  DEFAULT 0 COMMENT '排序(同辈中长幼)',
   `status`        TINYINT(1)    DEFAULT 1 COMMENT '状态 1-正常 0-已删除',

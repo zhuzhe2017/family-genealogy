@@ -36,6 +36,7 @@ const HEADER_MAP: Record<string, string> = {
   '外部id': 'refId',
   'refid': 'refId',
   '编号': 'refId',
+  'id': 'refId',
   '姓名': 'name',
   'name': 'name',
   '性别': 'gender',
@@ -64,11 +65,22 @@ const HEADER_MAP: Record<string, string> = {
   '生平简介': 'bio',
   '简介': 'bio',
   'bio': 'bio',
+  '配偶信息': 'spouseInfo',
+  '配偶': 'spouseInfo',
+  'spouseinfo': 'spouseInfo',
+  'spouse': 'spouseInfo',
   '父亲外部id': 'fatherRefId',
   '父亲编号': 'fatherRefId',
+  '父亲id': 'fatherRefId',
+  '父id': 'fatherRefId',
+  '父亲': 'fatherRefId',
   'fatherrefid': 'fatherRefId',
   '母亲外部id': 'motherRefId',
   '母亲编号': 'motherRefId',
+  '母亲id': 'motherRefId',
+  '母id': 'motherRefId',
+  '母亲序号': 'motherRefId',
+  '母亲': 'motherRefId',
   'motherrefid': 'motherRefId',
   '排序': 'sortOrder',
   'sortorder': 'sortOrder'
@@ -97,6 +109,22 @@ function parseIsAlive(value: string): number {
   if (['1', '是', 'y', 'yes', 'true', '在世'].includes(s)) return 1;
   if (['0', '否', 'n', 'no', 'false', '已故', '去世'].includes(s)) return 0;
   return 1;
+}
+
+/**
+ * 解析配偶信息列为配偶数组（分号分隔的姓名列表）。
+ * 数组顺序即配偶序号，对应「母亲ID」（从 0 开始）。
+ * 空字符串、连续分号、首尾分号均被忽略，不产生空对象。
+ * 例：`陈氏;李氏` -> [{name:'陈氏'},{name:'李氏'}]
+ */
+function parseSpouseList(value: string): { name: string }[] {
+  const s = String(value ?? '').trim();
+  if (!s) return [];
+  return s
+    .split(/[;；]/)
+    .map(v => v.trim())
+    .filter(Boolean)
+    .map(name => ({ name }));
 }
 
 function parseFloatOrNull(value: string): number | null {
@@ -219,6 +247,12 @@ export class MemberImportService {
 
       const fatherRefId = cell(raw, 'fatherRefId');
       const motherRefId = cell(raw, 'motherRefId');
+      // 母亲ID：父亲配偶信息数组中的序号（数字），如 0、1、2，而非成员引用
+      if (motherRefId && !/^\d+$/.test(motherRefId)) {
+        errors.push(`第 ${rowNo} 行：母亲ID必须是数字（父亲配偶数组序号），如 0、1、2`);
+        rejected++;
+        continue;
+      }
       // 文件内同名同父亲去重（与系统「同父同名唯一」规则一致：父亲为空时不校验）
       if (fatherRefId) {
         const dupKey = `${name}|${fatherRefId}`;
@@ -248,31 +282,25 @@ export class MemberImportService {
         longitude: parseFloatOrNull(cell(raw, 'longitude')) ?? undefined,
         latitude: parseFloatOrNull(cell(raw, 'latitude')) ?? undefined,
         bio: cell(raw, 'bio') || undefined,
+        spouseInfo: parseSpouseList(cell(raw, 'spouseInfo')),
         sortOrder: /^\d+$/.test(cell(raw, 'sortOrder')) ? Number(cell(raw, 'sortOrder')) : 0
       });
       rowNos.push(rowNo);
     }
 
-    // 父子关系引用校验：被引用行必须存在于本文件已通过校验的行中
+    // 父子关系引用校验：被引用的父亲必须存在于本文件已通过校验的行中
+    // （32位hex视为可能引用库中已有成员的系统ID，留待事务内查库校验；
+    //   母亲ID为父亲配偶数组序号，已在行级校验为数字，无需引用校验）
+    const isSystemId = (v: string) => /^[0-9a-f]{32}$/.test(v);
     for (let i = 0; i < items.length; i++) {
       const it = items[i];
       const label = `第 ${rowNos[i]} 行`;
       if (it.fatherRefId) {
         if (it.fatherRefId === it.refId) {
           errors.push(`${label}：父亲外部ID不能指向自己`);
-        } else if (!seenRef.has(it.fatherRefId)) {
+        } else if (!seenRef.has(it.fatherRefId) && !isSystemId(it.fatherRefId)) {
           errors.push(`${label}：父亲外部ID「${it.fatherRefId}」不存在`);
         }
-      }
-      if (it.motherRefId) {
-        if (it.motherRefId === it.refId) {
-          errors.push(`${label}：母亲外部ID不能指向自己`);
-        } else if (!seenRef.has(it.motherRefId)) {
-          errors.push(`${label}：母亲外部ID「${it.motherRefId}」不存在`);
-        }
-      }
-      if (it.fatherRefId && it.motherRefId && it.fatherRefId === it.motherRefId) {
-        errors.push(`${label}：父亲与母亲外部ID不能相同`);
       }
     }
 
@@ -355,11 +383,14 @@ export class MemberImportService {
 
   /** 生成 CSV 导入模板（UTF-8 BOM，Excel 打开中文不乱码；含自洽示例行） */
   buildTemplate(): string {
-    const header = ['外部ID', '姓名', '性别', '代数', '字辈', '出生日期', '出生地', '是否在世', '逝世日期', '安葬地点', '经度', '纬度', '生平简介', '父亲外部ID', '母亲外部ID', '排序'];
+    // 说明：父亲外部ID 引用文件内某行的外部ID，或直接填库中已有成员的系统ID；
+    //       母亲ID 填该父亲「配偶信息」数组中的序号（从0开始，非成员ID）；
+    //       配偶信息 填写配偶姓名，多个用分号（；）分隔
+    const header = ['外部ID', '姓名', '性别', '代数', '字辈', '出生日期', '出生地', '是否在世', '逝世日期', '安葬地点', '经度', '纬度', '生平简介', '父亲外部ID', '母亲ID', '配偶信息', '排序'];
     const example = [
-      ['f1', '朱伯言', '男', '1', '伯', '1880-03-15', '浙江绍兴', '否', '1955-07-20', '绍兴祖坟', '', '', '一世祖，开基立业', '', '', '1'],
-      ['m1', '陈氏', '女', '1', '', '1885-06-01', '浙江绍兴', '否', '1920-11-02', '绍兴祖坟', '', '', '伯言公之妻', '', '', '2'],
-      ['c1', '朱文远', '男', '2', '文', '1905-09-10', '浙江绍兴', '是', '', '', '', '', '二世长子（示例：引用父亲 f1、母亲 m1）', 'f1', 'm1', '1']
+      ['f1', '朱伯言', '男', '1', '伯', '1880-03-15', '浙江绍兴', '否', '1955-07-20', '绍兴祖坟', '', '', '一世祖，开基立业', '', '', '陈氏', '1'],
+      ['m1', '陈氏', '女', '1', '', '1885-06-01', '浙江绍兴', '否', '1920-11-02', '绍兴祖坟', '', '', '伯言公之妻', '', '', '', '2'],
+      ['c1', '朱文远', '男', '2', '文', '1905-09-10', '浙江绍兴', '是', '', '', '', '', '二世长子（示例：父亲填 f1，母亲填配偶序号 0）', 'f1', '0', '', '1']
     ];
     const lines = [header, ...example].map(row => row.map(c => SystemLogService.csvEscape(String(c ?? ''))).join(','));
     return '\uFEFF' + lines.join('\r\n');

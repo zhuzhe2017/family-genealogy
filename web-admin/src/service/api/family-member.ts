@@ -41,7 +41,6 @@ export interface FatherCandidate {
 }
 
 export interface FatherSpouse {
-  rank: number;
   name: string;
   birthDate?: string;
   deathDate?: string;
@@ -262,6 +261,17 @@ export async function fetchMemberImportTemplate(familyId: number): Promise<{ dat
       headers: { Authorization: getAuthorization() || '' },
       responseType: 'blob'
     });
+    // 防御：若服务端返回 JSON 错误（如鉴权失败），blob 内容不是 CSV
+    const contentType = response.data.type || '';
+    if (contentType.includes('json')) {
+      const text = await response.data.text();
+      try {
+        const err = JSON.parse(text);
+        return { error: new Error(err?.msg || err?.message || '模板下载失败') };
+      } catch {
+        return { error: new Error('模板下载失败') };
+      }
+    }
     return { data: response.data };
   } catch (error: any) {
     const msg = error?.response?.data?.msg || error?.message || '模板下载失败';

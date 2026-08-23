@@ -71,7 +71,6 @@ export interface SpouseInfo {
   name?: string;
   birthDate?: string;
   deathDate?: string;
-  rank?: number;
   bio?: string;
   longitude?: number;
   latitude?: number;

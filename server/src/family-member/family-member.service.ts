@@ -301,7 +301,8 @@ export class FamilyMemberService {
 
   /**
    * 获取父亲的配偶列表（候选母亲）。
-   * 从 father.spouse_info JSON 数组解析，按 rank 序号返回。
+   * 从 father.spouse_info JSON 数组解析，返回数组（下标即配偶序号，从 0 开始）。
+   * 注：不再使用配偶对象中的 rank 字段（原语义为配偶在自家兄妹中的排行，非母亲ID依据）。
    */
   async getFatherSpouses(familyId: number, fatherId: string): Promise<FatherSpouse[]> {
     await this.ensureTable(familyId);
@@ -320,8 +321,7 @@ export class FamilyMemberService {
       const parsed: unknown = typeof raw === 'string' ? JSON.parse(raw) : raw;
       const list = Array.isArray(parsed) ? parsed : [parsed];
       return list
-        .map((s: any, index: number) => ({
-          rank: typeof s.rank === 'number' ? s.rank : index,
+        .map((s: any) => ({
           name: s.name || '',
           birthDate: s.birthDate || s.birth_date || '',
           deathDate: s.deathDate || s.death_date || '',
@@ -340,11 +340,21 @@ export class FamilyMemberService {
    * - 数组原样返回（多配偶场景）
    * - 单个对象包装为数组
    * - 空值返回空数组
+   * - 剥离配偶对象中的 rank 字段（原语义为配偶在自家兄妹中的排行，已废弃）
    */
   private normalizeSpouseInfo(raw: unknown): unknown[] {
-    if (Array.isArray(raw)) return raw;
-    if (raw && typeof raw === 'object') return [raw];
-    return [];
+    const list = Array.isArray(raw)
+      ? raw
+      : raw && typeof raw === 'object'
+        ? [raw]
+        : [];
+    return list.map((s: any) => {
+      if (s && typeof s === 'object') {
+        const { rank, ...rest } = s;
+        return rest;
+      }
+      return s;
+    });
   }
 
   /**
@@ -694,7 +704,7 @@ export class FamilyMemberService {
    * 5. 父必须是男性
    * 6. 无循环引用（BFS 深度上限 100）
    *
-   * 注：motherId 存储的是父亲 spouse_info 中配偶的 rank 序号（非成员ID），
+   * 注：motherId 存储的是父亲 spouse_info 数组中配偶的下标（从0开始，非成员ID），
    * 因此不参与成员存在性/性别/代数/循环引用校验。
    */
   private async validateRelations(
@@ -824,7 +834,7 @@ export class FamilyMemberService {
             item.birthDate || '', item.birthPlace || '', item.isAlive ?? 1,
             item.deathDate || '', item.deathPlace || '',
             item.longitude ?? null, item.latitude ?? null, item.bio || '',
-            '', '', JSON.stringify([]), item.sortOrder ?? 0, 1
+            '', '', JSON.stringify(item.spouseInfo && item.spouseInfo.length ? item.spouseInfo : []), item.sortOrder ?? 0, 1
           ]
         );
         rows[i] = { refId, memberId };
@@ -849,29 +859,34 @@ export class FamilyMemberService {
 
       let fatherId = '';
       let motherId = '';
+      // 引用解析优先级：文件内外部ID -> 库中已有成员的系统ID（32位hex）
       if (item.fatherRefId) {
         const fr = String(item.fatherRefId).trim();
         if (fr === row.refId) {
           errors.push(`${label(i)}：父亲 refId 不能指向自己`);
-        } else if (!idMap.has(fr)) {
-          errors.push(`${label(i)}：父亲 refId '${fr}' 不存在`);
-        } else {
+        } else if (idMap.has(fr)) {
           fatherId = idMap.get(fr)!;
-        }
-      }
-      if (item.motherRefId) {
-        const mr = String(item.motherRefId).trim();
-        if (mr === row.refId) {
-          errors.push(`${label(i)}：母亲 refId 不能指向自己`);
-        } else if (!idMap.has(mr)) {
-          errors.push(`${label(i)}：母亲 refId '${mr}' 不存在`);
+        } else if (/^[0-9a-f]{32}$/.test(fr)) {
+          const [exists] = await query(
+            `SELECT \`id\` FROM \`${tableName}\` WHERE \`id\` = ? AND \`status\` = 1`,
+            [fr]
+          );
+          if (exists) {
+            fatherId = fr;
+          } else {
+            errors.push(`${label(i)}：父亲ID「${fr}」不存在`);
+          }
         } else {
-          motherId = idMap.get(mr)!;
+          errors.push(`${label(i)}：父亲 refId '${fr}' 不存在`);
         }
       }
-      if (fatherId && motherId && fatherId === motherId) {
-        errors.push(`${label(i)}：父亲与母亲不能是同一人`);
-        continue;
+      // 母亲ID：父亲配偶信息数组中的序号（数字，非成员ID），需先有有效父亲，无需查库
+      if (item.motherRefId) {
+        if (!fatherId) {
+          errors.push(`${label(i)}：母亲ID需要先指定有效的父亲`);
+        } else {
+          motherId = String(item.motherRefId).trim();
+        }
       }
       if (!fatherId && !motherId) continue;
 
