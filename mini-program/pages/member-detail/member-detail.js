@@ -46,13 +46,16 @@ Page({
 
   /** 组装详情页展示字段(父母/子女来自独立查询结果) */
   assembleMemberDetail(me, children, father, mother) {
+    const spouseList = me.spouseList || (me.spouseInfo ? [me.spouseInfo] : []);
     this.setData({
       member: {
         ...me,
         // 后端返回当前用户是否可编辑（绑定该成员ID的会员或家族创建者）
         canEdit: !!me.canEdit,
-        // 后端可能无 spouse_info,补空对象避免 WXML 访问 member.spouseInfo.name 报错
-        spouseInfo: me.spouseInfo || {},
+        // 配偶信息统一为数组（多配偶循环展示），spouseInfo 兼容取第一位
+        spouseList,
+        spouseInfo: spouseList[0] || {},
+        spouseNames: spouseList.map(s => s.name).join('、'),
         father: father ? father.name : '',
         mother: mother ? mother.name : '',
         children: (children || []).map(c => ({ id: c.id, name: c.name, gender: c.gender })),
@@ -73,6 +76,17 @@ Page({
       birthPlace: '山东省济南市',
       isAlive: false,
       bio: '朱太公，字子远，生于清光绪六年。早年从商，后回乡办学，为家族发展奠定了坚实基础。为人正直，乐善好施，深受乡邻敬重。',
+      spouseList: [
+        {
+          name: '朱太婆',
+          birthDate: '1882年5月12日',
+          bio: '朱太婆，贤良淑德，相夫教子，为家族培养了三子。',
+          deathDate: '1960年11月8日',
+          deathPlace: '山东省济南市朱氏祖坟',
+          longitude: '117.000923',
+          latitude: '36.675807'
+        }
+      ],
       spouseInfo: {
         name: '朱太婆',
         birthDate: '1882年5月12日',
@@ -82,6 +96,7 @@ Page({
         longitude: '117.000923',
         latitude: '36.675807'
       },
+      spouseNames: '朱太婆',
       father: '',
       mother: '',
       children: [

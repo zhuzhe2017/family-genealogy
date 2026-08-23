@@ -53,33 +53,35 @@
     </view>
   </view>
 
-  <!-- 配偶信息 -->
-  <view class="info-card" wx:if="{{member.spouseInfo.name}}">
+  <!-- 配偶信息（支持多位配偶循环展示） -->
+  <view class="info-card" wx:if="{{member.spouseList && member.spouseList.length}}">
     <view class="card-title">配偶信息</view>
-    <view class="info-rows">
-      <view class="info-row">
-        <text class="row-label">姓名</text>
-        <text class="row-value">{{member.spouseInfo.name}}</text>
+    <view class="spouse-block" wx:for="{{member.spouseList}}" wx:for-item="sp" wx:for-index="si" wx:key="name">
+      <view class="spouse-block-title">
+        <text class="spouse-name">{{sp.name}}</text>
+        <text class="spouse-count" wx:if="{{member.spouseList.length > 1}}">第{{si + 1}}位配偶</text>
       </view>
-      <view class="info-row" wx:if="{{member.spouseInfo.birthDate}}">
-        <text class="row-label">出生日期</text>
-        <text class="row-value">{{member.spouseInfo.birthDate}}</text>
-      </view>
-      <view class="info-row" wx:if="{{member.spouseInfo.deathDate}}">
-        <text class="row-label">逝世日期</text>
-        <text class="row-value">{{member.spouseInfo.deathDate}}</text>
-      </view>
-      <view class="info-row" wx:if="{{member.spouseInfo.deathPlace}}">
-        <text class="row-label">安葬地点</text>
-        <text class="row-value">{{member.spouseInfo.deathPlace}}</text>
-      </view>
-      <view class="info-row" wx:if="{{member.spouseInfo.longitude && member.spouseInfo.latitude}}">
-        <text class="row-label">墓茔坐标</text>
-        <text class="row-value">{{member.spouseInfo.longitude}}, {{member.spouseInfo.latitude}}</text>
-      </view>
-      <view class="info-row" wx:if="{{member.spouseInfo.bio}}">
-        <text class="row-label">简介</text>
-        <text class="row-value">{{member.spouseInfo.bio}}</text>
+      <view class="info-rows">
+        <view class="info-row" wx:if="{{sp.birthDate}}">
+          <text class="row-label">出生日期</text>
+          <text class="row-value">{{sp.birthDate}}</text>
+        </view>
+        <view class="info-row" wx:if="{{sp.deathDate}}">
+          <text class="row-label">逝世日期</text>
+          <text class="row-value">{{sp.deathDate}}</text>
+        </view>
+        <view class="info-row" wx:if="{{sp.deathPlace}}">
+          <text class="row-label">安葬地点</text>
+          <text class="row-value">{{sp.deathPlace}}</text>
+        </view>
+        <view class="info-row" wx:if="{{sp.longitude && sp.latitude}}">
+          <text class="row-label">墓茔坐标</text>
+          <text class="row-value">{{sp.longitude}}, {{sp.latitude}}</text>
+        </view>
+        <view class="info-row" wx:if="{{sp.bio}}">
+          <text class="row-label">简介</text>
+          <text class="row-value">{{sp.bio}}</text>
+        </view>
       </view>
     </view>
   </view>
@@ -88,16 +90,16 @@
   <view class="info-card">
     <view class="card-title">家庭关系</view>
     <view class="relation-section">
-      <!-- 配偶 -->
-      <view class="relation-block" wx:if="{{member.spouseInfo.name}}">
+      <!-- 配偶（多位配偶循环展示） -->
+      <view class="relation-block" wx:if="{{member.spouseList && member.spouseList.length}}">
         <text class="relation-label">配偶</text>
-        <view class="relation-person" bindtap="viewSpouse">
+        <view class="relation-person" wx:for="{{member.spouseList}}" wx:for-item="sp" wx:key="name" bindtap="viewSpouse">
           <view class="relation-avatar {{member.gender === 'male' ? 'female' : ''}}">
-            <text>{{f.firstChar(member.spouseInfo.name || '配')}}</text>
+            <text>{{f.firstChar(sp.name || '配')}}</text>
           </view>
           <view class="relation-info">
-            <text class="relation-name">{{member.spouseInfo.name || '本族成员'}}</text>
-            <text class="relation-desc">{{member.spouseInfo.birthDate ? '生于' + member.spouseInfo.birthDate : ''}}</text>
+            <text class="relation-name">{{sp.name || '本族成员'}}</text>
+            <text class="relation-desc">{{sp.birthDate ? '生于' + sp.birthDate : ''}}</text>
           </view>
           <text class="relation-arrow">›</text>
         </view>

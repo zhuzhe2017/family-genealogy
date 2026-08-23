@@ -74,6 +74,7 @@ function generationNamesOf(row) {
 /** 成员行 → 页面对象 */
 function normalizeMember(row) {
   if (!row) return {};
+  const spouseList = parseSpouseList(row.spouse_info);
   return {
     id: row.id,
     name: row.name || '',
@@ -92,25 +93,15 @@ function normalizeMember(row) {
     avatar: resolveImageUrl(row.avatar_url),
     fatherId: row.father_id || '',
     motherId: row.mother_id || '',
-    spouseInfo: parseSpouseInfo(row.spouse_info),
+    spouseInfo: spouseList[0] || null,
+    spouseList,
+    spouseNames: spouseList.map(s => s.name).join('、'),
     photos: resolveImageUrls(row.photos),
     sortOrder: row.sort_order || 0
   };
 }
 
-/** 解析 spouse_info JSON 字符串，返回第一个配偶对象 */
-function parseSpouseInfo(raw) {
-  if (!raw) return null;
-  if (typeof raw === 'object') return Array.isArray(raw) ? (raw[0] || null) : raw;
-  try {
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? (parsed[0] || null) : parsed;
-  } catch (e) {
-    return null;
-  }
-}
-
-/** 解析 spouse_info JSON 字符串/对象，返回规范化配偶列表（多配偶场景，供表单编辑回填） */
+/** 解析 spouse_info JSON 字符串/对象，返回规范化配偶列表（多配偶场景） */
 function parseSpouseList(raw) {
   if (!raw) return [];
   let parsed = raw;
@@ -213,7 +204,6 @@ module.exports = {
   normalizeFamily,
   generationNamesOf,
   normalizeMember,
-  parseSpouseInfo,
   parseSpouseList,
   normalizeDynamic,
   normalizePhoto,

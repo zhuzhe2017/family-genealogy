@@ -157,6 +157,34 @@
   font-weight: 500;
 }
 
+/* 配偶信息块（多位配偶循环展示） */
+.spouse-block {
+  padding: 8rpx 0 16rpx;
+  border-bottom: 1rpx solid #F5F5F5;
+}
+
+.spouse-block:last-child {
+  border-bottom: none;
+}
+
+.spouse-block-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4rpx;
+}
+
+.spouse-name {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #8B1A1A;
+}
+
+.spouse-count {
+  font-size: 22rpx;
+  color: #999;
+}
+
 /* 关系区块 */
 .relation-section {
   display: flex;

@@ -62,7 +62,7 @@
               <text class="member-gender">{{member.gender === 'female' ? '女' : '男'}}</text>
             </view>
             <text class="member-birth">{{member.birthYear || '未知'}}年生</text>
-            <text class="member-spouse" wx:if="{{member.spouseInfo && member.spouseInfo.name}}">配偶：{{member.spouseInfo.name}}</text>
+            <text class="member-spouse" wx:if="{{member.spouseNames}}">配偶：{{member.spouseNames}}</text>
           </view>
           <view class="member-actions">
             <text class="action-icon">›</text>
