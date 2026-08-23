@@ -16,6 +16,9 @@ const AVATAR_R = 16;   // 头像半径
 const PADDING = 24;    // 画布内边距
 const MIN_SCALE = 0.3; // 最小缩放倍率
 const MAX_SCALE = 1.5; // 最大缩放倍率（过大容易拖出可视区域找不到树）
+// 极端宽树（内容宽度超过画布两屏以上）的初始适配下限：允许整体缩小到屏幕内
+// （HTML 方案同款处理；普通树不受影响，缩放范围仍按 MIN_SCALE/MAX_SCALE 限制）
+const MIN_EXTREME_SCALE = 0.0005;
 // 初始视图尺寸策略：小树放大、普通树保证卡片可读，超大宽树整体缩小
 const MAX_INITIAL_SCALE = 1.4; // 初始放大上限（内容过小时放大到可读尺寸）
 const MIN_FIT_SCALE = 0.75;    // 初始缩放下限：卡片 ≥ 90px，进入完整细节等级
@@ -114,7 +117,7 @@ Page({
   _contentSizeCache: null,  // 内容尺寸缓存
   _genIndex: null,          // 空间索引：generation -> 按 x 升序的布局数组（视口裁剪/命中检测）
   highlightId: '',          // 当前高亮定位的成员 id
-  _pendingLocateId: '',     // 待定位成员 id（当前窗口未加载该成员时，切到全部后定位）
+  _pendingLocateId: '',     // 待定位成员 id（当前窗口未加载该成员时，切到最大代数窗口后定位）
   _pendingCenterLayout: null, // canvas 尚未就绪时暂存的居中布局
 
   onLoad() {
@@ -208,12 +211,12 @@ Page({
   },
 
   /**
-   * 加载家族树：按代数窗口请求服务端（默认=3代、5代、7代；all=全量）。
+   * 加载家族树：按代数窗口请求服务端（默认=3代、5代、7代）。
    * 结果按窗口缓存，切换代数命中缓存时不重复请求；失败回退 mock。
    */
   loadTreeData(gen) {
     const familyId = (app.globalData.currentFamily || {}).id;
-    const genKey = gen === undefined || gen === null || gen === '' ? 'all' : gen;
+    const genKey = gen === undefined || gen === null || gen === '' ? 'default' : gen;
     const cache = (this._genCache = this._genCache || {});
     if (cache[genKey]) {
       this.buildTree(cache[genKey]);
@@ -231,10 +234,7 @@ Page({
       finishLoading();
     };
     if (!USE_MOCK && getToken() && familyId) {
-      const params = {};
-      if (genKey !== 'all') {
-        params.generations = genKey === 'default' ? 3 : Number(genKey);
-      }
+      const params = { generations: genKey === 'default' ? 3 : Number(genKey) };
       familyMember.getAll(familyId, params)
         .then((res) => {
           console.log('loadTreeData: API 返回', genKey, (res || []).length, '人');
@@ -361,11 +361,17 @@ Page({
     if (!this.canvasCtx) {
       this.initCanvas();
     }
-    // 「定位到我」等待成员就绪后定位（当前窗口可能未加载该成员，切换到全部后在此触发）
-    if (this._pendingLocateId && this.nodeMap[this._pendingLocateId]) {
-      const id = this._pendingLocateId;
-      this._pendingLocateId = '';
-      this.locateMember(id);
+    // 「定位到我」等待成员就绪后定位（当前窗口未加载该成员，切到最大代数窗口后在此触发）
+    if (this._pendingLocateId) {
+      if (this.nodeMap[this._pendingLocateId]) {
+        const id = this._pendingLocateId;
+        this._pendingLocateId = '';
+        this.locateMember(id);
+      } else {
+        // 已切到最大代数窗口（7代）仍不含该成员，说明其超出可显示范围，提示并清理
+        this._pendingLocateId = '';
+        wx.showToast({ title: '成员超出可显示代数范围', icon: 'none' });
+      }
     }
   },
 
@@ -400,7 +406,7 @@ Page({
     const kw = (this.renderSearch || '').trim().toLowerCase();
     let nodes = this.allNodes;
     // 搜索时后端已返回完整子图（命中+祖先+后3代），跳过代数裁剪，避免剪掉窗口外祖先
-    if (gen && gen !== 'all' && !kw) {
+    if (gen && !kw) {
       // 'default' 默认显示 3 代；'5'/'7' 显示对应代数
       const maxGen = gen === 'default' ? 3 : Number(gen);
       const keep = new Set();
@@ -476,62 +482,54 @@ Page({
     this.refreshList();
   },
 
-  /** 递归计算每个节点的 x,y 坐标（基于树的后序遍历，保证子树居中） */
+  /** 递归计算每个节点的 x,y 坐标（子树依次排列 + 父节点居中，HTML 方案同款算法）
+   *  说明：旧实现用 currentX+shift 防重叠，在「满叉树/大族」下会导致宽度指数级膨胀；
+   *  本实现改为每个节点接收子树起始坐标，叶子顺序排列、父节点居中到子树范围中心，
+   *  宽度始终 ≈ 最底层可见节点数 × 卡片间距，任意规模均紧凑。 */
   calcLayout() {
     const layoutMap = {};
-    let currentX = PADDING;
     const visibleSet = new Set(this.renderNodes.map(n => n.id));
+    let cursorX = PADDING; // 多个根节点子树依次排列的起始坐标
 
-    // 先找出当前渲染树中最大 generation，作为 y 轴基准
-    let maxGen = 1;
-    this.renderNodes.forEach(n => { if (n.generation > maxGen) maxGen = n.generation; });
-
-    const traverse = (node) => {
-      if (!node) return { x: 0, y: 0, width: 0 };
+    const traverse = (node, startX) => {
+      if (!node) return { left: startX, right: startX };
       const visibleChildren = node.children.filter(c => visibleSet.has(c.id));
       const nodeWidth = NODE_W + (node.spouseInfo && node.spouseInfo.name ? SPOUSE_W + NODE_GAP_X : 0);
-
-      if (visibleChildren.length === 0) {
-        const x = currentX;
-        currentX += nodeWidth + NODE_GAP_X;
-        // generation 越小越靠上：generation 1 对应 level 0
-        const level = node.generation - 1;
-        const y = PADDING + level * LEVEL_H;
-        layoutMap[node.id] = { x, y, width: nodeWidth, node };
-        return { x, y, width: nodeWidth };
-      }
-
-      let firstChildX = Infinity;
-      let lastChildX = -Infinity;
-      visibleChildren.forEach((child) => {
-        const childRes = traverse(child);
-        firstChildX = Math.min(firstChildX, childRes.x);
-        lastChildX = Math.max(lastChildX, childRes.x + childRes.width);
-      });
-
-      const childrenCenter = (firstChildX + lastChildX) / 2;
-      let nodeX = childrenCenter - nodeWidth / 2;
-
-      // 如果父节点会覆盖左侧边界，则整体向右推
-      if (nodeX < currentX) {
-        const shift = currentX - nodeX;
-        const shiftNode = (n) => {
-          if (layoutMap[n.id]) layoutMap[n.id].x += shift;
-          n.children.filter(c => visibleSet.has(c.id)).forEach(shiftNode);
-        };
-        visibleChildren.forEach(shiftNode);
-        nodeX += shift;
-        currentX += shift;
-      }
-
       const level = node.generation - 1;
       const y = PADDING + level * LEVEL_H;
+
+      let left;
+      let right;
+      if (visibleChildren.length === 0) {
+        // 叶子：顺序排列
+        left = startX;
+        right = startX + nodeWidth;
+        layoutMap[node.id] = { x: left, y, width: nodeWidth, node };
+        return { left, right };
+      }
+
+      // 子树依次排列，记录每棵子树的范围
+      let childX = startX;
+      const bounds = [];
+      visibleChildren.forEach((child) => {
+        const b = traverse(child, childX);
+        bounds.push(b);
+        childX = b.right + NODE_GAP_X;
+      });
+
+      left = bounds[0].left;
+      right = bounds[bounds.length - 1].right;
+      // 父节点居中到子树范围中心；若父节点（含配偶）比子树更宽导致左越界，则回推对齐子树左侧
+      const nodeX = Math.max(startX, (left + right) / 2 - nodeWidth / 2);
       layoutMap[node.id] = { x: nodeX, y, width: nodeWidth, node };
-      currentX = Math.max(currentX, nodeX + nodeWidth + NODE_GAP_X);
-      return { x: nodeX, y, width: nodeWidth };
+      return { left: Math.min(left, nodeX), right: Math.max(right, nodeX + nodeWidth) };
     };
 
-    this.rootNodes.forEach(traverse);
+    this.rootNodes.forEach((root) => {
+      const b = traverse(root, cursorX);
+      cursorX = b.right + NODE_GAP_X;
+    });
+
     this.layoutMap = layoutMap;
     // 布局变化：失效尺寸缓存并重建空间索引（供视口裁剪/命中检测 O(log n) 定位）
     this.invalidateLayoutCache();
@@ -1085,10 +1083,14 @@ Page({
       fit = Math.max(fitX, fitY);
     }
     // 可读性下限：普通宽度树放大到卡片可读（120 * 0.75 = 90px，完整细节等级）；
-    // 超过两屏宽的极端大树跳过下限，仍整体缩小到屏幕内
+    // 超过八屏宽的极端大树跳过下限，仍整体缩小到屏幕内（HTML 方案同款处理，
+    // 避免被 MIN_SCALE=0.3 卡住导致大族树永远只能看到局部）
     const overRatio = contentW / this.canvasWidth;
-    const readableFloor = overRatio <= 2 ? MIN_FIT_SCALE : MIN_SCALE;
-    return Math.max(MIN_SCALE, Math.min(MAX_INITIAL_SCALE, Math.max(fit, readableFloor)));
+    this._extremeWideTree = overRatio > 8;
+    if (this._extremeWideTree) {
+      return Math.max(MIN_EXTREME_SCALE, Math.min(MAX_INITIAL_SCALE, fit));
+    }
+    return Math.max(MIN_SCALE, Math.min(MAX_INITIAL_SCALE, Math.max(fit, MIN_FIT_SCALE)));
   },
 
   /** 统一视图变换（渲染与命中检测共用），保证点击坐标与绘制一致 */
@@ -1432,7 +1434,12 @@ Page({
     const touches = e.touches;
     if (touches.length === 2 && this.pinchStartDist > 0) {
       const dist = this.touchDist(touches);
-      const next = Math.max(MIN_SCALE, Math.min(MAX_SCALE, this.pinchStartZoom * (dist / this.pinchStartDist)));
+      // 极端宽树下倍率范围随适配缩放变化：下限允许缩到看全整棵树，上限允许放大到卡片可读；
+      // 普通树保持原 MIN_SCALE/MAX_SCALE 范围不变
+      const extreme = this._extremeWideTree === true;
+      const minZoom = extreme ? MIN_EXTREME_SCALE / (this.initialScale || 1) : MIN_SCALE;
+      const maxZoom = extreme ? MAX_SCALE / (this.initialScale || 1) : MAX_SCALE;
+      const next = Math.max(minZoom, Math.min(maxZoom, this.pinchStartZoom * (dist / this.pinchStartDist)));
       if (Math.abs(next - this.zoom) > 0.001) {
         // 缩放期间画布内容变化，隐藏 DOM 气泡避免错位
         this.hideTooltip();
@@ -1613,7 +1620,7 @@ Page({
     this.renderVerticalTree();
   },
 
-  /** 「定位到我」：定位当前用户绑定的成员；当前窗口未加载时先切到全部代 */
+  /** 「定位到我」：定位当前用户绑定的成员；当前窗口未加载时先切到最大代数窗口（7代） */
   locateMe() {
     const me = (app.globalData.myFamily && app.globalData.myFamily.memberId)
       || (app.globalData.userInfo && app.globalData.userInfo.memberId);
@@ -1634,11 +1641,11 @@ Page({
       this.locateMember(me);
       return;
     }
-    // 当前代数窗口未加载该成员：切到「全部」加载后定位
+    // 当前代数窗口未加载该成员：切到最大代数窗口（7代）加载后定位
     this._pendingLocateId = me;
-    this.renderGen = 'all';
-    this.setData({ selectedGen: 'all' });
-    this.loadTreeData('all');
+    this.renderGen = '7';
+    this.setData({ selectedGen: '7' });
+    this.loadTreeData('7');
   },
 
   /** 定位并高亮指定成员（搜索命中 / 定位到我共用） */

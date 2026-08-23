@@ -110,6 +110,8 @@ export class FamilyService {
         ...row,
         generation_sequence: row.generation_sequence ? parse(row.generation_sequence) : null,
         realMemberCount: statsMap[row.id]?.memberCount ?? 0,
+        // 代数实时统计覆盖静态 gen_count（与 memberCount 同口径，客户端零改动）
+        gen_count: statsMap[row.id]?.generationCount ?? row.gen_count ?? 0,
         eventCount: statsMap[row.id]?.eventCount ?? 0,
         photoCount: statsMap[row.id]?.photoCount ?? 0,
         documentCount: statsMap[row.id]?.documentCount ?? 0,
@@ -152,9 +154,12 @@ export class FamilyService {
       values
     );
     const parse = (v: unknown): unknown => (typeof v === 'string' ? JSON.parse(v) : v);
+    // 代数实时统计覆盖静态 gen_count（下拉列表同样展示真实代数）
+    const statsMap = await this.batchStats(rows.map((r: FamilyRow) => r.id));
     return rows.map((row: FamilyRow) => ({
       ...row,
-      generation_sequence: row.generation_sequence ? parse(row.generation_sequence) : null
+      generation_sequence: row.generation_sequence ? parse(row.generation_sequence) : null,
+      gen_count: statsMap[row.id]?.generationCount ?? row.gen_count ?? 0
     }));
   }
 
@@ -182,7 +187,9 @@ export class FamilyService {
     return {
       ...row,
       generation_sequence: row.generation_sequence ? parse(row.generation_sequence) : null,
-      ...stats
+      ...stats,
+      // 代数实时统计覆盖静态 gen_count（与 memberCount 同口径，客户端零改动）
+      gen_count: stats.generationCount ?? row.gen_count ?? 0
     };
   }
 
@@ -415,7 +422,7 @@ export class FamilyService {
         this.validateTableName(tableName);
         try {
           return await this.dataSource.query<CountRow[]>(
-            `SELECT \`family_id\`, COUNT(*) AS cnt FROM \`${tableName}\` WHERE \`status\` = 1 GROUP BY \`family_id\``
+            `SELECT \`family_id\`, COUNT(*) AS cnt, MAX(\`generation\`) AS max_gen FROM \`${tableName}\` WHERE \`status\` = 1 GROUP BY \`family_id\``
           );
         } catch {
           return [] as CountRow[];
@@ -455,7 +462,14 @@ export class FamilyService {
       rows.forEach(r => { m[r.family_id] = Number(r.cnt); });
       return m;
     };
+    // 代数：分表 MAX(generation)，分表缺失或空表(max_gen 为 NULL)时按 0 计
+    const toGenMap = (rows: CountRow[]): Record<number, number> => {
+      const m: Record<number, number> = {};
+      rows.forEach(r => { m[r.family_id] = r.max_gen == null ? 0 : Number(r.max_gen); });
+      return m;
+    };
     const memberMap = toMap(memberRows);
+    const genMap = toGenMap(memberRows);
     const eventMap = toMap(eventRows);
     const photoMap = toMap(photoRows);
     const docMap = toMap(docRows);
@@ -465,6 +479,7 @@ export class FamilyService {
     ids.forEach(id => {
       result[id] = {
         memberCount: memberMap[id] || 0,
+        generationCount: genMap[id] || 0,
         eventCount: eventMap[id] || 0,
         photoCount: photoMap[id] || 0,
         documentCount: docMap[id] || 0,
@@ -483,6 +498,7 @@ interface InsertResult {
 interface CountRow extends DataRow {
   family_id: number;
   cnt: number | string;
+  max_gen?: number | string | null;
 }
 
 interface GenerationTableRow extends DataRow {

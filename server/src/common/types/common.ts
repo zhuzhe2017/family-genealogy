@@ -64,6 +64,8 @@ export interface FamilyStats {
   documentCount: number;
   dynamicCount: number;
   adminCount: number;
+  /** 代数：基于家族成员分表 MAX(generation) 实时统计，避免 family.gen_count 静态字段滞后 */
+  generationCount: number;
 }
 
 /** 家族成员配偶信息 */

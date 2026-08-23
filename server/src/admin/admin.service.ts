@@ -10,6 +10,7 @@ import {
   type AdminUpdateData
 } from './types/admin.types';
 import { type QueryValues, type DataRow } from '../common/types/common';
+import { getSafeMemberTableName } from '../common/utils/family-member-table';
 import { SystemSecurityService } from '../system-security/system-security.service';
 
 @Injectable()
@@ -260,14 +261,33 @@ export class AdminService {
     return { success: true };
   }
 
-  /** 获取管理员绑定的家族列表 */
+  /** 获取管理员绑定的家族列表（代数实时统计覆盖静态 gen_count） */
   async getFamilies(adminId: number) {
-    return this.dataSource.query<
+    const rows = await this.dataSource.query<
       { id: number; name: string; surname_id: number; member_count: number; gen_count: number }[]
     >(
       'SELECT f.`id`, f.`name`, f.`surname_id`, f.`member_count`, f.`gen_count` FROM `sys_admin_family` saf INNER JOIN `family` f ON f.`id` = saf.`family_id` WHERE saf.`admin_id` = ?',
       [adminId]
     );
+    // 代数：基于家族成员分表实时统计 MAX(generation)，分表缺失时回退静态字段
+    const genRows = await Promise.all(
+      rows.map(async row => {
+        const tableName = getSafeMemberTableName(row.id);
+        try {
+          const [r] = await this.dataSource.query<{ max_gen: number | string | null }[]>(
+            `SELECT MAX(\`generation\`) AS max_gen FROM \`${tableName}\` WHERE \`status\` = 1`
+          );
+          return { id: row.id, maxGen: r && r.max_gen != null ? Number(r.max_gen) : null };
+        } catch {
+          return { id: row.id, maxGen: null };
+        }
+      })
+    );
+    const genMap = new Map(genRows.map(g => [g.id, g.maxGen]));
+    return rows.map(row => ({
+      ...row,
+      gen_count: genMap.get(row.id) ?? row.gen_count ?? 0
+    }));
   }
 
   /** 绑定管理员到家族(事务:先删后插,失败回滚避免家族绑定丢失) */

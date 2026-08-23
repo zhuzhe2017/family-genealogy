@@ -1,0 +1,778 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>家谱树 · CSS 综合实现</title>
+<style>
+/* ==========================================================================
+   1. 设计变量（Design Tokens）
+   --------------------------------------------------------------------------
+   集中管理颜色、尺寸、间距与过渡时长，便于统一调整与后续扩展主题。
+   ========================================================================== */
+:root {
+  /* 画布与卡片 */
+  --page-bg: #f5efe3;              /* 暖纸底色，呼应传统家谱质感 */
+  --card-bg: #ffffff;
+  --card-border: #e6dccb;
+  --card-radius: 12px;
+
+  /* 连接线 */
+  --line-color: #c9b99a;
+  --line-width: 2px;
+  --line-radius: 6px;
+
+  /* 层级间距（竖线高度）与兄弟间距 */
+  --v-gap: 30px;
+  --h-gap: 22px;
+
+  /* 卡片尺寸 */
+  --card-w: 168px;
+  --avatar-size: 44px;
+
+  /* 性别配色 */
+  --male: #3f6fd1;
+  --male-soft: #eaf1ff;
+  --female: #d1617f;
+  --female-soft: #fdeef2;
+
+  /* 辈分配色（第 1~4 代顶部色条） */
+  --gen-1: #8b1a1a;
+  --gen-2: #b5532a;
+  --gen-3: #a08040;
+  --gen-4: #5a7a5a;
+
+  /* 文字 */
+  --text-strong: #3d342a;
+  --text-body: #6b6155;
+  --text-muted: #9a9185;
+
+  /* 动效 */
+  --ease: cubic-bezier(0.4, 0, 0.2, 1);
+  --t-fast: 0.2s;
+  --t-mid: 0.35s;
+
+  /* 展开动画上限（折叠/展开的 max-height 过渡值） */
+  --expand-max: 2200px;
+}
+
+/* ==========================================================================
+   2. 基础重置
+   ========================================================================== */
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  padding: 32px 16px;
+  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", "Segoe UI", sans-serif;
+  background: var(--page-bg);
+  color: var(--text-strong);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ==========================================================================
+   3. 页面头部与图例
+   ========================================================================== */
+.demo-header {
+  max-width: 1200px;
+  margin: 0 auto 24px;
+  text-align: center;
+}
+
+.demo-title {
+  margin: 0 0 8px;
+  font-size: 24px;
+  letter-spacing: 1px;
+}
+
+.demo-sub {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-muted);
+  line-height: 1.7;
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  justify-content: center;
+  margin-top: 16px;
+}
+
+.legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-body);
+}
+
+.legend-swatch {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+}
+
+.legend-swatch.male { background: var(--male); }
+.legend-swatch.female { background: var(--female); }
+.legend-swatch.gen-1 { background: var(--gen-1); }
+.legend-swatch.gen-2 { background: var(--gen-2); }
+.legend-swatch.gen-3 { background: var(--gen-3); }
+.legend-swatch.gen-4 { background: var(--gen-4); }
+
+/* ==========================================================================
+   4. 树容器：响应式横向滚动，适配不同屏幕宽度
+   ========================================================================== */
+.tree-wrap {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 24px 12px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  border-radius: 16px;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(255, 255, 255, 0.6), transparent 70%),
+    linear-gradient(180deg, #efe6d6, #f5efe3);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+/* ==========================================================================
+   5. 树结构布局（Flexbox 递归嵌套）
+   --------------------------------------------------------------------------
+   .tree 为根 ul；每个节点为 li，内部垂直排列「卡片 + 子列表」。
+   同一代兄弟节点通过父 ul 的 flex 横向排列，实现层次化布局。
+   ========================================================================== */
+.tree,
+.tree ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.tree ul {
+  display: flex;
+  justify-content: center;
+  position: relative;
+  padding: var(--v-gap) 0 0;
+}
+
+.tree li {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: var(--v-gap) var(--h-gap) 0;
+}
+
+/* 根节点（.tree 的直接子 li）没有父级，隐藏其顶部连接线 */
+.tree > li {
+  padding-top: 0;
+}
+
+.tree > li::before,
+.tree > li::after {
+  display: none;
+}
+
+/* ==========================================================================
+   6. 连接线（CSS 伪元素）
+   --------------------------------------------------------------------------
+   - li::before  画「左半横线」，连接兄弟节点；
+   - li::after   画「右半横线 + 居中竖线」，从父节点引线向下；
+   - .children::before 画「父卡片底部到横线」之间的竖线段。
+   ========================================================================== */
+.tree li::before,
+.tree li::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 50%;
+  width: 50%;
+  height: var(--v-gap);
+  border-top: var(--line-width) solid var(--line-color);
+}
+
+.tree li::after {
+  right: auto;
+  left: 50%;
+  border-left: var(--line-width) solid var(--line-color);
+}
+
+/* 独生子：无需横线，去掉两条伪元素并回收顶部间距 */
+.tree li:only-child::before,
+.tree li:only-child::after {
+  display: none;
+}
+
+.tree li:only-child {
+  padding-top: 0;
+}
+
+/* 首尾兄弟的横线端点处理：去掉越界的一半，并给转角加圆角 */
+.tree li:first-child::before,
+.tree li:last-child::after {
+  border: 0 none;
+}
+
+.tree li:last-child::before {
+  border-right: var(--line-width) solid var(--line-color);
+  border-radius: 0 var(--line-radius) 0 0;
+}
+
+.tree li:first-child::after {
+  border-radius: var(--line-radius) 0 0 0;
+}
+
+/* 父卡片底部到子代横线之间的竖线段 */
+.tree .children::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 0;
+  height: var(--v-gap);
+  border-left: var(--line-width) solid var(--line-color);
+}
+
+/* ==========================================================================
+   7. 成员卡片
+   ========================================================================== */
+.node-row {
+  position: relative;
+  display: flex;
+  justify-content: center;
+}
+
+.card {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: var(--card-w);
+  padding: 12px 14px;
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: var(--card-radius);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+  transition:
+    transform var(--t-fast) var(--ease),
+    box-shadow var(--t-fast) var(--ease);
+  cursor: default;
+  outline: none;
+}
+
+/* 悬停：上浮 + 加深阴影，增强立体感 */
+.card:hover,
+.card:focus-visible {
+  transform: translateY(-3px);
+  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.14);
+}
+
+.card:focus-visible {
+  outline: 3px solid rgba(63, 111, 209, 0.5);
+  outline-offset: 2px;
+}
+
+/* 顶部辈分色条 */
+.card-accent {
+  position: absolute;
+  top: 0;
+  left: 12px;
+  right: 12px;
+  height: 3px;
+  border-radius: 0 0 4px 4px;
+}
+
+/* 头像：圆形，按性别配色，首字 */
+.avatar {
+  flex: 0 0 auto;
+  width: var(--avatar-size);
+  height: var(--avatar-size);
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 19px;
+  font-weight: 600;
+  color: #fff;
+  background: var(--male);
+  box-shadow: inset 0 -2px 4px rgba(0, 0, 0, 0.15);
+}
+
+.card-body {
+  min-width: 0;
+  text-align: left;
+}
+
+.card-name {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.card-dates {
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: var(--text-body);
+}
+
+.card-meta {
+  margin: 3px 0 0;
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 性别修饰（头像底色区分性别） */
+.node.male .avatar { background: var(--male); }
+.node.female .avatar { background: var(--female); }
+
+/* 辈分修饰（顶部色条随代数变化） */
+.node.gen-1 .card-accent { background: var(--gen-1); }
+.node.gen-2 .card-accent { background: var(--gen-2); }
+.node.gen-3 .card-accent { background: var(--gen-3); }
+.node.gen-4 .card-accent { background: var(--gen-4); }
+
+/* ==========================================================================
+   8. 展开/折叠（:checked + 兄弟选择器）
+   --------------------------------------------------------------------------
+   隐藏的原生 checkbox 作为状态源；通过通用兄弟选择器 ~ 控制子列表显隐，
+   实现纯 CSS 的展开/折叠，无需 JS 维护状态。
+   ========================================================================== */
+
+/* 屏幕阅读器可见、视觉隐藏的可聚焦 checkbox */
+.node-toggle {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+/* 展开/折叠按钮：位于卡片右上角，圆形，含 +/- 图标 */
+.toggle-btn {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  z-index: 2;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #fff;
+  border: 1px solid var(--line-color);
+  color: var(--text-body);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
+  transition:
+    transform var(--t-fast) var(--ease),
+    background var(--t-fast) var(--ease);
+  user-select: none;
+}
+
+.toggle-btn:hover {
+  transform: scale(1.15);
+  background: #faf6ef;
+}
+
+.toggle-icon {
+  position: relative;
+  width: 10px;
+  height: 10px;
+}
+
+/* 用伪元素绘制 + / − 符号，随状态切换 */
+.toggle-icon::before,
+.toggle-icon::after {
+  content: "";
+  position: absolute;
+  background: currentColor;
+  transition: transform var(--t-mid) var(--ease);
+}
+
+.toggle-icon::before {
+  left: 0;
+  top: 4px;
+  width: 10px;
+  height: 2px;
+}
+
+.toggle-icon::after {
+  left: 4px;
+  top: 0;
+  width: 2px;
+  height: 10px;
+}
+
+/* 已展开（checked）时竖线旋转，仅保留横线，呈现「−」 */
+.node-toggle:checked ~ .node-row .toggle-icon::after {
+  transform: rotate(90deg) scaleX(0);
+}
+
+/* 键盘聚焦 checkbox 时，在按钮上显示焦点环 */
+.node-toggle:focus-visible ~ .node-row .toggle-btn {
+  outline: 3px solid rgba(63, 111, 209, 0.55);
+  outline-offset: 2px;
+}
+
+/* 子列表：默认折叠，勾选后展开 */
+.children {
+  display: flex;
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  transition:
+    max-height var(--t-mid) var(--ease),
+    opacity var(--t-mid) var(--ease);
+}
+
+.node-toggle:checked ~ .children {
+  max-height: var(--expand-max);
+  opacity: 1;
+}
+
+/* ==========================================================================
+   9. 响应式：窄屏收缩卡片与间距，保持横向滚动可读
+   ========================================================================== */
+@media (max-width: 640px) {
+  :root {
+    --card-w: 132px;
+    --avatar-size: 34px;
+    --v-gap: 22px;
+    --h-gap: 10px;
+  }
+
+  .card { padding: 10px; gap: 8px; }
+  .card-name { font-size: 13px; }
+  .card-dates { font-size: 11px; }
+  .card-meta { font-size: 10px; }
+  .avatar { font-size: 15px; }
+  .demo-title { font-size: 19px; }
+}
+
+/* ==========================================================================
+   10. 无障碍：尊重用户「减少动态效果」偏好
+   ========================================================================== */
+@media (prefers-reduced-motion: reduce) {
+  .card,
+  .children,
+  .toggle-btn,
+  .toggle-icon::after {
+    transition: none;
+  }
+}
+</style>
+</head>
+<body>
+
+  <header class="demo-header">
+    <h1 class="demo-title">家谱树 · CSS 综合实现</h1>
+    <p class="demo-sub">
+      层级结构采用 Flexbox 递归嵌套；连接线由伪元素绘制；展开/折叠由 :checked 与兄弟选择器驱动；<br>
+      支持键盘方向键导航（↑↓←→、Home/End）与屏幕阅读器语义（role="tree" / treeitem / group）。
+    </p>
+    <div class="legend" aria-label="图例">
+      <span class="legend-item"><span class="legend-swatch male"></span>男</span>
+      <span class="legend-item"><span class="legend-swatch female"></span>女</span>
+      <span class="legend-item"><span class="legend-swatch gen-1"></span>一代</span>
+      <span class="legend-item"><span class="legend-swatch gen-2"></span>二代</span>
+      <span class="legend-item"><span class="legend-swatch gen-3"></span>三代</span>
+      <span class="legend-item"><span class="legend-swatch gen-4"></span>四代</span>
+    </div>
+  </header>
+
+  <div class="tree-wrap">
+    <ul class="tree" role="tree" aria-label="朱氏家族家谱树">
+
+      <!-- ============ 第 1 代：始祖 ============ -->
+      <li class="node gen-1 male has-children" role="treeitem" aria-expanded="true" aria-level="1">
+        <input type="checkbox" id="n1" class="node-toggle" checked aria-label="折叠 朱太公 的子节点">
+        <div class="node-row">
+          <label for="n1" class="toggle-btn" aria-hidden="true" title="展开/折叠"><span class="toggle-icon"></span></label>
+          <article class="card" tabindex="-1">
+            <span class="card-accent" aria-hidden="true"></span>
+            <span class="avatar" aria-hidden="true">朱</span>
+            <div class="card-body">
+              <h3 class="card-name">朱太公</h3>
+              <p class="card-dates">1880 — 1960</p>
+              <p class="card-meta">始祖 · 1代 · 配 李氏</p>
+            </div>
+          </article>
+        </div>
+
+        <!-- ============ 第 2 代 ============ -->
+        <ul class="children" role="group">
+          <li class="node gen-2 male has-children" role="treeitem" aria-expanded="true" aria-level="2">
+            <input type="checkbox" id="n2" class="node-toggle" checked aria-label="折叠 朱大 的子节点">
+            <div class="node-row">
+              <label for="n2" class="toggle-btn" aria-hidden="true" title="展开/折叠"><span class="toggle-icon"></span></label>
+              <article class="card" tabindex="-1">
+                <span class="card-accent" aria-hidden="true"></span>
+                <span class="avatar" aria-hidden="true">朱</span>
+                <div class="card-body">
+                  <h3 class="card-name">朱大</h3>
+                  <p class="card-dates">1910 — 1988</p>
+                  <p class="card-meta">德 · 2代 · 配 王氏</p>
+                </div>
+              </article>
+            </div>
+
+            <!-- ============ 第 3 代 ============ -->
+            <ul class="children" role="group">
+              <li class="node gen-3 male has-children" role="treeitem" aria-expanded="false" aria-level="3">
+                <input type="checkbox" id="n5" class="node-toggle" aria-label="展开 朱强 的子节点">
+                <div class="node-row">
+                  <label for="n5" class="toggle-btn" aria-hidden="true" title="展开/折叠"><span class="toggle-icon"></span></label>
+                  <article class="card" tabindex="-1">
+                    <span class="card-accent" aria-hidden="true"></span>
+                    <span class="avatar" aria-hidden="true">朱</span>
+                    <div class="card-body">
+                      <h3 class="card-name">朱强</h3>
+                      <p class="card-dates">1940 —</p>
+                      <p class="card-meta">永 · 3代 · 配 陈氏</p>
+                    </div>
+                  </article>
+                </div>
+
+                <!-- ============ 第 4 代 ============ -->
+                <ul class="children" role="group">
+                  <li class="node gen-4 male" role="treeitem" aria-level="4">
+                    <div class="node-row">
+                      <article class="card" tabindex="-1">
+                        <span class="card-accent" aria-hidden="true"></span>
+                        <span class="avatar" aria-hidden="true">朱</span>
+                        <div class="card-body">
+                          <h3 class="card-name">朱伟</h3>
+                          <p class="card-dates">1970 —</p>
+                          <p class="card-meta">世 · 4代</p>
+                        </div>
+                      </article>
+                    </div>
+                  </li>
+                  <li class="node gen-4 female" role="treeitem" aria-level="4">
+                    <div class="node-row">
+                      <article class="card" tabindex="-1">
+                        <span class="card-accent" aria-hidden="true"></span>
+                        <span class="avatar" aria-hidden="true">朱</span>
+                        <div class="card-body">
+                          <h3 class="card-name">朱敏</h3>
+                          <p class="card-dates">1972 —</p>
+                          <p class="card-meta">世 · 4代</p>
+                        </div>
+                      </article>
+                    </div>
+                  </li>
+                </ul>
+              </li>
+
+              <li class="node gen-3 male" role="treeitem" aria-level="3">
+                <div class="node-row">
+                  <article class="card" tabindex="-1">
+                    <span class="card-accent" aria-hidden="true"></span>
+                    <span class="avatar" aria-hidden="true">朱</span>
+                    <div class="card-body">
+                      <h3 class="card-name">朱明</h3>
+                      <p class="card-dates">1942 —</p>
+                      <p class="card-meta">永 · 3代 · 配 刘氏</p>
+                    </div>
+                  </article>
+                </div>
+              </li>
+            </ul>
+          </li>
+
+          <li class="node gen-2 male has-children" role="treeitem" aria-expanded="true" aria-level="2">
+            <input type="checkbox" id="n3" class="node-toggle" checked aria-label="折叠 朱二 的子节点">
+            <div class="node-row">
+              <label for="n3" class="toggle-btn" aria-hidden="true" title="展开/折叠"><span class="toggle-icon"></span></label>
+              <article class="card" tabindex="-1">
+                <span class="card-accent" aria-hidden="true"></span>
+                <span class="avatar" aria-hidden="true">朱</span>
+                <div class="card-body">
+                  <h3 class="card-name">朱二</h3>
+                  <p class="card-dates">1912 — 1995</p>
+                  <p class="card-meta">德 · 2代 · 配 赵氏</p>
+                </div>
+              </article>
+            </div>
+            <ul class="children" role="group">
+              <li class="node gen-3 male" role="treeitem" aria-level="3">
+                <div class="node-row">
+                  <article class="card" tabindex="-1">
+                    <span class="card-accent" aria-hidden="true"></span>
+                    <span class="avatar" aria-hidden="true">朱</span>
+                    <div class="card-body">
+                      <h3 class="card-name">朱华</h3>
+                      <p class="card-dates">1946 —</p>
+                      <p class="card-meta">永 · 3代</p>
+                    </div>
+                  </article>
+                </div>
+              </li>
+              <li class="node gen-3 female" role="treeitem" aria-level="3">
+                <div class="node-row">
+                  <article class="card" tabindex="-1">
+                    <span class="card-accent" aria-hidden="true"></span>
+                    <span class="avatar" aria-hidden="true">朱</span>
+                    <div class="card-body">
+                      <h3 class="card-name">朱丽</h3>
+                      <p class="card-dates">1949 —</p>
+                      <p class="card-meta">永 · 3代</p>
+                    </div>
+                  </article>
+                </div>
+              </li>
+            </ul>
+          </li>
+
+          <li class="node gen-2 male has-children" role="treeitem" aria-expanded="true" aria-level="2">
+            <input type="checkbox" id="n4" class="node-toggle" checked aria-label="折叠 朱三 的子节点">
+            <div class="node-row">
+              <label for="n4" class="toggle-btn" aria-hidden="true" title="展开/折叠"><span class="toggle-icon"></span></label>
+              <article class="card" tabindex="-1">
+                <span class="card-accent" aria-hidden="true"></span>
+                <span class="avatar" aria-hidden="true">朱</span>
+                <div class="card-body">
+                  <h3 class="card-name">朱三</h3>
+                  <p class="card-dates">1915 — 2003</p>
+                  <p class="card-meta">德 · 2代 · 配 周氏</p>
+                </div>
+              </article>
+            </div>
+            <ul class="children" role="group">
+              <li class="node gen-3 female" role="treeitem" aria-level="3">
+                <div class="node-row">
+                  <article class="card" tabindex="-1">
+                    <span class="card-accent" aria-hidden="true"></span>
+                    <span class="avatar" aria-hidden="true">朱</span>
+                    <div class="card-body">
+                      <h3 class="card-name">朱芳</h3>
+                      <p class="card-dates">1952 —</p>
+                      <p class="card-meta">永 · 3代</p>
+                    </div>
+                  </article>
+                </div>
+              </li>
+            </ul>
+          </li>
+        </ul>
+      </li>
+    </ul>
+  </div>
+
+  <script>
+  (function () {
+    "use strict";
+
+    var tree = document.querySelector(".tree");
+    if (!tree) return;
+
+    /* 同步 aria-expanded，使屏幕阅读器能感知折叠状态 */
+    function syncAria() {
+      var items = tree.querySelectorAll("li.node");
+      items.forEach(function (li) {
+        var input = li.querySelector(":scope > .node-toggle");
+        if (input) {
+          li.setAttribute("aria-expanded", input.checked ? "true" : "false");
+        }
+      });
+    }
+
+    /* 返回当前「可见」的节点列表（所有祖先均展开才算可见） */
+    function visibleNodes() {
+      return Array.prototype.filter.call(tree.querySelectorAll("li.node"), function (li) {
+        var p = li.parentElement;
+        while (p && p !== tree) {
+          if (p.classList.contains("children")) {
+            var input = p.parentElement.querySelector(":scope > .node-toggle");
+            if (input && !input.checked) return false;
+          }
+          p = p.parentElement;
+        }
+        return true;
+      });
+    }
+
+    /* 节点的可聚焦目标：有子节点用 checkbox，叶子节点用卡片 */
+    function focusTarget(li) {
+      return li.querySelector(":scope > .node-toggle") || li.querySelector(":scope > .node-row .card");
+    }
+
+    /* 键盘导航（WAI-ARIA tree 模式） */
+    tree.addEventListener("keydown", function (e) {
+      var li = e.target.closest("li.node");
+      if (!li) return;
+
+      var nodes = visibleNodes();
+      var idx = nodes.indexOf(li);
+      var input = li.querySelector(":scope > .node-toggle");
+      var hasChildren = !!li.querySelector(":scope > .children");
+
+      switch (e.key) {
+        case "ArrowDown": {
+          e.preventDefault();
+          var next = nodes[idx + 1];
+          if (next) focusTarget(next).focus();
+          break;
+        }
+        case "ArrowUp": {
+          e.preventDefault();
+          var prev = nodes[idx - 1];
+          if (prev) focusTarget(prev).focus();
+          break;
+        }
+        case "ArrowRight": {
+          e.preventDefault();
+          if (!hasChildren) break;
+          if (input && !input.checked) { input.checked = true; syncAria(); }
+          else {
+            var firstChild = li.querySelector(":scope > .children > .node");
+            if (firstChild) focusTarget(firstChild).focus();
+          }
+          break;
+        }
+        case "ArrowLeft": {
+          e.preventDefault();
+          if (hasChildren && input && input.checked) { input.checked = false; syncAria(); }
+          else {
+            var parentLi = li.parentElement && li.parentElement.closest("li.node");
+            if (parentLi) focusTarget(parentLi).focus();
+          }
+          break;
+        }
+        case "Home": {
+          e.preventDefault();
+          if (nodes[0]) focusTarget(nodes[0]).focus();
+          break;
+        }
+        case "End": {
+          e.preventDefault();
+          if (nodes[nodes.length - 1]) focusTarget(nodes[nodes.length - 1]).focus();
+          break;
+        }
+      }
+    });
+
+    /* 点击按钮切换 checkbox 时同步 aria 状态 */
+    tree.addEventListener("change", function (e) {
+      if (e.target.classList.contains("node-toggle")) syncAria();
+    });
+
+    syncAria();
+  })();
+  </script>
+</body>
+</html>

@@ -15,10 +15,9 @@
       <view class="generation-filter">
         <text class="filter-label">显示代数：</text>
         <view class="filter-options">
-          <view class="filter-item {{selectedGen === 'default' ? 'active' : ''}}" bindtap="filterGen" data-gen="default">默认</view>
+          <view class="filter-item {{selectedGen === 'default' ? 'active' : ''}}" bindtap="filterGen" data-gen="default">3代</view>
           <view class="filter-item {{selectedGen === '5' ? 'active' : ''}}" bindtap="filterGen" data-gen="5">5代</view>
           <view class="filter-item {{selectedGen === '7' ? 'active' : ''}}" bindtap="filterGen" data-gen="7">7代</view>
-          <view class="filter-item {{selectedGen === 'all' ? 'active' : ''}}" bindtap="filterGen" data-gen="all">全部</view>
         </view>
       </view>
     </view>
