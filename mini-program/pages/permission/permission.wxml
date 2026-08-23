@@ -25,6 +25,7 @@
       <text class="card-tip" wx:if="{{canManage}}">仅族长可调整</text>
       <text class="card-tip" wx:else>只读</text>
     </view>
+    <view class="card-filter-tip">仅展示当前用户与家族管理员，普通成员不在此列表显示</view>
     <view class="member-item" wx:for="{{members}}" wx:key="userId">
       <image wx:if="{{item.avatarFull}}" class="member-avatar-img" src="{{item.avatarFull}}" mode="aspectFill" />
       <view wx:else class="member-avatar">{{item.nickname[0]}}</view>

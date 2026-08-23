@@ -12,7 +12,7 @@
   <!-- 顶部工具栏 -->
   <view class="tree-toolbar">
     <view class="toolbar-left">
-      <view class="generation-filter">
+      <view class="generation-filter {{viewMode === 'vertical' ? 'disabled' : ''}}">
         <text class="filter-label">显示代数：</text>
         <view class="filter-options">
           <view class="filter-item {{selectedGen === 'default' ? 'active' : ''}}" bindtap="filterGen" data-gen="default">3代</view>

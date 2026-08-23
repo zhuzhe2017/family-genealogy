@@ -35,6 +35,9 @@ const V_LEVEL_H = 160;            // 代际垂直间距
 const V_SPOUSE_GAP = 28;          // 夫妇头像间距
 const V_PADDING_X = 48;           // 直系图水平内边距
 const V_MARGIN_Y = 36;            // 上下边距
+// 直系图缩放范围：有效缩放（初始适配 × 双指手势）统一控制在 0.5~1.2
+const V_SCALE_MIN = 0.5;  // 直系图缩放下限
+const V_SCALE_MAX = 1.2;  // 直系图缩放上限
 
 // 头像组件常量（canvas 2d 绘制层组件化）
 const AVATAR_SIZE = { small: 22, medium: V_AVATAR_R, large: 46 }; // 尺寸规格（半径 px）
@@ -120,6 +123,9 @@ Page({
   highlightId: '',          // 当前高亮定位的成员 id
   _pendingLocateId: '',     // 待定位成员 id（当前窗口未加载该成员时，切到最大代数窗口后定位）
   _pendingCenterLayout: null, // canvas 尚未就绪时暂存的居中布局
+  _vContentSize: null,       // 直系图布局尺寸缓存（calcVerticalLayout 写入，避免每帧重算）
+  _vLayoutDirty: true,       // 直系图布局脏标记：renderNodes / vRootId 变化后置 true，渲染时重建
+  _renderScheduledAt: 0,     // 上一次渲染调度时间戳（raf 停摆兜底检测）
 
   onLoad() {
     const win = wx.getWindowInfo ? wx.getWindowInfo() : wx.getSystemInfoSync();
@@ -640,10 +646,9 @@ Page({
 
     chain.forEach((node, idx) => {
       const hasSpouse = node.spouseInfo && node.spouseInfo.name;
-      // 总宽 = 主圆直径 + 夫妇间距 + 配偶圆直径（配偶圆左缘 = x + 主直径 + 间距）
-      const coupleW = hasSpouse
-        ? V_AVATAR_R * 2 + V_SPOUSE_GAP + V_SPOUSE_AVATAR_R * 2
-        : V_AVATAR_R * 2;
+      // 总宽恒为「主圆直径 + 夫妇间距 + 配偶圆直径」：无配偶时以"失记"占位预留配偶位，
+      // 保证各代夫妇中点(midX)一致 → 竖线统一为直线、不再折线
+      const coupleW = V_AVATAR_R * 2 + V_SPOUSE_GAP + V_SPOUSE_AVATAR_R * 2;
       maxW = Math.max(maxW, coupleW);
       const x = V_PADDING_X;
       const y = V_MARGIN_Y + idx * V_LEVEL_H;
@@ -652,21 +657,54 @@ Page({
         y,
         node,
         hasSpouse,
-        spouseX: hasSpouse ? x + V_AVATAR_R * 2 + V_SPOUSE_GAP : x,
+        spouseX: x + V_AVATAR_R * 2 + V_SPOUSE_GAP,
         role: this.getVerticalRole(node, idx, chain.length)
       };
     });
 
-    // 将链条水平居中
+    // 将链条水平居中（配偶位无论有无配偶恒同步平移，保证各代夫妇中点 midX 一致）
     const contentW = maxW + V_PADDING_X * 2;
     const offsetX = (contentW - maxW) / 2 - V_AVATAR_R;
     Object.values(layoutMap).forEach(l => {
       l.x += offsetX;
-      if (l.hasSpouse) l.spouseX += offsetX;
+      l.spouseX += offsetX;
     });
 
     this.vLayoutMap = layoutMap;
-    return { contentW, contentH: V_MARGIN_Y * 2 + chain.length * V_LEVEL_H };
+    // 缓存布局尺寸：直系图变换/缩放锚点复用，避免双指缩放时每帧重算布局
+    this._vLayoutDirty = false;
+    this._vContentSize = { contentW, contentH: V_MARGIN_Y * 2 + chain.length * V_LEVEL_H };
+    return this._vContentSize;
+  },
+
+  /**
+   * 校验视图状态数值合法性：pan/zoom/scale 出现 NaN/Infinity/非正数时自动复位，
+   * 防止一次异常手势污染状态导致图形永久消失（双指缩放稳定性核心保障之一）。
+   */
+  validateViewState() {
+    let changed = false;
+    if (!isFinite(this.pan.x) || !isFinite(this.pan.y)) {
+      this.pan = { x: 0, y: 0, startX: 0, startY: 0, touching: false };
+      changed = true;
+    }
+    if (!isFinite(this.zoom) || this.zoom <= 0) { this.zoom = 1; changed = true; }
+    if (!isFinite(this.initialScale) || this.initialScale <= 0) { this.initialScale = 1; changed = true; }
+    if (!isFinite(this.vPan.x) || !isFinite(this.vPan.y)) {
+      this.vPan = { x: 0, y: 0, startX: 0, startY: 0, touching: false };
+      changed = true;
+    }
+    if (!isFinite(this.vZoom) || this.vZoom <= 0) { this.vZoom = 1; changed = true; }
+    if (!isFinite(this.vInitialScale) || this.vInitialScale <= 0) { this.vInitialScale = 1; changed = true; }
+    if (changed) console.warn('检测到视图状态异常，已自动复位（避免图形消失）');
+    return changed;
+  },
+
+  /** 内容高度超出画布时的垂直定位：适配范围内垂直居中，超出时顶对齐 16px 边距。
+   *  变换与缩放锚点反算必须共用同一公式，否则双指缩放时锚点每帧漂移、内容被推出屏幕。 */
+  getContentOffsetY(contentH, scale) {
+    return contentH * scale <= this.canvasHeight
+      ? (this.canvasHeight - contentH * scale) / 2
+      : 16;
   },
 
   /** 使用 canvas 2d 绘制整棵树 */
@@ -678,12 +716,26 @@ Page({
       console.log('renderTree skipped, ctx=', !!ctx, 'nodes=', nodes.length);
       return;
     }
+    this.validateViewState();
     // 清空画布并填充暖纸背景（与导出同色），避免白色卡片与背景混淆
     ctx.fillStyle = CANVAS_BG;
     ctx.fillRect(0, 0, this.canvasWidth, this.canvasHeight);
     // 统一坐标变换：绘制与点击命中共用同一套 scale/offset
-    const { scale, offsetX, offsetY } = this.getViewTransform();
-    this.drawTreeContent(ctx, offsetX, offsetY, scale);
+    try {
+      const { scale, offsetX, offsetY } = this.getViewTransform();
+      this.drawTreeContent(ctx, offsetX, offsetY, scale);
+    } catch (e) {
+      // 绘制异常兜底：复位视图后重绘一次，避免画布永久停留在清空状态。
+      // 重试节流 1s：持续异常时不再高频自恢复，避免渲染死循环
+      console.warn('renderTree 绘制异常，自动恢复:', e);
+      this.pan = { x: 0, y: 0, startX: 0, startY: 0, touching: false };
+      this.zoom = 1;
+      const now = Date.now();
+      if (!this._lastRecoveryAt || now - this._lastRecoveryAt > 1000) {
+        this._lastRecoveryAt = now;
+        this.requestRender();
+      }
+    }
   },
 
   /** 使用 canvas 2d 绘制直系图 */
@@ -694,47 +746,71 @@ Page({
       console.log('renderVerticalTree skipped, ctx=', !!ctx, 'nodes=', nodes.length);
       return;
     }
-    // 确保切换到直系图时重新计算布局（初始加载可能在树状模式下完成）
-    this.calcVerticalLayout();
+    // 视图状态数值守卫：NaN/Infinity 时自动复位，防止异常手势污染后图形永久消失
+    this.validateViewState();
+    // 布局脏标记才重建（renderNodes / vRootId 变化时），双指缩放期间复用缓存布局
+    if (this._vLayoutDirty) this.calcVerticalLayout();
     const vNodes = Object.values(this.vLayoutMap || {});
     if (!vNodes.length) {
       console.log('renderVerticalTree: 无直系链可绘制');
       return;
     }
+    // 基础适配缩放：布局尺寸确定后计算一次，供变换/缩放锚点/手势钳制共用
+    const { contentW, contentH } = this.getVerticalContentSize();
+    this.vInitialScale = this.computeVerticalFitScale(contentW, contentH);
+
     ctx.fillStyle = CANVAS_BG;
     ctx.fillRect(0, 0, this.canvasWidth, this.canvasHeight);
-    const { scale, offsetX, offsetY } = this.getVerticalTransform();
-    this.drawVerticalContent(ctx, offsetX, offsetY, scale);
+    try {
+      const { scale, offsetX, offsetY } = this.getVerticalTransform();
+      this.drawVerticalContent(ctx, offsetX, offsetY, scale);
+    } catch (e) {
+      // 绘制异常兜底：复位视图后重绘一次，避免画布永久停留在清空状态。
+      // 重试节流 1s：持续异常时不再高频自恢复，避免渲染死循环
+      console.warn('renderVerticalTree 绘制异常，自动恢复:', e);
+      this.vPan = { x: 0, y: 0, startX: 0, startY: 0, touching: false };
+      this.vZoom = 1;
+      const now = Date.now();
+      if (!this._lastRecoveryAt || now - this._lastRecoveryAt > 1000) {
+        this._lastRecoveryAt = now;
+        this.requestRender();
+      }
+    }
   },
 
   /** 直系图统一坐标变换 */
   getVerticalTransform() {
     const { contentW, contentH } = this.getVerticalContentSize();
-    this.vInitialScale = this.computeVerticalFitScale(contentW, contentH);
+    if (!isFinite(this.vInitialScale) || this.vInitialScale <= 0) {
+      this.vInitialScale = this.computeVerticalFitScale(contentW, contentH);
+    }
     const scale = this.vInitialScale * this.vZoom;
     const offsetX = (this.canvasWidth - contentW * scale) / 2 + this.vPan.x;
-    const offsetY = contentH * scale <= this.canvasHeight
-      ? (this.canvasHeight - contentH * scale) / 2 + this.vPan.y
-      : 16 + this.vPan.y;
+    const offsetY = this.getContentOffsetY(contentH, scale) + this.vPan.y;
     return { scale, offsetX, offsetY };
   },
 
-  /** 直系图尺寸 */
+  /** 直系图尺寸（复用 calcVerticalLayout 的缓存，避免每帧重算布局） */
   getVerticalContentSize() {
-    const layoutSize = this.calcVerticalLayout();
+    const layoutSize = this._vContentSize || this.calcVerticalLayout();
     const w = Math.max(layoutSize.contentW, this.canvasWidth * 0.6);
     const h = Math.max(layoutSize.contentH, this.canvasHeight * 0.6);
     return { contentW: w, contentH: h };
   },
 
-  /** 直系图基础适配：小树放大、长链完整显示 */
+  /** 直系图基础适配：小树放大、长链完整显示，初始缩放限定 0.5~1.2 */
   computeVerticalFitScale(contentW, contentH) {
     if (!this.canvasWidth || !this.canvasHeight) return 1;
     const fitX = this.canvasWidth / contentW;
     const fitY = this.canvasHeight / contentH;
-    let fit = Math.max(fitX, fitY);
-    // 头像直径 68px，初始至少 1.0 保证角色和配偶清晰可读
-    return Math.max(MIN_SCALE, Math.min(MAX_INITIAL_SCALE, Math.max(fit, 1.0)));
+    const fit = Math.max(fitX, fitY);
+    // 头像半径 34px：初始 0.5~1.2 倍（34~82px），随内容自适应
+    return Math.min(V_SCALE_MAX, Math.max(fit, V_SCALE_MIN));
+  },
+
+  /** 夫妇红心连接点 x：恒取夫妇连线中点（无配偶时配偶位由占位补齐），保证竖线统一直线 */
+  getCoupleMidX(l) {
+    return (l.x + V_AVATAR_R * 2 + l.spouseX) / 2;
   },
 
   /** 绘制直系图内容：头像、连线、角色、配偶 */
@@ -745,14 +821,15 @@ Page({
     const vNodes = Object.values(this.vLayoutMap || {});
     if (!vNodes.length) { ctx.restore(); return; }
 
-    // 1. 绘制垂直连接线
+    // 1. 绘制垂直连接线：连接点对齐「夫妇连线中间的红心」处；各代配偶位恒存在（无配偶为"失记"占位），
+    //    夫妇中点(midX)一致 → 竖线统一为直线、无折线
     for (let i = 0; i < vNodes.length - 1; i++) {
       const cur = vNodes[i];
       const next = vNodes[i + 1];
-      const x1 = cur.x + V_AVATAR_R;
-      const y1 = cur.y + V_AVATAR_R * 2;
-      const x2 = next.x + V_AVATAR_R;
-      const y2 = next.y;
+      const x1 = this.getCoupleMidX(cur);
+      const y1 = cur.y + V_SPOUSE_AVATAR_R;  // 父辈红心所在水平线（与夫妇连线/红心图标精确对齐）
+      const x2 = this.getCoupleMidX(next);
+      const y2 = next.y + V_SPOUSE_AVATAR_R; // 子辈红心所在水平线
       ctx.beginPath();
       ctx.strokeStyle = '#E8B4A8';
       ctx.lineWidth = 2;
@@ -763,10 +840,11 @@ Page({
       ctx.stroke();
     }
 
-    // 2. 绘制每对夫妇与角色标注
+    // 2. 绘制每对夫妇与角色标注（无配偶以"失记"占位，布局统一）
     vNodes.forEach((l) => {
       this.drawVerticalNode(ctx, l);
       if (l.hasSpouse) this.drawVerticalSpouse(ctx, l);
+      else this.drawVerticalPlaceholder(ctx, l);
     });
 
     ctx.restore();
@@ -805,12 +883,9 @@ Page({
     ctx.fillText(l.role, cx, l.y + V_AVATAR_R * 2 + 26);
   },
 
-  /** 绘制配偶头像与姓名（在主角右侧，头像为主成员 0.8 倍） */
-  drawVerticalSpouse(ctx, l) {
-    const spouse = l.node.spouseInfo;
-    const cx = l.spouseX + V_SPOUSE_AVATAR_R;
-    const cy = l.y + V_SPOUSE_AVATAR_R;
-    const midX = (l.x + V_AVATAR_R * 2 + l.spouseX) / 2;
+  /** 绘制夫妇连线与红心家徽（有配偶/无配偶占位共用，保证红心位置单一来源） */
+  drawCoupleLink(ctx, l, cy) {
+    const midX = this.getCoupleMidX(l);
     // 夫妇连线：中间断开口放置家徽
     ctx.beginPath();
     ctx.strokeStyle = '#E8B4A8';
@@ -830,6 +905,14 @@ Page({
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText('❤', midX, cy + 1);
+  },
+
+  /** 绘制配偶头像与姓名（在主角右侧，头像为主成员 0.8 倍） */
+  drawVerticalSpouse(ctx, l) {
+    const spouse = l.node.spouseInfo;
+    const cx = l.spouseX + V_SPOUSE_AVATAR_R;
+    const cy = l.y + V_SPOUSE_AVATAR_R;
+    this.drawCoupleLink(ctx, l, cy);
 
     this.drawMemberAvatar(ctx, {
       cx,
@@ -845,6 +928,34 @@ Page({
     ctx.textAlign = 'center';
     ctx.textBaseline = 'top';
     ctx.fillText(this.ellipsizeByWidth(ctx, spouse.name, V_SPOUSE_AVATAR_R * 2.4), cx, l.y + V_SPOUSE_AVATAR_R * 2 + 8);
+    ctx.fillStyle = '#8B7D6B';
+    ctx.font = '12px sans-serif';
+    const spouseRole = this.getSpouseRole(l.role, l.node.gender);
+    ctx.fillText(spouseRole, cx, l.y + V_SPOUSE_AVATAR_R * 2 + 26);
+  },
+
+  /** 绘制无配偶占位：与真实配偶头像同尺寸/同位置/同绘制管线，名字以"失记"补位，底色灰色区分 */
+  drawVerticalPlaceholder(ctx, l) {
+    const cx = l.spouseX + V_SPOUSE_AVATAR_R;
+    const cy = l.y + V_SPOUSE_AVATAR_R;
+    this.drawCoupleLink(ctx, l, cy);
+    // 与真实配偶完全一致的绘制：圆内首字 + 白边，仅名字"失记"、底色灰色
+    this.drawMemberAvatar(ctx, {
+      cx,
+      cy,
+      radius: V_SPOUSE_AVATAR_R,
+      name: '失记',
+      color: '#BDB4A8', // 灰色填充，与真实配偶区分
+      alive: true,
+      showStatus: false
+    });
+    // 名字行：与配偶名字行同位置同样式（"失记"）
+    ctx.fillStyle = '#333333';
+    ctx.font = 'bold 14px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    ctx.fillText('失记', cx, l.y + V_SPOUSE_AVATAR_R * 2 + 8);
+    // 称谓行：与真实配偶同位置同样式（父亲→母亲、爷爷→奶奶…），姓名失记但称谓仍显示
     ctx.fillStyle = '#8B7D6B';
     ctx.font = '12px sans-serif';
     const spouseRole = this.getSpouseRole(l.role, l.node.gender);
@@ -981,21 +1092,42 @@ Page({
     return entry;
   },
 
-  /** 请求一次渲染：合并同一帧内的多次重绘请求（拖动/缩放节流） */
+  /** 按当前视图模式渲染（requestRender 调度与停摆兜底共用） */
+  renderByMode() {
+    if (this.data.viewMode === 'vertical') {
+      this.renderVerticalTree();
+    } else {
+      this.renderTree();
+    }
+  },
+
+  /** 请求一次渲染：合并同一帧内的多次重绘请求（拖动/缩放节流）。
+   *  兜底：canvas.requestAnimationFrame 在画布重建/页面隐藏/异常时可能永不回调，
+   *  超过 120ms 未执行则强制同步渲染一次，避免渲染永久停摆、图形停留在消失状态。 */
   requestRender() {
-    if (this._renderScheduled) return;
+    if (this._renderScheduled) {
+      if (this._renderScheduledAt && (Date.now() - this._renderScheduledAt > 120)) {
+        this._renderScheduled = false;
+        this._renderScheduledAt = 0;
+        this.renderByMode();
+      }
+      return;
+    }
     this._renderScheduled = true;
+    this._renderScheduledAt = Date.now();
     const doRender = () => {
       this._renderScheduled = false;
-      if (this.data.viewMode === 'vertical') {
-        this.renderVerticalTree();
-      } else {
-        this.renderTree();
-      }
+      this._renderScheduledAt = 0;
+      this.renderByMode();
     };
     const canvas = this.canvasNode;
     if (canvas && typeof canvas.requestAnimationFrame === 'function') {
-      canvas.requestAnimationFrame(doRender);
+      try {
+        canvas.requestAnimationFrame(doRender);
+      } catch (err) {
+        // raf 调度异常时退化为定时器渲染
+        setTimeout(doRender, 16);
+      }
     } else {
       setTimeout(doRender, 16);
     }
@@ -1100,16 +1232,17 @@ Page({
     this.initialScale = this.computeFitScale(contentW, contentH);
     const scale = this.initialScale * this.zoom;
     const offsetX = (this.canvasWidth - contentW * scale) / 2 + this.pan.x;
-    const offsetY = contentH * scale <= this.canvasHeight
-      ? (this.canvasHeight - contentH * scale) / 2 + this.pan.y
-      : 16 + this.pan.y;
+    const offsetY = this.getContentOffsetY(contentH, scale) + this.pan.y;
     return { scale, offsetX, offsetY };
   },
 
-  /** 双指间距 */
+  /** 双指间距（防御：触摸点缺失或坐标异常时返回 0，避免除零/NaN 污染缩放状态） */
   touchDist(touches) {
+    if (!touches || touches.length < 2) return 0;
     const t0 = touches[0];
     const t1 = touches[1];
+    if (!t0 || !t1 || !isFinite(t0.clientX) || !isFinite(t0.clientY) ||
+        !isFinite(t1.clientX) || !isFinite(t1.clientY)) return 0;
     return Math.sqrt(Math.pow(t0.clientX - t1.clientX, 2) + Math.pow(t0.clientY - t1.clientY, 2));
   },
 
@@ -1391,6 +1524,8 @@ Page({
   },
 
   filterGen(e) {
+    // 显示代数仅对树状图生效：直系图展示的是祖先链，不按代数裁剪
+    if (this.data.viewMode === 'vertical') return;
     const gen = e.currentTarget.dataset.gen;
     this.renderGen = gen;
     this.setData({ selectedGen: gen });
@@ -1469,9 +1604,11 @@ Page({
 
   /** 以双指中点为焦点缩放，保持焦点下的世界坐标不动 */
   applyZoomAt(nextZoom, touches) {
+    if (!isFinite(nextZoom) || nextZoom <= 0 || !touches || touches.length < 2) return;
     const { scale, offsetX, offsetY } = this.getViewTransform();
     const t0 = touches[0];
     const t1 = touches[1];
+    if (!t0 || !t1) return;
     const mx = (t0.clientX + t1.clientX) / 2;
     const my = (t0.clientY + t1.clientY) / 2;
     const worldX = (mx - offsetX) / scale;
@@ -1483,7 +1620,8 @@ Page({
     const nOffsetX = mx - worldX * ns;
     const nOffsetY = my - worldY * ns;
     this.pan.x = nOffsetX - (this.canvasWidth - contentW * ns) / 2;
-    this.pan.y = nOffsetY - (this.canvasHeight - contentH * ns) / 2;
+    // 与 getViewTransform 共用同一垂直定位公式，锚点反算不再漂移
+    this.pan.y = nOffsetY - this.getContentOffsetY(contentH, ns);
     this.requestRender();
   },
 
@@ -1526,12 +1664,24 @@ Page({
 
   onVerticalTouchMove(e) {
     const touches = e.touches;
-    if (touches.length === 2 && this.vPinchStartDist > 0) {
+    if (touches.length >= 2) {
+      // 防御：快速落指可能漏掉双指 touchstart，此处自适应初始化捏合起始状态
+      if (this.vPinchStartDist <= 0) {
+        this.vPinchStartDist = this.touchDist(touches);
+        this.vPinchStartZoom = this.vZoom;
+        this.vPan.touching = false;
+      }
       const dist = this.touchDist(touches);
-      const next = Math.max(MIN_SCALE, Math.min(MAX_SCALE, this.vPinchStartZoom * (dist / this.vPinchStartDist)));
-      if (Math.abs(next - this.vZoom) > 0.001) {
-        this.hideTooltip();
-        this.applyVerticalZoomAt(next, touches);
+      if (dist > 0 && isFinite(dist) && this.vPinchStartDist > 0) {
+        // 有效缩放（初始 × 手势）限定在 0.5~1.2，禁止缩到更小/更大
+        const next = Math.max(
+          V_SCALE_MIN / this.vInitialScale,
+          Math.min(V_SCALE_MAX / this.vInitialScale, this.vPinchStartZoom * (dist / this.vPinchStartDist))
+        );
+        if (isFinite(next) && next > 0 && Math.abs(next - this.vZoom) > 0.001) {
+          this.hideTooltip();
+          this.applyVerticalZoomAt(next, touches);
+        }
       }
       return;
     }
@@ -1555,9 +1705,11 @@ Page({
 
   /** 直系图以双指中点为焦点缩放 */
   applyVerticalZoomAt(nextZoom, touches) {
+    if (!isFinite(nextZoom) || nextZoom <= 0 || !touches || touches.length < 2) return;
     const { scale, offsetX, offsetY } = this.getVerticalTransform();
     const t0 = touches[0];
     const t1 = touches[1];
+    if (!t0 || !t1) return;
     const mx = (t0.clientX + t1.clientX) / 2;
     const my = (t0.clientY + t1.clientY) / 2;
     const worldX = (mx - offsetX) / scale;
@@ -1569,7 +1721,8 @@ Page({
     const nOffsetX = mx - worldX * ns;
     const nOffsetY = my - worldY * ns;
     this.vPan.x = nOffsetX - (this.canvasWidth - contentW * ns) / 2;
-    this.vPan.y = nOffsetY - (this.canvasHeight - contentH * ns) / 2;
+    // 与 getVerticalTransform 共用同一垂直定位公式，锚点反算不再漂移
+    this.vPan.y = nOffsetY - this.getContentOffsetY(contentH, ns);
     this.requestRender();
   },
 
@@ -1617,6 +1770,7 @@ Page({
     this.vRootId = node && node.id;
     this.vPan = { x: 0, y: 0, startX: 0, startY: 0, touching: false };
     this.vZoom = 1;
+    this._vLayoutDirty = true;
     this.calcVerticalLayout();
     this.renderVerticalTree();
   },

@@ -85,6 +85,12 @@
   color: #FFFFFF;
 }
 
+/* 直系图下显示代数不可用：灰显并阻断点击（仅树状图支持按代数裁剪） */
+.generation-filter.disabled {
+  opacity: 0.4;
+  pointer-events: none;
+}
+
 .toolbar-right {
   display: flex;
   gap: 16rpx;

@@ -411,6 +411,8 @@ export class UserService {
    * - 数据源：user.family_id 绑定的用户 + family_permission 表的角色记录
    * - 角色优先级：族长(family.creator_user_id) > 管理员(family_permission.role=admin) > 普通成员
    * - canManage：仅族长可分配/回收角色
+   * - 大族优化：列表仅返回「当前登录用户 + 族长 + 管理员」，普通成员不展示；
+   *   total 返回全量成员数，供头部统计展示
    */
   async getFamilyRoles(userId: string) {
     const user = await this.findUserById(userId);
@@ -431,13 +433,30 @@ export class UserService {
     const leaderUserId = String(family.creator_user_id || '');
     const canManage = leaderUserId === userId;
 
-    const [members, admins] = await Promise.all([
+    // 大族性能优化：列表仅返回「当前登录用户 + 族长 + 管理员」，普通成员不展示；
+    // total 仍取全量 COUNT，保证头部"共 N 位家族成员"准确
+    const [members, admins, totalRows] = await Promise.all([
       this.dataSource.query<DataRow[]>(
-        'SELECT `id`, `nickname`, `avatar_url`, `member_id` FROM `user` WHERE `family_id` = ? AND `status` = 1 ORDER BY `create_time` ASC',
-        [familyId]
+        `SELECT \`id\`, \`nickname\`, \`avatar_url\`, \`member_id\`
+         FROM \`user\`
+         WHERE \`family_id\` = ? AND \`status\` = 1
+           AND (
+             \`id\` = ?
+             OR \`id\` = ?
+             OR \`id\` IN (
+               SELECT \`user_id\` FROM \`family_permission\`
+               WHERE \`family_id\` = ? AND \`role\` = 'admin' AND \`status\` = 1
+             )
+           )
+         ORDER BY \`create_time\` ASC`,
+        [familyId, userId, leaderUserId, familyId]
       ),
       this.dataSource.query<DataRow[]>(
         'SELECT `user_id` FROM `family_permission` WHERE `family_id` = ? AND `role` = \'admin\' AND `status` = 1',
+        [familyId]
+      ),
+      this.dataSource.query<DataRow[]>(
+        'SELECT COUNT(*) AS cnt FROM `user` WHERE `family_id` = ? AND `status` = 1',
         [familyId]
       )
     ]);
@@ -460,7 +479,7 @@ export class UserService {
       leaderUserId,
       canManage,
       list,
-      total: list.length
+      total: Number((totalRows[0] && totalRows[0].cnt) || list.length)
     };
   }
 
