@@ -10,36 +10,7 @@ import {
   fetchDeleteFamily, fetchToggleFamilyPublic,
   fetchAllSurnames, fetchAllGenerationTables
 } from '@/service/api';
-import type { GenerationTableItem } from '@/service/api';
-
-interface FamilyItem {
-  id: number;
-  surname_id: number;
-  surname_name?: string;
-  generation_table_id?: string;
-  generation_table_surname?: string;
-  generation_table_founder?: string;
-  generation_sequence?: string[];
-  name: string;
-  logo: string;
-  founder: string;
-  origin: string;
-  description: string;
-  is_public: number;
-  allow_join: number;
-  member_count: number;
-  gen_count: number;
-  creator_id: number;
-  status: number;
-  create_time: string;
-  update_time: string;
-  realMemberCount?: number;
-  eventCount?: number;
-  photoCount?: number;
-  documentCount?: number;
-  dynamicCount?: number;
-  adminCount?: number;
-}
+import type { FamilyItem, GenerationTableItem } from '@/service/api';
 
 const message = useMessage();
 const dialog = useDialog();

@@ -234,6 +234,7 @@ const local: App.I18n.Schema = {
     'mini-program_gathering': '宗亲聚会',
     'mini-program_family-tree': '家族树',
     'mini-program_generation-table': '字辈管理',
+    'mini-program_member': '会员管理',
     'mini-program_content': '内容管理',
     'mini-program_surname': '姓氏管理',
     'mini-program_subscription': '订阅管理',

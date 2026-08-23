@@ -178,6 +178,7 @@ const routeMap: RouteMap = {
   "mini-program_family-tree": "/mini-program/family-tree",
   "mini-program_gathering": "/mini-program/gathering",
   "mini-program_generation-table": "/mini-program/generation-table",
+  "mini-program_member": "/mini-program/member",
   "mini-program_members": "/mini-program/members",
   "mini-program_overview": "/mini-program/overview",
   "mini-program_subscription": "/mini-program/subscription",

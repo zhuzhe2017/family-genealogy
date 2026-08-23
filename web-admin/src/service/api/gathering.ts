@@ -78,9 +78,21 @@ export interface AdminRegistrationItem {
 }
 
 /** 聚会详情 */
-export interface AdminGatheringDetail extends AdminGatheringPayload {
+export interface AdminGatheringDetail {
   id: number;
+  familyId: number;
   familyName: string;
+  title: string;
+  description: string;
+  coverImage: string;
+  location: string;
+  addressDetail: string;
+  startTime: string | null;
+  endTime: string | null;
+  signupDeadline: string | null;
+  agenda: AdminAgendaItem[];
+  capacity: number;
+  status: number;
   sessions: AdminGatheringSession[];
   createTime: string;
 }

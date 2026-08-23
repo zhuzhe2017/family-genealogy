@@ -1435,3 +1435,138 @@ DELIMITER ;
 
 CALL sp_sync_family_member_count();
 DROP PROCEDURE sp_sync_family_member_count;
+
+-- ------------------------------------------------------------
+-- 43. 会员管理模块 5 张表 + 种子数据 + 权限菜单（幂等）
+-- ------------------------------------------------------------
+
+-- 会员等级表
+CREATE TABLE IF NOT EXISTS `member_level` (
+  `id`             INT UNSIGNED  NOT NULL AUTO_INCREMENT COMMENT '等级ID',
+  `name`           VARCHAR(50)   NOT NULL COMMENT '等级名称',
+  `code`           VARCHAR(30)   NOT NULL COMMENT '等级编码',
+  `points_min`     INT UNSIGNED  NOT NULL DEFAULT 0 COMMENT '升级所需最低积分(含)',
+  `points_max`     INT UNSIGNED  NOT NULL DEFAULT 0 COMMENT '积分上限(含)，0=不限',
+  `discount_rate`  DECIMAL(5,2)  NOT NULL DEFAULT 1.00 COMMENT '消费折扣率(如 0.95 表示95折)',
+  `sort_order`     INT UNSIGNED  NOT NULL DEFAULT 0 COMMENT '排序(越小越靠前)',
+  `status`         TINYINT(1)    NOT NULL DEFAULT 1 COMMENT '状态 1-启用 0-停用',
+  `remark`         VARCHAR(200)  NOT NULL DEFAULT '' COMMENT '备注',
+  `create_time`    DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `update_time`    DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_level_code` (`code`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='会员等级表';
+
+-- 会员信息表
+CREATE TABLE IF NOT EXISTS `member` (
+  `id`              INT UNSIGNED  NOT NULL AUTO_INCREMENT COMMENT '会员ID',
+  `member_no`       VARCHAR(32)   NOT NULL COMMENT '会员编号',
+  `name`            VARCHAR(50)   NOT NULL COMMENT '会员姓名',
+  `phone`           VARCHAR(20)   DEFAULT NULL COMMENT '手机号(空则不参与唯一校验)',
+  `gender`          TINYINT(1)    NOT NULL DEFAULT 0 COMMENT '性别 0-未知 1-男 2-女',
+  `birthday`        DATE          DEFAULT NULL COMMENT '生日',
+  `level_id`        INT UNSIGNED  NOT NULL DEFAULT 0 COMMENT '会员等级ID',
+  `points`          INT           NOT NULL DEFAULT 0 COMMENT '当前积分',
+  `total_consume`   DECIMAL(12,2) NOT NULL DEFAULT 0.00 COMMENT '累计消费金额(元)',
+  `consume_count`   INT UNSIGNED  NOT NULL DEFAULT 0 COMMENT '累计消费次数',
+  `status`          TINYINT(1)    NOT NULL DEFAULT 1 COMMENT '状态 1-正常 0-停用',
+  `remark`          VARCHAR(500)  NOT NULL DEFAULT '' COMMENT '备注',
+  `create_time`     DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `update_time`     DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_member_no` (`member_no`),
+  UNIQUE KEY `uk_member_phone` (`phone`),
+  INDEX `idx_member_level` (`level_id`),
+  INDEX `idx_member_status` (`status`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='会员信息表';
+
+-- 积分规则表
+CREATE TABLE IF NOT EXISTS `points_rule` (
+  `id`                 INT UNSIGNED  NOT NULL AUTO_INCREMENT COMMENT '规则ID',
+  `name`               VARCHAR(50)   NOT NULL COMMENT '规则名称',
+  `code`               VARCHAR(30)   NOT NULL COMMENT '规则编码',
+  `points`             INT           NOT NULL DEFAULT 0 COMMENT '固定积分值(正奖励/负扣减)',
+  `points_per_amount`  DECIMAL(10,2) NOT NULL DEFAULT 0.00 COMMENT '消费积分倍率(每消费1元得积分，仅消费规则使用)',
+  `enabled`            TINYINT(1)    NOT NULL DEFAULT 1 COMMENT '是否启用 1-是 0-否',
+  `sort_order`         INT UNSIGNED  NOT NULL DEFAULT 0 COMMENT '排序',
+  `remark`             VARCHAR(200)  NOT NULL DEFAULT '' COMMENT '备注',
+  `create_time`        DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `update_time`        DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_rule_code` (`code`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='积分规则表';
+
+-- 积分变动记录表
+CREATE TABLE IF NOT EXISTS `points_record` (
+  `id`             INT UNSIGNED  NOT NULL AUTO_INCREMENT COMMENT '记录ID',
+  `member_id`      INT UNSIGNED  NOT NULL COMMENT '会员ID',
+  `change_points`  INT           NOT NULL COMMENT '变动积分(正增负减)',
+  `balance_points` INT           NOT NULL DEFAULT 0 COMMENT '变动后积分余额',
+  `biz_type`       VARCHAR(30)   NOT NULL DEFAULT '' COMMENT '业务类型 consume-消费 register-注册 signin-签到 adjust-人工调整 refund-退款退货',
+  `source_id`      VARCHAR(64)   NOT NULL DEFAULT '' COMMENT '来源业务ID(消费记录ID/订单号)',
+  `remark`         VARCHAR(500)  NOT NULL DEFAULT '' COMMENT '备注',
+  `operator`       VARCHAR(50)   NOT NULL DEFAULT '' COMMENT '操作人',
+  `create_time`    DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  PRIMARY KEY (`id`),
+  INDEX `idx_points_member` (`member_id`, `create_time`),
+  INDEX `idx_points_type` (`biz_type`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='积分变动记录表';
+
+-- 会员消费记录表
+CREATE TABLE IF NOT EXISTS `member_consume` (
+  `id`             INT UNSIGNED  NOT NULL AUTO_INCREMENT COMMENT '记录ID',
+  `order_no`       VARCHAR(64)   NOT NULL COMMENT '订单号',
+  `member_id`      INT UNSIGNED  NOT NULL COMMENT '会员ID',
+  `consume_type`   VARCHAR(30)   NOT NULL DEFAULT '' COMMENT '消费类型 goods-商品 service-服务 recharge-充值 membership-会员续费 other-其他',
+  `amount`         DECIMAL(12,2) NOT NULL COMMENT '消费金额(元)',
+  `points_gained`  INT           NOT NULL DEFAULT 0 COMMENT '本次获得积分',
+  `pay_time`       DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '消费时间',
+  `status`         TINYINT(1)    NOT NULL DEFAULT 1 COMMENT '状态 1-正常 0-已作废(退货)',
+  `operator`       VARCHAR(50)   NOT NULL DEFAULT '' COMMENT '录入人',
+  `remark`         VARCHAR(500)  NOT NULL DEFAULT '' COMMENT '备注',
+  `create_time`    DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `update_time`    DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_consume_order_no` (`order_no`),
+  INDEX `idx_consume_member` (`member_id`, `create_time`),
+  INDEX `idx_consume_type` (`consume_type`),
+  INDEX `idx_consume_pay_time` (`pay_time`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='会员消费记录表';
+
+-- 会员等级种子数据（幂等）
+INSERT IGNORE INTO `member_level` (`name`, `code`, `points_min`, `points_max`, `discount_rate`, `sort_order`, `status`, `remark`) VALUES
+('普通会员', 'normal',  0,      999,    1.00, 1, 1, '默认等级，0-999 积分'),
+('银卡会员', 'silver',  1000,   4999,   0.98, 2, 1, '1000-4999 积分，98折'),
+('金卡会员', 'gold',    5000,   19999,  0.95, 3, 1, '5000-19999 积分，95折'),
+('钻石会员', 'diamond', 20000,  0,      0.90, 4, 1, '20000 积分及以上，9折');
+
+-- 积分规则种子数据（幂等）
+INSERT IGNORE INTO `points_rule` (`name`, `code`, `points`, `points_per_amount`, `enabled`, `sort_order`, `remark`) VALUES
+('消费得积分', 'consume',  0,    1.00, 1, 1, '每消费 1 元得 1 积分'),
+('注册送积分', 'register', 100,  0.00, 1, 2, '新会员注册赠送 100 积分'),
+('签到得积分', 'signin',   5,    0.00, 1, 3, '每日签到得 5 积分'),
+('退款扣积分', 'refund',   0,    0.00, 1, 4, '退款退货时按原获得积分回扣');
+
+-- 会员管理权限码（幂等）
+INSERT IGNORE INTO `sys_permission` (`name`, `code`, `status`) VALUES
+('会员查询', 'system:member:list', 1),
+('会员新增', 'system:member:create', 1),
+('会员编辑', 'system:member:update', 1),
+('会员删除', 'system:member:delete', 1),
+('会员导出', 'system:member:export', 1);
+
+-- 将会员权限授予超级管理员角色（幂等）
+INSERT IGNORE INTO `sys_role_permission` (`role_id`, `permission_id`)
+SELECT r.`id`, p.`id` FROM `sys_role` r, `sys_permission` p
+WHERE r.`code` = 'super' AND p.`code` LIKE 'system:member:%';
+
+-- 会员管理菜单（幂等，挂在「小程序管理」目录下）
+SET @mini_program_dir := (SELECT `id` FROM `sys_menu` WHERE `route_name` = 'mini-program' LIMIT 1);
+
+INSERT IGNORE INTO `sys_menu` (`parent_id`, `name`, `type`, `path`, `component`, `route_name`, `icon`, `permission`, `sort_order`, `status`, `visible`, `keep_alive`) VALUES
+(@mini_program_dir, '会员管理', 'menu', '/mini-program/member', 'view.mini-program_member', 'mini-program_member', 'mdi:card-account-details', 'system:member:list', 7, 1, 1, 1);
+
+-- 将会员管理菜单授予超级管理员角色（幂等）
+INSERT IGNORE INTO `sys_role_menu` (`role_id`, `menu_id`)
+SELECT r.`id`, m.`id` FROM `sys_role` r, `sys_menu` m
+WHERE r.`code` = 'super' AND m.`route_name` = 'mini-program_member';

@@ -31,6 +31,7 @@ import { BannerModule } from './banner/banner.module';
 import { PluginModule } from './plugin/plugin.module';
 import { GatheringModule } from './gathering/gathering.module';
 import { FundModule } from './fund/fund.module';
+import { MemberModule } from './member/member.module';
 import { JwtAuthGuard } from './auth/guard/jwt-auth.guard';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 
@@ -74,7 +75,8 @@ import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
     BannerModule,
     PluginModule,
     GatheringModule,
-    FundModule
+    FundModule,
+    MemberModule
   ],
   controllers: [AppController],
   providers: [

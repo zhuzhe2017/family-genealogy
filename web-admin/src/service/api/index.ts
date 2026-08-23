@@ -18,3 +18,4 @@ export * from './banner';
 export * from './plugin';
 export * from './invitation';
 export * from './gathering';
+export * from './member';

@@ -238,6 +238,7 @@ const local: App.I18n.Schema = {
     'mini-program_gathering': 'Gathering Management',
     'mini-program_family-tree': 'Family Tree',
     'mini-program_generation-table': 'Generation Table',
+    'mini-program_member': 'Member Management',
     'mini-program_content': 'Content Management',
     'mini-program_surname': 'Surname Management',
     'mini-program_subscription': 'Subscription Management',

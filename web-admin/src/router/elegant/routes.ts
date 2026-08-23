@@ -159,6 +159,15 @@ export const generatedRoutes: GeneratedRoute[] = [
         }
       },
       {
+        name: 'mini-program_member',
+        path: '/mini-program/member',
+        component: 'view.mini-program_member',
+        meta: {
+          title: 'mini-program_member',
+          i18nKey: 'route.mini-program_member'
+        }
+      },
+      {
         name: 'mini-program_members',
         path: '/mini-program/members',
         component: 'view.mini-program_members',

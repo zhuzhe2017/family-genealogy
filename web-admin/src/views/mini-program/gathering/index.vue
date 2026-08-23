@@ -51,6 +51,7 @@ import {
 } from '@/service/api';
 import type {
   AdminGatheringItem,
+  AdminGatheringDetail,
   AdminGatheringPayload,
   AdminGatheringSession,
   AdminAgendaItem,
@@ -58,6 +59,32 @@ import type {
   AdminGatheringStats,
   AdminArchiveItem
 } from '@/service/api';
+
+/** 表单场次行：时间在表单内以 timestamp 存储，提交前转回字符串 */
+interface FormSession {
+  id?: number;
+  name: string;
+  startTime: number | null;
+  endTime: number | null;
+  capacity: number;
+}
+
+/** 聚会表单（相对 AdminGatheringPayload，将可选字符串字段收敛为必填 string） */
+interface GatheringForm {
+  familyId: number;
+  title: string;
+  description: string;
+  coverImage: string;
+  location: string;
+  addressDetail: string;
+  startTime: string | null;
+  endTime: string | null;
+  signupDeadline: string | null;
+  agenda: AdminAgendaItem[];
+  capacity: number;
+  status: number;
+  sessions: FormSession[];
+}
 
 const message = useMessage();
 const dialog = useDialog();
@@ -162,7 +189,7 @@ async function loadList() {
 const showModal = ref(false);
 const saving = ref(false);
 const editingId = ref<number | null>(null);
-const form = reactive<AdminGatheringPayload>({
+const form = reactive<GatheringForm>({
   familyId: 0,
   title: '',
   description: '',
@@ -212,6 +239,7 @@ function openEdit(row: AdminGatheringItem) {
   showModal.value = true;
   fetchAdminGatheringDetail(row.id)
     .then(({ data: d }) => {
+      if (!d) return;
       Object.assign(form, {
         familyId: d.familyId,
         title: d.title,
@@ -222,10 +250,10 @@ function openEdit(row: AdminGatheringItem) {
         startTime: d.startTime || null,
         endTime: d.endTime || null,
         signupDeadline: d.signupDeadline || null,
-        agenda: (d.agenda || []).map((a: any) => ({ time: a.time || '', item: a.item || '', remark: a.remark || '' })),
+        agenda: (d.agenda || []).map((a: AdminAgendaItem) => ({ time: a.time || '', item: a.item || '', remark: a.remark || '' })),
         capacity: d.capacity || 0,
         status: d.status ?? 0,
-        sessions: (d.sessions || []).map((s: any) => ({
+        sessions: (d.sessions || []).map((s: AdminGatheringSession) => ({
           id: s.id,
           name: s.name || '',
           startTime: toTs(s.startTime),
@@ -256,10 +284,10 @@ function formatTs(ts: number) {
 
 // 场次 / 议程动态行
 function addSession() {
-  (form.sessions as AdminGatheringSession[]).push({ name: '', startTime: null, endTime: null, capacity: 0 });
+  form.sessions.push({ name: '', startTime: null, endTime: null, capacity: 0 });
 }
 function removeSession(i: number) {
-  (form.sessions as AdminGatheringSession[]).splice(i, 1);
+  form.sessions.splice(i, 1);
 }
 function addAgenda() {
   (form.agenda as AdminAgendaItem[]).push({ time: '', item: '', remark: '' });
@@ -282,11 +310,11 @@ async function handleSave() {
     // 场次时间在表单内为 timestamp，提交前转回字符串
     const payload: AdminGatheringPayload = {
       ...form,
-      sessions: (form.sessions as AdminGatheringSession[]).map((s) => ({
+      sessions: form.sessions.map((s) => ({
         id: s.id,
         name: s.name,
-        startTime: s.startTime ? formatTs(Number(s.startTime)) : null,
-        endTime: s.endTime ? formatTs(Number(s.endTime)) : null,
+        startTime: s.startTime ? formatTs(s.startTime) : null,
+        endTime: s.endTime ? formatTs(s.endTime) : null,
         capacity: s.capacity || 0
       }))
     };
@@ -600,7 +628,7 @@ onMounted(() => {
     </NModal>
 
     <!-- 详情抽屉 -->
-    <NDrawer v-model:show="showDetail" :width="min(92, 720)" :height="'100%'" placement="right">
+    <NDrawer v-model:show="showDetail" :width="'min(92vw, 720px)'" :height="'100%'" placement="right">
       <NDrawerContent title="聚会详情" closable>
         <NSpin :show="detailLoading">
           <div v-if="detail">
