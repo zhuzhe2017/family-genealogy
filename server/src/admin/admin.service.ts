@@ -7,7 +7,8 @@ import {
   type AdminRow,
   type AdminFamilyRow,
   type AdminCreateData,
-  type AdminUpdateData
+  type AdminUpdateData,
+  type AdminProfileUpdateData
 } from './types/admin.types';
 import { type QueryValues, type DataRow } from '../common/types/common';
 import { getSafeMemberTableName } from '../common/utils/family-member-table';
@@ -225,6 +226,53 @@ export class AdminService {
     }
 
     values.push(id);
+    await this.dataSource.query(
+      `UPDATE \`sys_admin\` SET ${fields.join(', ')} WHERE \`id\` = ?`,
+      values
+    );
+
+    return { success: true };
+  }
+
+  /** 更新当前管理员个人资料（昵称/手机号/邮箱/头像） */
+  async updateProfile(adminId: number, data: AdminProfileUpdateData) {
+    const fields: string[] = [];
+    const values: QueryValues = [];
+
+    if (data.nickname !== undefined) {
+      const nickname = String(data.nickname || '').trim();
+      if (nickname.length > 50) {
+        throw new HttpException('昵称长度不能超过 50 个字符', HttpStatus.BAD_REQUEST);
+      }
+      fields.push('`nickname` = ?');
+      values.push(nickname);
+    }
+    if (data.phone !== undefined) {
+      const phone = String(data.phone || '').trim();
+      if (phone && !/^1[3-9]\d{9}$/.test(phone)) {
+        throw new HttpException('手机号格式不正确', HttpStatus.BAD_REQUEST);
+      }
+      fields.push('`phone` = ?');
+      values.push(phone);
+    }
+    if (data.email !== undefined) {
+      const email = String(data.email || '').trim();
+      if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        throw new HttpException('邮箱格式不正确', HttpStatus.BAD_REQUEST);
+      }
+      fields.push('`email` = ?');
+      values.push(email);
+    }
+    if (data.avatarUrl !== undefined) {
+      fields.push('`avatar_url` = ?');
+      values.push(String(data.avatarUrl || ''));
+    }
+
+    if (fields.length === 0) {
+      throw new HttpException('没有需要更新的字段', HttpStatus.BAD_REQUEST);
+    }
+
+    values.push(adminId);
     await this.dataSource.query(
       `UPDATE \`sys_admin\` SET ${fields.join(', ')} WHERE \`id\` = ?`,
       values

@@ -54,6 +54,14 @@ export interface AdminUpdateData {
   status?: number;
 }
 
+/** 个人资料更新数据（仅当前登录管理员本人可修改） */
+export interface AdminProfileUpdateData {
+  nickname?: string;
+  phone?: string;
+  email?: string;
+  avatarUrl?: string;
+}
+
 /** 管理员信息响应 */
 export interface AdminProfileResult {
   userId: string;

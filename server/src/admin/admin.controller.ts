@@ -9,7 +9,7 @@ import { Roles } from '../common/decorators/roles.decorator';
 import { Public } from '../common/decorators/public.decorator';
 import { LoginDto, RefreshTokenDto } from './dto/login.dto';
 import { type AuthenticatedRequest } from '../common/types/common';
-import { type AdminCreateData, type AdminUpdateData } from './types/admin.types';
+import { type AdminCreateData, type AdminUpdateData, type AdminProfileUpdateData } from './types/admin.types';
 
 @Controller('auth')
 export class AdminController {
@@ -31,6 +31,20 @@ export class AdminController {
   @Get('getUserInfo')
   async getUserInfo(@Req() req: AuthenticatedRequest) {
     return this.adminService.getProfile(req.user.id as number);
+  }
+
+  /** 更新当前管理员个人资料（昵称/手机号/邮箱/头像，仅限本人） */
+  @UseGuards(JwtAuthGuard)
+  @Put('profile')
+  async updateProfile(@Req() req: AuthenticatedRequest, @Body() body: AdminProfileUpdateData) {
+    return this.adminService.updateProfile(req.user.id as number, body);
+  }
+
+  /** 修改当前管理员登录密码（任意已登录管理员可修改本人密码） */
+  @UseGuards(JwtAuthGuard)
+  @Post('password')
+  async changePassword(@Req() req: AuthenticatedRequest, @Body() body: { oldPassword: string; newPassword: string }) {
+    return this.adminService.updatePassword(req.user.id as number, body.oldPassword, body.newPassword);
   }
 
   /** 刷新 token:校验 refreshToken 有效后签发新令牌对(限流 20 次/分钟/IP) */

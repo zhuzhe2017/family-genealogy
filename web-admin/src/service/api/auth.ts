@@ -25,6 +25,16 @@ export function fetchGetUserInfo() {
   return request<Api.Auth.UserInfo>({ url: '/auth/getUserInfo' });
 }
 
+/** 更新当前管理员个人资料（昵称/手机号/邮箱/头像） */
+export function fetchUpdateProfile(data: { nickname?: string; phone?: string; email?: string; avatarUrl?: string }) {
+  return request<{ success: boolean }>({ url: '/auth/profile', method: 'put', data });
+}
+
+/** 修改当前管理员登录密码 */
+export function fetchChangePassword(data: { oldPassword: string; newPassword: string }) {
+  return request<{ success: boolean }>({ url: '/auth/password', method: 'post', data });
+}
+
 /**
  * Refresh token
  *
