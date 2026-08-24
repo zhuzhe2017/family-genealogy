@@ -313,37 +313,65 @@
   border-radius: 7px;
 }
 
-/* 折叠/展开指示器（右侧垂直居中；展开态圆形减号，折叠态 +N 药丸） */
+/* 折叠/展开指示器（右侧垂直居中；视觉圆 22px，点击热区 44×44 提升可点性，符合微信最小点击规范） */
 .collapse-toggle {
   position: absolute;
-  right: -10px;
+  right: -10px;             /* 热区右缘超出卡片 10px，中心对齐原 Canvas 折叠位（右缘内 12px） */
   top: 50%;
-  margin-top: -9px;
-  width: 18px;
-  height: 18px;
+  margin-top: -22px;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  box-sizing: border-box;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* 视觉圆（伪元素承载，热区本身透明以容纳更大命中区域，视觉与整体卡片风格一致） */
+.collapse-toggle::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 22px;
+  height: 22px;
   border-radius: 50%;
   background: #F5EFE6;
   border: 1px solid #C08A55;
-  color: #8B1A1A;
-  font-size: 12px;
-  font-weight: bold;
-  line-height: 18px;
-  text-align: center;
   box-sizing: border-box;
-  z-index: 3;
 }
 
-.collapse-toggle.collapsed {
+.collapse-toggle text {
+  position: relative;
+  z-index: 1;
+  font-size: 16px;
+  font-weight: bold;
+  color: #8B1A1A;
+  line-height: 1;
+}
+
+/* 按下反馈：视觉圆加深（hover-class="collapse-press"，配合 hover-stop-propagation） */
+.collapse-press::before {
+  background: #EAD9BF;
+  border-color: #8B1A1A;
+}
+
+/* 折叠态：+N 药丸（视觉居中，点击热区保持 44×44 不变） */
+.collapse-toggle.collapsed::before {
   width: auto;
-  min-width: 18px;
-  height: 14px;
-  margin-top: -7px;
-  padding: 0 5px;
-  border-radius: 7px;
+  min-width: 26px;
+  height: 16px;
+  padding: 0 7px;
+  border-radius: 8px;
   background: rgba(139, 26, 26, 0.1);
   border: none;
-  font-size: 9px;
-  line-height: 14px;
+}
+
+.collapse-toggle.collapsed text {
+  font-size: 10px;
 }
 
 /* ==========================================================================

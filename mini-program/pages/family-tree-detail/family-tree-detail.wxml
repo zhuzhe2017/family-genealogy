@@ -83,7 +83,9 @@
             <view class="tree-node-tag" wx:if="{{item.generationName}}">{{item.generationName}}字辈</view>
           </view>
           <view class="tree-node-gen">{{item.generation}}代</view>
-          <view wx:if="{{item.canCollapse}}" class="collapse-toggle" data-id="{{item.id}}" catchtap="onCollapseTap">
+          <view wx:if="{{item.canCollapse}}" class="collapse-toggle {{item.collapsed ? 'collapsed' : ''}}"
+            hover-class="collapse-press" hover-stop-propagation
+            data-id="{{item.id}}" catchtap="onCollapseTap">
             <text wx:if="{{!item.collapsed}}">−</text>
             <text wx:else>+{{item.descendantCount}}</text>
           </view>

@@ -1779,6 +1779,9 @@ Page({
     const node = this.nodeMap[id];
     if (!node) return;
     this.highlightId = id;
+    // 高亮随节点数据渲染，标记脏以便重建 DOM 节点（含 highlight 类）
+    this._domDirty = true;
+    this._vDomDirty = true;
     if (this.data.viewMode === 'vertical') {
       this.setVerticalRoot(node);
       return;
