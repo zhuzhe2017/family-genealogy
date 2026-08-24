@@ -219,7 +219,8 @@
     <view class="picker-search" wx:if="{{parentPickerType === 'father'}}">
       <input class="picker-search-input" placeholder="输入姓名或母亲姓名搜索" value="{{parentKeyword}}" bindinput="parentKeywordInput"/>
     </view>
-    <scroll-view scroll-y class="picker-list">
+    <view class="picker-tip" wx:if="{{parentDuplicateTip}}">{{parentDuplicateTip}}</view>
+    <scroll-view scroll-y class="picker-list" bindscrolltolower="onParentScrollLower" lower-threshold="80">
       <view class="picker-item" wx:for="{{parentCandidates}}" wx:key="index" bindtap="pickParent" data-index="{{index}}">
         <view class="picker-item-main">
           <text class="item-name">{{item.name}}</text>
@@ -227,7 +228,9 @@
         </view>
         <text class="item-extra" wx:if="{{item.extra}}">{{item.extra}}</text>
       </view>
-      <view class="picker-empty" wx:if="{{!parentCandidates.length}}">
+      <view class="picker-more" wx:if="{{parentLoading}}">加载中…</view>
+      <view class="picker-more" wx:if="{{!parentLoading && !parentHasMore && parentCandidates.length}}">已加载全部</view>
+      <view class="picker-empty" wx:if="{{!parentCandidates.length && !parentLoading}}">
         <text>{{parentPickerType === 'father' ? '未找到候选父亲，请检查代数或输入关键字搜索' : '该父亲暂无配偶记录，可在下方手动填写配偶信息'}}</text>
       </view>
     </scroll-view>

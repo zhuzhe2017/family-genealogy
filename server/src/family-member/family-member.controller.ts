@@ -59,12 +59,13 @@ export class FamilyMemberController {
   async getFatherCandidates(
     @Param('familyId', ParseIntPipe) familyId: number,
     @Query('generation') generation?: string,
-    @Query('keyword') keyword?: string
+    @Query('keyword') keyword?: string,
+    @Query('page') page?: string
   ) {
     if (generation === undefined || generation === '') {
       throw new HttpException('缺少 generation 参数', HttpStatus.BAD_REQUEST);
     }
-    return this.familyMemberService.getFatherCandidates(familyId, Number(generation), keyword || '');
+    return this.familyMemberService.getFatherCandidates(familyId, Number(generation), keyword || '', page ? Number(page) : 1);
   }
 
   @Permissions('system:family-member:list')

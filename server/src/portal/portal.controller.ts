@@ -10,6 +10,7 @@ import { type ContentType } from '../content/content.service';
 import { type FamilyCreateData } from '../family/types/family.types';
 import { type FamilyMemberCreateData, type FamilyMemberUpdateData } from '../family-member/types/family-member.types';
 import { type ContentCreateData } from '../content/types/content.types';
+import { type CategoryType } from './portal.service';
 
 /**
  * 小程序用户端接口（一期）
@@ -224,6 +225,67 @@ export class PortalController {
     @Req() req: AuthenticatedRequest
   ) {
     return this.portalService.createComment(id, String(req.user.id), req.user.nickname || '', body.content || '');
+  }
+
+  // ---------- 内容分类（相册/文档） ----------
+
+  /** 分类列表（首次访问自动初始化默认分类；含各分类文件计数） */
+  @Get('category/:type/list')
+  getCategoryList(
+    @Param('type') type: string,
+    @Query('familyId') familyId?: string,
+    @Req() req?: AuthenticatedRequest
+  ) {
+    return this.portalService.getCategoryList(type as CategoryType, Number(familyId) || 0);
+  }
+
+  /** 创建分类（仅家族创建者/管理员；data: { familyId, name, icon? }） */
+  @Post('category/:type/create')
+  createCategory(
+    @Param('type') type: string,
+    @Body() body: { familyId?: number; name?: string; icon?: string },
+    @Req() req: AuthenticatedRequest
+  ) {
+    return this.portalService.createCategory(
+      type as CategoryType,
+      Number(body.familyId) || 0,
+      body.name || '',
+      body.icon || '',
+      String(req.user.id)
+    );
+  }
+
+  /** 更新分类（仅家族创建者/管理员；data: { familyId, name?, icon?, sortOrder? }） */
+  @Put('category/:type/:id')
+  updateCategory(
+    @Param('type') type: string,
+    @Param('id') id: string,
+    @Body() body: { familyId?: number; name?: string; icon?: string; sortOrder?: number },
+    @Req() req: AuthenticatedRequest
+  ) {
+    return this.portalService.updateCategory(
+      type as CategoryType,
+      id,
+      Number(body.familyId) || 0,
+      { name: body.name, icon: body.icon, sortOrder: body.sortOrder },
+      String(req.user.id)
+    );
+  }
+
+  /** 删除分类（仅家族创建者/管理员；分类下有文件时拒绝） */
+  @Delete('category/:type/:id')
+  deleteCategory(
+    @Param('type') type: string,
+    @Param('id') id: string,
+    @Query('familyId') familyId?: string,
+    @Req() req?: AuthenticatedRequest
+  ) {
+    return this.portalService.deleteCategory(
+      type as CategoryType,
+      id,
+      Number(familyId) || 0,
+      String(req?.user?.id || '')
+    );
   }
 
   // ---------- 数据备份 ----------

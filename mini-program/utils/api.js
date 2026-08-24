@@ -140,6 +140,26 @@ const content = {
   }
 };
 
+/** 内容分类相关接口(album-相册分类 document-文档分类;type 二选一) */
+const category = {
+  /** 分类列表(首次访问自动初始化默认分类,含各分类文件计数) */
+  getList: function (type, familyId) {
+    return request({ url: '/user/category/' + type + '/list', data: { familyId: familyId } });
+  },
+  /** 创建分类(仅家族创建者/管理员;data: { familyId, name, icon? }) */
+  create: function (type, data) {
+    return request({ url: '/user/category/' + type + '/create', method: 'POST', data: data || {} });
+  },
+  /** 更新分类(仅家族创建者/管理员;data: { familyId, name?, icon?, sortOrder? }) */
+  update: function (type, id, data) {
+    return request({ url: '/user/category/' + type + '/' + id, method: 'PUT', data: data || {} });
+  },
+  /** 删除分类(仅家族创建者/管理员;分类下有文件时拒绝) */
+  remove: function (type, familyId, id) {
+    return request({ url: '/user/category/' + type + '/' + id + '?familyId=' + familyId, method: 'DELETE' });
+  }
+};
+
 /** 订阅/会员相关接口 */
 const subscription = {
   /** 当前家族订阅状态（套餐+存储用量+按次额度消耗），会员中心展示用 */
@@ -420,4 +440,4 @@ const fund = {
   }
 };
 
-module.exports = { auth, family, familyMember, content, subscription, member, backup, worship, invitation, banner, plugin, gathering, fund };
+module.exports = { auth, family, familyMember, content, category, subscription, member, backup, worship, invitation, banner, plugin, gathering, fund };

@@ -31,7 +31,10 @@ Page({
     showParentPicker: false,
     parentPickerType: 'father',
     parentKeyword: '',
-    parentCandidates: []
+    parentCandidates: [],
+    parentDuplicateTip: '',
+    parentHasMore: false,
+    parentLoading: false
   },
 
   onLoad(options) {
@@ -239,8 +242,11 @@ Page({
         wx.showToast({ title: '第1代成员不能选择父亲', icon: 'none' });
         return;
       }
-      this.setData({ showParentPicker: true, parentPickerType: 'father', parentKeyword: '', parentCandidates: [] });
-      this.loadFatherCandidates('');
+      // 重置分页状态后加载第一页
+      this._parentPage = 0;
+      this._parentLoaded = 0;
+      this.setData({ showParentPicker: true, parentPickerType: 'father', parentKeyword: '', parentCandidates: [], parentDuplicateTip: '', parentHasMore: false });
+      this.loadFatherCandidates('', false);
     } else {
       const fatherId = this.data.form.fatherId;
       if (!fatherId) {
@@ -253,7 +259,7 @@ Page({
   },
 
   closeParentPicker() {
-    this.setData({ showParentPicker: false, parentCandidates: [] });
+    this.setData({ showParentPicker: false, parentCandidates: [], parentDuplicateTip: '', parentHasMore: false, parentLoading: false });
   },
 
   /** 父亲候选关键字搜索（防抖） */
@@ -266,24 +272,59 @@ Page({
     }, 300);
   },
 
-  /** 加载父亲候选（上一代男性成员，空关键字返回全部） */
-  loadFatherCandidates(keyword) {
+  /** 加载父亲候选（分页；空关键字返回全部；携带出生地（居住地）+配偶供同名区分） */
+  loadFatherCandidates(keyword, append) {
     const familyId = (app.globalData.currentFamily || {}).id;
     const gen = Number(this.data.form.generation) || 1;
-    if (!familyId || gen < 2) return;
-    familyMember.getFatherCandidates(familyId, { generation: gen, keyword: keyword || '' })
-      .then((list) => {
-        const candidates = (list || []).map(r => ({
-          id: r.id,
-          name: r.name,
-          sub: (r.generation_name ? r.generation_name + '字辈 · ' : '') + r.generation + '代',
-          extra: r.spouse_names ? '配偶：' + r.spouse_names : ''
-        }));
-        this.setData({ parentCandidates: candidates });
+    if (!familyId || gen < 2 || this.data.parentLoading) return;
+    const page = append ? (this._parentPage || 1) + 1 : 1;
+    this._parentPage = page;
+    this.setData({ parentLoading: true });
+    familyMember.getFatherCandidates(familyId, { generation: gen, keyword: keyword || '', page: page })
+      .then((res) => {
+        const items = (res && res.list) || [];
+        const total = Number((res && res.total) || 0);
+        this._parentLoaded = append ? (this._parentLoaded || 0) + items.length : items.length;
+        const candidates = items.map(r => {
+          const subParts = [];
+          if (r.generation_name) subParts.push(r.generation_name + '字辈');
+          subParts.push(r.generation + '代');
+          const extraParts = [];
+          if (r.birth_place) extraParts.push('出生地（居住地）：' + r.birth_place);
+          if (r.spouse_names) extraParts.push('配偶：' + r.spouse_names);
+          return {
+            id: r.id,
+            name: r.name,
+            sub: subParts.join(' · '),
+            extra: extraParts.join(' ｜ ')
+          };
+        });
+        const merged = append ? this.data.parentCandidates.concat(candidates) : candidates;
+        // 同名提醒：出现同名候选时提示用户核对出生地/配偶信息
+        const nameCount = {};
+        merged.forEach(c => {
+          nameCount[c.name] = (nameCount[c.name] || 0) + 1;
+        });
+        const hasDuplicate = Object.keys(nameCount).some(n => nameCount[n] > 1);
+        this.setData({
+          parentCandidates: merged,
+          parentHasMore: this._parentLoaded < total,
+          parentDuplicateTip: hasDuplicate ? '存在同名成员，请核对出生地/配偶信息后选择' : ''
+        });
       })
       .catch((err) => {
         wx.showToast({ title: (err && err.message) || '加载候选失败', icon: 'none' });
+      })
+      .finally(() => {
+        this.setData({ parentLoading: false });
       });
+  },
+
+  /** 候选列表上拉触底：加载更多（首页未满时无更多，自动跳过） */
+  onParentScrollLower() {
+    if (this.data.parentHasMore && !this.data.parentLoading) {
+      this.loadFatherCandidates(this.data.parentKeyword, true);
+    }
   },
 
   /** 加载候选母亲（所选父亲的配偶列表，motherId 存配偶 rank 序号） */

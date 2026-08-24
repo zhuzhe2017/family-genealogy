@@ -16,7 +16,8 @@ const PAGE_PADDING = 12;      // 瀑布流容器左右内边距(px)
 // 图片高宽比缓存:url -> ratio(高/宽),跨页面/会话复用,减少 getImageInfo 调用
 const ratioCache = new Map();
 
-// 照片分类字典(与后端 category_id 约定一致;后端无分类表,category_id 存约定的 id 值)
+// 照片分类兜底字典(与后端默认分类约定一致;优先使用后端动态分类 loadCategories,
+// 仅在后端加载失败/mock 环境回退到此字典,保证离线可用)
 const PHOTO_CATEGORIES = [
   { id: 'ancestor', name: '先祖', icon: '👴' },
   { id: 'family', name: '全家福', icon: '👨‍👩‍👧‍👦' },
@@ -102,7 +103,8 @@ Page({
       };
       wx.onWindowResize(this._resizeHandler);
     }
-    this.fetchAndRender(true);
+    // 先加载分类(懒初始化),再拉取照片,保证分类列表可用
+    this.loadCategories().finally(() => this.fetchAndRender(true));
   },
 
   onUnload() {
@@ -347,13 +349,13 @@ Page({
       success: (res) => {
         const files = (res.tempFiles || []).map(f => f.tempFilePath);
         if (!files.length) return;
-        // 先选照片分类,保证分类切换有真实数据可切
-        const itemList = PHOTO_CATEGORIES.map(c => c.name).concat(['未分类']);
+        // 先选照片分类,保证分类切换有真实数据可切(分类池:动态分类优先,兜底字典次之)
+        const pool = (this._categories && this._categories.length) ? this._categories : PHOTO_CATEGORIES;
+        const itemList = pool.map(c => c.name).concat(['未分类']);
         wx.showActionSheet({
           itemList,
           success: (pick) => {
-            const idx = pick.tapIndex;
-            const categoryId = idx < PHOTO_CATEGORIES.length ? PHOTO_CATEGORIES[idx].id : '';
+            const categoryId = pick.tapIndex < pool.length ? pool[pick.tapIndex].id : '';
             this.uploadPhotos(files, categoryId);
           }
         });

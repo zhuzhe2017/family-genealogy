@@ -2,6 +2,7 @@ import { Injectable, HttpException, HttpStatus } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { existsSync, mkdirSync, writeFileSync } from 'fs';
 import { join } from 'path';
+import { randomBytes } from 'crypto';
 import { FamilyService } from '../family/family.service';
 import { FamilyMemberService } from '../family-member/family-member.service';
 import { ContentService } from '../content/content.service';
@@ -41,6 +42,36 @@ const BACKUP_SUB_TABLES = [
 ] as const;
 
 const CONTENT_TYPES: ContentType[] = ['dynamic', 'photo', 'document', 'event'];
+
+/** 分类类型：album-相册分类 document-文档分类 */
+export type CategoryType = 'album' | 'document';
+
+/**
+ * 分类默认模板（id 与既有前端约定值一致，保证存量 family_photo/family_document.category_id 兼容）。
+ * 懒初始化：家族首次请求分类时自动写入，实现"开箱即用 + 可自定义"。
+ */
+const CATEGORY_SEEDS: Record<CategoryType, { id: string; name: string; icon: string }[]> = {
+  album: [
+    { id: 'ancestor', name: '先祖', icon: '👴' },
+    { id: 'family', name: '全家福', icon: '👨‍👩‍👧‍👦' },
+    { id: 'events', name: '活动', icon: '🎉' },
+    { id: 'buildings', name: '建筑', icon: '🏛️' },
+    { id: 'documents', name: '文档', icon: '📄' }
+  ],
+  document: [
+    { id: 'genealogy', name: '族谱', icon: '' },
+    { id: 'history', name: '家族史', icon: '' },
+    { id: 'rules', name: '家规家训', icon: '' },
+    { id: 'culture', name: '文化资料', icon: '' },
+    { id: 'other', name: '其他', icon: '' }
+  ]
+};
+
+/** 分类类型 → 分类表 / 归类文件表 */
+const CATEGORY_META: Record<CategoryType, { table: string; itemTable: string; itemKey: string }> = {
+  album: { table: 'family_album_category', itemTable: 'family_photo', itemKey: 'category_id' },
+  document: { table: 'family_document_category', itemTable: 'family_document', itemKey: 'category_id' }
+};
 
 /**
  * 小程序用户端服务（一期：只读 + 基础提交）
@@ -265,6 +296,164 @@ export class PortalService {
     }
   }
 
+  // ---------- 内容分类（相册/文档） ----------
+
+  /**
+   * 分类列表：懒初始化默认分类种子，返回分类 + 各自文件计数。
+   * 分类仅存元数据（category_id），不参与物理存储路径，移动/改名不影响文件 URL。
+   */
+  async getCategoryList(type: CategoryType, familyId: number) {
+    await this.assertFamilyMemberByUserId(familyId);
+    const meta = this.categoryMeta(type);
+    await this.ensureCategorySeeds(type, familyId);
+    const rows = await this.dataSource.query<CategoryRow[]>(
+      `SELECT c.\`id\`, c.\`name\`, c.\`icon\`, c.\`sort_order\`,
+        (SELECT COUNT(*) FROM \`${meta.itemTable}\` f
+          WHERE f.\`${meta.itemKey}\` = c.\`id\` AND f.\`family_id\` = c.\`family_id\` AND f.\`status\` = 1) AS \`count\`
+       FROM \`${meta.table}\` c
+       WHERE c.\`family_id\` = ?
+       ORDER BY c.\`sort_order\` ASC, c.\`create_time\` ASC`,
+      [familyId]
+    );
+    return rows.map((r) => ({
+      id: r.id,
+      name: r.name,
+      icon: r.icon || '',
+      sortOrder: Number(r.sort_order) || 0,
+      count: Number(r.count) || 0
+    }));
+  }
+
+  /** 创建分类（仅家族创建者/管理员） */
+  async createCategory(type: CategoryType, familyId: number, name: string, icon: string, userId: string) {
+    await this.assertCategoryAdmin(familyId, userId);
+    const trimmed = (name || '').trim();
+    if (!trimmed) {
+      throw new HttpException('分类名称不能为空', HttpStatus.BAD_REQUEST);
+    }
+    if (trimmed.length > 50) {
+      throw new HttpException('分类名称不能超过 50 字', HttpStatus.BAD_REQUEST);
+    }
+    const meta = this.categoryMeta(type);
+    const id = randomBytes(16).toString('hex');
+    const maxSort = await this.dataSource.query<{ max: number | null }[]>(
+      `SELECT MAX(\`sort_order\`) AS \`max\` FROM \`${meta.table}\` WHERE \`family_id\` = ?`,
+      [familyId]
+    );
+    await this.dataSource.query(
+      `INSERT INTO \`${meta.table}\` (\`id\`, \`family_id\`, \`name\`, \`icon\`, \`sort_order\`)
+       VALUES (?, ?, ?, ?, ?)`,
+      [id, familyId, trimmed, icon || '', (maxSort[0]?.max ?? 0) + 1]
+    );
+    return { id };
+  }
+
+  /** 更新分类（仅家族创建者/管理员） */
+  async updateCategory(type: CategoryType, categoryId: string, familyId: number, data: { name?: string; icon?: string; sortOrder?: number }, userId: string) {
+    await this.assertCategoryAdmin(familyId, userId);
+    const meta = this.categoryMeta(type);
+    const [row] = await this.dataSource.query<CategoryRow[]>(
+      `SELECT \`id\` FROM \`${meta.table}\` WHERE \`id\` = ? AND \`family_id\` = ?`,
+      [categoryId, familyId]
+    );
+    if (!row) {
+      throw new HttpException('分类不存在', HttpStatus.NOT_FOUND);
+    }
+    const sets: string[] = [];
+    const values: unknown[] = [];
+    if (data.name !== undefined) {
+      const name = String(data.name).trim();
+      if (!name) {
+        throw new HttpException('分类名称不能为空', HttpStatus.BAD_REQUEST);
+      }
+      if (name.length > 50) {
+        throw new HttpException('分类名称不能超过 50 字', HttpStatus.BAD_REQUEST);
+      }
+      sets.push('`name` = ?');
+      values.push(name);
+    }
+    if (data.icon !== undefined) {
+      sets.push('`icon` = ?');
+      values.push(String(data.icon).slice(0, 20));
+    }
+    if (data.sortOrder !== undefined) {
+      sets.push('`sort_order` = ?');
+      values.push(Math.max(0, Math.floor(Number(data.sortOrder) || 0)));
+    }
+    if (!sets.length) {
+      return { id: categoryId };
+    }
+    values.push(categoryId, familyId);
+    await this.dataSource.query(
+      `UPDATE \`${meta.table}\` SET ${sets.join(', ')} WHERE \`id\` = ? AND \`family_id\` = ?`,
+      values
+    );
+    return { id: categoryId };
+  }
+
+  /** 删除分类（仅家族创建者/管理员；分类下仍有文件时拒绝，防脏引用） */
+  async deleteCategory(type: CategoryType, categoryId: string, familyId: number, userId: string) {
+    await this.assertCategoryAdmin(familyId, userId);
+    const meta = this.categoryMeta(type);
+    const [row] = await this.dataSource.query<CategoryRow[]>(
+      `SELECT \`id\` FROM \`${meta.table}\` WHERE \`id\` = ? AND \`family_id\` = ?`,
+      [categoryId, familyId]
+    );
+    if (!row) {
+      throw new HttpException('分类不存在', HttpStatus.NOT_FOUND);
+    }
+    const [used] = await this.dataSource.query<{ cnt: number }[]>(
+      `SELECT COUNT(*) AS \`cnt\` FROM \`${meta.itemTable}\`
+       WHERE \`${meta.itemKey}\` = ? AND \`family_id\` = ? AND \`status\` = 1`,
+      [categoryId, familyId]
+    );
+    if (Number(used?.cnt || 0) > 0) {
+      throw new HttpException('该分类下仍有文件，请先移动或删除后再移除分类', HttpStatus.CONFLICT);
+    }
+    await this.dataSource.query(
+      `DELETE FROM \`${meta.table}\` WHERE \`id\` = ? AND \`family_id\` = ?`,
+      [categoryId, familyId]
+    );
+    return { id: categoryId };
+  }
+
+  /** 分类写权限：家族创建者 或 family_permission role=admin */
+  private async assertCategoryAdmin(familyId: number, userId: string): Promise<void> {
+    const creatorId = await this.familyService.getCreatorUserId(familyId);
+    if (String(creatorId || '') === String(userId)) return;
+    const [perm] = await this.dataSource.query<{ id: number }[]>(
+      'SELECT `id` FROM `family_permission` WHERE `family_id` = ? AND `user_id` = ? AND `role` = \'admin\' AND `status` = 1',
+      [familyId, userId]
+    );
+    if (perm) return;
+    throw new HttpException('仅家族创建者或管理员可管理分类', HttpStatus.FORBIDDEN);
+  }
+
+  /** 懒初始化：家族无任何分类时写入默认模板（幂等，INSERT IGNORE 防并发重复） */
+  private async ensureCategorySeeds(type: CategoryType, familyId: number): Promise<void> {
+    const meta = this.categoryMeta(type);
+    const [row] = await this.dataSource.query<{ cnt: number }[]>(
+      `SELECT COUNT(*) AS \`cnt\` FROM \`${meta.table}\` WHERE \`family_id\` = ?`,
+      [familyId]
+    );
+    if (Number(row?.cnt || 0) > 0) return;
+    const seeds = CATEGORY_SEEDS[type];
+    const values = seeds.flatMap((s, i) => [s.id, familyId, s.name, s.icon, i + 1]);
+    await this.dataSource.query(
+      `INSERT IGNORE INTO \`${meta.table}\` (\`id\`, \`family_id\`, \`name\`, \`icon\`, \`sort_order\`)
+       VALUES ${seeds.map(() => '(?, ?, ?, ?, ?)').join(', ')}`,
+      values
+    );
+  }
+
+  private categoryMeta(type: CategoryType) {
+    const meta = CATEGORY_META[type];
+    if (!meta) {
+      throw new HttpException('分类类型非法，仅支持 album/document', HttpStatus.BAD_REQUEST);
+    }
+    return meta;
+  }
+
   // ---------- 数据备份 ----------
 
   /** 备份记录列表（倒序，含文件大小，供小程序展示） */
@@ -373,5 +562,16 @@ interface BackupRow {
   file_size: number | string;
   status: string;
   operator_id: string;
+  create_time: Date | string;
+}
+
+/** 分类表行（snake_case） */
+interface CategoryRow {
+  id: string;
+  family_id: number;
+  name: string;
+  icon: string;
+  sort_order: number;
+  count?: number | string;
   create_time: Date | string;
 }

@@ -334,8 +334,23 @@
   padding: 16rpx 24rpx;
   font-size: 28rpx;
 }
+.picker-tip {
+  margin: 0 32rpx 16rpx;
+  padding: 12rpx 20rpx;
+  font-size: 24rpx;
+  color: #B8860B;
+  background: #FDF6EC;
+  border-radius: 8rpx;
+  line-height: 1.5;
+}
 .picker-list {
   max-height: 50vh;
+}
+.picker-more {
+  padding: 20rpx 0;
+  text-align: center;
+  font-size: 24rpx;
+  color: #999;
 }
 .picker-item {
   display: flex;

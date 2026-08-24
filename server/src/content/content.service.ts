@@ -427,6 +427,16 @@ export class ContentService {
       if (!data.url) {
         throw new HttpException('照片URL不能为空', HttpStatus.BAD_REQUEST);
       }
+      // 分类归属校验：非空时须存在且属于该家族（防越权/脏引用）
+      if (data.categoryId) {
+        const [cat] = await this.dataSource.query<{ id: string }[]>(
+          'SELECT `id` FROM `family_album_category` WHERE `id` = ? AND `family_id` = ?',
+          [data.categoryId, data.familyId]
+        );
+        if (!cat) {
+          throw new HttpException('照片分类不存在或不属于该家族', HttpStatus.BAD_REQUEST);
+        }
+      }
       await this.dataSource.query(
         `INSERT INTO \`family_photo\`
          (\`id\`, \`family_id\`, \`category_id\`, \`url\`, \`title\`, \`description\`, \`year\`, \`uploader_id\`, \`uploader_name\`, \`audit_status\`)

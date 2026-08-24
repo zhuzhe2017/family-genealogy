@@ -344,40 +344,61 @@ export class FamilyMemberService {
   }
 
   /**
-   * 查询父亲候选：当前家族上一代男性成员，可按姓名或母亲姓名模糊匹配。
-   * 返回结果携带 spouse_names（配偶/母亲姓名摘要），便于同名父亲区分。
-   * keyword 为空时返回全部候选（LIMIT 20），非空时按关键字过滤。
+   * 查询父亲候选（分页）：当前家族上一代男性成员，可按姓名或母亲姓名模糊匹配。
+   * 返回携带出生地（birth_place）与配偶（spouse_names）供同名父亲区分。
+   * keyword 为空时返回全部候选；非空时按关键字过滤，且"完全同名"优先排序。
+   * 返回 { list, total }，前端据此实现上拉加载更多（每页 20 条）。
    */
-  async getFatherCandidates(familyId: number, generation: number, keyword: string): Promise<FatherCandidate[]> {
+  async getFatherCandidates(
+    familyId: number,
+    generation: number,
+    keyword: string,
+    page = 1,
+    pageSize = 20
+  ): Promise<{ list: FatherCandidate[]; total: number }> {
     await this.ensureTable(familyId);
     if (generation === undefined || generation === null || generation < 2) {
       throw new HttpException('只有第2代及以上成员才允许选择父亲', HttpStatus.BAD_REQUEST);
     }
     const trimmed = keyword?.trim() || '';
-    // 关键字为空时返回上一代全部男性候选（首屏加载）；非空时按姓名/母亲姓名模糊匹配
     const tableName = getSafeMemberTableName(familyId);
     const fatherGeneration = generation - 1;
     const like = `%${trimmed}%`;
+    const safePage = Math.max(1, Math.floor(Number(page) || 1));
+    const safePageSize = Math.min(50, Math.max(1, Math.floor(Number(pageSize) || 20)));
+    const offset = (safePage - 1) * safePageSize;
 
     const whereKeyword = trimmed
       ? ` AND (\`name\` LIKE ? OR IFNULL(\`spouse_info\`, '') LIKE ?)`
       : '';
-    const params: QueryValues = trimmed
-      ? [1, 'male', fatherGeneration, like, like, 20]
-      : [1, 'male', fatherGeneration, 20];
+    const orderBy = trimmed
+      ? 'ORDER BY CASE WHEN `name` = ? THEN 0 ELSE 1 END, `sort_order` ASC, `create_time` ASC'
+      : 'ORDER BY `sort_order` ASC, `create_time` ASC';
 
-    const rows = await this.dataSource.query<Pick<FamilyMemberRow, 'id' | 'name' | 'gender' | 'generation' | 'generation_name' | 'spouse_info'>[]>(
-      `SELECT \`id\`, \`name\`, \`gender\`, \`generation\`, \`generation_name\`, \`spouse_info\`
+    // 总数（供前端判断是否有更多）
+    const [countRow] = await this.dataSource.query<{ total: number }[]>(
+      `SELECT COUNT(*) AS \`total\` FROM \`${tableName}\`
+       WHERE \`status\` = 1 AND \`gender\` = 'male' AND \`generation\` = ?${whereKeyword}`,
+      trimmed ? [fatherGeneration, like, like] : [fatherGeneration]
+    );
+    const total = Number(countRow?.total || 0);
+
+    const params: QueryValues = trimmed
+      ? [1, 'male', fatherGeneration, like, like, trimmed, offset, safePageSize]
+      : [1, 'male', fatherGeneration, offset, safePageSize];
+
+    const rows = await this.dataSource.query<Pick<FamilyMemberRow, 'id' | 'name' | 'gender' | 'generation' | 'generation_name' | 'spouse_info' | 'birth_place'>[]>(
+      `SELECT \`id\`, \`name\`, \`gender\`, \`generation\`, \`generation_name\`, \`spouse_info\`, \`birth_place\`
        FROM \`${tableName}\`
        WHERE \`status\` = ?
          AND \`gender\` = ?
          AND \`generation\` = ?${whereKeyword}
-       ORDER BY \`sort_order\` ASC, \`create_time\` ASC
-       LIMIT ?`,
+       ${orderBy}
+       LIMIT ?, ?`,
       params
     );
 
-    return rows.map(r => {
+    const list = rows.map(r => {
       const names = this.extractSpouseNames(r.spouse_info);
       return {
         id: r.id,
@@ -385,9 +406,11 @@ export class FamilyMemberService {
         gender: r.gender,
         generation: r.generation,
         generation_name: r.generation_name,
-        spouse_names: names.join('、')
+        spouse_names: names.join('、'),
+        birth_place: r.birth_place || ''
       };
     });
+    return { list, total };
   }
 
   /** 从 spouse_info 中提取配偶姓名数组 */
