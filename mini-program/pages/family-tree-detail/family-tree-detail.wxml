@@ -58,37 +58,81 @@
     </view>
   </view>
 
-  <!-- 树状视图 -->
+  <!-- 树状视图（CSS/DOM 方案：舞台承载绝对定位节点与连接线，视口手势平移缩放） -->
   <view class="tree-view" style="height: calc(100vh - {{navBarTotal}}px - 220rpx);" wx:if="{{viewMode === 'tree'}}">
-    <canvas
-      type="2d"
-      id="familyTreeCanvas"
-      class="family-tree-canvas"
-      style="{{canvasStyle}}"
+    <view class="family-viewport" id="treeViewport"
       bindtouchstart="onCanvasTouchStart"
       catchtouchmove="onCanvasTouchMove"
-      bindtouchend="onCanvasTouchEnd"
-      bindtap="onCanvasTap">
-    </canvas>
+      bindtouchend="onCanvasTouchEnd">
+      <view class="tree-stage tree-{{treeLod}}"
+        style="width:{{treeStageW}}px;height:{{treeStageH}}px;transform:{{treeTransform}};">
+        <!-- 连接线（kind v 竖线 / h 横线，坐标为世界 px） -->
+        <view wx:for="{{treeLinks}}" wx:key="id"
+          class="tree-link {{item.kind === 'v' ? 'tree-link-v' : 'tree-link-h'}}"
+          style="left:{{item.x}}px;top:{{item.y}}px;{{item.kind === 'v' ? 'height:' + item.h + 'px' : 'width:' + item.w + 'px'}}"></view>
+        <!-- 节点卡片（DOM 命中即元素本身，天然精确） -->
+        <view wx:for="{{domNodes}}" wx:key="id"
+          class="tree-node {{item.gender}} {{item.highlight ? 'highlight' : ''}}"
+          style="left:{{item.x}}px;top:{{item.y}}px;width:{{item.w}}px;height:{{item.h}}px;"
+          data-id="{{item.id}}" bindtap="onNodeTap">
+          <view class="tree-node-avatar">
+            <text>{{item.firstChar}}</text>
+          </view>
+          <view class="tree-node-main">
+            <text class="tree-node-name">{{item.name}}</text>
+            <view class="tree-node-tag" wx:if="{{item.generationName}}">{{item.generationName}}字辈</view>
+          </view>
+          <view class="tree-node-gen">{{item.generation}}代</view>
+          <view wx:if="{{item.canCollapse}}" class="collapse-toggle" data-id="{{item.id}}" catchtap="onCollapseTap">
+            <text wx:if="{{!item.collapsed}}">−</text>
+            <text wx:else>+{{item.descendantCount}}</text>
+          </view>
+        </view>
+      </view>
+    </view>
     <view class="tree-hint">
-      <text class="hint-text">共 {{memberCount}} 人 · 拖动平移 · 双指缩放 · 点击名字查看详情</text>
+      <text class="hint-text">共 {{memberCount}} 人 · 拖动平移 · 双指缩放 · 点击节点弹出操作</text>
     </view>
   </view>
 
-  <!-- 直系图视图 -->
+  <!-- 直系图视图（CSS/DOM 方案） -->
   <view class="tree-view" style="height: calc(100vh - {{navBarTotal}}px - 220rpx);" wx:if="{{viewMode === 'vertical'}}">
-    <canvas
-      type="2d"
-      id="verticalTreeCanvas"
-      class="family-tree-canvas"
-      style="{{canvasStyle}}"
+    <view class="family-viewport" id="verticalViewport"
       bindtouchstart="onVerticalTouchStart"
       catchtouchmove="onVerticalTouchMove"
-      bindtouchend="onVerticalTouchEnd"
-      bindtap="onVerticalTap">
-    </canvas>
+      bindtouchend="onVerticalTouchEnd">
+      <view class="v-stage" style="width:{{vStageW}}px;height:{{vStageH}}px;transform:{{vTransform}};">
+        <!-- 代际竖线（连接上一代红心到下一代，midX 恒一致 → 直线） -->
+        <view wx:for="{{vLinks}}" wx:key="id" class="v-link"
+          style="left:{{item.x}}px;top:{{item.y}}px;height:{{item.h}}px;"></view>
+        <!-- 各代成员行：主头像 + 配偶 + 夫妇连线 + 红心家徽 -->
+        <view wx:for="{{vDomNodes}}" wx:key="id" class="v-row"
+          hover-class="v-row-press"
+          style="left:{{item.x}}px;top:{{item.y}}px;width:{{item.w}}px;"
+          data-id="{{item.id}}" bindtap="onNodeTap">
+          <!-- 夫妇连线（中间断口由红心覆盖，与 Canvas 断线视觉一致） -->
+          <view class="v-couple-line" style="left:78px;top:26.2px;width:{{item.coupleLineWidth}}px;"></view>
+          <view class="v-heart" style="left:{{item.heartLeft}}px;top:15px;">
+            <text>❤</text>
+          </view>
+          <!-- 主成员头像 + 名字 + 角色 -->
+          <view class="v-avatar {{item.gender}} {{item.highlight ? 'highlight' : ''}}">
+            <text>{{item.firstChar}}</text>
+          </view>
+          <view class="v-name">{{item.name}}</view>
+          <view class="v-role">{{item.role}}</view>
+          <!-- 配偶头像 + 名字 + 称谓（无配偶为"失记"占位） -->
+          <view class="v-spouse-avatar {{item.hasSpouse ? '' : 'placeholder'}}"
+            style="left:{{item.spouseLeft}}px;">
+            <text>{{item.spouseFirstChar}}</text>
+          </view>
+          <view class="v-spouse-name" style="left:{{item.spouseLeft}}px;">{{item.hasSpouse ? item.spouseName : '失记'}}</view>
+          <view class="v-spouse-role" style="left:{{item.spouseLeft}}px;">{{item.spouseRole}}</view>
+        </view>
+      </view>
+    </view>
     <view class="tree-hint">
-      <text class="hint-text">直系共 {{memberCount}} 人 · 拖动查看，双指缩放</text>
+      <text class="hint-text">直系共 {{memberCount}} 人 · 拖动查看，双指缩放 · 点击成员弹出操作</text>
     </view>
   </view>
 

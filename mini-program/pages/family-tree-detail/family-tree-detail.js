@@ -52,25 +52,34 @@ Page({
     selectedNode: {},
     selectedCollapsed: false,
     modalAnimation: {},
-    hoverNodeId: '',
     memberList: [],
     listHasMore: false,
     showSearchBar: false,
     searchKeyword: '',
     canSearch: false,         // 输入≥2字符后搜索按钮可用（手动搜索）
-    canvasScale: 1,
-    canvasStyle: '',
     loading: false,
     empty: false,
     loadError: '',
-    memberCount: 0
+    memberCount: 0,
+    // DOM 树状图（CSS 方案）
+    domNodes: [],               // 节点数据 {id,x,y,w,h,name,firstChar,gender,generation,generationName,canCollapse,collapsed,descendantCount,highlight}
+    treeLinks: [],              // 连接线数据 {id,kind:'v'|'h',x,y,w,h}
+    treeTransform: 'translate(0px, 0px) scale(1)',
+    treeLod: 'lod2',            // 当前缩放对应的细节等级：lod0 色块 / lod1 仅名字 / lod2 完整
+    treeStageW: 0,              // 树状图舞台宽（世界坐标 px）
+    treeStageH: 0,
+    // DOM 直系图（CSS 方案）
+    vDomNodes: [],              // 各代成员 {id,x,y,w,firstChar,gender,spouseFirstChar,spouseLeft,coupleW,heartLeft,name,role,highlight}
+    vLinks: [],                 // 代际连接线 {id,x,y,h}
+    vTransform: 'translate(0px, 0px) scale(1)',
+    vStageW: 0,
+    vStageH: 0
   },
 
-  // 画布状态（不放入 data，避免频繁 setData 重绘）
-  canvasCtx: null,
+  // 视图容器状态（不放入 data，避免频繁 setData 重绘）
   canvasDpr: 1,
-  canvasWidth: 0,
-  canvasHeight: 0,
+  canvasWidth: 0,       // 视图容器宽（px，渲染与变换共用）
+  canvasHeight: 0,      // 视图容器高（px，渲染与变换共用）
   allNodes: [],       // 全部成员（含父子关系）
   rootNodes: [],      // 顶层根节点
   layoutMap: {},      // id -> {x,y,level,node}
@@ -87,8 +96,8 @@ Page({
   vPinchStartZoom: 1,        // 直系图双指缩放起始倍率
   initialScale: 1,  // 基础适配缩放（随布局自动重算）
   vInitialScale: 1, // 直系图基础适配缩放
-  canvasReady: false,       // canvas 是否已初始化完成
-  _canvasInitPending: false, // 初始化进行中标记，防止重复初始化
+  canvasReady: false,       // 视图容器是否已测量完成（DOM 方案：容器就绪即可渲染）
+  _viewportInitPending: false, // 初始化进行中标记，防止重复初始化
   pinchStartDist: 0,        // 双指缩放起始距离
   pinchStartZoom: 1,        // 双指缩放起始倍率
   tapInfo: null,            // 点击判定：记录 touchstart 位置，拖动后置空
@@ -100,14 +109,15 @@ Page({
   avatarCache: {},          // 头像图片缓存 url -> { img, loaded, failed }，避免重复加载
   _boundsCache: null,       // 内容边界缓存（布局变化时失效，避免每帧 O(n) 重算）
   _contentSizeCache: null,  // 内容尺寸缓存
-  _genIndex: null,          // 空间索引：generation -> 按 x 升序的布局数组（视口裁剪/命中检测）
-  nameHitBoxes: [],         // 当前帧树状图名字包围盒 {x,y,w,h,nodeId}
-  verticalNameHitBoxes: [], // 当前帧直系图名字包围盒 {x,y,w,h,nodeId,scaleY}
-  _hoverTimer: null,        // 名字悬停高亮定时器
-  hoverNodeId: '',          // 当前悬停高亮的节点 id（也同步到 data）
+  _genIndex: null,          // 空间索引：generation -> 按 x 升序的布局数组（视口裁剪用）
+  nameHitBoxes: [],         // 树状图名字包围盒（导出绘制沿用）
+  verticalNameHitBoxes: [], // 直系图名字包围盒（导出绘制沿用）
+  _domDirty: true,          // 树状图 DOM 数据脏标记：布局/折叠/高亮变化后置 true，渲染时重建
+  _vDomDirty: true,         // 直系图 DOM 数据脏标记
+  _lod: '',                 // 当前树状图 LOD 等级缓存（避免每次 setData）
   highlightId: '',          // 当前高亮定位的成员 id
   _pendingLocateId: '',     // 待定位成员 id（当前窗口未加载该成员时，切到最大代数窗口后定位）
-  _pendingCenterLayout: null, // canvas 尚未就绪时暂存的居中布局
+  _pendingCenterLayout: null, // 视图容器尚未就绪时暂存的居中布局
   _vContentSize: null,       // 直系图布局尺寸缓存（calcVerticalLayout 写入，避免每帧重算）
   _vLayoutDirty: true,       // 直系图布局脏标记：renderNodes / vRootId 变化后置 true，渲染时重建
   _renderScheduledAt: 0,     // 上一次渲染调度时间戳（raf 停摆兜底检测）
@@ -148,57 +158,46 @@ Page({
   },
 
   onReady() {
-    this.initCanvas();
+    this.initViewport();
   },
 
-  /** 初始化 canvas 2d 上下文（幂等：初始化中或已完成时重复调用会被忽略） */
-  initCanvas() {
-    if (this.canvasReady || this._canvasInitPending) return;
-    this._canvasInitPending = true;
+  /** 测量当前视图容器尺寸（幂等：初始化中或已完成时重复调用会被忽略）。
+   *  DOM 方案：节点用绝对定位摆放在 stage 内，只需容器尺寸用于适配缩放与变换。 */
+  initViewport() {
+    if (this.canvasReady || this._viewportInitPending) return;
+    this._viewportInitPending = true;
     const query = wx.createSelectorQuery();
-    const canvasId = this.data.viewMode === 'vertical' ? '#verticalTreeCanvas' : '#familyTreeCanvas';
-    query.select(canvasId)
-      .fields({ node: true, size: true })
+    const viewportId = this.data.viewMode === 'vertical' ? '#verticalViewport' : '#treeViewport';
+    query.select(viewportId)
+      .fields({ size: true })
       .exec((res) => {
-        this._canvasInitPending = false;
-        if (!res || !res[0] || !res[0].node) {
-          console.warn('canvas 节点未找到，尝试重试');
+        this._viewportInitPending = false;
+        if (!res || !res[0] || !res[0].width) {
+          console.warn('视图容器未就绪，尝试重试');
           this._initRetry = (this._initRetry || 0) + 1;
           if (this._initRetry <= 5) {
-            setTimeout(() => this.initCanvas(), 200);
+            setTimeout(() => this.initViewport(), 200);
           }
           return;
         }
         this._initRetry = 0;
-        const canvas = res[0].node;
-        const ctx = canvas.getContext('2d');
-        const sysInfo = wx.getSystemInfoSync();
-        const dpr = sysInfo.pixelRatio || 1;
-        this.canvasCtx = ctx;
-        this.canvasNode = canvas;
-        this.canvasDpr = dpr;
         this.canvasWidth = res[0].width;
         this.canvasHeight = res[0].height;
-        canvas.width = this.canvasWidth * dpr;
-        canvas.height = this.canvasHeight * dpr;
-        ctx.scale(dpr, dpr);
+        const sysInfo = wx.getSystemInfoSync();
+        this.canvasDpr = sysInfo.pixelRatio || 1;
         this.canvasReady = true;
-        this.setData({
-          canvasStyle: `width:${this.canvasWidth}px;height:${this.canvasHeight}px`
-        }, () => {
-          if (this.data.viewMode === 'vertical') {
-            this.renderVerticalTree();
-          } else {
-            this.renderTree();
-          }
-          // canvas 就绪后应用此前暂存的居中定位（定位到我 / 搜索命中时画布尚未初始化）
-          if (this._pendingCenterLayout && this.data.viewMode !== 'vertical') {
-            const layout = this._pendingCenterLayout;
-            this._pendingCenterLayout = null;
-            this.centerOn(layout);
-            this.renderTree();
-          }
-        });
+        if (this.data.viewMode === 'vertical') {
+          this.renderVerticalTree();
+        } else {
+          this.renderTree();
+        }
+        // 容器就绪后应用此前暂存的居中定位（定位到我 / 搜索命中时容器尚未就绪）
+        if (this._pendingCenterLayout && this.data.viewMode !== 'vertical') {
+          const layout = this._pendingCenterLayout;
+          this._pendingCenterLayout = null;
+          this.centerOn(layout);
+          this.renderTree();
+        }
       });
   },
 
@@ -349,9 +348,9 @@ Page({
     this.setData({ memberCount: members.length });
     // 树与列表统一由 applyFilter 驱动（含代数过滤与列表分页）
     this.applyFilter();
-    // canvas 可能尚未初始化，重新尝试渲染
-    if (!this.canvasCtx) {
-      this.initCanvas();
+    // 视图容器可能尚未测量，重新尝试渲染
+    if (!this.canvasReady) {
+      this.initViewport();
     }
     // 「定位到我」等待成员就绪后定位（当前窗口未加载该成员，切到最大代数窗口后在此触发）
     if (this._pendingLocateId) {
@@ -479,6 +478,7 @@ Page({
    *  本实现改为每个节点接收子树起始坐标，叶子顺序排列、父节点居中到子树范围中心，
    *  宽度始终 ≈ 最底层可见节点数 × 卡片间距，任意规模均紧凑。 */
   calcLayout() {
+    this._domDirty = true; // 布局变化：DOM 节点/连接线需重建
     const layoutMap = {};
     const visibleSet = new Set(this.renderNodes.map(n => n.id));
     let cursorX = PADDING; // 多个根节点子树依次排列的起始坐标
@@ -583,6 +583,7 @@ Page({
   /** 计算直系图布局：以选中的 vRootId（或当前过滤结果中最合适节点）为中心，
    *  沿父指针向上收集在当前过滤结果中的祖先链 */
   calcVerticalLayout() {
+    this._vDomDirty = true; // 布局变化：直系图 DOM 数据需重建
     const visibleSet = new Set((this.renderNodes || []).map(n => n.id));
     if (!visibleSet.size) {
       this.vLayoutMap = {};
@@ -693,75 +694,170 @@ Page({
       : 16;
   },
 
-  /** 使用 canvas 2d 绘制整棵树 */
+  /** 渲染树状图（DOM/CSS 方案）：布局脏时重建节点与连接线，随后应用视口变换 */
   renderTree() {
-    const ctx = this.canvasCtx;
     // 防御：热重载/初始化竞态下 renderNodes 可能尚未就绪，缺失时安全跳过
     const nodes = this.renderNodes || [];
-    if (!ctx || !nodes.length) {
-      console.log('renderTree skipped, ctx=', !!ctx, 'nodes=', nodes.length);
-      return;
-    }
+    if (!nodes.length) return;
     this.validateViewState();
-    // 清空画布并填充暖纸背景（与导出同色），避免白色卡片与背景混淆
-    ctx.fillStyle = CANVAS_BG;
-    ctx.fillRect(0, 0, this.canvasWidth, this.canvasHeight);
-    // 统一坐标变换：绘制与点击命中共用同一套 scale/offset
-    try {
-      const { scale, offsetX, offsetY } = this.getViewTransform();
-      this.drawTreeContent(ctx, offsetX, offsetY, scale);
-    } catch (e) {
-      // 绘制异常兜底：复位视图后重绘一次，避免画布永久停留在清空状态。
-      // 重试节流 1s：持续异常时不再高频自恢复，避免渲染死循环
-      console.warn('renderTree 绘制异常，自动恢复:', e);
-      this.pan = { x: 0, y: 0, startX: 0, startY: 0, touching: false };
-      this.zoom = 1;
-      const now = Date.now();
-      if (!this._lastRecoveryAt || now - this._lastRecoveryAt > 1000) {
-        this._lastRecoveryAt = now;
-        this.requestRender();
-      }
+    if (this._domDirty) {
+      this.buildTreeDom();
     }
+    this.applyTreeTransform();
   },
 
-  /** 使用 canvas 2d 绘制直系图 */
-  renderVerticalTree() {
-    const ctx = this.canvasCtx;
-    const nodes = this.renderNodes || [];
-    if (!ctx || !nodes.length) {
-      console.log('renderVerticalTree skipped, ctx=', !!ctx, 'nodes=', nodes.length);
-      return;
+  /** 由布局构建 DOM 节点与连接线数据（世界坐标 px，stage 内绝对定位） */
+  buildTreeDom() {
+    const { contentW, contentH } = this.getContentSize();
+    const domNodes = [];
+    (this.renderNodes || []).forEach(n => {
+      const l = this.layoutMap[n.id];
+      if (!l) return;
+      domNodes.push({
+        id: n.id,
+        x: Math.round(l.x),
+        y: Math.round(l.y),
+        w: NODE_W,
+        h: NODE_H,
+        name: n.name || '',
+        firstChar: (n.name || '?').charAt(0),
+        gender: n.gender === 'female' ? 'female' : 'male',
+        generation: n.generation || '',
+        generationName: n.generationName || '',
+        canCollapse: !!(n.children && n.children.length),
+        collapsed: this.collapsedIds.has(n.id),
+        descendantCount: n.descendantCount || n.children.length || 0,
+        highlight: this.highlightId === n.id
+      });
+    });
+
+    // 连接线：父底中点到子代横线再分叉到各子顶（与 Canvas 折线同几何）
+    const treeLinks = [];
+    const visibleSet = new Set((this.renderNodes || []).map(n => n.id));
+    (this.renderNodes || []).forEach(n => {
+      const children = (n.children || []).filter(c => visibleSet.has(c.id));
+      if (!children.length) return;
+      const pl = this.layoutMap[n.id];
+      if (!pl) return;
+      const px = pl.x + pl.width / 2;
+      const pyBottom = pl.y + NODE_H;
+      const midY = pl.y + NODE_H + LEVEL_H / 2;
+      if (children.length === 1) {
+        const cl = this.layoutMap[children[0].id];
+        const cx = cl.x + cl.width / 2;
+        treeLinks.push({ id: 'v' + n.id, kind: 'v', x: cx - 0.75, y: pyBottom, w: 0, h: cl.y - pyBottom });
+      } else {
+        let minCx = Infinity;
+        let maxCx = -Infinity;
+        children.forEach(child => {
+          const cl = this.layoutMap[child.id];
+          const cx = cl.x + cl.width / 2;
+          minCx = Math.min(minCx, cx);
+          maxCx = Math.max(maxCx, cx);
+        });
+        // 主干竖线
+        treeLinks.push({ id: 't' + n.id, kind: 'v', x: px - 0.75, y: pyBottom, w: 0, h: midY - pyBottom });
+        // 横向分支线
+        treeLinks.push({ id: 'h' + n.id, kind: 'h', x: minCx, y: midY - 0.75, w: maxCx - minCx, h: 0 });
+        // 各子节点竖线
+        children.forEach(child => {
+          const cl = this.layoutMap[child.id];
+          const cx = cl.x + cl.width / 2;
+          treeLinks.push({ id: 's' + n.id + '_' + child.id, kind: 'v', x: cx - 0.75, y: midY, w: 0, h: cl.y - midY });
+        });
+      }
+    });
+
+    this._domDirty = false;
+    this.setData({ domNodes, treeLinks, treeStageW: contentW, treeStageH: contentH });
+  },
+
+  /** 将当前视口变换应用到树状图舞台（平移 + 缩放，与旧 Canvas 变换一致） */
+  applyTreeTransform() {
+    const { scale, offsetX, offsetY } = this.getViewTransform();
+    const treeTransform = `translate(${offsetX.toFixed(2)}px, ${offsetY.toFixed(2)}px) scale(${scale})`;
+    // 按卡片屏幕宽度分 LOD：细节元素由 CSS 显隐，视觉与 Canvas 分级一致
+    let lod = 'lod2';
+    const cardScreenW = NODE_W * scale;
+    if (cardScreenW < LOD_BLOCK_THRESHOLD) lod = 'lod0';
+    else if (cardScreenW < LOD_MEDIUM_THRESHOLD) lod = 'lod1';
+    const data = { treeTransform };
+    if (lod !== this._lod) {
+      data.treeLod = lod;
+      this._lod = lod;
     }
+    this.setData(data);
+  },
+
+  /** 渲染直系图（DOM/CSS 方案）：布局脏时重建各代成员与连接线，随后应用视口变换 */
+  renderVerticalTree() {
+    const nodes = this.renderNodes || [];
+    if (!nodes.length) return;
     // 视图状态数值守卫：NaN/Infinity 时自动复位，防止异常手势污染后图形永久消失
     this.validateViewState();
     // 布局脏标记才重建（renderNodes / vRootId 变化时），双指缩放期间复用缓存布局
     if (this._vLayoutDirty) this.calcVerticalLayout();
     const vNodes = Object.values(this.vLayoutMap || {});
-    if (!vNodes.length) {
-      console.log('renderVerticalTree: 无直系链可绘制');
-      return;
-    }
+    if (!vNodes.length) return;
     // 基础适配缩放：布局尺寸确定后计算一次，供变换/缩放锚点/手势钳制共用
     const { contentW, contentH } = this.getVerticalContentSize();
     this.vInitialScale = this.computeVerticalFitScale(contentW, contentH);
-
-    ctx.fillStyle = CANVAS_BG;
-    ctx.fillRect(0, 0, this.canvasWidth, this.canvasHeight);
-    try {
-      const { scale, offsetX, offsetY } = this.getVerticalTransform();
-      this.drawVerticalContent(ctx, offsetX, offsetY, scale);
-    } catch (e) {
-      // 绘制异常兜底：复位视图后重绘一次，避免画布永久停留在清空状态。
-      // 重试节流 1s：持续异常时不再高频自恢复，避免渲染死循环
-      console.warn('renderVerticalTree 绘制异常，自动恢复:', e);
-      this.vPan = { x: 0, y: 0, startX: 0, startY: 0, touching: false };
-      this.vZoom = 1;
-      const now = Date.now();
-      if (!this._lastRecoveryAt || now - this._lastRecoveryAt > 1000) {
-        this._lastRecoveryAt = now;
-        this.requestRender();
-      }
+    if (this._vDomDirty) {
+      this.buildVerticalDom();
     }
+    this.applyVerticalTransform();
+  },
+
+  /** 由直系图布局构建 DOM 数据（各代成员 + 代际竖线），坐标为世界 px */
+  buildVerticalDom() {
+    const { contentW, contentH } = this.getVerticalContentSize();
+    const vDomNodes = [];
+    const vLinks = [];
+    const vNodes = Object.values(this.vLayoutMap || {});
+    vNodes.forEach((l, i) => {
+      const node = l.node;
+      const spouse = l.hasSpouse ? (node.spouseInfo || {}) : null;
+      const spouseX = l.spouseX;
+      const midX = this.getCoupleMidX(l);
+      const spouseLeft = spouseX - l.x;
+      vDomNodes.push({
+        id: node.id,
+        x: Math.round(l.x),
+        y: Math.round(l.y),
+        w: Math.round(spouseX + V_SPOUSE_AVATAR_R * 2 - l.x),
+        name: node.name || '',
+        firstChar: (node.name || '?').charAt(0),
+        gender: node.gender === 'female' ? 'female' : 'male',
+        hasSpouse: !!l.hasSpouse,
+        spouseFirstChar: spouse ? ((spouse.name || '?').charAt(0)) : '失',
+        spouseName: spouse ? (spouse.name || '') : '',
+        spouseRole: this.getSpouseRole(l.role, node.gender),
+        spouseLeft: Math.round(spouseLeft),
+        // 夫妇连线：主头像右缘外 10px → 配偶头像左缘外 10px（红心覆盖中部断口）
+        coupleLineWidth: Math.round(spouseLeft - V_AVATAR_R * 2 - 20),
+        heartLeft: Math.round(midX - l.x - 12),
+        role: l.role,
+        highlight: this.highlightId === node.id
+      });
+      // 代际竖线：连接上一代红心水平线到下一代（中点恒一致 → 直线）
+      if (i < vNodes.length - 1) {
+        const next = vNodes[i + 1];
+        const y1 = l.y + V_SPOUSE_AVATAR_R;
+        const y2 = next.y + V_SPOUSE_AVATAR_R;
+        vLinks.push({ id: 'vl' + i, x: midX - 1, y: y1, h: y2 - y1 });
+      }
+    });
+
+    this._vDomDirty = false;
+    this.setData({ vDomNodes, vLinks, vStageW: contentW, vStageH: contentH });
+  },
+
+  /** 将当前视口变换应用到直系图舞台 */
+  applyVerticalTransform() {
+    const { scale, offsetX, offsetY } = this.getVerticalTransform();
+    this.setData({
+      vTransform: `translate(${offsetX.toFixed(2)}px, ${offsetY.toFixed(2)}px) scale(${scale})`
+    });
   },
 
   /** 直系图统一坐标变换 */
@@ -859,9 +955,8 @@ Page({
       avatar: node.avatar,
       color: node.gender === 'female' ? '#D98BA6' : '#6A8BAE'
     });
-    const isHover = this.hoverNodeId === node.id;
-    ctx.fillStyle = isHover ? '#8B1A1A' : '#333333';
-    ctx.font = isHover ? 'bold 15px sans-serif' : 'bold 14px sans-serif';
+    ctx.fillStyle = '#333333';
+    ctx.font = 'bold 14px sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'top';
     const nameText = this.ellipsizeByWidth(ctx, node.name, V_AVATAR_R * 2.4);
@@ -869,7 +964,7 @@ Page({
     const nameX = cx;
     ctx.fillText(nameText, nameX, nameY);
     const nameW = ctx.measureText(nameText).width;
-    const nameH = isHover ? 18 : 16;
+    const nameH = 16;
     this.verticalNameHitBoxes.push({ x: nameX - nameW / 2, y: nameY, w: nameW, h: nameH, nodeId: node.id, scaleY: false });
     ctx.fillStyle = '#8B7D6B';
     ctx.font = '12px sans-serif';
@@ -1075,8 +1170,7 @@ Page({
   },
 
   /** 请求一次渲染：合并同一帧内的多次重绘请求（拖动/缩放节流）。
-   *  兜底：canvas.requestAnimationFrame 在画布重建/页面隐藏/异常时可能永不回调，
-   *  超过 120ms 未执行则强制同步渲染一次，避免渲染永久停摆、图形停留在消失状态。 */
+   *  DOM 方案：setData 异步生效，定时器节流即可，无需 canvas raf。 */
   requestRender() {
     if (this._renderScheduled) {
       if (this._renderScheduledAt && (Date.now() - this._renderScheduledAt > 120)) {
@@ -1088,22 +1182,11 @@ Page({
     }
     this._renderScheduled = true;
     this._renderScheduledAt = Date.now();
-    const doRender = () => {
+    setTimeout(() => {
       this._renderScheduled = false;
       this._renderScheduledAt = 0;
       this.renderByMode();
-    };
-    const canvas = this.canvasNode;
-    if (canvas && typeof canvas.requestAnimationFrame === 'function') {
-      try {
-        canvas.requestAnimationFrame(doRender);
-      } catch (err) {
-        // raf 调度异常时退化为定时器渲染
-        setTimeout(doRender, 16);
-      }
-    } else {
-      setTimeout(doRender, 16);
-    }
+    }, 16);
   },
 
   /** 在指定坐标系下绘制整棵树（屏幕渲染与离线导出共用，带视口裁剪） */
@@ -1380,18 +1463,17 @@ Page({
 
   /** 绘制名字（按可用宽度截断，默认位于卡片上部）；color 为空时使用默认深灰 */
   drawName(ctx, node, x, y, maxW, centerY, color) {
-    const isHover = this.hoverNodeId === node.id;
-    ctx.fillStyle = isHover ? '#8B1A1A' : (color || '#333333');
-    ctx.font = isHover ? 'bold 13px sans-serif' : 'bold 12px sans-serif';
+    ctx.fillStyle = color || '#333333';
+    ctx.font = 'bold 12px sans-serif';
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
     const text = this.ellipsizeByWidth(ctx, node.name, maxW);
     const textX = x + 44;
     const textY = centerY || y + 22;
     ctx.fillText(text, textX, textY);
-    // 记录名字包围盒（LOD1/LOD2），供点击命中与悬停高亮
     const textW = ctx.measureText(text).width;
-    const boxH = isHover ? 16 : 14;
+    const boxH = 14;
+    // 记录名字包围盒（供导出绘制使用）
     this.nameHitBoxes.push({ x: textX, y: textY - boxH / 2, w: textW, h: boxH, nodeId: node.id });
   },
 
@@ -1450,11 +1532,12 @@ Page({
     // 当前需求：仅保留树状图与直系图两种视图，取消列表视图切换入口
     const next = this.data.viewMode === 'tree' ? 'vertical' : 'tree';
     this.setData({ viewMode: next }, () => {
-      // wx:if 会销毁并重建 canvas 节点，切回树状/直系视图时必须重新获取上下文
-      this.canvasCtx = null;
-      this.canvasNode = null;
+      // wx:if 会销毁并重建视图容器，切换后必须重新测量尺寸
       this.canvasReady = false;
-      wx.nextTick(() => this.initCanvas());
+      this._domDirty = true;
+      this._vDomDirty = true;
+      this._lod = '';
+      wx.nextTick(() => this.initViewport());
     });
   },
 
@@ -1473,13 +1556,11 @@ Page({
       this.vPan = { x: 0, y: 0, startX: 0, startY: 0, touching: false };
       this.vZoom = 1;
       this.vTapInfo = null;
-      this.setData({ canvasScale: 1 });
       this.renderVerticalTree();
     } else {
       this.pan = { x: 0, y: 0, startX: 0, startY: 0, touching: false };
       this.zoom = 1;
       this.tapInfo = null;
-      this.setData({ canvasScale: 1 });
       this.renderTree();
     }
   },
@@ -1492,7 +1573,6 @@ Page({
       this.pan.touching = false;
       this.pinchStartDist = this.touchDist(touches);
       this.pinchStartZoom = this.zoom;
-      this.clearHover();
       return;
     }
     const t = touches[0];
@@ -1519,11 +1599,10 @@ Page({
     }
     if (!this.pan.touching || touches.length !== 1) return;
     const t = touches[0];
-    // 拖动超过阈值后不再视为点击，避免松手误弹详情
+    // 拖动超过阈值后不再视为点击，避免松手误弹操作弹窗
     if (this.tapInfo &&
       (Math.abs(t.clientX - this.tapInfo.x) > 10 || Math.abs(t.clientY - this.tapInfo.y) > 10)) {
       this.tapInfo = null;
-      this.clearHover();
     }
     this.pan.x = t.clientX - this.pan.startX;
     this.pan.y = t.clientY - this.pan.startY;
@@ -1559,54 +1638,25 @@ Page({
     this.requestRender();
   },
 
-  onCanvasTap(e) {
-    // 拖动/缩放后松手不算点击
-    if (!this.tapInfo) return;
-    const touch = e.detail;
-    // 优先检测折叠/展开指示器
-    if (this.hitCollapseToggle(touch.x, touch.y)) return;
-    // 再精确检测名字包围盒
-    const nameNode = this.hitNameBox(touch.x, touch.y);
-    if (nameNode) {
-      this.setHover(nameNode.id);
-      this.openModal(nameNode);
+  /** 点击节点卡片（树状图/直系图共用）：弹出「更多操作」弹窗。
+   *  DOM 方案：命中区域即节点元素本身，无需坐标换算，天然精确。 */
+  onNodeTap(e) {
+    // 拖动/缩放后松手不算点击（直系图手势状态记录在 vTapInfo）
+    if (this.data.viewMode === 'vertical') {
+      if (!this.vTapInfo) return;
+    } else if (!this.tapInfo) {
       return;
     }
-    // 点击在节点卡片但非名字上：无动作
+    const id = e.currentTarget.dataset.id;
+    const node = this.nodeMap[id];
+    if (node) this.openModal(node);
   },
 
-  /** 设置悬停高亮并 150ms 后清除 */
-  setHover(nodeId) {
-    if (this._hoverTimer) clearTimeout(this._hoverTimer);
-    this.hoverNodeId = nodeId;
-    this.setData({ hoverNodeId: nodeId }, () => this.requestRender());
-    this._hoverTimer = setTimeout(() => this.clearHover(true), 150);
-  },
-
-  /** 清除悬停高亮（afterRender 用于触发重绘） */
-  clearHover(afterRender) {
-    if (this._hoverTimer) clearTimeout(this._hoverTimer);
-    this._hoverTimer = null;
-    if (this.hoverNodeId) {
-      this.hoverNodeId = '';
-      this.setData({ hoverNodeId: '' });
-      if (afterRender) this.requestRender();
-    }
-  },
-
-  /** 检测点击是否落在树状图名字包围盒内 */
-  hitNameBox(x, y) {
-    const { scale, offsetX, offsetY } = this.getViewTransform();
-    const worldX = (x - offsetX) / scale;
-    const worldY = (y - offsetY) / scale;
-    const boxes = this.nameHitBoxes || [];
-    for (let i = boxes.length - 1; i >= 0; i--) {
-      const b = boxes[i];
-      if (worldX >= b.x && worldX <= b.x + b.w && worldY >= b.y && worldY <= b.y + b.h) {
-        return this.nodeMap[b.nodeId];
-      }
-    }
-    return null;
+  /** 点击折叠/展开指示器（catchtap 阻断冒泡，避免同时触发节点弹窗） */
+  onCollapseTap(e) {
+    if (!this.tapInfo) return;
+    const id = e.currentTarget.dataset.id;
+    this.toggleCollapse(id);
   },
 
   /** 直系图手势：开始拖动或双指缩放 */
@@ -1617,7 +1667,6 @@ Page({
       this.vPan.touching = false;
       this.vPinchStartDist = this.touchDist(touches);
       this.vPinchStartZoom = this.vZoom;
-      this.clearHover();
       return;
     }
     const t = touches[0];
@@ -1654,7 +1703,6 @@ Page({
     if (this.vTapInfo &&
       (Math.abs(t.clientX - this.vTapInfo.x) > 10 || Math.abs(t.clientY - this.vTapInfo.y) > 10)) {
       this.vTapInfo = null;
-      this.clearHover();
     }
     this.vPan.x = t.clientX - this.vPan.startX;
     this.vPan.y = t.clientY - this.vPan.startY;
@@ -1690,49 +1738,6 @@ Page({
     this.requestRender();
   },
 
-  /** 直系图点击：优先检测名字区域，再检测头像（含配偶） */
-  onVerticalTap(e) {
-    if (!this.vTapInfo) return;
-    const touch = e.detail;
-    const node = this.hitVerticalTest(touch.x, touch.y);
-    if (node) {
-      this.setHover(node.id);
-      this.openModal(node);
-    }
-  },
-
-  /** 直系图命中检测：先检测名字包围盒，再检测主角/配偶头像 */
-  hitVerticalTest(x, y) {
-    const { scale, offsetX, offsetY } = this.getVerticalTransform();
-    const worldX = (x - offsetX) / scale;
-    const worldY = (y - offsetY) / scale;
-    const vNodes = Object.values(this.vLayoutMap || {});
-    // 名字优先
-    const boxes = this.verticalNameHitBoxes || [];
-    for (let i = boxes.length - 1; i >= 0; i--) {
-      const b = boxes[i];
-      if (worldX >= b.x && worldX <= b.x + b.w && worldY >= b.y && worldY <= b.y + b.h) {
-        return this.nodeMap[b.nodeId];
-      }
-    }
-    // 头像兜底
-    let hit = null;
-    vNodes.forEach(l => {
-      const cx = l.x + V_AVATAR_R;
-      const cy = l.y + V_AVATAR_R;
-      if (Math.pow(worldX - cx, 2) + Math.pow(worldY - cy, 2) <= Math.pow(V_AVATAR_R + 4, 2)) {
-        hit = l.node;
-      }
-      if (l.hasSpouse) {
-        const sx = l.spouseX + V_SPOUSE_AVATAR_R;
-        if (Math.pow(worldX - sx, 2) + Math.pow(worldY - cy, 2) <= Math.pow(V_SPOUSE_AVATAR_R + 4, 2)) {
-          hit = l.node;
-        }
-      }
-    });
-    return hit;
-  },
-
   /** 将当前直系图节点设为中心 */
   setVerticalRoot(node) {
     this.vRootId = node && node.id;
@@ -1753,8 +1758,6 @@ Page({
     }
     if (this.data.viewMode === 'vertical') {
       this.setData({ viewMode: 'tree' }, () => {
-        this.canvasCtx = null;
-        this.canvasNode = null;
         this.canvasReady = false;
         wx.nextTick(() => this.locateMember(me));
       });
@@ -1819,7 +1822,12 @@ Page({
 
   /** 清除高亮 */
   clearHighlight() {
-    this.highlightId = '';
+    if (this.highlightId) {
+      this.highlightId = '';
+      // 高亮随节点数据渲染，置脏标记重建 DOM 以移除高亮类
+      this._domDirty = true;
+      this._vDomDirty = true;
+    }
     this.requestRender();
   },
 
@@ -1843,48 +1851,9 @@ Page({
     this.setData({ selectedCollapsed: this.collapsedIds.has(node.id) });
   },
 
-  /** 折叠指示器位置（绘制与命中检测共用） */
+  /** 折叠指示器位置（导出绘制沿用） */
   collapseIndicatorPos(layout) {
     return { x: layout.x + NODE_W - 12, y: layout.y + NODE_H / 2, r: 10 };
-  },
-
-  /** 检测点击是否落在折叠/展开指示器上，命中则切换折叠状态 */
-  hitCollapseToggle(x, y) {
-    const { scale, offsetX, offsetY } = this.getViewTransform();
-    // 指示器只在完整细节等级绘制，低缩放时不参与命中
-    if (NODE_W * scale < LOD_MEDIUM_THRESHOLD) return false;
-    const worldX = (x - offsetX) / scale;
-    const worldY = (y - offsetY) / scale;
-    for (const node of this.renderNodes) {
-      if (!node.children || !node.children.length) continue;
-      const layout = this.layoutMap[node.id];
-      if (!layout) continue;
-      const pos = this.collapseIndicatorPos(layout);
-      const dx = worldX - pos.x;
-      const dy = worldY - pos.y;
-      if (dx * dx + dy * dy <= pos.r * pos.r) {
-        this.toggleCollapse(node.id);
-        return true;
-      }
-    }
-    return false;
-  },
-
-  hitTest(x, y) {
-    // 与渲染共用同一套坐标变换，保证命中位置与绘制位置一致
-    const { scale, offsetX, offsetY } = this.getViewTransform();
-    const worldX = (x - offsetX) / scale;
-    const worldY = (y - offsetY) / scale;
-
-    let hit = null;
-    // 空间索引：仅命中点所在代际、x 相邻的节点，避免全量遍历
-    this.forEachVisibleLayout(worldY - 1, worldY + NODE_H, worldX, worldX, false, (node, l) => {
-      const w = l.width;
-      if (worldX >= l.x && worldX <= l.x + w && worldY >= l.y && worldY <= l.y + NODE_H) {
-        hit = node;
-      }
-    });
-    return hit;
   },
 
   /** 展开/收起搜索栏（收起时清空搜索并恢复当前代数窗口） */
@@ -1962,91 +1931,6 @@ Page({
     }, 200);
   },
 
-  /**
-   * 显示 DOM 覆盖层气泡（混合方案：Canvas 绘制树体，气泡由视图层渲染）。
-   * 定位逻辑：节点世界坐标经与绘制共用的同一套 getViewTransform/getVerticalTransform
-   * 转换为屏幕坐标，并按画布可视范围夹取；上方空间不足时翻转到节点下方。
-   */
-  showTooltip(node) {
-    const isVertical = this.data.viewMode === 'vertical';
-    const transform = isVertical ? this.getVerticalTransform() : this.getViewTransform();
-    const scale = transform.scale;
-    let sx;    // 节点左上角屏幕 x
-    let sy;    // 节点左上角屏幕 y
-    let nodeW; // 节点世界宽（用于下方翻转定位）
-    let nodeH; // 节点世界高
-    let cx;    // 节点水平中心（世界坐标）
-
-    if (isVertical) {
-      const l = this.vLayoutMap[node.id];
-      if (!l) return;
-      nodeW = V_AVATAR_R * 2;
-      nodeH = V_AVATAR_R * 2;
-      sx = transform.offsetX + l.x * scale;
-      sy = transform.offsetY + l.y * scale;
-      cx = l.x + V_AVATAR_R;
-    } else {
-      const l = this.layoutMap[node.id];
-      if (!l) return;
-      nodeW = l.width;
-      nodeH = NODE_H;
-      sx = transform.offsetX + l.x * scale;
-      sy = transform.offsetY + l.y * scale;
-      cx = l.x + l.width / 2;
-    }
-
-    const screenCx = transform.offsetX + cx * scale;
-
-    // 默认气泡在节点上方（底部贴节点顶部上方 8px，箭头指向节点顶边）
-    let below = false;
-    let y = sy;
-    if (y < TOOLTIP_H + 8) {
-      const belowY = sy + nodeH * scale + 8;
-      if (belowY + TOOLTIP_H + 8 <= this.canvasHeight) {
-        below = true;
-        y = belowY;
-      }
-    }
-    // 水平夹取，避免气泡超出画布左右边缘
-    const half = TOOLTIP_W / 2;
-    let x = screenCx;
-    if (x < half + 8) x = half + 8;
-    if (x > this.canvasWidth - half - 8) x = this.canvasWidth - half - 8;
-
-    const genText = node.generationName ? node.generationName + '字辈'
-      : (node.generation ? node.generation + '代' : '');
-    this.setData({
-      tooltip: {
-        show: true,
-        x,
-        y,
-        below,
-        name: node.name || '',
-        firstChar: (node.name || '?').charAt(0),
-        genderText: node.gender === 'female' ? '女' : '男',
-        birthText: node.birthYear ? String(node.birthYear) : '未知',
-        statusText: '',
-        spouseText: (node.spouseInfo && node.spouseInfo.name) ? node.spouseInfo.name : '未记录',
-        genText
-      }
-    });
-  },
-
-  /** 隐藏 DOM 覆盖层气泡 */
-  hideTooltip() {
-    if (this.data.tooltip.show) this.setData({ 'tooltip.show': false });
-  },
-
-  /** 气泡「更多操作」：打开完整节点详情弹窗（保留编辑/添加子女/折叠等能力） */
-  openNodeModal() {
-    const node = this.data.selectedNode;
-    if (node && node.id) this.openModal(node);
-    this.hideTooltip();
-  },
-
-  /** 气泡内禁止滚动透传（占位处理） */
-  noop() {},
-
   /** 预览当前选中成员头像大图（无头像时忽略） */
   previewNodeAvatar() {
     const node = this.data.selectedNode;
@@ -2063,10 +1947,20 @@ Page({
   },
 
   viewDetail() {
-    wx.navigateTo({
-      url: `/pages/member-detail/member-detail?id=${this.data.selectedNode.id}`
-    });
+    this.viewNodeDetail(this.data.selectedNode);
     this.closeModal();
+  },
+
+  /** 跳转成员详情页：树状图/直系图点击名字时直接调用 */
+  viewNodeDetail(node) {
+    if (!node || !node.id) return;
+    wx.navigateTo({
+      url: `/pages/member-detail/member-detail?id=${node.id}`,
+      fail: (err) => {
+        console.error('跳转成员详情失败:', err);
+        wx.showToast({ title: '跳转失败，请重试', icon: 'none' });
+      }
+    });
   },
 
   editNode() {
@@ -2092,7 +1986,7 @@ Page({
   },
 
   exportTree() {
-    if (!this.canvasCtx || !this.renderNodes.length) {
+    if (!this.canvasReady || !this.renderNodes.length) {
       wx.showToast({ title: '画布未就绪', icon: 'none' });
       return;
     }
@@ -2145,11 +2039,10 @@ Page({
         doExport(offCanvas);
         return;
       } catch (e) {
-        console.warn('离屏导出失败，回退当前视图导出', e);
+        console.warn('离屏导出失败', e);
       }
     }
-    // 兜底：导出当前可视区域
-    doExport(this.canvasNode);
+    wx.showToast({ title: '当前环境不支持导出', icon: 'none' });
   },
 
   /** 导出直系图为完整大图 */
@@ -2186,7 +2079,7 @@ Page({
         console.warn('直系图离屏导出失败', e);
       }
     }
-    doExport(this.canvasNode);
+    wx.showToast({ title: '当前环境不支持导出', icon: 'none' });
   },
 
   handleExportedFile(filePath, share) {
