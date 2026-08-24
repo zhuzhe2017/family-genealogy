@@ -548,6 +548,7 @@ CREATE TABLE `sys_menu` (
   `create_time`   DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   `update_time`   DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
   PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_menu_route_name` (`route_name`),
   INDEX `idx_parent` (`parent_id`),
   INDEX `idx_sort` (`sort_order`),
   INDEX `idx_status` (`status`)
@@ -1261,6 +1262,7 @@ INSERT IGNORE INTO `sys_permission` (`name`, `code`, `status`) VALUES
 ('订阅查询', 'system:subscription:list', 1),
 ('套餐新增', 'system:subscription:create', 1),
 ('订阅更新', 'system:subscription:update', 1),
+('订阅退款', 'system:subscription:refund', 1),
 ('祭祀记录查询', 'system:worship:list', 1),
 ('祭祀数据删除', 'system:worship:delete', 1),
 ('广告轮播查询', 'system:family-banner:list', 1),
@@ -1463,6 +1465,7 @@ CREATE TABLE IF NOT EXISTS `member` (
   `member_no`       VARCHAR(32)   NOT NULL COMMENT '会员编号',
   `name`            VARCHAR(50)   NOT NULL COMMENT '会员姓名',
   `phone`           VARCHAR(20)   DEFAULT NULL COMMENT '手机号(空则不参与唯一校验)',
+  `user_id`         VARCHAR(32)   NOT NULL DEFAULT '' COMMENT '关联用户ID(user.id,小程序端绑定的账户)',
   `gender`          TINYINT(1)    NOT NULL DEFAULT 0 COMMENT '性别 0-未知 1-男 2-女',
   `birthday`        DATE          DEFAULT NULL COMMENT '生日',
   `level_id`        INT UNSIGNED  NOT NULL DEFAULT 0 COMMENT '会员等级ID',
@@ -1476,6 +1479,7 @@ CREATE TABLE IF NOT EXISTS `member` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_member_no` (`member_no`),
   UNIQUE KEY `uk_member_phone` (`phone`),
+  UNIQUE KEY `uk_member_user` (`user_id`),
   INDEX `idx_member_level` (`level_id`),
   INDEX `idx_member_status` (`status`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='会员信息表';

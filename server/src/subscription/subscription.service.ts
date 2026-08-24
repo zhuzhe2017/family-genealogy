@@ -2,6 +2,7 @@ import { Injectable, HttpException, HttpStatus } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { EntitlementService } from '../membership/membership.service';
 import { SystemLogService } from '../system-log/system-log.service';
+import { MemberService } from '../member/member.service';
 import { WxPayService } from './wx-pay.service';
 import { type PrepayDto, type RefundDto } from './dto/subscription.dto';
 import {
@@ -18,7 +19,8 @@ export class SubscriptionService {
     private readonly dataSource: DataSource,
     private readonly wxPayService: WxPayService,
     private readonly entitlementService: EntitlementService,
-    private readonly systemLogService: SystemLogService
+    private readonly systemLogService: SystemLogService,
+    private readonly memberService: MemberService
   ) {}
 
   // ==================== 下单 ====================
@@ -168,11 +170,14 @@ export class SubscriptionService {
     if (this.affectedRows(result) === 0) return; // 已处理（幂等）或订单不存在
 
     await this.entitlementService.activateSubscription(order.family_id, order.plan_code, order.period_months, order.user_id);
+
+    // 消费得积分：订阅支付成功，给支付人绑定的 CRM 会员入账（幂等）
+    await this.memberService.recordConsumeForUser(order.user_id, order.order_no, Number(order.amount), order.out_trade_no);
   }
 
   // ==================== 退款 ====================
 
-  /** 退款：校验订单归属与状态，真实退款或模拟退款 */
+  /** 用户自助退款：校验订单归属与状态，真实退款或模拟退款 */
   async refund(userId: string, dto: RefundDto): Promise<void> {
     const [order] = await this.dataSource.query<SubscriptionOrderRow[]>(
       'SELECT * FROM `subscription_order` WHERE `order_no` = ? OR `out_trade_no` = ?',
@@ -188,20 +193,7 @@ export class SubscriptionService {
       throw new HttpException('订单当前状态不可退款', HttpStatus.BAD_REQUEST);
     }
 
-    const amountFen = Math.round(Number(order.amount) * 100);
-    const refundNo = this.wxPayService.generateNo('R');
-
-    if (this.wxPayService.isConfigured()) {
-      await this.wxPayService.refund({
-        outTradeNo: order.out_trade_no,
-        refundNo,
-        reason: dto.reason || '用户申请退款',
-        refundFen: amountFen,
-        totalFen: amountFen
-      });
-    }
-
-    await this.completeRefund(order, refundNo);
+    const refundNo = await this.performRefund(order, dto.reason || '用户申请退款');
     this.systemLogService.write({
       logType: 'operation',
       module: 'subscription',
@@ -213,6 +205,52 @@ export class SubscriptionService {
       success: true,
       detail: `orderNo=${order.out_trade_no} refundNo=${refundNo} amount=${order.amount}`
     });
+  }
+
+  /** 管理端退款（后台代退）：按订单号定位，仅校验订单状态为已支付 */
+  async adminRefund(orderNo: string, reason: string | undefined, operator: string, operatorId: number | null): Promise<void> {
+    const [order] = await this.dataSource.query<SubscriptionOrderRow[]>(
+      'SELECT * FROM `subscription_order` WHERE `order_no` = ? OR `out_trade_no` = ?',
+      [orderNo, orderNo]
+    );
+    if (!order) {
+      throw new HttpException('订单不存在', HttpStatus.NOT_FOUND);
+    }
+    if (order.status !== 'paid') {
+      throw new HttpException('订单当前状态不可退款', HttpStatus.BAD_REQUEST);
+    }
+
+    const refundNo = await this.performRefund(order, reason || '管理员退款');
+    this.systemLogService.write({
+      logType: 'operation',
+      module: 'subscription',
+      action: '管理退款',
+      method: 'POST',
+      path: '/api/subscription/orders/refund',
+      operator,
+      operatorId,
+      success: true,
+      detail: `orderNo=${order.out_trade_no} refundNo=${refundNo} amount=${order.amount}`
+    });
+  }
+
+  /** 退款核心：真实/模拟微信退款 → 订单落库 refunded + 订阅降级（frozen） */
+  private async performRefund(order: SubscriptionOrderRow, reason: string): Promise<string> {
+    const amountFen = Math.round(Number(order.amount) * 100);
+    const refundNo = this.wxPayService.generateNo('R');
+
+    if (this.wxPayService.isConfigured()) {
+      await this.wxPayService.refund({
+        outTradeNo: order.out_trade_no,
+        refundNo,
+        reason,
+        refundFen: amountFen,
+        totalFen: amountFen
+      });
+    }
+
+    await this.completeRefund(order, refundNo);
+    return refundNo;
   }
 
   /** 退款落库 + 订阅降级（frozen，周期内权益保留，到期只读） */

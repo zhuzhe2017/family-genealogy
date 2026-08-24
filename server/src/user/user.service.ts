@@ -6,6 +6,9 @@ import { randomBytes } from 'crypto';
 import { type UserRow, type UserInfo, type UserLoginResult, type UserAuthIdentityRow } from './types/user.types';
 import { type FamilyRow } from '../family/types/family.types';
 import { SmsService } from './sms.service';
+import { EntitlementService } from '../membership/membership.service';
+import { Capability } from '../membership/types/membership.types';
+import { MemberService } from '../member/member.service';
 import { type WxSessionResponse, type QueryValues, type DataRow } from '../common/types/common';
 
 @Injectable()
@@ -14,7 +17,9 @@ export class UserService {
     private readonly dataSource: DataSource,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
-    private readonly smsService: SmsService
+    private readonly smsService: SmsService,
+    private readonly entitlementService: EntitlementService,
+    private readonly memberService: MemberService
   ) {}
 
   /**
@@ -136,6 +141,8 @@ export class UserService {
     if (user.status !== 1) {
       throw new HttpException('账号已被禁用', HttpStatus.FORBIDDEN);
     }
+    // 手机号命中 CRM 会员档案 → 自动绑定（幂等）
+    await this.memberService.bindByPhone(user.id, normalized);
     return this.issueUserToken(user);
   }
 
@@ -155,6 +162,8 @@ export class UserService {
 
     await this.bindIdentity(userId, 'phone', normalized, '');
     await this.dataSource.query('UPDATE `user` SET `phone` = ? WHERE `id` = ?', [normalized, userId] as QueryValues);
+    // 绑定手机号后按号自动匹配 CRM 会员（幂等）
+    await this.memberService.bindByPhone(userId, normalized);
     return this.getProfile(userId);
   }
 
@@ -423,6 +432,8 @@ export class UserService {
       throw new HttpException('请先加入家族', HttpStatus.BAD_REQUEST);
     }
     const familyId = Number(user.family_id);
+    // 拦截型能力点：多管理员/高级权限为会员权益，未开通 → 4001；订阅过期 → 4004
+    await this.entitlementService.assertCapability(familyId, Capability.Permission);
     const [family] = await this.dataSource.query<DataRow[]>(
       'SELECT `id`, `name`, `creator_user_id` FROM `family` WHERE `id` = ? AND `status` = 1 LIMIT 1',
       [familyId]
@@ -497,6 +508,8 @@ export class UserService {
       throw new HttpException('请先加入家族', HttpStatus.BAD_REQUEST);
     }
     const familyId = Number(user.family_id);
+    // 拦截型能力点：分配/回收管理员角色同样受会员权益限制
+    await this.entitlementService.assertCapability(familyId, Capability.Permission);
     const [family] = await this.dataSource.query<DataRow[]>(
       'SELECT `id`, `creator_user_id` FROM `family` WHERE `id` = ? AND `status` = 1 LIMIT 1',
       [familyId]

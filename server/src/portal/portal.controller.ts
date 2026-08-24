@@ -2,6 +2,8 @@ import { Controller, Get, Post, Put, Delete, Body, Param, Query, Req, UseGuards,
 import { Public } from '../common/decorators/public.decorator';
 import { UserJwtAuthGuard } from '../user/user.guard';
 import { EntitlementGuard } from '../membership/guards/entitlement.guard';
+import { Entitlement } from '../membership/decorators/entitlement.decorator';
+import { Capability } from '../membership/types/membership.types';
 import { type AuthenticatedRequest } from '../common/types/common';
 import { PortalService } from './portal.service';
 import { type ContentType } from '../content/content.service';
@@ -222,5 +224,20 @@ export class PortalController {
     @Req() req: AuthenticatedRequest
   ) {
     return this.portalService.createComment(id, String(req.user.id), req.user.nickname || '', body.content || '');
+  }
+
+  // ---------- 数据备份 ----------
+
+  /** 备份记录列表（查看历史记录为免费能力，不做权益拦截） */
+  @Get('family/:familyId/backups')
+  getBackupList(@Param('familyId', ParseIntPipe) familyId: number) {
+    return this.portalService.getBackupList(familyId);
+  }
+
+  /** 创建备份（数据备份为付费能力点，未解锁返回 4001） */
+  @Entitlement(Capability.Backup)
+  @Post('family/:familyId/backup')
+  createBackup(@Param('familyId', ParseIntPipe) familyId: number, @Req() req: AuthenticatedRequest) {
+    return this.portalService.createBackup(familyId, String(req.user.id));
   }
 }

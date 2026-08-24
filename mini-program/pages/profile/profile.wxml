@@ -69,6 +69,11 @@
         <text class="vip-badge {{vipStatus.isVip ? 'vip-badge-gold' : ''}}">{{vipStatus.text}}</text>
         <text class="menu-arrow">›</text>
       </view>
+      <view class="menu-item" bindtap="navigateTo" data-url="/pages/my-member/my-member">
+        <view class="menu-icon">🎖️</view>
+        <text class="menu-text">我的会员</text>
+        <text class="menu-arrow">›</text>
+      </view>
       <view class="menu-item" bindtap="navigateTo" data-url="/pages/tools-manage/tools-manage">
         <view class="menu-icon">🧰</view>
         <text class="menu-text">工具管理</text>

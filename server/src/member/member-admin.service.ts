@@ -2,6 +2,7 @@ import { Injectable, HttpException, HttpStatus } from '@nestjs/common';
 import { DataSource, type QueryRunner } from 'typeorm';
 import * as XLSX from 'xlsx';
 import { SystemLogService } from '../system-log/system-log.service';
+import { MemberService } from './member.service';
 import { type QueryValues } from '../common/types/common';
 import {
   type MemberRow,
@@ -40,7 +41,8 @@ interface OpLogParams {
 export class MemberAdminService {
   constructor(
     private readonly dataSource: DataSource,
-    private readonly systemLogService: SystemLogService
+    private readonly systemLogService: SystemLogService,
+    private readonly memberService: MemberService
   ) {}
 
   // ==================== 会员信息 ====================
@@ -206,6 +208,9 @@ export class MemberAdminService {
         operatorId,
         detail: `memberNo=${memberNo} name=${name} phone=${phone || ''} points=${points}`
       });
+
+      // 按手机号反向绑定已有小程序用户（幂等）
+      await this.memberService.bindUserByPhone(result.insertId, phone);
       return { id: result.insertId, memberNo };
     } catch (err: unknown) {
       await queryRunner.rollbackTransaction();
@@ -282,6 +287,11 @@ export class MemberAdminService {
       operatorId,
       detail: `member=${id} fields=${fields.length}`
     });
+
+    // 手机号变更后按新号反向绑定已有用户（幂等）
+    if (phone !== null) {
+      await this.memberService.bindUserByPhone(id, phone);
+    }
     return { success: true };
   }
 

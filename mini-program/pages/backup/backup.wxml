@@ -3,20 +3,25 @@
   <view class="backup-card">
     <view class="backup-icon">💾</view>
     <text class="backup-title">数据备份</text>
-    <text class="backup-desc">备份家族数据到云端，防止数据丢失</text>
-    <button class="backup-btn" bindtap="backupData">立即备份</button>
+    <text class="backup-desc" wx:if="{{familyName}}">备份「{{familyName}}」数据到云端，防止数据丢失</text>
+    <text class="backup-desc" wx:else>备份家族数据到云端，防止数据丢失</text>
+    <button class="backup-btn" bindtap="backupData" disabled="{{backingUp}}">立即备份</button>
     <button class="restore-btn" bindtap="restoreData">恢复数据</button>
   </view>
+
+  <!-- 离线提示 -->
+  <view class="offline-tip" wx:if="{{offlineMode}}">当前为离线示例数据，连接后端后展示实时备份记录</view>
 
   <!-- 备份记录 -->
   <view class="record-list">
     <text class="record-title">备份记录</text>
+    <view class="record-empty" wx:if="{{records.length === 0}}">暂无备份记录</view>
     <view class="record-item" wx:for="{{records}}" wx:key="id">
       <view class="record-info">
         <text class="record-name">{{item.name}}</text>
-        <text class="record-time">{{item.time}}</text>
+        <text class="record-time">{{item.time}}<text wx:if="{{item.size}}"> · {{item.size}}</text></text>
       </view>
-      <text class="record-status">{{item.status}}</text>
+      <text class="record-status {{item.status === '失败' ? 'record-status-fail' : ''}}">{{item.status}}</text>
     </view>
   </view>
 </view>

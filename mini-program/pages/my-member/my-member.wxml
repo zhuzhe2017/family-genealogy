@@ -1,0 +1,83 @@
+<view class="container">
+  <!-- 加载中 -->
+  <view class="state-box" wx:if="{{loading}}">
+    <text class="state-text">加载中...</text>
+  </view>
+
+  <!-- 加载失败 -->
+  <view class="state-box" wx:elif="{{loadFailed}}">
+    <text class="state-text">加载失败，请检查网络后重试</text>
+    <text class="state-btn" bindtap="loadData">重新加载</text>
+  </view>
+
+  <!-- 离线/未登录 -->
+  <view class="state-box" wx:elif="{{offlineMode}}">
+    <text class="state-text">登录后查看会员等级与积分</text>
+  </view>
+
+  <!-- 未建档：引导绑定手机号 -->
+  <view class="state-box" wx:elif="{{!hasMember}}">
+    <view class="empty-icon">🎖️</view>
+    <text class="state-text">暂未开通会员档案</text>
+    <text class="state-desc">在「我的」中绑定手机号，将自动匹配后台会员档案并赠送积分</text>
+    <text class="state-btn" bindtap="goBindPhone">去绑定手机号</text>
+  </view>
+
+  <block wx:else>
+    <!-- 会员卡 -->
+    <view class="member-card">
+      <view class="card-pattern"></view>
+      <view class="card-top">
+        <view class="card-user">
+          <text class="card-name">{{member.name}}</text>
+          <text class="card-level">{{level ? level.name : ''}}</text>
+        </view>
+        <view class="card-no">NO.{{member.memberNo}}</view>
+      </view>
+      <view class="card-points-row">
+        <text class="card-points-label">当前积分</text>
+        <text class="card-points-value">{{member.points}}</text>
+      </view>
+      <view class="card-stats">
+        <view class="card-stat">
+          <text class="card-stat-value">¥{{member.totalConsume}}</text>
+          <text class="card-stat-label">累计消费</text>
+        </view>
+        <view class="card-stat">
+          <text class="card-stat-value">{{member.consumeCount}}</text>
+          <text class="card-stat-label">消费次数</text>
+        </view>
+        <view class="card-stat">
+          <text class="card-stat-value">{{member.phone}}</text>
+          <text class="card-stat-label">绑定手机号</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 签到 -->
+    <view class="signin-card">
+      <text class="signin-desc">每日签到得积分，连续签到积累更多权益</text>
+      <button class="signin-btn {{signing ? 'signin-btn-disabled' : ''}}" bindtap="signIn" disabled="{{signing}}">
+        {{signing ? '签到中...' : '立即签到'}}
+      </button>
+    </view>
+
+    <!-- 积分明细 -->
+    <view class="records-card">
+      <view class="records-title">积分明细</view>
+      <view class="record-item" wx:for="{{pointsRecords}}" wx:key="index">
+        <view class="record-left">
+          <text class="record-label">{{item.label}}</text>
+          <text class="record-remark">{{item.remark}}</text>
+          <text class="record-time">{{item.createTime}}</text>
+        </view>
+        <text class="record-points {{item.changePoints > 0 ? 'record-points-plus' : 'record-points-minus'}}">
+          {{item.changePoints > 0 ? '+' : ''}}{{item.changePoints}}
+        </text>
+      </view>
+      <view class="record-empty" wx:if="{{pointsRecords.length === 0}}">
+        <text>暂无积分记录</text>
+      </view>
+    </view>
+  </block>
+</view>

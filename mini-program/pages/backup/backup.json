@@ -1,4 +1,6 @@
 {
   "usingComponents": {},
-  "navigationBarTitleText": "数据备份"
+  "navigationBarTitleText": "数据备份",
+  "enablePullDownRefresh": true,
+  "backgroundTextStyle": "dark"
 }

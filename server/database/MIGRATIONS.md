@@ -61,3 +61,15 @@
 
 - `migrations/generation-table-er.md` / `system-settings-api.md` / `system-settings-guide.md` / `system-settings-test-report.md`：模块设计/验收文档，非 SQL 文件，保留。
 - `verify-migration.js` / `run-migration.js`：迁移辅助脚本（执行/校验工具），保留。
+
+## 存量库修复脚本（增量，2026-08-24）
+
+以下脚本针对**存量库**（schema.sql 升级前已存在的库）补齐新增结构，均为幂等，可安全重复执行；全新环境直接执行 `schema.sql` 即可，无需这些脚本：
+
+| 文件 | 用途 | 幂等性 |
+|---|---|---|
+| `fix-member-module.sql` | 会员（CRM）模块补全：member/member_level/points_rule/points_record/member_consume 表 + 种子 + 权限码 + 菜单（挂系统管理）+ super 授权 | INSERT IGNORE / NOT EXISTS / UPDATE，幂等 |
+| `fix-menu-unique-route-name.sql` | 清理 sys_menu.route_name 重复行 + 建立唯一索引 `uk_menu_route_name`（根治 INSERT IGNORE 防重失效问题） | 非重复执行无副作用 |
+| `fix-subscription-refund.sql` | 后台订单退款权限码 `system:subscription:refund` + super 授权（配合 P1-2 退款接口） | INSERT IGNORE，幂等 |
+
+> 上述脚本对应的结构变更已同步进 `schema.sql`：`sys_menu` 唯一索引、`member.user_id` + `uk_member_user` 唯一索引、`system:subscription:refund` 权限码。

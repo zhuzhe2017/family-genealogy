@@ -7,7 +7,6 @@ const { getToken } = require('../../utils/request');
 // 节点绘制常量
 const NODE_W = 120;    // 节点卡片宽度（rpx 单位，实际绘制按 dpr 缩放）
 const NODE_H = 76;     // 节点卡片高度
-const SPOUSE_W = 80;   // 配偶卡片宽度
 const LEVEL_H = 180;   // 代际垂直间距
 const NODE_GAP_X = 32; // 节点水平间距
 const SUBTREE_GAP = 16;// 子树之间额外间距
@@ -26,7 +25,7 @@ const CANVAS_BG = '#F0E9DD';   // 画布暖纸背景，与白色卡片拉开对�
 const LIST_PAGE_SIZE = 50; // 列表视图每页成员数
 // LOD 分级阈值（按卡片在屏幕上的实际宽度 px 判定）
 const LOD_BLOCK_THRESHOLD = 40;  // 卡片 < 40px 时仅画色块，跳过全部文字
-const LOD_MEDIUM_THRESHOLD = 90; // 卡片 < 90px 时画简版（名字 + 配偶色块）
+const LOD_MEDIUM_THRESHOLD = 90; // 卡片 < 90px 时画简版（仅名字）
 
 // 直系图（vertical）常量：圆形头像、角色标注、配偶在侧
 const V_AVATAR_R = 34;            // 主成员头像半径（世界坐标），符合中尺寸规格
@@ -501,7 +500,8 @@ Page({
     const traverse = (node, startX) => {
       if (!node) return { left: startX, right: startX };
       const visibleChildren = node.children.filter(c => visibleSet.has(c.id));
-      const nodeWidth = NODE_W + (node.spouseInfo && node.spouseInfo.name ? SPOUSE_W + NODE_GAP_X : 0);
+      // 主树视图仅绘制血亲成员，配偶信息移至直系图展示，故节点宽度固定为卡片宽度（布局更紧凑）
+      const nodeWidth = NODE_W;
       const level = node.generation - 1;
       const y = PADDING + level * LEVEL_H;
 
@@ -526,7 +526,7 @@ Page({
 
       left = bounds[0].left;
       right = bounds[bounds.length - 1].right;
-      // 父节点居中到子树范围中心；若父节点（含配偶）比子树更宽导致左越界，则回推对齐子树左侧
+      // 父节点居中到子树范围中心；若父节点比子树更宽导致左越界，则回推对齐子树左侧
       const nodeX = Math.max(startX, (left + right) / 2 - nodeWidth / 2);
       layoutMap[node.id] = { x: nodeX, y, width: nodeWidth, node };
       return { left: Math.min(left, nodeX), right: Math.max(right, nodeX + nodeWidth) };
@@ -1325,16 +1325,14 @@ Page({
     // 卡片在屏幕上的实际宽度决定细节等级
     const cardScreenW = NODE_W * scale;
 
-    // LOD0 极远视图：仅色块（含配偶色块），不绘制任何文字
+    // LOD0 极远视图：仅色块（不绘制任何文字；主树不含配偶节点）
     if (cardScreenW < LOD_BLOCK_THRESHOLD) {
-      this.drawSpouseBlock(ctx, layout);
       return;
     }
 
-    // LOD1 中距视图：只画名字（垂直居中），跳过头像/徽标/标签与配偶细节
+    // LOD1 中距视图：只画名字（垂直居中），跳过头像/徽标/标签细节
     if (cardScreenW < LOD_MEDIUM_THRESHOLD) {
       this.drawName(ctx, node, x, y, NODE_W - 44 - 8, y + NODE_H / 2, isDead ? '#9A9A94' : '');
-      this.drawSpouseBlock(ctx, layout);
       return;
     }
 
@@ -1379,17 +1377,6 @@ Page({
       tagX += tagW + 5;
     });
 
-    // 配偶卡片：连线 + 卡片色块 + 头像/名字细节
-    if (node.spouseInfo && node.spouseInfo.name) {
-      const spouseX = x + NODE_W + NODE_GAP_X / 2 - 4;
-      this.drawSpouseBlock(ctx, layout);
-      const spouseFemale = node.gender !== 'female';
-      this.drawAvatar(ctx, spouseX + 20, y + NODE_H / 2, node.spouseInfo.name, spouseFemale ? '#FF6B9D' : '#B22222');
-      ctx.fillStyle = '#666666';
-      ctx.font = '11px sans-serif';
-      ctx.fillText(this.ellipsize(node.spouseInfo.name, 3), spouseX + 42, y + NODE_H / 2);
-    }
-
     // 折叠/展开指示器（仅完整细节等级；有子节点才可折叠）
     if (node.children && node.children.length > 0) {
       const collapsed = this.collapsedIds.has(node.id);
@@ -1431,33 +1418,6 @@ Page({
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
     ctx.fillText(this.ellipsizeByWidth(ctx, node.name, maxW), x + 44, centerY || y + 22);
-  },
-
-  /** 绘制配偶连线与配偶卡片色块（不含文字/头像，供各 LOD 共用） */
-  drawSpouseBlock(ctx, layout) {
-    const node = layout.node;
-    if (!node.spouseInfo || !node.spouseInfo.name) return;
-    const x = layout.x;
-    const y = layout.y;
-    const spouseX = x + NODE_W + NODE_GAP_X / 2 - 4;
-    // 先画连线再画卡片，避免连线压在卡片圆角上
-    ctx.beginPath();
-    ctx.moveTo(x + NODE_W, y + NODE_H / 2);
-    ctx.lineTo(spouseX, y + NODE_H / 2);
-    ctx.strokeStyle = '#C08A55';
-    ctx.lineWidth = 1;
-    ctx.stroke();
-
-    this.roundRect(ctx, spouseX, y + 8, SPOUSE_W, NODE_H - 16, 8);
-    ctx.save();
-    ctx.shadowColor = 'rgba(0, 0, 0, 0.08)';
-    ctx.shadowBlur = 4;
-    ctx.shadowOffsetY = 2;
-    ctx.fillStyle = '#FCF9F4';
-    ctx.fill();
-    ctx.restore();
-    ctx.strokeStyle = '#D4C4B2';
-    ctx.stroke();
   },
 
   drawAvatar(ctx, cx, cy, name, color) {

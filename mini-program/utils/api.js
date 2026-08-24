@@ -160,6 +160,30 @@ const subscription = {
   }
 };
 
+/** 用户侧会员（CRM 会员档案：等级/积分/消费，绑定手机号后自动建档） */
+const member = {
+  /** 我的会员信息：{ member, level, pointsRecords }，未建档 member=null */
+  getProfile: function () {
+    return request({ url: '/user/member/profile' });
+  },
+  /** 每日签到得积分（当天重复签到返回 409） */
+  signIn: function () {
+    return request({ url: '/user/member/signin', method: 'POST' });
+  }
+};
+
+/** 数据备份相关接口（familyId 为当前家族ID；创建备份需 backup 权益，未解锁返回 4xxx） */
+const backup = {
+  /** 备份记录列表（倒序，含文件大小） */
+  getList: function (familyId) {
+    return request({ url: '/user/family/' + familyId + '/backups' });
+  },
+  /** 创建备份：打包家族数据生成 JSON 备份文件 */
+  create: function (familyId) {
+    return request({ url: '/user/family/' + familyId + '/backup', method: 'POST' });
+  }
+};
+
 /** 祭祀祈福相关接口 */
 const worship = {
   /** 祭祀页面汇总：今日各类型统计 + 最近祈福记录 */
@@ -396,4 +420,4 @@ const fund = {
   }
 };
 
-module.exports = { auth, family, familyMember, content, subscription, worship, invitation, banner, plugin, gathering, fund };
+module.exports = { auth, family, familyMember, content, subscription, member, backup, worship, invitation, banner, plugin, gathering, fund };

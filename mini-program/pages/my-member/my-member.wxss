@@ -1,0 +1,235 @@
+/* 我的会员页样式 */
+.container {
+  padding: 24rpx;
+}
+
+/* 通用状态块 */
+.state-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 120rpx 48rpx;
+  background: var(--bg-white);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+}
+
+.state-text {
+  font-size: 28rpx;
+  color: #666;
+  margin-top: 16rpx;
+}
+
+.state-desc {
+  font-size: 24rpx;
+  color: #999;
+  text-align: center;
+  margin-top: 12rpx;
+  line-height: 1.6;
+}
+
+.state-btn {
+  margin-top: 32rpx;
+  padding: 16rpx 56rpx;
+  background: var(--primary);
+  color: #FFFFFF;
+  border-radius: 999rpx;
+  font-size: 28rpx;
+}
+
+.empty-icon {
+  font-size: 88rpx;
+}
+
+/* 会员卡 */
+.member-card {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+  border-radius: var(--radius-lg);
+  padding: 40rpx 36rpx;
+  color: #FFFFFF;
+  box-shadow: var(--shadow);
+  margin-bottom: 24rpx;
+}
+
+.card-pattern {
+  position: absolute;
+  right: -60rpx;
+  top: -60rpx;
+  width: 240rpx;
+  height: 240rpx;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.card-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.card-user {
+  display: flex;
+  align-items: center;
+}
+
+.card-name {
+  font-size: 40rpx;
+  font-weight: 600;
+}
+
+.card-level {
+  margin-left: 16rpx;
+  padding: 4rpx 20rpx;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 999rpx;
+  font-size: 22rpx;
+}
+
+.card-no {
+  font-size: 22rpx;
+  opacity: 0.8;
+}
+
+.card-points-row {
+  display: flex;
+  align-items: baseline;
+  margin-top: 40rpx;
+}
+
+.card-points-label {
+  font-size: 26rpx;
+  opacity: 0.9;
+}
+
+.card-points-value {
+  font-size: 72rpx;
+  font-weight: 700;
+  margin-left: 24rpx;
+  line-height: 1;
+}
+
+.card-stats {
+  display: flex;
+  margin-top: 40rpx;
+}
+
+.card-stat {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.card-stat-value {
+  font-size: 26rpx;
+  font-weight: 600;
+}
+
+.card-stat-label {
+  font-size: 22rpx;
+  opacity: 0.8;
+  margin-top: 8rpx;
+}
+
+/* 签到卡 */
+.signin-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--bg-white);
+  border-radius: var(--radius-lg);
+  padding: 28rpx 32rpx;
+  box-shadow: var(--shadow-card);
+  margin-bottom: 24rpx;
+}
+
+.signin-desc {
+  font-size: 24rpx;
+  color: #666;
+  flex: 1;
+  margin-right: 24rpx;
+}
+
+.signin-btn {
+  margin: 0;
+  padding: 12rpx 40rpx;
+  background: linear-gradient(135deg, #C9A96E, #A87F3F);
+  color: #FFFFFF;
+  font-size: 26rpx;
+  border-radius: 999rpx;
+  line-height: 1.6;
+}
+
+.signin-btn-disabled {
+  opacity: 0.6;
+}
+
+/* 积分明细 */
+.records-card {
+  background: var(--bg-white);
+  border-radius: var(--radius-lg);
+  padding: 28rpx 32rpx;
+  box-shadow: var(--shadow-card);
+}
+
+.records-title {
+  font-size: 30rpx;
+  font-weight: 600;
+  margin-bottom: 16rpx;
+}
+
+.record-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 24rpx 0;
+  border-bottom: 1rpx solid #F0F0F0;
+}
+
+.record-item:last-child {
+  border-bottom: none;
+}
+
+.record-left {
+  display: flex;
+  flex-direction: column;
+}
+
+.record-label {
+  font-size: 28rpx;
+  color: #333;
+}
+
+.record-remark {
+  font-size: 22rpx;
+  color: #999;
+  margin-top: 6rpx;
+}
+
+.record-time {
+  font-size: 20rpx;
+  color: #BBBBBB;
+  margin-top: 6rpx;
+}
+
+.record-points {
+  font-size: 32rpx;
+  font-weight: 600;
+}
+
+.record-points-plus {
+  color: #E6670A;
+}
+
+.record-points-minus {
+  color: #666;
+}
+
+.record-empty {
+  padding: 48rpx 0;
+  text-align: center;
+  font-size: 24rpx;
+  color: #999;
+}

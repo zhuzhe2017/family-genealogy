@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger, type OnModuleInit } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import {
   Capability,
@@ -21,11 +21,42 @@ const GRACE_DAYS = 7;
 const FREE_STORAGE_LIMIT = 500 * 1024 * 1024;
 
 @Injectable()
-export class EntitlementService {
+export class EntitlementService implements OnModuleInit {
+  private readonly logger = new Logger(EntitlementService.name);
   private readonly planCache = new Map<string, { value: PlanView; expires: number }>();
   private readonly subCache = new Map<number, { value: SubscriptionView; expires: number }>();
+  /** 到期扫描执行间隔（6 小时一次，覆盖「每日定时任务」要求且能及时流转状态） */
+  private static readonly SCAN_INTERVAL = 6 * 60 * 60 * 1000;
+  /** 扫描中标志，防止 DB 卡顿时 setInterval 叠加并发执行 */
+  private scanRunning = false;
 
   constructor(private readonly dataSource: DataSource) {}
+
+  /** 应用启动后注册到期扫描定时任务（active→grace→expired 状态机自动流转） */
+  onModuleInit() {
+    setInterval(() => void this.runExpireScan(), EntitlementService.SCAN_INTERVAL);
+  }
+
+  /** 执行到期扫描并记录日志；单实例内防重入 */
+  private async runExpireScan(): Promise<void> {
+    if (this.scanRunning) return;
+    this.scanRunning = true;
+    try {
+      const result = await this.expireScan();
+      if (result.toGrace > 0 || result.toExpired > 0) {
+        this.logger.log(`订阅到期扫描完成：${result.toGrace} 进入宽限，${result.toExpired} 过期`);
+      }
+      // 存储对账：以 storage_usage_record（status=1）明细为准，修正 family_quota.storage_used 偏差
+      const reconciled = await this.reconcileStorage();
+      if (reconciled > 0) {
+        this.logger.log(`存储对账完成：修正 ${reconciled} 个家族存储用量偏差`);
+      }
+    } catch (err) {
+      this.logger.error(`订阅到期扫描失败: ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      this.scanRunning = false;
+    }
+  }
 
   // ==================== 套餐读取（缓存） ====================
 
@@ -318,6 +349,27 @@ export class EntitlementService {
       [reason, familyId]
     );
     this.invalidateSubscriptionCache(familyId);
+  }
+
+  /**
+   * 存储对账：以 storage_usage_record（status=1）明细为准，修正 family_quota.storage_used 偏差。
+   * 覆盖两类不一致：
+   * - 明细求和 < 账户值（明细被软删/补偿遗漏）→ 下调
+   * - 明细求和 > 账户值（记账中途失败等）→ 上调
+   * 返回修正的家族数；随到期扫描任务每 6 小时执行一次。
+   */
+  async reconcileStorage(): Promise<number> {
+    const [result] = await this.dataSource.query<ResultSetHeaderLike[]>(
+      `UPDATE \`family_quota\` q
+       LEFT JOIN (
+         SELECT \`family_id\`, COALESCE(SUM(\`file_size\`), 0) AS actual
+         FROM \`storage_usage_record\` WHERE \`status\` = 1
+         GROUP BY \`family_id\`
+       ) u ON u.\`family_id\` = q.\`family_id\`
+       SET q.\`storage_used\` = COALESCE(u.actual, 0)
+       WHERE COALESCE(u.actual, 0) <> q.\`storage_used\``
+    );
+    return this.affectedRows(result);
   }
 
   // ==================== 内部工具 ====================

@@ -6,7 +6,7 @@ import { useAuth } from '@/hooks/business/auth';
 import {
   fetchAdminPlanList, fetchCreateAdminPlan, fetchUpdateAdminPlan,
   fetchAdminFamilySubscriptionList, fetchAdminActivateFamily, fetchAdminFreezeFamily,
-  fetchAdminOrderList
+  fetchAdminOrderList, fetchAdminRefundOrder
 } from '@/service/api';
 import type {
   AdminPlanItem, AdminFamilySubscriptionItem, AdminOrderItem
@@ -342,6 +342,33 @@ const orderTableData = ref<AdminOrderItem[]>([]);
 const orderSearch = reactive({ keyword: '', status: '', familyId: '' });
 const orderPagination = reactive({ page: 1, pageSize: 10, itemCount: 0, showSizePicker: true, pageSizes: [10, 20, 50, 100] });
 
+const refundVisible = ref(false);
+const refundSaving = ref(false);
+const refundForm = reactive({ orderNo: '', familyName: '', amount: 0, reason: '' });
+
+function openRefund(row: AdminOrderItem) {
+  refundForm.orderNo = row.orderNo;
+  refundForm.familyName = row.familyName || '-';
+  refundForm.amount = row.amount;
+  refundForm.reason = '';
+  refundVisible.value = true;
+}
+
+async function submitRefund() {
+  refundSaving.value = true;
+  try {
+    await fetchAdminRefundOrder({ orderNo: refundForm.orderNo, reason: refundForm.reason || undefined });
+    message.success('退款成功');
+    refundVisible.value = false;
+    loadOrders();
+    loadSubscriptions();
+  } catch (err: any) {
+    message.error(err?.message || '退款失败');
+  } finally {
+    refundSaving.value = false;
+  }
+}
+
 async function loadOrders() {
   orderLoading.value = true;
   try {
@@ -381,7 +408,12 @@ const orderColumns: DataTableColumn<AdminOrderItem>[] = [
   { title: '状态', key: 'status', width: 90, render: row => statusTag(row.status, ORDER_STATUS_OPTIONS) },
   { title: '创建时间', key: 'createTime', width: 160 },
   { title: '支付时间', key: 'payTime', width: 160, render: row => orDash(row.payTime) },
-  { title: '退款时间', key: 'refundTime', width: 160, render: row => orDash(row.refundTime) }
+  { title: '退款时间', key: 'refundTime', width: 160, render: row => orDash(row.refundTime) },
+  {
+    title: '操作', key: 'actions', width: 90, fixed: 'right',
+    render: row => row.status === 'paid' && hasAuth('system:subscription:refund')
+      && h(NButton, { size: 'small', type: 'error', ghost: true, onClick: () => openRefund(row) }, { default: () => '退款' })
+  }
 ];
 
 // ==================== 初始化 ====================
@@ -488,6 +520,21 @@ onMounted(() => {
         <n-space justify="end">
           <n-button @click="freezeVisible = false">取消</n-button>
           <n-button type="error" :loading="freezeSaving" @click="submitFreeze">确认冻结</n-button>
+        </n-space>
+      </template>
+    </n-modal>
+
+    <!-- 订单退款 -->
+    <n-modal v-model:show="refundVisible" preset="card" title="订单退款" style="width: 460px">
+      <p class="mb-16px">
+        将为「{{ refundForm.familyName }}」的订单 <b>{{ refundForm.orderNo }}</b> 退款
+        <b>¥{{ refundForm.amount.toFixed(2) }}</b>，退款后该家族订阅将取消（权益降级冻结）。
+      </p>
+      <n-input v-model:value="refundForm.reason" type="textarea" placeholder="退款原因（可选）" :rows="3" />
+      <template #footer>
+        <n-space justify="end">
+          <n-button @click="refundVisible = false">取消</n-button>
+          <n-button type="error" :loading="refundSaving" @click="submitRefund">确认退款</n-button>
         </n-space>
       </template>
     </n-modal>

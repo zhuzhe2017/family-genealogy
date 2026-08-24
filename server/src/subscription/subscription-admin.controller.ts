@@ -1,10 +1,11 @@
-import { Controller, Get, Post, Put, Body, Param, Query, Req, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Put, Body, Param, Query, Req, UseGuards, HttpException, HttpStatus } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guard/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { PermissionsGuard } from '../common/guards/permissions.guard';
 import { Permissions } from '../common/decorators/permissions.decorator';
 import { type AuthenticatedRequest } from '../common/types/common';
 import { SubscriptionAdminService } from './subscription-admin.service';
+import { SubscriptionService } from './subscription.service';
 import { type PlanUpsertData } from './types/subscription-admin.types';
 
 /**
@@ -14,7 +15,10 @@ import { type PlanUpsertData } from './types/subscription-admin.types';
 @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
 @Controller('subscription')
 export class SubscriptionAdminController {
-  constructor(private readonly adminService: SubscriptionAdminService) {}
+  constructor(
+    private readonly adminService: SubscriptionAdminService,
+    private readonly subscriptionService: SubscriptionService
+  ) {}
 
   // ==================== 套餐管理 ====================
 
@@ -145,5 +149,25 @@ export class SubscriptionAdminController {
       status,
       familyId: familyId !== undefined && familyId !== '' ? Number(familyId) : undefined
     });
+  }
+
+  /** 后台订单退款（仅已支付订单；真实/模拟微信退款 + 订阅降级，权限码 system:subscription:refund） */
+  @Permissions('system:subscription:refund')
+  @Post('orders/refund')
+  async refundOrder(
+    @Body() body: { orderNo: string; reason?: string },
+    @Req() req: AuthenticatedRequest
+  ) {
+    const orderNo = (body.orderNo || '').trim();
+    if (!orderNo) {
+      throw new HttpException('缺少订单号', HttpStatus.BAD_REQUEST);
+    }
+    await this.subscriptionService.adminRefund(
+      orderNo,
+      body.reason,
+      req.user.username,
+      (req.user.id as number) ?? null
+    );
+    return { success: true };
   }
 }

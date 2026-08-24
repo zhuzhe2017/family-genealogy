@@ -131,3 +131,8 @@ export function fetchAdminFreezeFamily(data: { familyId: number; reason?: string
 export function fetchAdminOrderList(params: { page: number; pageSize: number; keyword?: string; status?: string; familyId?: number }) {
   return request<AdminOrderListResult>({ url: '/subscription/orders/list', params });
 }
+
+/** 后台订单退款（仅已支付订单，权限 system:subscription:refund） */
+export function fetchAdminRefundOrder(data: { orderNo: string; reason?: string }) {
+  return request<{ success: boolean }>({ url: '/subscription/orders/refund', method: 'post', data });
+}

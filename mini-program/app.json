@@ -30,6 +30,7 @@
     "pages/privacy/privacy",
     "pages/login/login",
     "pages/member-center/member-center",
+    "pages/my-member/my-member",
     "pages/gathering/index",
     "pages/gathering/detail",
     "pages/gathering/edit",
