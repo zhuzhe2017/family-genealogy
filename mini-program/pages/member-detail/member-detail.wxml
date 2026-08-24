@@ -16,7 +16,6 @@
           <text class="header-tag" wx:if="{{member.generationName}}">{{member.generationName}}字辈</text>
           <text class="header-tag">{{member.generation}}代</text>
           <text class="header-tag">{{member.gender === 'female' ? '女性' : '男性'}}</text>
-          <text class="header-tag tag-alive">{{member.isAlive ? '在世' : '已逝'}}</text>
         </view>
       </view>
     </view>

@@ -42,13 +42,7 @@ const V_SCALE_MAX = 1.2;  // 直系图缩放上限
 const AVATAR_SIZE = { small: 22, medium: V_AVATAR_R, large: 46 }; // 尺寸规格（半径 px）
 const AVATAR_SHAPE = { circle: 'circle', rounded: 'rounded' };    // 形状：圆形 / 圆角方形
 const AVATAR_BORDER = '#FFFFFF';                                   // 默认描边色（与纸底对比）
-const AVATAR_STATUS_ALIVE = '#4CAF50';                             // 在世状态圆点色
-const AVATAR_STATUS_DEAD = '#9E9E9E';                              // 已逝状态圆点色
 const AVATAR_TIMEOUT = 10000;                                      // 头像加载超时（ms）
-
-// DOM 覆盖层气泡常量（混合方案：Canvas 绘制树体，气泡由 DOM 视图层渲染）
-const TOOLTIP_W = 220;    // 气泡宽度（用于视口边缘夹取）
-const TOOLTIP_H = 118;    // 气泡估算高度（用于上方空间不足时翻转到下方）
 
 Page({
   data: {
@@ -58,19 +52,7 @@ Page({
     selectedNode: {},
     selectedCollapsed: false,
     modalAnimation: {},
-    tooltip: {
-      show: false,
-      x: 0,
-      y: 0,
-      below: false,
-      name: '',
-      firstChar: '',
-      genderText: '',
-      birthText: '',
-      statusText: '',
-      spouseText: '',
-      genText: ''
-    },
+    hoverNodeId: '',
     memberList: [],
     listHasMore: false,
     showSearchBar: false,
@@ -119,6 +101,10 @@ Page({
   _boundsCache: null,       // 内容边界缓存（布局变化时失效，避免每帧 O(n) 重算）
   _contentSizeCache: null,  // 内容尺寸缓存
   _genIndex: null,          // 空间索引：generation -> 按 x 升序的布局数组（视口裁剪/命中检测）
+  nameHitBoxes: [],         // 当前帧树状图名字包围盒 {x,y,w,h,nodeId}
+  verticalNameHitBoxes: [], // 当前帧直系图名字包围盒 {x,y,w,h,nodeId,scaleY}
+  _hoverTimer: null,        // 名字悬停高亮定时器
+  hoverNodeId: '',          // 当前悬停高亮的节点 id（也同步到 data）
   highlightId: '',          // 当前高亮定位的成员 id
   _pendingLocateId: '',     // 待定位成员 id（当前窗口未加载该成员时，切到最大代数窗口后定位）
   _pendingCenterLayout: null, // canvas 尚未就绪时暂存的居中布局
@@ -815,6 +801,7 @@ Page({
 
   /** 绘制直系图内容：头像、连线、角色、配偶 */
   drawVerticalContent(ctx, offsetX, offsetY, scale) {
+    this.verticalNameHitBoxes = []; // 每帧重置名字命中盒
     ctx.save();
     ctx.translate(offsetX, offsetY);
     ctx.scale(scale, scale);
@@ -870,14 +857,20 @@ Page({
       radius: V_AVATAR_R,
       name: node.name,
       avatar: node.avatar,
-      color: node.gender === 'female' ? '#D98BA6' : '#6A8BAE',
-      alive: node.isAlive !== false
+      color: node.gender === 'female' ? '#D98BA6' : '#6A8BAE'
     });
-    ctx.fillStyle = '#333333';
-    ctx.font = 'bold 14px sans-serif';
+    const isHover = this.hoverNodeId === node.id;
+    ctx.fillStyle = isHover ? '#8B1A1A' : '#333333';
+    ctx.font = isHover ? 'bold 15px sans-serif' : 'bold 14px sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'top';
-    ctx.fillText(this.ellipsizeByWidth(ctx, node.name, V_AVATAR_R * 2.4), cx, l.y + V_AVATAR_R * 2 + 8);
+    const nameText = this.ellipsizeByWidth(ctx, node.name, V_AVATAR_R * 2.4);
+    const nameY = l.y + V_AVATAR_R * 2 + 8;
+    const nameX = cx;
+    ctx.fillText(nameText, nameX, nameY);
+    const nameW = ctx.measureText(nameText).width;
+    const nameH = isHover ? 18 : 16;
+    this.verticalNameHitBoxes.push({ x: nameX - nameW / 2, y: nameY, w: nameW, h: nameH, nodeId: node.id, scaleY: false });
     ctx.fillStyle = '#8B7D6B';
     ctx.font = '12px sans-serif';
     ctx.fillText(l.role, cx, l.y + V_AVATAR_R * 2 + 26);
@@ -919,9 +912,7 @@ Page({
       cy,
       radius: V_SPOUSE_AVATAR_R,
       name: spouse.name,
-      color: '#D98BA6',
-      alive: true,
-      showStatus: false
+      color: '#D98BA6'
     });
     ctx.fillStyle = '#333333';
     ctx.font = 'bold 14px sans-serif';
@@ -945,9 +936,7 @@ Page({
       cy,
       radius: V_SPOUSE_AVATAR_R,
       name: '失记',
-      color: '#BDB4A8', // 灰色填充，与真实配偶区分
-      alive: true,
-      showStatus: false
+      color: '#BDB4A8' // 灰色填充，与真实配偶区分
     });
     // 名字行：与配偶名字行同位置同样式（"失记"）
     ctx.fillStyle = '#333333';
@@ -977,7 +966,7 @@ Page({
   /**
    * 头像组件（canvas 2d 绘制层）：
    * - 支持图片头像（异步加载 + 缓存），加载中/失败自动回退首字
-   * - 支持尺寸规格（radius）、形状（圆形/圆角方形）、边框、在世/已逝状态圆点
+   * - 支持尺寸规格（radius）、形状（圆形/圆角方形）、边框
    */
   drawMemberAvatar(ctx, opts) {
     const {
@@ -989,9 +978,7 @@ Page({
       color = '#6A8BAE',
       shape = AVATAR_SHAPE.circle,
       borderColor = AVATAR_BORDER,
-      borderWidth = 3,
-      alive = true,
-      showStatus = true
+      borderWidth = 3
     } = opts || {};
 
     // 1. 底色 + 图片或首字（在裁剪路径内绘制，保证不越界）
@@ -1023,20 +1010,6 @@ Page({
     ctx.lineWidth = borderWidth;
     ctx.stroke();
     ctx.restore();
-
-    // 3. 在世/已逝状态圆点（右下角）
-    if (showStatus) {
-      const dotR = Math.max(4, radius * 0.22);
-      const dotX = cx + radius * 0.66;
-      const dotY = cy + radius * 0.66;
-      ctx.beginPath();
-      ctx.arc(dotX, dotY, dotR, 0, Math.PI * 2);
-      ctx.fillStyle = alive ? AVATAR_STATUS_ALIVE : AVATAR_STATUS_DEAD;
-      ctx.fill();
-      ctx.strokeStyle = AVATAR_BORDER;
-      ctx.lineWidth = 2;
-      ctx.stroke();
-    }
   },
 
   /** 头像形状路径：circle 圆形 / rounded 圆角方形（居中于 cx,cy） */
@@ -1135,6 +1108,7 @@ Page({
 
   /** 在指定坐标系下绘制整棵树（屏幕渲染与离线导出共用，带视口裁剪） */
   drawTreeContent(ctx, offsetX, offsetY, scale, viewW, viewH) {
+    this.nameHitBoxes = []; // 每帧重置名字命中盒
     ctx.save();
     ctx.translate(offsetX, offsetY);
     ctx.scale(scale, scale);
@@ -1296,8 +1270,6 @@ Page({
     const x = layout.x;
     const y = layout.y;
     const isFemale = node.gender === 'female';
-    // 已逝成员：卡片整体灰化（底色/边框/头像/名字），任意缩放级别（含 LOD0 色块）都能一眼区分
-    const isDead = node.isAlive === false;
 
     // 主节点背景（所有 LOD 都绘制色块，性别色保留；轻阴影增强与背景的区分度）
     this.roundRect(ctx, x, y, NODE_W, NODE_H, 10);
@@ -1305,10 +1277,10 @@ Page({
     ctx.shadowColor = 'rgba(0, 0, 0, 0.1)';
     ctx.shadowBlur = 5;
     ctx.shadowOffsetY = 2;
-    ctx.fillStyle = isDead ? '#EFEFEC' : (isFemale ? '#FFF0F3' : '#FFFFFF');
+    ctx.fillStyle = isFemale ? '#FFF0F3' : '#FFFFFF';
     ctx.fill();
     ctx.restore();
-    ctx.strokeStyle = isDead ? '#BDBDB6' : (isFemale ? '#E695A5' : '#D9C5AC');
+    ctx.strokeStyle = isFemale ? '#E695A5' : '#D9C5AC';
     ctx.lineWidth = 1;
     ctx.stroke();
 
@@ -1332,7 +1304,7 @@ Page({
 
     // LOD1 中距视图：只画名字（垂直居中），跳过头像/徽标/标签细节
     if (cardScreenW < LOD_MEDIUM_THRESHOLD) {
-      this.drawName(ctx, node, x, y, NODE_W - 44 - 8, y + NODE_H / 2, isDead ? '#9A9A94' : '');
+      this.drawName(ctx, node, x, y, NODE_W - 44 - 8, y + NODE_H / 2);
       return;
     }
 
@@ -1355,27 +1327,22 @@ Page({
     // 名字：按徽标左侧可用宽度截断，不超出卡片、不与徽标重叠
     this.drawName(ctx, node, x, y, badgeX - 4 - (x + 44) - 4, y + 22);
 
-    // 标签行：最多 2 个（字辈、已逝），压缩尺寸避免溢出卡片
-    const tags = [];
-    if (node.generationName) tags.push(node.generationName + '字辈');
-    if (node.isAlive === false) tags.push('已逝');
-    let tagX = x + 44;
-    const tagY = y + 52;
-    ctx.font = '9px sans-serif';
-    tags.forEach((text) => {
-      const isDead = text === '已逝';
+    // 标签行：字辈标签
+    if (node.generationName) {
+      const text = node.generationName + '字辈';
+      const tagX = x + 44;
+      const tagY = y + 52;
       const tagW = ctx.measureText(text).width + 10;
+      ctx.font = '9px sans-serif';
       this.roundRect(ctx, tagX, tagY - 7, tagW, 14, 3);
-      // 字辈：暖沙底 + 深褐字；已逝：浅红底 + 深红字，保证标签与卡片/背景均有明显区分
-      ctx.fillStyle = isDead ? 'rgba(139, 26, 26, 0.12)' : '#EFE7DA';
+      ctx.fillStyle = '#EFE7DA';
       ctx.fill();
-      ctx.strokeStyle = isDead ? 'rgba(139, 26, 26, 0.4)' : '#CFC2AE';
+      ctx.strokeStyle = '#CFC2AE';
       ctx.lineWidth = 1;
       ctx.stroke();
-      ctx.fillStyle = isDead ? '#8B1A1A' : '#7A6A56';
+      ctx.fillStyle = '#7A6A56';
       ctx.fillText(text, tagX + 5, tagY);
-      tagX += tagW + 5;
-    });
+    }
 
     // 折叠/展开指示器（仅完整细节等级；有子节点才可折叠）
     if (node.children && node.children.length > 0) {
@@ -1413,11 +1380,19 @@ Page({
 
   /** 绘制名字（按可用宽度截断，默认位于卡片上部）；color 为空时使用默认深灰 */
   drawName(ctx, node, x, y, maxW, centerY, color) {
-    ctx.fillStyle = color || '#333333';
-    ctx.font = 'bold 12px sans-serif';
+    const isHover = this.hoverNodeId === node.id;
+    ctx.fillStyle = isHover ? '#8B1A1A' : (color || '#333333');
+    ctx.font = isHover ? 'bold 13px sans-serif' : 'bold 12px sans-serif';
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
-    ctx.fillText(this.ellipsizeByWidth(ctx, node.name, maxW), x + 44, centerY || y + 22);
+    const text = this.ellipsizeByWidth(ctx, node.name, maxW);
+    const textX = x + 44;
+    const textY = centerY || y + 22;
+    ctx.fillText(text, textX, textY);
+    // 记录名字包围盒（LOD1/LOD2），供点击命中与悬停高亮
+    const textW = ctx.measureText(text).width;
+    const boxH = isHover ? 16 : 14;
+    this.nameHitBoxes.push({ x: textX, y: textY - boxH / 2, w: textW, h: boxH, nodeId: node.id });
   },
 
   drawAvatar(ctx, cx, cy, name, color) {
@@ -1517,6 +1492,7 @@ Page({
       this.pan.touching = false;
       this.pinchStartDist = this.touchDist(touches);
       this.pinchStartZoom = this.zoom;
+      this.clearHover();
       return;
     }
     const t = touches[0];
@@ -1537,8 +1513,6 @@ Page({
       const maxZoom = extreme ? MAX_SCALE / (this.initialScale || 1) : MAX_SCALE;
       const next = Math.max(minZoom, Math.min(maxZoom, this.pinchStartZoom * (dist / this.pinchStartDist)));
       if (Math.abs(next - this.zoom) > 0.001) {
-        // 缩放期间画布内容变化，隐藏 DOM 气泡避免错位
-        this.hideTooltip();
         this.applyZoomAt(next, touches);
       }
       return;
@@ -1549,7 +1523,7 @@ Page({
     if (this.tapInfo &&
       (Math.abs(t.clientX - this.tapInfo.x) > 10 || Math.abs(t.clientY - this.tapInfo.y) > 10)) {
       this.tapInfo = null;
-      this.hideTooltip();
+      this.clearHover();
     }
     this.pan.x = t.clientX - this.pan.startX;
     this.pan.y = t.clientY - this.pan.startY;
@@ -1591,18 +1565,48 @@ Page({
     const touch = e.detail;
     // 优先检测折叠/展开指示器
     if (this.hitCollapseToggle(touch.x, touch.y)) return;
-    const node = this.hitTest(touch.x, touch.y);
-    if (node) {
-      // 混合方案：画布命中后由 DOM 覆盖层气泡承接轻量信息展示
-      this.setData({
-        selectedNode: node,
-        selectedCollapsed: this.collapsedIds.has(node.id)
-      });
-      this.showTooltip(node);
-    } else if (this.data.tooltip.show) {
-      // 点空白区域关闭气泡
-      this.setData({ 'tooltip.show': false });
+    // 再精确检测名字包围盒
+    const nameNode = this.hitNameBox(touch.x, touch.y);
+    if (nameNode) {
+      this.setHover(nameNode.id);
+      this.openModal(nameNode);
+      return;
     }
+    // 点击在节点卡片但非名字上：无动作
+  },
+
+  /** 设置悬停高亮并 150ms 后清除 */
+  setHover(nodeId) {
+    if (this._hoverTimer) clearTimeout(this._hoverTimer);
+    this.hoverNodeId = nodeId;
+    this.setData({ hoverNodeId: nodeId }, () => this.requestRender());
+    this._hoverTimer = setTimeout(() => this.clearHover(true), 150);
+  },
+
+  /** 清除悬停高亮（afterRender 用于触发重绘） */
+  clearHover(afterRender) {
+    if (this._hoverTimer) clearTimeout(this._hoverTimer);
+    this._hoverTimer = null;
+    if (this.hoverNodeId) {
+      this.hoverNodeId = '';
+      this.setData({ hoverNodeId: '' });
+      if (afterRender) this.requestRender();
+    }
+  },
+
+  /** 检测点击是否落在树状图名字包围盒内 */
+  hitNameBox(x, y) {
+    const { scale, offsetX, offsetY } = this.getViewTransform();
+    const worldX = (x - offsetX) / scale;
+    const worldY = (y - offsetY) / scale;
+    const boxes = this.nameHitBoxes || [];
+    for (let i = boxes.length - 1; i >= 0; i--) {
+      const b = boxes[i];
+      if (worldX >= b.x && worldX <= b.x + b.w && worldY >= b.y && worldY <= b.y + b.h) {
+        return this.nodeMap[b.nodeId];
+      }
+    }
+    return null;
   },
 
   /** 直系图手势：开始拖动或双指缩放 */
@@ -1613,6 +1617,7 @@ Page({
       this.vPan.touching = false;
       this.vPinchStartDist = this.touchDist(touches);
       this.vPinchStartZoom = this.vZoom;
+      this.clearHover();
       return;
     }
     const t = touches[0];
@@ -1639,7 +1644,6 @@ Page({
           Math.min(V_SCALE_MAX / this.vInitialScale, this.vPinchStartZoom * (dist / this.vPinchStartDist))
         );
         if (isFinite(next) && next > 0 && Math.abs(next - this.vZoom) > 0.001) {
-          this.hideTooltip();
           this.applyVerticalZoomAt(next, touches);
         }
       }
@@ -1650,7 +1654,7 @@ Page({
     if (this.vTapInfo &&
       (Math.abs(t.clientX - this.vTapInfo.x) > 10 || Math.abs(t.clientY - this.vTapInfo.y) > 10)) {
       this.vTapInfo = null;
-      this.hideTooltip();
+      this.clearHover();
     }
     this.vPan.x = t.clientX - this.vPan.startX;
     this.vPan.y = t.clientY - this.vPan.startY;
@@ -1686,28 +1690,32 @@ Page({
     this.requestRender();
   },
 
-  /** 直系图点击：命中头像（含配偶）后由 DOM 覆盖层气泡展示详情 */
+  /** 直系图点击：优先检测名字区域，再检测头像（含配偶） */
   onVerticalTap(e) {
     if (!this.vTapInfo) return;
     const touch = e.detail;
     const node = this.hitVerticalTest(touch.x, touch.y);
     if (node) {
-      this.setData({
-        selectedNode: node,
-        selectedCollapsed: this.collapsedIds.has(node.id)
-      });
-      this.showTooltip(node);
-    } else if (this.data.tooltip.show) {
-      this.setData({ 'tooltip.show': false });
+      this.setHover(node.id);
+      this.openModal(node);
     }
   },
 
-  /** 直系图命中检测：点击主角或配偶头像均返回该成员 */
+  /** 直系图命中检测：先检测名字包围盒，再检测主角/配偶头像 */
   hitVerticalTest(x, y) {
     const { scale, offsetX, offsetY } = this.getVerticalTransform();
     const worldX = (x - offsetX) / scale;
     const worldY = (y - offsetY) / scale;
     const vNodes = Object.values(this.vLayoutMap || {});
+    // 名字优先
+    const boxes = this.verticalNameHitBoxes || [];
+    for (let i = boxes.length - 1; i >= 0; i--) {
+      const b = boxes[i];
+      if (worldX >= b.x && worldX <= b.x + b.w && worldY >= b.y && worldY <= b.y + b.h) {
+        return this.nodeMap[b.nodeId];
+      }
+    }
+    // 头像兜底
     let hit = null;
     vNodes.forEach(l => {
       const cx = l.x + V_AVATAR_R;
@@ -2017,7 +2025,7 @@ Page({
         firstChar: (node.name || '?').charAt(0),
         genderText: node.gender === 'female' ? '女' : '男',
         birthText: node.birthYear ? String(node.birthYear) : '未知',
-        statusText: node.isAlive === false ? '已故' : '在世',
+        statusText: '',
         spouseText: (node.spouseInfo && node.spouseInfo.name) ? node.spouseInfo.name : '未记录',
         genText
       }

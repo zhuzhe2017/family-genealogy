@@ -151,16 +151,6 @@
   color: #7A6A56;
 }
 
-.tag-alive {
-  background: rgba(90, 160, 90, 0.12);
-  color: #3E7C3E;
-}
-
-.tag-dead {
-  background: rgba(139, 26, 26, 0.12);
-  color: #8B1A1A;
-}
-
 .tooltip-row {
   display: flex;
   font-size: 13px;

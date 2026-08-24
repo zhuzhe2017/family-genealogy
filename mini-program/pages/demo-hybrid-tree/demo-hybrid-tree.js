@@ -477,7 +477,7 @@ Page({
         firstChar: (node.name || '?').charAt(0),
         genderText: (GENDERS[node.gender] || {}).label || '未知',
         birthText: node.birthYear ? String(node.birthYear) : '未知',
-        statusText: node.isAlive === false ? '已故' : '在世',
+        statusText: '',
         spouseText: node.spouseName || '未记录'
       }
     });

@@ -70,12 +70,8 @@
       bindtouchend="onCanvasTouchEnd"
       bindtap="onCanvasTap">
     </canvas>
-    <!-- DOM 覆盖层：容器 0x0 不阻挡画布触摸，气泡由视图层渲染（混合方案） -->
-    <view class="tooltip-layer">
-      <template is="tooltipTpl" data="{{tooltip}}" />
-    </view>
     <view class="tree-hint">
-      <text class="hint-text">共 {{memberCount}} 人 · 拖动平移 · 双指缩放 · 点击成员查看详情</text>
+      <text class="hint-text">共 {{memberCount}} 人 · 拖动平移 · 双指缩放 · 点击名字查看详情</text>
     </view>
   </view>
 
@@ -91,10 +87,6 @@
       bindtouchend="onVerticalTouchEnd"
       bindtap="onVerticalTap">
     </canvas>
-    <!-- DOM 覆盖层：容器 0x0 不阻挡画布触摸，气泡由视图层渲染（混合方案） -->
-    <view class="tooltip-layer">
-      <template is="tooltipTpl" data="{{tooltip}}" />
-    </view>
     <view class="tree-hint">
       <text class="hint-text">直系共 {{memberCount}} 人 · 拖动查看，双指缩放</text>
     </view>
@@ -186,41 +178,4 @@
   </view>
 </view>
 
-<!-- DOM 覆盖层气泡模板：Canvas 绘制树体，气泡由视图层渲染，样式/动画与画布解耦 -->
-<template name="tooltipTpl">
-  <view class="tooltip {{tooltip.below ? 'tooltip-below' : ''}}"
-        wx:if="{{tooltip.show}}"
-        style="left:{{tooltip.x}}px;top:{{tooltip.y}}px;"
-        bindtap="hideTooltip"
-        catchtouchmove="noop">
-    <view class="tooltip-arrow"></view>
 
-    <view class="tooltip-head">
-      <view class="tooltip-avatar {{tooltip.genderText === '女' ? 'female' : ''}}">{{tooltip.firstChar}}</view>
-      <view class="tooltip-name-wrap">
-        <view class="tooltip-name">{{tooltip.name}}</view>
-        <view class="tooltip-tags">
-          <text class="tooltip-tag tag-gender">{{tooltip.genderText}}</text>
-          <text class="tooltip-tag {{tooltip.statusText === '已故' ? 'tag-dead' : 'tag-alive'}}">{{tooltip.statusText}}</text>
-        </view>
-      </view>
-    </view>
-
-    <view class="tooltip-row">
-      <text class="tooltip-label">世系</text>
-      <text class="tooltip-value">{{tooltip.genText}}</text>
-    </view>
-    <view class="tooltip-row">
-      <text class="tooltip-label">生年</text>
-      <text class="tooltip-value">{{tooltip.birthText}}</text>
-    </view>
-    <view class="tooltip-row">
-      <text class="tooltip-label">配偶</text>
-      <text class="tooltip-value">{{tooltip.spouseText}}</text>
-    </view>
-
-    <view class="tooltip-actions">
-      <view class="tooltip-btn" catchtap="openNodeModal">更多操作</view>
-    </view>
-  </view>
-</template>
