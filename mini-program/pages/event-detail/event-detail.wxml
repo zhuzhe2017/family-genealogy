@@ -51,10 +51,10 @@
 
   <!-- 底部操作 -->
   <view class="bottom-actions safe-bottom">
-    <view class="action-btn danger" bindtap="deleteEvent">
+    <view class="action-btn danger" wx:if="{{event.canEdit}}" bindtap="deleteEvent">
       <text>删除</text>
     </view>
-    <view class="action-btn secondary" bindtap="editEvent">
+    <view class="action-btn secondary" wx:if="{{event.canEdit}}" bindtap="editEvent">
       <text>编辑</text>
     </view>
     <button class="action-btn primary share-btn" open-type="share">

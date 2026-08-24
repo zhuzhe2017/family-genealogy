@@ -251,28 +251,99 @@ export class PortalService {
     }, userId);
   }
 
-  /** 内容详情（仅审核通过；dynamic 附带图片与当前用户点赞状态） */
-  getContentDetail(type: ContentType, id: string, userId?: string) {
+  /** 内容详情（仅审核通过；dynamic 附带图片与当前用户点赞状态；event 附带当前用户 canEdit 标识） */
+  async getContentDetail(type: ContentType, id: string, userId?: string) {
     this.assertContentType(type);
-    return this.contentService.getById(type, id, userId);
+    const detail = await this.contentService.getById(type, id, userId);
+    if (type === 'event' && userId) {
+      const familyId = Number((detail as { family_id?: unknown }).family_id);
+      (detail as { canEdit?: boolean }).canEdit = familyId
+        ? await this.isFamilyAdmin(familyId, String(userId))
+        : false;
+    }
+    return detail;
   }
 
-  /** 发布内容（默认待审核） */
-  createContent(type: ContentType, data: ContentCreateData) {
+  /** 发布内容（默认待审核；须为当前家族成员，家族以请求体 familyId 校验） */
+  async createContent(type: ContentType, data: ContentCreateData, userId?: string) {
     this.assertContentType(type);
+    if (!userId) {
+      throw new HttpException('请先登录', HttpStatus.UNAUTHORIZED);
+    }
+    const familyId = Number(data.familyId) || 0;
+    if (!familyId) {
+      throw new HttpException('familyId 不能为空', HttpStatus.BAD_REQUEST);
+    }
+    await this.assertFamilyMemberByUserId(familyId, String(userId));
     return this.contentService.create(type, data);
   }
 
-  /** 更新内容（目前支持 event） */
-  updateContent(type: ContentType, id: string, data: ContentCreateData) {
+  /** 更新内容（目前支持 event；仅家族创建者/管理员可操作，家族以库内记录为准） */
+  async updateContent(type: ContentType, id: string, data: ContentCreateData, userId?: string) {
     this.assertContentType(type);
+    if (!userId) {
+      throw new HttpException('请先登录', HttpStatus.UNAUTHORIZED);
+    }
+    const familyId = await this.getContentFamilyId(type, id);
+    await this.assertFamilyAdmin(familyId, String(userId));
+    // 以库内真实 family_id 为准，防止请求体伪造归属
+    data = { ...data, familyId };
     return this.contentService.update(type, id, data);
   }
 
-  /** 删除内容（软删除） */
-  deleteContent(type: ContentType, id: string) {
+  /** 删除内容（软删除；仅家族创建者/管理员可操作，家族以库内记录为准） */
+  async deleteContent(type: ContentType, id: string, userId?: string) {
     this.assertContentType(type);
+    if (!userId) {
+      throw new HttpException('请先登录', HttpStatus.UNAUTHORIZED);
+    }
+    const familyId = await this.getContentFamilyId(type, id);
+    await this.assertFamilyAdmin(familyId, String(userId));
     return this.contentService.delete(type, id);
+  }
+
+  /** 内容类型 → 主表名（与 content.service 的 CONTENT_CONFIG 保持一致） */
+  private contentTableOf(type: ContentType): string {
+    switch (type) {
+      case 'dynamic':
+        return 'family_dynamic';
+      case 'photo':
+        return 'family_photo';
+      case 'document':
+        return 'family_document';
+      case 'event':
+        return 'family_event';
+    }
+  }
+
+  /** 内容所属家族（仅启用中；不存在抛 404） */
+  private async getContentFamilyId(type: ContentType, id: string): Promise<number> {
+    const [row] = await this.dataSource.query<{ family_id: number }[]>(
+      `SELECT \`family_id\` FROM \`${this.contentTableOf(type)}\` WHERE \`id\` = ? AND \`status\` = 1`,
+      [id]
+    );
+    if (!row) {
+      throw new HttpException('内容不存在或已删除', HttpStatus.NOT_FOUND);
+    }
+    return Number(row.family_id);
+  }
+
+  /** 家族写权限判断：家族创建者 或 family_permission role=admin */
+  private async isFamilyAdmin(familyId: number, userId: string): Promise<boolean> {
+    const creatorId = await this.familyService.getCreatorUserId(familyId);
+    if (String(creatorId || '') === String(userId)) return true;
+    const [perm] = await this.dataSource.query<{ id: number }[]>(
+      'SELECT `id` FROM `family_permission` WHERE `family_id` = ? AND `user_id` = ? AND `role` = \'admin\' AND `status` = 1',
+      [familyId, userId]
+    );
+    return !!perm;
+  }
+
+  /** 家族写权限断言：无权限抛 403 */
+  private async assertFamilyAdmin(familyId: number, userId: string): Promise<void> {
+    if (!(await this.isFamilyAdmin(familyId, userId))) {
+      throw new HttpException('仅家族创建者或管理员可操作事件', HttpStatus.FORBIDDEN);
+    }
   }
 
   /** 动态点赞/取消点赞 */
@@ -285,8 +356,10 @@ export class PortalService {
     return this.contentService.getComments(dynamicId, page, pageSize);
   }
 
-  /** 发表评论 */
-  createComment(dynamicId: string, userId: string, userName: string, content: string) {
+  /** 发表评论（仅该动态所属家族成员可评论） */
+  async createComment(dynamicId: string, userId: string, userName: string, content: string) {
+    const familyId = await this.getContentFamilyId('dynamic', dynamicId);
+    await this.assertFamilyMemberByUserId(familyId, userId);
     return this.contentService.createComment(dynamicId, userId, userName, content);
   }
 

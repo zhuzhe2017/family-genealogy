@@ -3,16 +3,19 @@ import { h, ref, reactive, onMounted } from 'vue';
 import type { DataTableColumn } from 'naive-ui';
 import { useMessage, useDialog, NTag, NButton, NSpace, NSelect, NInput, NDataTable, NCard } from 'naive-ui';
 import { useAuth } from '@/hooks/business/auth';
-import { fetchAdminInvitationList, fetchDeleteAdminInvitation } from '@/service/api';
+import { fetchAdminInvitationList, fetchDeleteAdminInvitation, fetchBatchDeleteAdminInvitation } from '@/service/api';
 import type { AdminInvitationItem } from '@/service/api';
 
 const message = useMessage();
 const dialog = useDialog();
 const { hasAuth } = useAuth();
 
+type RowKey = string | number;
+
 // ===== 列表 =====
 const loading = ref(false);
 const data = ref<AdminInvitationItem[]>([]);
+const checkedRowKeys = ref<RowKey[]>([]);
 const search = reactive({ status: null as number | null, keyword: '' });
 const pagination = reactive({ page: 1, pageSize: 10, itemCount: 0, showSizePicker: true, pageSizes: [10, 20, 50, 100] });
 
@@ -38,6 +41,7 @@ function formatTime(v: string | null | undefined) {
 }
 
 const columns: DataTableColumn<AdminInvitationItem>[] = [
+  { type: 'selection', width: 46 },
   { title: 'ID', key: 'id', width: 60 },
   { title: '邀请码', key: 'inviteCode', width: 110, ellipsis: { tooltip: true } },
   { title: '家族', key: 'familyName', minWidth: 120, ellipsis: { tooltip: true }, render: row => row.familyName || `#${row.familyId}` },
@@ -76,12 +80,14 @@ const columns: DataTableColumn<AdminInvitationItem>[] = [
 
 function handleSearch() {
   pagination.page = 1;
+  checkedRowKeys.value = [];
   loadList();
 }
 function handleReset() {
   search.status = null;
   search.keyword = '';
   pagination.page = 1;
+  checkedRowKeys.value = [];
   loadList();
 }
 function handlePageChange(page: number) {
@@ -130,6 +136,30 @@ function handleDelete(row: AdminInvitationItem) {
   });
 }
 
+function handleBatchDelete() {
+  const ids = [...checkedRowKeys.value].map(Number).filter((n) => Number.isInteger(n) && n > 0);
+  if (!ids.length) {
+    message.warning('请先勾选要删除的邀请记录');
+    return;
+  }
+  dialog.warning({
+    title: '确认批量删除',
+    content: `确定删除选中的 ${ids.length} 条邀请记录吗？删除后不可恢复。`,
+    positiveText: '确定',
+    negativeText: '取消',
+    onPositiveClick: async () => {
+      try {
+        const { data: res } = await fetchBatchDeleteAdminInvitation(ids);
+        message.success(`已删除 ${res?.deletedCount ?? ids.length} 条记录`);
+        checkedRowKeys.value = [];
+        loadList();
+      } catch (err: any) {
+        message.error(err?.msg || '批量删除失败');
+      }
+    }
+  });
+}
+
 onMounted(loadList);
 </script>
 
@@ -141,6 +171,12 @@ onMounted(loadList);
         <NInput v-model:value="search.keyword" placeholder="邀请码/家族/昵称关键字" clearable style="width: 200px" @keyup.enter="handleSearch" />
         <NButton type="primary" ghost @click="handleSearch">查询</NButton>
         <NButton @click="handleReset">重置</NButton>
+        <NButton
+          v-if="hasAuth('system:family-invitation:delete')"
+          type="error"
+          ghost
+          @click="handleBatchDelete"
+        >批量删除</NButton>
       </div>
     </NCard>
 
@@ -150,11 +186,13 @@ onMounted(loadList);
         :data="data"
         :loading="loading"
         :row-key="row => row.id"
+        :checked-row-keys="checkedRowKeys"
         :pagination="pagination"
         :bordered="false"
         :single-line="false"
         :scroll-x="1400"
         remote
+        @update:checked-row-keys="checkedRowKeys = $event"
         @update:page="handlePageChange"
         @update:page-size="handlePageSizeChange"
       />

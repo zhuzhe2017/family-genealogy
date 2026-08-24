@@ -254,9 +254,19 @@ Page({
     ctx.fillText('专属邀请码', W / 2, by + 24);
 
     const code = (this.data.code || '------').toUpperCase();
+    // 邀请码文本：以 measureText 实测宽度，超出虚线框时自动缩小字号，保证不超出区域
+    const codeText = code.split('').join('  ');
+    const codeBoxPad = 16; // 框内左右留白
+    const maxCodeWidth = bw - codeBoxPad * 2;
+    let codeFontSize = 24;
+    ctx.font = `bold ${codeFontSize}px monospace`;
+    let codeWidth = ctx.measureText(codeText).width;
+    if (codeWidth > maxCodeWidth) {
+      codeFontSize = Math.max(14, Math.floor((codeFontSize * maxCodeWidth) / codeWidth));
+      ctx.font = `bold ${codeFontSize}px monospace`;
+    }
     ctx.fillStyle = style.accent;
-    ctx.font = 'bold 24px monospace';
-    ctx.fillText(code.split('').join('  '), W / 2, by + 54);
+    ctx.fillText(codeText, W / 2, by + 54);
 
     // 9. 小程序码（扫码加入）
     if (this._qrImg) {

@@ -1,4 +1,4 @@
-import { Controller, Delete, Get, Param, Query, UseGuards } from '@nestjs/common';
+import { Controller, Delete, Get, Param, Query, UseGuards, Body } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guard/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { PermissionsGuard } from '../common/guards/permissions.guard';
@@ -32,6 +32,13 @@ export class InvitationAdminController {
       status: status !== undefined && status !== '' ? Number(status) : undefined,
       familyId: familyId !== undefined && familyId !== '' ? Number(familyId) : undefined
     });
+  }
+
+  /** 批量删除（物理删除），需放在 :id 路由之前声明，避免 batch 被参数路由吞掉 */
+  @Permissions('system:family-invitation:delete')
+  @Delete('batch')
+  batchDelete(@Body() body: { ids: number[] }) {
+    return this.adminService.batchDelete(Array.isArray(body?.ids) ? body.ids : []);
   }
 
   /** 删除（物理删除） */

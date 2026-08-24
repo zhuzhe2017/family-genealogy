@@ -187,7 +187,8 @@ export class SubscriptionAdminService {
       values.push(`%${keyword}%`);
     }
     if (planCode) {
-      where.push('fs.`plan_code` = ?');
+      // 无订阅行的家族即免费版（隐式），需 COALESCE 归一化才能被 'free' 筛选命中
+      where.push('COALESCE(fs.`plan_code`, \'free\') = ?');
       values.push(planCode);
     }
     if (status) {

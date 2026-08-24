@@ -38,7 +38,8 @@ Page({
     return Object.assign({
       relatedMembers: [],
       photos: [],
-      details: []
+      details: [],
+      canEdit: false
     }, base, {
       relatedMembers: (r.relatedMembers || []).map(m => ({
         id: m.id,
@@ -47,7 +48,9 @@ Page({
         relation: m.relation || ''
       })),
       photos: resolveImageUrls(r.photos || []),
-      details: r.details || []
+      details: r.details || [],
+      // 仅家族创建者/管理员可编辑删除（mock 模式放开便于本地演示）
+      canEdit: USE_MOCK ? true : !!r.canEdit
     });
   },
 

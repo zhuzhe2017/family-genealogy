@@ -262,6 +262,17 @@ export class FamilyService {
       const tableName = this.getMemberTableName(id);
       this.validateTableName(tableName);
       await this.createMemberTable(manager, tableName);
+
+      // 3. 初始化免费会员：家族订阅 free + 额度账户（能力点模型，新家族默认免费版）
+      await manager.query(
+        'INSERT INTO `family_subscription` (`family_id`, `plan_code`, `status`) VALUES (?, \'free\', \'active\')',
+        [id]
+      );
+      await manager.query(
+        'INSERT INTO `family_quota` (`family_id`) VALUES (?)',
+        [id]
+      );
+
       return id;
     });
 

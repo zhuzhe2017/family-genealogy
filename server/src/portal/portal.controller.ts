@@ -182,23 +182,28 @@ export class PortalController {
       body.uploaderId = body.uploaderId || String(user.id);
       body.uploaderName = body.uploaderName || user.nickname || '';
     }
-    return this.portalService.createContent(type as ContentType, body);
+    return this.portalService.createContent(type as ContentType, body, String(req.user.id));
   }
 
-  /** 更新内容（目前支持 event） */
+  /** 更新内容（目前支持 event；仅家族创建者/管理员可操作） */
   @Put('content/:type/:id')
   updateContent(
     @Param('type') type: string,
     @Param('id') id: string,
-    @Body() body: ContentCreateData
+    @Body() body: ContentCreateData,
+    @Req() req: AuthenticatedRequest
   ) {
-    return this.portalService.updateContent(type as ContentType, id, body);
+    return this.portalService.updateContent(type as ContentType, id, body, String(req.user.id));
   }
 
-  /** 删除内容（软删除，目前支持 event） */
+  /** 删除内容（软删除，目前支持 event；仅家族创建者/管理员可操作） */
   @Delete('content/:type/:id')
-  deleteContent(@Param('type') type: string, @Param('id') id: string) {
-    return this.portalService.deleteContent(type as ContentType, id);
+  deleteContent(
+    @Param('type') type: string,
+    @Param('id') id: string,
+    @Req() req: AuthenticatedRequest
+  ) {
+    return this.portalService.deleteContent(type as ContentType, id, String(req.user.id));
   }
 
   /** 动态点赞/取消点赞（toggle） */

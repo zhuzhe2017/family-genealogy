@@ -49,3 +49,12 @@ export function fetchAdminInvitationList(params: {
 export function fetchDeleteAdminInvitation(id: number) {
   return request<{ success: boolean }>({ url: `/invitation/${id}`, method: 'delete' });
 }
+
+/** 批量删除家族邀请 */
+export function fetchBatchDeleteAdminInvitation(ids: number[]) {
+  return request<{ success: boolean; deletedCount: number }>({
+    url: '/invitation/batch',
+    method: 'delete',
+    data: { ids }
+  });
+}

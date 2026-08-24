@@ -121,6 +121,26 @@ export class InvitationAdminService {
     return { success: true };
   }
 
+  /** 批量删除（物理删除） */
+  async batchDelete(ids: number[]) {
+    const list = Array.from(new Set(ids.map(Number))).filter((n) => Number.isInteger(n) && n > 0);
+    if (!list.length) {
+      throw new HttpException('请选择要删除的邀请记录', HttpStatus.BAD_REQUEST);
+    }
+    const placeholders = list.map(() => '?').join(',');
+    const result = await this.dataSource.query<{ affectedRows?: number } | { affectedRows?: number }[]>(
+      `DELETE FROM \`family_invitation\` WHERE \`id\` IN (${placeholders})`,
+      list as QueryValues
+    );
+    const affected = Array.isArray(result)
+      ? Number(result[0]?.affectedRows ?? 0)
+      : Number(result?.affectedRows ?? 0);
+    if (affected === 0) {
+      throw new HttpException('所选邀请记录不存在或已删除', HttpStatus.NOT_FOUND);
+    }
+    return { success: true, deletedCount: affected };
+  }
+
   /** 行记录 → 对外条目 */
   private toItem(r: Record<string, unknown>): AdminInvitationItem {
     const str = (v: unknown) => (v == null ? '' : String(v));
