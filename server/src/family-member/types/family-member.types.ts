@@ -87,7 +87,7 @@ export interface FamilyMemberQueryParams {
   status?: number;
 }
 
-/** 父亲候选成员。携带出生地（居住地）与配偶姓名摘要，用于同名父亲区分 */
+/** 父亲候选成员。携带其父（爷爷）姓名与配偶姓名摘要，用于同名父亲区分 */
 export interface FatherCandidate {
   id: string;
   name: string;
@@ -96,8 +96,8 @@ export interface FatherCandidate {
   generation_name: string;
   /** 配偶姓名列表，按 JSON 数组顺序拼接，如 "张氏、李氏" */
   spouse_names?: string;
-  /** 出生地（居住地），同名区分锚点 */
-  birth_place?: string;
+  /** 其父姓名（爷爷），前端展示为"XX之子"锚点 */
+  father_name?: string;
 }
 
 /** 父亲配偶（候选母亲）。数组下标即配偶序号（从0开始），用作母亲ID */

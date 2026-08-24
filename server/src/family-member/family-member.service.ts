@@ -345,7 +345,7 @@ export class FamilyMemberService {
 
   /**
    * 查询父亲候选（分页）：当前家族上一代男性成员，可按姓名或母亲姓名模糊匹配。
-   * 返回携带出生地（birth_place）与配偶（spouse_names）供同名父亲区分。
+   * 返回携带其父姓名（father_name，"XX之子"锚点）与配偶（spouse_names）供同名父亲区分。
    * keyword 为空时返回全部候选；非空时按关键字过滤，且"完全同名"优先排序。
    * 返回 { list, total }，前端据此实现上拉加载更多（每页 20 条）。
    */
@@ -387,8 +387,8 @@ export class FamilyMemberService {
       ? [1, 'male', fatherGeneration, like, like, trimmed, offset, safePageSize]
       : [1, 'male', fatherGeneration, offset, safePageSize];
 
-    const rows = await this.dataSource.query<Pick<FamilyMemberRow, 'id' | 'name' | 'gender' | 'generation' | 'generation_name' | 'spouse_info' | 'birth_place'>[]>(
-      `SELECT \`id\`, \`name\`, \`gender\`, \`generation\`, \`generation_name\`, \`spouse_info\`, \`birth_place\`
+    const rows = await this.dataSource.query<Pick<FamilyMemberRow, 'id' | 'name' | 'gender' | 'generation' | 'generation_name' | 'spouse_info' | 'father_id'>[]>(
+      `SELECT \`id\`, \`name\`, \`gender\`, \`generation\`, \`generation_name\`, \`spouse_info\`, \`father_id\`
        FROM \`${tableName}\`
        WHERE \`status\` = ?
          AND \`gender\` = ?
@@ -397,6 +397,20 @@ export class FamilyMemberService {
        LIMIT ?, ?`,
       params
     );
+
+    // 一次性查询候选的父辈（爷爷）姓名，避免逐条 N+1
+    const fatherNameMap: Record<string, string> = {};
+    const fatherIds = rows.map(r => r.father_id).filter((x): x is string => !!x);
+    if (fatherIds.length) {
+      const fRows = await this.dataSource.query<{ id: string; name: string }[]>(
+        `SELECT \`id\`, \`name\` FROM \`${tableName}\`
+         WHERE \`id\` IN (${fatherIds.map(() => '?').join(',')}) AND \`status\` = 1`,
+        fatherIds
+      );
+      fRows.forEach(f => {
+        fatherNameMap[f.id] = f.name;
+      });
+    }
 
     const list = rows.map(r => {
       const names = this.extractSpouseNames(r.spouse_info);
@@ -407,7 +421,7 @@ export class FamilyMemberService {
         generation: r.generation,
         generation_name: r.generation_name,
         spouse_names: names.join('、'),
-        birth_place: r.birth_place || ''
+        father_name: r.father_id ? (fatherNameMap[r.father_id] || '') : ''
       };
     });
     return { list, total };

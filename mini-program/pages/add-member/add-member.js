@@ -272,7 +272,7 @@ Page({
     }, 300);
   },
 
-  /** 加载父亲候选（分页；空关键字返回全部；携带出生地（居住地）+配偶供同名区分） */
+  /** 加载父亲候选（分页；空关键字返回全部；显示"爷爷姓名之子 + 配偶"供同名区分） */
   loadFatherCandidates(keyword, append) {
     const familyId = (app.globalData.currentFamily || {}).id;
     const gen = Number(this.data.form.generation) || 1;
@@ -286,11 +286,15 @@ Page({
         const total = Number((res && res.total) || 0);
         this._parentLoaded = append ? (this._parentLoaded || 0) + items.length : items.length;
         const candidates = items.map(r => {
+          // 副标题优先显示"爷爷姓名之子"（父子链锚点）；爷爷未知时回退字辈/代数
           const subParts = [];
-          if (r.generation_name) subParts.push(r.generation_name + '字辈');
-          subParts.push(r.generation + '代');
+          if (r.father_name) {
+            subParts.push(r.father_name + '之子');
+          } else {
+            if (r.generation_name) subParts.push(r.generation_name + '字辈');
+            subParts.push(r.generation + '代');
+          }
           const extraParts = [];
-          if (r.birth_place) extraParts.push('出生地（居住地）：' + r.birth_place);
           if (r.spouse_names) extraParts.push('配偶：' + r.spouse_names);
           return {
             id: r.id,
@@ -300,7 +304,7 @@ Page({
           };
         });
         const merged = append ? this.data.parentCandidates.concat(candidates) : candidates;
-        // 同名提醒：出现同名候选时提示用户核对出生地/配偶信息
+        // 同名提醒：出现同名候选时提示用户核对爷爷/配偶信息
         const nameCount = {};
         merged.forEach(c => {
           nameCount[c.name] = (nameCount[c.name] || 0) + 1;
@@ -309,7 +313,7 @@ Page({
         this.setData({
           parentCandidates: merged,
           parentHasMore: this._parentLoaded < total,
-          parentDuplicateTip: hasDuplicate ? '存在同名成员，请核对出生地/配偶信息后选择' : ''
+          parentDuplicateTip: hasDuplicate ? '存在同名成员，请核对爷爷/配偶信息后选择' : ''
         });
       })
       .catch((err) => {
