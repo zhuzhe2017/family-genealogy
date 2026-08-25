@@ -10,12 +10,15 @@ import {
   UseInterceptors
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { diskStorage } from 'multer';
+import { memoryStorage } from 'multer';
 import { existsSync, mkdirSync } from 'fs';
+import { writeFile } from 'fs/promises';
+import { join } from 'path';
 import { AuthGuard } from '@nestjs/passport';
 import { DataSource } from 'typeorm';
 import { Public } from '../decorators/public.decorator';
 import { EntitlementService } from '../../membership/membership.service';
+import { CloudStorageUploadService } from '../../cloud-storage-config/cloud-storage-upload.service';
 import { type AuthenticatedRequest } from '../types/common';
 import {
   ALLOWED_IMAGE_TYPES,
@@ -41,24 +44,15 @@ const BIZ_TYPES = ['photo', 'document', 'dynamic', 'album', 'member_avatar', 'ev
 export class UploadController {
   constructor(
     private readonly dataSource: DataSource,
-    private readonly entitlementService: EntitlementService
+    private readonly entitlementService: EntitlementService,
+    private readonly cloudStorageUploadService: CloudStorageUploadService
   ) {}
 
-  /** 图片上传：返回可直接访问的相对 URL（/uploads/xxx.png） */
+  /** 图片上传：云存储启用时存到 COS/OSS/Kodo 并返回公网 URL，否则存本地（/uploads/xxx.png） */
   @Post('upload')
   @UseInterceptors(
     FileInterceptor('file', {
-      storage: diskStorage({
-        destination: (_req, _file, cb) => {
-          if (!existsSync(UPLOAD_DIR)) {
-            mkdirSync(UPLOAD_DIR, { recursive: true });
-          }
-          cb(null, UPLOAD_DIR);
-        },
-        filename: (_req, file, cb) => {
-          cb(null, buildStoredFileName(file?.mimetype ?? ''));
-        }
-      }),
+      storage: memoryStorage(),
       limits: { fileSize: MAX_FILE_SIZE },
       fileFilter: (_req, file, cb) => {
         if (!ALLOWED_IMAGE_TYPES[file.mimetype]) {
@@ -79,7 +73,22 @@ export class UploadController {
       throw new BadRequestException('请选择要上传的图片文件', '400');
     }
 
-    const url = `/uploads/${file.filename}`;
+    // 优先上传云存储（已启用时）；未启用或上传失败则回退本地磁盘
+    const cloud = await this.cloudStorageUploadService.uploadImage(file.buffer, file.mimetype);
+    let url: string;
+    let filename: string;
+    if (cloud) {
+      url = cloud.url;
+      filename = cloud.filename;
+    } else {
+      filename = buildStoredFileName(file.mimetype);
+      if (!existsSync(UPLOAD_DIR)) {
+        mkdirSync(UPLOAD_DIR, { recursive: true });
+      }
+      await writeFile(join(UPLOAD_DIR, filename), file.buffer);
+      url = `/uploads/${filename}`;
+    }
+
     const familyId = Number((req?.body as Record<string, unknown>)?.familyId || 0);
     const bizType = String((req?.body as Record<string, unknown>)?.bizType || 'photo');
 
@@ -98,7 +107,7 @@ export class UploadController {
     }
     // 管理员上传 / 无家族归属（头像等）：不占家族存储额度
 
-    return { url, filename: file.filename, size: file.size };
+    return { url, filename, size: file.size };
   }
 
   /** 用户是否属于该家族（family_permission 记录或家族创建者），与订阅服务校验逻辑一致 */

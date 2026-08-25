@@ -32,6 +32,7 @@
     "bcrypt": "^6.0.0",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.1",
+    "cos-nodejs-sdk-v5": "^3.0.0",
     "helmet": "^8.3.0",
     "iconv-lite": "^0.7.3",
     "ms": "^2.1.3",
