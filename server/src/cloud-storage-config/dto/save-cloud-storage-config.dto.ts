@@ -1,4 +1,5 @@
-import { IsString, IsNotEmpty, IsOptional, IsBoolean, MaxLength, IsIn } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, IsBoolean, MaxLength, IsIn, ValidateNested } from 'class-validator';
+import { Type } from 'class-transformer';
 import type { CloudStorageProvider } from '../types/cloud-storage-config.types';
 
 class TencentCosConfigDto {
@@ -99,7 +100,15 @@ export class SaveCloudStorageConfigDto {
   @IsIn(['tencent', 'aliyun', 'qiniu'], { message: '无效的云存储服务商' })
   provider!: CloudStorageProvider;
 
+  @ValidateNested()
+  @Type(() => TencentCosConfigDto)
   tencent!: TencentCosConfigDto;
+
+  @ValidateNested()
+  @Type(() => AliyunOssConfigDto)
   aliyun!: AliyunOssConfigDto;
+
+  @ValidateNested()
+  @Type(() => QiniuKodoConfigDto)
   qiniu!: QiniuKodoConfigDto;
 }
