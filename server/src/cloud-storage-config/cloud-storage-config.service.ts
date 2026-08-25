@@ -10,7 +10,10 @@ import {
 import type {
   CloudStorageFullConfig,
   CloudStorageProvider,
-  CloudStorageConfigChange
+  CloudStorageConfigChange,
+  TencentCosConfig,
+  AliyunOssConfig,
+  QiniuKodoConfig
 } from './types/cloud-storage-config.types';
 import { SystemLogService } from '../system-log/system-log.service';
 
@@ -217,14 +220,33 @@ export class CloudStorageConfigService {
       if (raw) {
         try {
           const parsed = JSON.parse(raw) as Partial<CloudStorageFullConfig[CloudStorageProvider]>;
-          result[p] = this.maskSensitive(p, this.decryptProviderConfig(p, parsed) as Record<string, unknown>) as CloudStorageFullConfig[CloudStorageProvider];
+          this.setProviderConfig(result, p, this.maskSensitive(p, this.decryptProviderConfig(p, parsed) as Record<string, unknown>));
         } catch {
-          result[p] = DEFAULT_CONFIGS[p];
+          this.setProviderConfig(result, p, DEFAULT_CONFIGS[p] as Record<string, unknown>);
         }
       }
     }
 
     return result;
+  }
+
+  /** 将脱敏后的配置写回完整配置（按服务商类型安全赋值） */
+  private setProviderConfig(
+    result: CloudStorageFullConfig,
+    provider: CloudStorageProvider,
+    config: Record<string, unknown>
+  ): void {
+    switch (provider) {
+      case 'tencent':
+        result.tencent = config as TencentCosConfig;
+        break;
+      case 'aliyun':
+        result.aliyun = config as AliyunOssConfig;
+        break;
+      case 'qiniu':
+        result.qiniu = config as QiniuKodoConfig;
+        break;
+    }
   }
 
   /** 获取当前生效配置（用于后端上传服务，返回解密后的真实值） */

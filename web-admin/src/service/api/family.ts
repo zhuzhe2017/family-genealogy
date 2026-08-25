@@ -11,6 +11,7 @@ export interface FamilyItem {
   name: string;
   logo: string;
   founder: string;
+  hall_name?: string;
   origin: string;
   description: string;
   is_public: number;
@@ -52,6 +53,7 @@ export interface CreateFamilyData {
   name: string;
   logo?: string;
   founder?: string;
+  hallName?: string;
   origin?: string;
   description?: string;
   isPublic?: number;
@@ -65,6 +67,7 @@ export interface UpdateFamilyData {
   name?: string;
   logo?: string;
   founder?: string;
+  hallName?: string;
   origin?: string;
   description?: string;
   isPublic?: number;

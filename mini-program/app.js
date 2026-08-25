@@ -296,6 +296,7 @@ App({
         generationNames: '文、德、永、世、兴、明、道、广',
         founder: '朱太公',
         origin: '山东济南',
+        hallName: '颍川堂',
         createTime: '2024-01-15',
         isAdmin: true
       },

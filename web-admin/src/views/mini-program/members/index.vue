@@ -147,9 +147,10 @@ const columns: DataTableColumn<FamilyMemberItem>[] = [
   },
   { title: '创建时间', key: 'create_time', width: 170 },
   {
-    title: '操作', key: 'actions', width: 150, fixed: 'right',
+    title: '操作', key: 'actions', width: 220, fixed: 'right',
     render: row => h(NSpace, null, {
       default: () => [
+        row.gender === 'male' && row.status === 1 && hasAuth('system:family-member:create') && h(NButton, { size: 'small', type: 'success', ghost: true, onClick: () => handleAddChild(row) }, { default: () => '添加子女' }),
         hasAuth('system:family-member:update') && h(NButton, { size: 'small', type: 'primary', ghost: true, onClick: () => handleEdit(row) }, { default: () => '编辑' }),
         hasAuth('system:family-member:delete') && h(NButton, { size: 'small', type: 'error', ghost: true, onClick: () => handleDelete(row) }, { default: () => '删除' })
       ]
@@ -365,7 +366,10 @@ async function loadMotherCandidates(familyId: number, fatherId: string) {
     motherCandidates.value = list;
     // 编辑回填时保留已保存的母亲选择（母亲ID即配偶数组下标）；新增时仅当唯一配偶自动选中
     const current = formData.motherId;
-    if (list.some((_s, i) => String(i) === current)) return;
+    // 已保存的母亲序号在父亲配偶中失效（如配偶被删除/调整）时清空，避免提交无效关系
+    if (current && !list.some((_s, i) => String(i) === current)) {
+      formData.motherId = '';
+    }
     if (list.length === 1) {
       formData.motherId = '0';
     }
@@ -404,8 +408,14 @@ watch(() => formData.generation, (newVal, oldVal) => {
     formData.motherId = '';
     selectedFatherInfo.value = null;
     motherCandidates.value = [];
+  } else if (formData.fatherId && selectedFatherInfo.value && selectedFatherInfo.value.generation !== newVal - 1) {
+    // 代数调整后，已选父亲代数与当前代数不匹配：清空，避免提交无效父子关系
+    message.warning(`已选父亲为第 ${selectedFatherInfo.value.generation} 代，与当前第 ${newVal} 代不符，请重新选择父亲`);
+    formData.fatherId = '';
+    formData.motherId = '';
+    selectedFatherInfo.value = null;
+    motherCandidates.value = [];
   }
-  // 代数变化后，若已选父亲代数不匹配，需要重新验证（提交时后端会校验）
   // flush: 'sync' 保证 handleEdit 回填数据时 watch 先于 fatherId 赋值执行，
   // 否则异步 watch 会在回填之后清空 fatherId，导致编辑时父亲ID不显示
 }, { flush: 'sync' });
@@ -475,6 +485,8 @@ async function handleEdit(row: FamilyMemberItem) {
   isEdit.value = true;
   editId.value = row.id;
   duplicateNameError.value = null;
+  // 先清空上一弹窗残留的父亲信息，避免代数联动 watch 误判
+  selectedFatherInfo.value = null;
   formData.name = row.name;
   formData.gender = row.gender;
   formData.generation = row.generation;
@@ -509,6 +521,33 @@ async function handleEdit(row: FamilyMemberItem) {
     loadSelectedFatherInfo(selectedFamilyId.value, formData.fatherId);
     loadMotherCandidates(selectedFamilyId.value, formData.fatherId);
   }
+}
+
+/**
+ * 快速添加子女：自动将当前男性成员预填为父亲，代数自动 +1。
+ * 子女保存后 father_id 指向当前成员，可在其子女列表/家谱树中正确展示。
+ */
+function handleAddChild(row: FamilyMemberItem) {
+  if (!selectedFamilyId.value) {
+    message.warning('请先选择家族');
+    return;
+  }
+  if (row.gender !== 'male') {
+    message.warning('仅男性成员可以添加子女');
+    return;
+  }
+  if (row.status !== 1) {
+    message.warning('已删除成员不能添加子女');
+    return;
+  }
+  isEdit.value = false;
+  editId.value = null;
+  resetForm();
+  // 先设代数（触发代数联动 watch），再预填父亲，避免被清空逻辑覆盖
+  formData.generation = row.generation + 1;
+  formData.fatherId = row.id;
+  selectedFatherInfo.value = { id: row.id, name: row.name, generation: row.generation };
+  showModal.value = true;
 }
 
 async function openFatherSearch() {
@@ -628,6 +667,8 @@ function clearFather() {
 }
 
 function buildSubmitData() {
+  // 第1代成员不允许有父/母，提交前强制清空（防止历史脏数据被误提交）
+  const isFirstGen = formData.generation === 1;
   return {
     name: formData.name,
     gender: formData.gender,
@@ -643,12 +684,44 @@ function buildSubmitData() {
     avatarUrl: formData.avatarUrl || undefined,
     // 始终提交照片列表（含空数组），保证编辑时清空照片能同步到后端
     photos: formData.photos,
-    fatherId: formData.fatherId || undefined,
-    motherId: formData.motherId || undefined,
+    fatherId: isFirstGen ? undefined : (formData.fatherId || undefined),
+    motherId: isFirstGen ? undefined : (formData.motherId || undefined),
     // 始终提交配偶列表（含空数组），保证编辑时清空配偶能同步到后端；剥离 collapsed 展示字段
     spouseInfo: formData.spouseList.map(({ collapsed: _collapsed, ...spouse }) => spouse),
     sortOrder: formData.sortOrder
   };
+}
+
+/**
+ * 提交前父亲关系复检：
+ * 1. 已加载父亲信息 → 校验其代数必须等于当前代数-1
+ * 2. 未加载成功（回填异常/父亲被删除等）→ 重新按ID查询，校验存在性/性别/代数/状态
+ * 3. 任一不满足即返回错误文案阻止提交，防止写入无效或成环的父子关系
+ */
+async function validateFatherOnSubmit(): Promise<string | null> {
+  const fatherId = formData.fatherId.trim();
+  // 第1代成员无父亲（buildSubmitData 已强制清空）；必填性由 formRules 保证
+  if (!fatherId || formData.generation === 1) return null;
+  if (selectedFatherInfo.value) {
+    if (selectedFatherInfo.value.generation !== formData.generation - 1) {
+      return `所选父亲「${selectedFatherInfo.value.name}」为第 ${selectedFatherInfo.value.generation} 代，与当前代数（第 ${formData.generation} 代）不符，请重新选择父亲`;
+    }
+    return null;
+  }
+  if (!selectedFamilyId.value) return '请先选择家族';
+  try {
+    const { data, error } = await fetchMemberById(selectedFamilyId.value, fatherId);
+    if (error || !data) return '所选父亲不存在或已失效，请重新选择父亲';
+    if (data.status !== 1) return '所选父亲已删除，请重新选择父亲';
+    if (data.gender !== 'male') return '所选父亲不是男性成员，请重新选择父亲';
+    if (data.generation !== formData.generation - 1) {
+      return `所选父亲「${data.name}」为第 ${data.generation} 代，与当前代数（第 ${formData.generation} 代）不符，请重新选择父亲`;
+    }
+    selectedFatherInfo.value = { id: data.id, name: data.name, generation: data.generation };
+    return null;
+  } catch {
+    return '所选父亲校验失败，请重新选择父亲';
+  }
 }
 
 async function handleSubmit() {
@@ -660,6 +733,13 @@ async function handleSubmit() {
   }
 
   try { await formRef.value?.validate(); } catch { return; }
+
+  // 父亲关系合法性复检（防选中的父亲已失效/代数不符/性别不符）
+  const fatherError = await validateFatherOnSubmit();
+  if (fatherError) {
+    message.error(fatherError);
+    return;
+  }
 
   // 额外业务校验
   if (formData.generation >= 2 && !formData.fatherId) {

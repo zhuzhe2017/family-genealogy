@@ -41,6 +41,25 @@ export class FamilyService {
     if (!row) throw new HttpException('姓氏ID无效，请选择有效的姓氏', HttpStatus.BAD_REQUEST);
   }
 
+  /**
+   * 校验并规范化堂号（可选字段）
+   * - 支持中文，允许为空
+   * - 最长 50 字符
+   * - 仅允许中英文、数字及常见安全标点，拒绝特殊字符（防注入/异常字符）
+   */
+  private normalizeHallName(hallName?: string): string {
+    if (hallName === undefined || hallName === null) return '';
+    const trimmed = String(hallName).trim();
+    if (!trimmed) return '';
+    if (trimmed.length > 50) {
+      throw new HttpException('堂号长度不能超过50个字符', HttpStatus.BAD_REQUEST);
+    }
+    if (!/^[\u4e00-\u9fa5A-Za-z0-9\s·._\-()（）,，、。:：]+$/.test(trimmed)) {
+      throw new HttpException('堂号包含不允许的特殊字符', HttpStatus.BAD_REQUEST);
+    }
+    return trimmed;
+  }
+
   /** 家族创建者用户ID（用于成员编辑权限判断；家族不存在或已停用返回 null） */
   async getCreatorUserId(familyId: number): Promise<string | null> {
     const [row] = await this.dataSource.query<Pick<FamilyRow, 'creator_user_id'>[]>(
@@ -88,7 +107,7 @@ export class FamilyService {
               \`gt\`.\`surname\` AS \`generation_table_surname\`,
               \`gt\`.\`founder\` AS \`generation_table_founder\`,
               \`gt\`.\`generation_sequence\` AS \`generation_sequence\`,
-              \`f\`.\`name\`, \`f\`.\`logo\`, \`f\`.\`founder\`, \`f\`.\`origin\`, \`f\`.\`description\`,
+              \`f\`.\`name\`, \`f\`.\`logo\`, \`f\`.\`founder\`, \`f\`.\`hall_name\`, \`f\`.\`origin\`, \`f\`.\`description\`,
               \`f\`.\`is_public\`, \`f\`.\`allow_join\`, \`f\`.\`member_count\`, \`f\`.\`gen_count\`, \`f\`.\`seed_share_code\`,
               \`f\`.\`creator_id\`, \`f\`.\`creator_user_id\`, \`f\`.\`status\`, \`f\`.\`create_time\`, \`f\`.\`update_time\`
        FROM \`family\` \`f\`
@@ -144,7 +163,7 @@ export class FamilyService {
 
     const whereClause = where.length > 0 ? 'WHERE ' + where.join(' AND ') : '';
     const rows = await this.dataSource.query<FamilyRow[]>(
-      `SELECT \`f\`.\`id\`, \`f\`.\`name\`, \`f\`.\`founder\`, \`f\`.\`origin\`, \`f\`.\`member_count\`, \`f\`.\`gen_count\`, \`f\`.\`status\`,
+      `SELECT \`f\`.\`id\`, \`f\`.\`name\`, \`f\`.\`founder\`, \`f\`.\`hall_name\`, \`f\`.\`origin\`, \`f\`.\`member_count\`, \`f\`.\`gen_count\`, \`f\`.\`status\`,
               \`f\`.\`generation_table_id\`, \`gt\`.\`surname\` AS \`generation_table_surname\`,
               \`gt\`.\`founder\` AS \`generation_table_founder\`, \`gt\`.\`generation_sequence\` AS \`generation_sequence\`
        FROM \`family\` \`f\`
@@ -171,7 +190,7 @@ export class FamilyService {
               \`gt\`.\`surname\` AS \`generation_table_surname\`,
               \`gt\`.\`founder\` AS \`generation_table_founder\`,
               \`gt\`.\`generation_sequence\` AS \`generation_sequence\`,
-              \`f\`.\`name\`, \`f\`.\`logo\`, \`f\`.\`founder\`, \`f\`.\`origin\`, \`f\`.\`description\`,
+              \`f\`.\`name\`, \`f\`.\`logo\`, \`f\`.\`founder\`, \`f\`.\`hall_name\`, \`f\`.\`origin\`, \`f\`.\`description\`,
               \`f\`.\`is_public\`, \`f\`.\`allow_join\`, \`f\`.\`member_count\`, \`f\`.\`gen_count\`, \`f\`.\`seed_share_code\`,
               \`f\`.\`creator_id\`, \`f\`.\`creator_user_id\`, \`f\`.\`status\`, \`f\`.\`create_time\`, \`f\`.\`update_time\`
        FROM \`family\` \`f\`
@@ -235,15 +254,16 @@ export class FamilyService {
       // 1. 插入家族主表
       const insertResult = await manager.query<InsertResult>(
         `INSERT INTO \`family\`
-         (\`surname_id\`, \`generation_table_id\`, \`name\`, \`logo\`, \`founder\`, \`origin\`, \`description\`,
+         (\`surname_id\`, \`generation_table_id\`, \`name\`, \`logo\`, \`founder\`, \`hall_name\`, \`origin\`, \`description\`,
           \`is_public\`, \`allow_join\`, \`seed_share_code\`, \`creator_id\`, \`creator_user_id\`, \`status\`)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`,
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`,
         [
           data.surnameId ?? null,
           data.generationTableId ?? null,
           data.name.trim(),
           data.logo || '',
           data.founder || '',
+          this.normalizeHallName(data.hallName),
           data.origin || '',
           data.description || null,
           data.isPublic ?? 1,
@@ -373,6 +393,7 @@ export class FamilyService {
     if (data.name !== undefined) { fields.push('`name` = ?'); values.push(data.name.trim()); }
     if (data.logo !== undefined) { fields.push('`logo` = ?'); values.push(data.logo); }
     if (data.founder !== undefined) { fields.push('`founder` = ?'); values.push(data.founder); }
+    if (data.hallName !== undefined) { fields.push('`hall_name` = ?'); values.push(this.normalizeHallName(data.hallName)); }
     if (data.origin !== undefined) { fields.push('`origin` = ?'); values.push(data.origin); }
     if (data.description !== undefined) { fields.push('`description` = ?'); values.push(data.description || null); }
     if (data.isPublic !== undefined) { fields.push('`is_public` = ?'); values.push(data.isPublic); }

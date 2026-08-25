@@ -27,6 +27,7 @@
             </view>
           </view>
           <text class="family-origin-text">发源地：{{item.origin}}</text>
+          <text class="family-origin-text" wx:if="{{item.hallName}}">堂号：{{item.hallName}}</text>
         </view>
         <view class="family-check {{currentFamily.id === item.id ? 'checked' : ''}}">
           <text wx:if="{{currentFamily.id === item.id}}">✓</text>

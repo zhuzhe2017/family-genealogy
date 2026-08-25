@@ -32,6 +32,7 @@ function normalizeFamily(row) {
     name: row.name || '',
     logo: resolveImageUrl(row.logo),
     founder: row.founder || '',
+    hallName: row.hall_name || '',
     origin: row.origin || '',
     description: row.description || '',
     memberCount: row.member_count != null ? row.member_count : (row.memberCount || 0),

@@ -37,6 +37,7 @@
           <view class="family-name-section">
             <text class="family-name">{{currentFamily.name}}</text>
             <text class="family-origin">{{currentFamily.origin}}</text>
+            <text class="family-origin" wx:if="{{currentFamily.hallName}}">堂号：{{currentFamily.hallName}}</text>
             <text class="family-generation-names" wx:if="{{currentFamily.generationNames}}">字辈：{{currentFamily.generationNames}}</text>
           </view>
           <text class="switch-icon">▼</text>

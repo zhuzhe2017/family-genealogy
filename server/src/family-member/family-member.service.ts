@@ -573,6 +573,9 @@ export class FamilyMemberService {
     if (data.generation === 1 && fatherId) {
       throw new HttpException('第1代成员不能有父亲', HttpStatus.BAD_REQUEST);
     }
+    if (data.generation === 1 && motherId) {
+      throw new HttpException('第1代成员不能有母亲', HttpStatus.BAD_REQUEST);
+    }
     if (data.generation >= 2 && !fatherId) {
       throw new HttpException('第2代及以上成员必须选择父亲', HttpStatus.BAD_REQUEST);
     }
@@ -665,34 +668,47 @@ export class FamilyMemberService {
       throw new HttpException('安葬地点不能超过200个字符', HttpStatus.BAD_REQUEST);
     }
 
-    if (data.generation !== undefined) {
-      const fatherId = data.fatherId !== undefined ? data.fatherId?.trim() || '' : undefined;
-      if (data.generation === 1 && fatherId) {
-        throw new HttpException('第1代成员不能有父亲', HttpStatus.BAD_REQUEST);
-      }
-      if (data.generation >= 2 && fatherId === '') {
-        throw new HttpException('第2代及以上成员必须选择父亲', HttpStatus.BAD_REQUEST);
-      }
-    }
-
     const fatherId = data.fatherId?.trim() || '';
     const motherId = data.motherId?.trim() || '';
+    // 目标代数：优先取本次提交的代数，未提交时沿用库中当前代数
+    const targetGeneration = data.generation ?? exists.generation ?? (await this.getGeneration(familyId, memberId));
 
+    if (targetGeneration === 1 && fatherId) {
+      throw new HttpException('第1代成员不能有父亲', HttpStatus.BAD_REQUEST);
+    }
+    if (targetGeneration === 1 && motherId) {
+      throw new HttpException('第1代成员不能有母亲', HttpStatus.BAD_REQUEST);
+    }
+    if (targetGeneration >= 2 && data.fatherId !== undefined && fatherId === '') {
+      throw new HttpException('第2代及以上成员必须选择父亲', HttpStatus.BAD_REQUEST);
+    }
+
+    // 关系校验用父亲：本次提交的父亲；仅提交母亲时沿用库中当前父亲，用于母亲序号校验
+    let effectiveFatherId = fatherId;
     if (fatherId || motherId) {
       // 自引用/同人校验提前，避免在获取代数等前置查询后才报错
-      if (fatherId === memberId || motherId === memberId) {
-        throw new HttpException('父/母不能指向成员自己', HttpStatus.BAD_REQUEST);
+      if (fatherId === memberId) {
+        throw new HttpException('父亲不能指向成员自己', HttpStatus.BAD_REQUEST);
+      }
+      if (motherId === memberId) {
+        throw new HttpException('母亲不能指向成员自己', HttpStatus.BAD_REQUEST);
       }
       if (fatherId && fatherId === motherId) {
         throw new HttpException('父亲和母亲不能是同一人', HttpStatus.BAD_REQUEST);
       }
-      const generation = data.generation ?? exists.generation ?? (await this.getGeneration(familyId, memberId));
-      await this.validateRelations(familyId, memberId, generation, fatherId, motherId);
+      if (!effectiveFatherId && motherId) {
+        const [curRow] = await this.dataSource.query<{ father_id: string }[]>(
+          `SELECT \`father_id\` FROM \`${tableName}\` WHERE \`id\` = ?`,
+          [memberId]
+        );
+        effectiveFatherId = curRow?.father_id || '';
+      }
+      await this.validateRelations(familyId, memberId, targetGeneration, effectiveFatherId, motherId);
     }
 
-    // 同父同名唯一性校验
-    if (fatherId && data.name) {
-      await this.ensureNoDuplicateName(familyId, fatherId, data.name.trim(), memberId);
+    // 同父同名唯一性校验（未变更父亲时按当前父亲校验）
+    if (effectiveFatherId && data.name) {
+      await this.ensureNoDuplicateName(familyId, effectiveFatherId, data.name.trim(), memberId);
     }
 
     const fields: string[] = [];
@@ -837,15 +853,16 @@ export class FamilyMemberService {
 
   /**
    * 校验父/母关系合法性：
-   * 1. 父/母必须存在且状态正常
+   * 1. 父必须存在且状态正常
    * 2. 父、母不能与当前成员相同（不自引用）
    * 3. 父、母不能指向彼此
    * 4. 父的 generation 必须是当前 generation - 1
    * 5. 父必须是男性
-   * 6. 无循环引用（BFS 深度上限 100）
+   * 6. 母亲ID必须是该父亲配偶数组中的有效序号（0 <= 序号 < 配偶数）
+   * 7. 无循环引用（从父亲向上追溯祖先，出现当前成员即成环）
    *
    * 注：motherId 存储的是父亲 spouse_info 数组中配偶的下标（从0开始，非成员ID），
-   * 因此不参与成员存在性/性别/代数/循环引用校验。
+   * 因此不参与成员存在性/性别/代数/循环引用校验，仅做序号合法性校验。
    */
   private async validateRelations(
     familyId: number,
@@ -855,20 +872,29 @@ export class FamilyMemberService {
     motherId: string
   ) {
     const tableName = getSafeMemberTableName(familyId);
-    const ids = [fatherId].filter(Boolean);
-    if (ids.length === 0) return;
+    const fatherTrimmed = (fatherId || '').trim();
+    const motherTrimmed = (motherId || '').trim();
+    const ids = fatherTrimmed ? [fatherTrimmed] : [];
 
-    if ((fatherId && fatherId === memberId) || (motherId && motherId === memberId)) {
-      throw new HttpException('父/母不能指向成员自己', HttpStatus.BAD_REQUEST);
+    if (motherTrimmed && ids.length === 0) {
+      throw new HttpException('选择母亲前必须先选择父亲', HttpStatus.BAD_REQUEST);
     }
 
-    if (fatherId && fatherId === motherId) {
+    if (fatherTrimmed && fatherTrimmed === memberId) {
+      throw new HttpException('父亲不能指向成员自己', HttpStatus.BAD_REQUEST);
+    }
+    if (motherTrimmed && motherTrimmed === memberId) {
+      throw new HttpException('母亲不能指向成员自己', HttpStatus.BAD_REQUEST);
+    }
+    if (fatherTrimmed && fatherTrimmed === motherTrimmed) {
       throw new HttpException('父亲和母亲不能是同一人', HttpStatus.BAD_REQUEST);
     }
 
+    if (ids.length === 0) return;
+
     const placeholders = ids.map(() => '?').join(',');
-    const rows = await this.dataSource.query<Pick<FamilyMemberRow, 'id' | 'gender' | 'generation'>[]>(
-      `SELECT \`id\`, \`gender\`, \`generation\` FROM \`${tableName}\`
+    const rows = await this.dataSource.query<Pick<FamilyMemberRow, 'id' | 'gender' | 'generation' | 'spouse_info'>[]>(
+      `SELECT \`id\`, \`gender\`, \`generation\`, \`spouse_info\` FROM \`${tableName}\`
        WHERE \`id\` IN (${placeholders}) AND \`status\` = ?`,
       [...ids, 1]
     );
@@ -879,13 +905,25 @@ export class FamilyMemberService {
 
     const map = new Map(rows.map(r => [r.id, r]));
 
-    if (fatherId) {
-      const father = map.get(fatherId)!;
-      if (father.gender !== 'male') {
-        throw new HttpException('父亲必须是男性成员', HttpStatus.BAD_REQUEST);
+    const father = map.get(fatherTrimmed)!;
+    if (father.gender !== 'male') {
+      throw new HttpException('父亲必须是男性成员', HttpStatus.BAD_REQUEST);
+    }
+    if (father.generation !== generation - 1) {
+      throw new HttpException('父亲必须是上一代成员', HttpStatus.BAD_REQUEST);
+    }
+
+    // 母亲ID即父亲配偶数组下标（从0开始），必须是有效序号
+    if (motherTrimmed) {
+      if (!/^\d+$/.test(motherTrimmed)) {
+        throw new HttpException('母亲ID必须是数字序号', HttpStatus.BAD_REQUEST);
       }
-      if (father.generation !== generation - 1) {
-        throw new HttpException('父亲必须是上一代成员', HttpStatus.BAD_REQUEST);
+      const spouseCount = this.extractSpouseNames(father.spouse_info).length;
+      if (spouseCount === 0) {
+        throw new HttpException('父亲暂无配偶信息，无需选择母亲', HttpStatus.BAD_REQUEST);
+      }
+      if (Number(motherTrimmed) >= spouseCount) {
+        throw new HttpException('母亲序号超出父亲配偶数量，请重新选择', HttpStatus.BAD_REQUEST);
       }
     }
 
@@ -894,7 +932,7 @@ export class FamilyMemberService {
     if (!memberId) return;
 
     const visited = new Set<string>();
-    const queue = [fatherId];
+    const queue = [fatherTrimmed];
     while (queue.length > 0) {
       const current = queue.shift()!;
       if (visited.has(current)) continue;
@@ -908,7 +946,7 @@ export class FamilyMemberService {
       );
       if (parentRow) {
         if (parentRow.father_id) queue.push(parentRow.father_id);
-        if (parentRow.mother_id) queue.push(parentRow.mother_id);
+        // mother_id 是父亲配偶数组下标（非成员ID），不参与循环引用链
       }
     }
   }

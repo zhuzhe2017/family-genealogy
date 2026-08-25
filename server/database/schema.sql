@@ -108,6 +108,7 @@ CREATE TABLE `family` (
   `name`          VARCHAR(100)  NOT NULL COMMENT '家族名称',
   `logo`          VARCHAR(500)  DEFAULT '' COMMENT '家族LOGO',
   `founder`       VARCHAR(50)   DEFAULT '' COMMENT '始祖姓名',
+  `hall_name`     VARCHAR(50)   DEFAULT '' COMMENT '堂号',
   `origin`        VARCHAR(200)  DEFAULT '' COMMENT '发源地',
   `description`   TEXT          COMMENT '家族简介',
   `is_public`     TINYINT(1)    DEFAULT 1 COMMENT '是否公开 1-公开 0-私密',

@@ -8,6 +8,7 @@ Page({
   data: {
     form: {
       name: '',
+      hallName: '',
       origin: '',
       founder: '',
       description: '',
@@ -61,6 +62,10 @@ Page({
       wx.showToast({ title: '字辈格式不正确，请使用中文逗号或顿号分隔', icon: 'none' });
       return;
     }
+    if (form.hallName && !this.validateHallName(form.hallName)) {
+      wx.showToast({ title: '堂号过长或包含不允许的特殊字符', icon: 'none' });
+      return;
+    }
 
     const onSuccess = () => {
       wx.showToast({
@@ -83,6 +88,7 @@ Page({
         .then((logoUrl) => {
           const payload = {
             name: form.name.trim(),
+            hallName: form.hallName.trim(),
             origin: form.origin.trim(),
             founder: form.founder.trim(),
             description: form.description.trim() || null,
@@ -163,5 +169,14 @@ Page({
     if (!value) return true;
     const names = value.split(/[、,，]/).map(s => s.trim()).filter(Boolean);
     return names.length > 0 && names.every(name => /^[\u4e00-\u9fa5]{1,10}$/.test(name));
+  },
+
+  /** 堂号校验：可选，最长50字符，仅允许中英文、数字及常见安全标点 */
+  validateHallName(value) {
+    if (!value) return true;
+    const trimmed = String(value).trim();
+    if (!trimmed) return true;
+    if (trimmed.length > 50) return false;
+    return /^[\u4e00-\u9fa5A-Za-z0-9\s·._\-()（）,，、。:：]+$/.test(trimmed);
   }
 });

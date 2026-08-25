@@ -12,6 +12,7 @@ export interface FamilyRow extends DataRow {
   name: string;
   logo: string;
   founder: string;
+  hall_name?: string;
   origin: string;
   description: string;
   is_public: number;
@@ -48,6 +49,7 @@ export interface FamilyCreateData {
   name: string;
   logo?: string;
   founder?: string;
+  hallName?: string;
   origin?: string;
   description?: string;
   isPublic?: number;
@@ -69,6 +71,7 @@ export interface FamilyUpdateData {
   name?: string;
   logo?: string;
   founder?: string;
+  hallName?: string;
   origin?: string;
   description?: string;
   isPublic?: number;

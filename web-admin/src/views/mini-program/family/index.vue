@@ -92,6 +92,7 @@ const columns: DataTableColumn<FamilyItem>[] = [
     }
   },
   { title: '始祖', key: 'founder', width: 90 },
+  { title: '堂号', key: 'hall_name', width: 100, ellipsis: { tooltip: true }, render: row => row.hall_name || '-' },
   {
     title: '关联字辈', key: 'generation_table_id', width: 180, ellipsis: { tooltip: true },
     render: row => {
@@ -216,6 +217,7 @@ const formData = reactive({
   surnameId: null as number | null,
   generationTableId: null as string | null,
   founder: '',
+  hallName: '',
   origin: '',
   description: '',
   logo: '',
@@ -223,8 +225,22 @@ const formData = reactive({
   allowJoin: 1
 });
 
+/** 堂号字符白名单：中英文、数字、空格及常见安全标点 */
+const hallNamePattern = /^[\u4e00-\u9fa5A-Za-z0-9\s·._\-()（）,，、。:：]*$/;
+
 const formRules = {
-  name: [{ required: true, message: '请输入家族名称', trigger: 'blur' }]
+  name: [{ required: true, message: '请输入家族名称', trigger: 'blur' }],
+  hallName: [
+    {
+      validator: (_rule: any, value: string) => {
+        if (!value) return Promise.resolve();
+        if (value.length > 50) return Promise.reject('堂号长度不能超过50个字符');
+        if (!hallNamePattern.test(value)) return Promise.reject('堂号包含不允许的特殊字符');
+        return Promise.resolve();
+      },
+      trigger: 'blur'
+    }
+  ]
 };
 
 function resetForm() {
@@ -232,6 +248,7 @@ function resetForm() {
   formData.surnameId = null;
   formData.generationTableId = null;
   formData.founder = '';
+  formData.hallName = '';
   formData.origin = '';
   formData.description = '';
   formData.logo = '';
@@ -254,6 +271,7 @@ async function handleEdit(row: FamilyItem) {
   formData.surnameId = row.surname_id || null;
   formData.generationTableId = row.generation_table_id || null;
   formData.founder = row.founder;
+  formData.hallName = row.hall_name || '';
   formData.origin = row.origin;
   formData.description = row.description || '';
   formData.logo = row.logo;
@@ -390,6 +408,10 @@ onMounted(() => { loadData(); loadSurnameOptions(); loadGenerationTableOptions()
           </NFormItem>
           <NFormItem label="始祖" path="founder">
             <NInput v-model:value="formData.founder" placeholder="始祖姓名" />
+          </NFormItem>
+          <NFormItem label="堂号" path="hallName">
+            <NInput v-model:value="formData.hallName" placeholder="请输入堂号，如：颍川堂（可选）" :maxlength="50" show-count />
+            <div class="text-gray-500 text-12px mt-6px">支持中文，最长50字符，不可包含特殊字符</div>
           </NFormItem>
           <NFormItem label="发源地" path="origin">
             <NInput v-model:value="formData.origin" placeholder="家族发源地" />

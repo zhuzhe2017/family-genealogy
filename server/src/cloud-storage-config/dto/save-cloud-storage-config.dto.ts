@@ -2,6 +2,8 @@ import { IsString, IsNotEmpty, IsOptional, IsBoolean, MaxLength, IsIn } from 'cl
 import type { CloudStorageProvider } from '../types/cloud-storage-config.types';
 
 class TencentCosConfigDto {
+  [key: string]: unknown;
+
   @IsBoolean()
   enabled!: boolean;
 
@@ -32,6 +34,8 @@ class TencentCosConfigDto {
 }
 
 class AliyunOssConfigDto {
+  [key: string]: unknown;
+
   @IsBoolean()
   enabled!: boolean;
 
@@ -63,6 +67,8 @@ class AliyunOssConfigDto {
 }
 
 class QiniuKodoConfigDto {
+  [key: string]: unknown;
+
   @IsBoolean()
   enabled!: boolean;
 
