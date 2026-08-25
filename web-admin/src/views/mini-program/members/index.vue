@@ -276,6 +276,9 @@ const showFatherModal = ref(false);
 const fatherSearchKeyword = ref('');
 const fatherCandidates = ref<FatherCandidate[]>([]);
 const fatherSearchLoading = ref(false);
+// 父亲候选分页状态（每页 20 条，与后端默认 pageSize 一致）
+let fatherSearchPage = 1;
+const fatherHasMore = ref(false);
 const selectedFatherInfo = ref<{ id: string; name: string; generation: number } | null>(null);
 // 弹窗内联合选择母亲
 const selectedCandidateId = ref<string | null>(null);
@@ -322,6 +325,8 @@ function resetForm() {
   motherCandidates.value = [];
   fatherSearchKeyword.value = '';
   fatherCandidates.value = [];
+  fatherHasMore.value = false;
+  fatherSearchPage = 1;
   selectedCandidateId.value = null;
   selectedCandidateMotherIndex.value = null;
   candidateMotherMap.value = {};
@@ -558,11 +563,15 @@ async function openFatherSearch() {
   }
   fatherSearchKeyword.value = '';
   fatherCandidates.value = [];
+  fatherHasMore.value = false;
+  fatherSearchPage = 1;
   selectedCandidateId.value = null;
   selectedCandidateMotherIndex.value = null;
   candidateMotherMap.value = {};
   loadingCandidateMothers.value = {};
   showFatherModal.value = true;
+  // 打开即加载第一页（空关键字返回该代全部男性成员），支持"加载更多"分页浏览
+  await searchFatherCandidates();
 }
 
 let fatherSearchTimer: ReturnType<typeof setTimeout> | null = null;
@@ -570,29 +579,43 @@ function onFatherKeywordInput(value: string) {
   fatherSearchKeyword.value = value;
   if (fatherSearchTimer) clearTimeout(fatherSearchTimer);
   fatherSearchTimer = setTimeout(() => {
-    if (value.trim().length >= 1) {
-      searchFatherCandidates();
-    }
+    // 关键字变化（含清空）均重置到第一页重新加载
+    searchFatherCandidates();
   }, 300);
 }
 
-async function searchFatherCandidates() {
-  if (!selectedFamilyId.value || fatherSearchKeyword.value.trim().length < 1) return;
+async function searchFatherCandidates(append = false) {
+  if (!selectedFamilyId.value) return;
   fatherSearchLoading.value = true;
-  selectedCandidateId.value = null;
-  selectedCandidateMotherIndex.value = null;
-  candidateMotherMap.value = {};
-  loadingCandidateMothers.value = {};
+  if (!append) {
+    // 非追加（首次/关键字变化）：重置到第一页并清空选中状态
+    fatherSearchPage = 1;
+    selectedCandidateId.value = null;
+    selectedCandidateMotherIndex.value = null;
+    candidateMotherMap.value = {};
+    loadingCandidateMothers.value = {};
+  }
   try {
     const { data, error } = await fetchFatherCandidates(
       selectedFamilyId.value,
       formData.generation,
-      fatherSearchKeyword.value.trim()
+      fatherSearchKeyword.value.trim(),
+      fatherSearchPage
     );
     if (error) return;
-    fatherCandidates.value = data || [];
+    const list = data?.list || [];
+    fatherCandidates.value = append ? [...fatherCandidates.value, ...list] : list;
+    fatherSearchPage += 1;
+    fatherHasMore.value = fatherCandidates.value.length < Number(data?.total || 0);
   } finally {
     fatherSearchLoading.value = false;
+  }
+}
+
+/** 加载更多：追加下一页候选 */
+function loadMoreFatherCandidates() {
+  if (fatherHasMore.value && !fatherSearchLoading.value) {
+    searchFatherCandidates(true);
   }
 }
 
@@ -1235,7 +1258,7 @@ onMounted(() => { loadFamilyOptions(); });
       <NModal v-model:show="showFatherModal" title="选择父亲与母亲" preset="card" style="width: 600px" :mask-closable="false">
         <NSpace vertical :size="12">
           <NAlert type="info" :show-icon="false">
-            输入至少1个字符，系统将在第 {{ formData.generation - 1 }} 代男性成员中按父亲姓名或母亲姓名模糊搜索。
+            已列出第 {{ formData.generation - 1 }} 代男性成员，可输入父亲姓名或母亲姓名关键字过滤；每页 20 条，超过可点击「加载更多」。
           </NAlert>
           <NInput
             v-model:value="fatherSearchKeyword"
@@ -1243,10 +1266,7 @@ onMounted(() => { loadFamilyOptions(); });
             clearable
             @input="onFatherKeywordInput"
           />
-          <div v-if="fatherSearchLoading" class="py-20px text-center text-gray-500">搜索中...</div>
-          <div v-else-if="fatherSearchKeyword.trim().length < 1 && fatherCandidates.length === 0" class="py-20px text-center text-gray-500">
-            请输入至少1个字符开始搜索
-          </div>
+          <div v-if="fatherSearchLoading && fatherCandidates.length === 0" class="py-20px text-center text-gray-500">搜索中...</div>
           <div v-else-if="fatherCandidates.length === 0" class="py-20px text-center text-gray-500">
             未找到匹配的父亲成员
           </div>
@@ -1281,6 +1301,12 @@ onMounted(() => { loadFamilyOptions(); });
                   </NSpace>
                 </NRadioGroup>
               </div>
+            </div>
+            <div class="py-12px text-center">
+              <NButton v-if="fatherHasMore" text type="primary" :loading="fatherSearchLoading" @click="loadMoreFatherCandidates">
+                加载更多
+              </NButton>
+              <span v-else class="text-12px text-gray-500">已加载全部 {{ fatherCandidates.length }} 名候选成员</span>
             </div>
           </div>
         </NSpace>

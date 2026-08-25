@@ -127,11 +127,11 @@ export function fetchMemberById(familyId: number, memberId: string) {
   return request<FamilyMemberItem>({ url: `/family-member/${familyId}/${memberId}` });
 }
 
-/** 查询父亲候选（上一代男性成员，按姓名模糊匹配） */
-export function fetchFatherCandidates(familyId: number, generation: number, keyword: string) {
-  return request<FatherCandidate[]>({
+/** 查询父亲候选（上一代男性成员，按姓名模糊匹配，返回分页结构） */
+export function fetchFatherCandidates(familyId: number, generation: number, keyword: string, page = 1) {
+  return request<{ list: FatherCandidate[]; total: number }>({
     url: `/family-member/${familyId}/father-candidates`,
-    params: { generation, keyword }
+    params: { generation, keyword, page }
   });
 }
 
