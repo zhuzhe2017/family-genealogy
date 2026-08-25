@@ -22,6 +22,7 @@ import { CloudStorageUploadService } from '../../cloud-storage-config/cloud-stor
 import { type AuthenticatedRequest } from '../types/common';
 import {
   ALLOWED_IMAGE_TYPES,
+  buildDateScope,
   buildStoredFileName,
   MAX_FILE_SIZE,
   UPLOAD_DIR
@@ -48,7 +49,7 @@ export class UploadController {
     private readonly cloudStorageUploadService: CloudStorageUploadService
   ) {}
 
-  /** 图片上传：云存储启用时存到 COS 并返回公网 URL，否则存本地（/uploads/{分类}/xxx.png） */
+  /** 图片上传：云存储启用时存到 COS 并返回公网 URL，否则存本地（/uploads/{分类}/{familyId}/{YYYY}/{MM}/{DD}/xxx.png） */
   @Post('upload')
   @UseInterceptors(
     FileInterceptor('file', {
@@ -79,9 +80,14 @@ export class UploadController {
     // 家族维度上传时按家族细分（{分类}/{familyId}/），管理员上传/无家族归属不加家族段
     const familyId = Number((req?.body as Record<string, unknown>)?.familyId || 0);
     const familyScope = familyId > 0 ? String(familyId) : '';
+    // 按年月日三级细分的日期归档段（YYYY/MM/DD）
+    const dateScope = buildDateScope();
+    // 目录结构统一为: {bizType}/{familyId}/{YYYY}/{MM}/{DD}/{filename}
+    // 云存储对象键与本地相对路径共享同一层级，保证两套存储返回的 URL 结构一致
+    const familyWithDate = familyScope ? `${familyScope}/${dateScope}` : dateScope;
 
     // 优先上传云存储（已启用时）；未启用或上传失败则回退本地磁盘
-    const cloud = await this.cloudStorageUploadService.uploadImage(file.buffer, file.mimetype, folder, familyScope);
+    const cloud = await this.cloudStorageUploadService.uploadImage(file.buffer, file.mimetype, folder, familyWithDate);
     let url: string;
     let filename: string;
     if (cloud) {
@@ -92,9 +98,9 @@ export class UploadController {
       if (!existsSync(UPLOAD_DIR)) {
         mkdirSync(UPLOAD_DIR, { recursive: true });
       }
-      const subDir = [folder, familyScope].filter(Boolean).join('/');
-      await writeFile(join(UPLOAD_DIR, folder, familyScope, filename), file.buffer);
-      filename = `${subDir}/${filename}`;
+      // path.join 忽略空路径段，familyScope 为空（管理员/无家族归属）时自动跳过家族级目录
+      await writeFile(join(UPLOAD_DIR, folder, familyScope, dateScope, filename), file.buffer);
+      filename = [folder, familyScope, dateScope, filename].filter(Boolean).join('/');
       url = `/uploads/${filename}`;
     }
 

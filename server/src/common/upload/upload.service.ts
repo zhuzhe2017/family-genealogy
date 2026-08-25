@@ -22,6 +22,14 @@ export function buildStoredFileName(mimetype: string): string {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 10)}${ext}`;
 }
 
+/** 生成按年月日三级细分的日期目录段（YYYY/MM/DD），用于上传文件按日期归档 */
+export function buildDateScope(date = new Date()): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}/${m}/${d}`;
+}
+
 @Injectable()
 export class UploadService implements OnModuleInit {
   private readonly logger = new Logger(UploadService.name);

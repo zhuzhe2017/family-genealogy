@@ -28,8 +28,8 @@ export class CloudStorageUploadService {
 
   /**
    * 上传图片到当前启用的云存储服务商。
-   * @param folder 业务分类目录（如 avatar/photo），为空则存桶根目录
-   * @param familyScope 家族 ID（家族维度上传时细分，如 photo/12/），为空则不细分
+   * @param folder 业务分类目录（如 photo），为空则存桶根目录
+   * @param familyScope 家族 ID 与年月日日期段（家族维度上传时细分，如 12/2026/08/25），为空则不细分
    * @returns 上传成功返回 { url, filename }；未启用云存储、服务商未接入或上传失败返回 null
    */
   async uploadImage(buffer: Buffer, mimetype: string, folder = '', familyScope = ''): Promise<CloudUploadResult | null> {
