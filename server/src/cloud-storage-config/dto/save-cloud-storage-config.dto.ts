@@ -1,4 +1,4 @@
-import { IsString, IsNotEmpty, IsOptional, IsBoolean, MaxLength, IsIn, ValidateNested } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, IsBoolean, MaxLength, IsIn, ValidateNested, ValidateIf } from 'class-validator';
 import { Type } from 'class-transformer';
 import type { CloudStorageProvider } from '../types/cloud-storage-config.types';
 
@@ -9,19 +9,23 @@ class TencentCosConfigDto {
   enabled!: boolean;
 
   @IsString()
+  @ValidateIf((o: TencentCosConfigDto) => o.enabled === true)
   @IsNotEmpty({ message: 'SecretId 不能为空' })
   secretId!: string;
 
   @IsString()
+  @ValidateIf((o: TencentCosConfigDto) => o.enabled === true)
   @IsNotEmpty({ message: 'SecretKey 不能为空' })
   secretKey!: string;
 
   @IsString()
+  @ValidateIf((o: TencentCosConfigDto) => o.enabled === true)
   @IsNotEmpty({ message: '存储桶名称不能为空' })
   @MaxLength(63, { message: '存储桶名称长度不能超过 63 字符' })
   bucket!: string;
 
   @IsString()
+  @ValidateIf((o: TencentCosConfigDto) => o.enabled === true)
   @IsNotEmpty({ message: '地域不能为空' })
   @MaxLength(50, { message: '地域长度不能超过 50 字符' })
   region!: string;
@@ -41,19 +45,23 @@ class AliyunOssConfigDto {
   enabled!: boolean;
 
   @IsString()
+  @ValidateIf((o: AliyunOssConfigDto) => o.enabled === true)
   @IsNotEmpty({ message: 'AccessKeyId 不能为空' })
   accessKeyId!: string;
 
   @IsString()
+  @ValidateIf((o: AliyunOssConfigDto) => o.enabled === true)
   @IsNotEmpty({ message: 'AccessKeySecret 不能为空' })
   accessKeySecret!: string;
 
   @IsString()
+  @ValidateIf((o: AliyunOssConfigDto) => o.enabled === true)
   @IsNotEmpty({ message: '存储桶名称不能为空' })
   @MaxLength(63, { message: '存储桶名称长度不能超过 63 字符' })
   bucket!: string;
 
   @IsString()
+  @ValidateIf((o: AliyunOssConfigDto) => o.enabled === true)
   @IsNotEmpty({ message: '地域不能为空' })
   @MaxLength(50, { message: '地域长度不能超过 50 字符' })
   region!: string;
@@ -74,14 +82,17 @@ class QiniuKodoConfigDto {
   enabled!: boolean;
 
   @IsString()
+  @ValidateIf((o: QiniuKodoConfigDto) => o.enabled === true)
   @IsNotEmpty({ message: 'AccessKey 不能为空' })
   accessKey!: string;
 
   @IsString()
+  @ValidateIf((o: QiniuKodoConfigDto) => o.enabled === true)
   @IsNotEmpty({ message: 'SecretKey 不能为空' })
   secretKey!: string;
 
   @IsString()
+  @ValidateIf((o: QiniuKodoConfigDto) => o.enabled === true)
   @IsNotEmpty({ message: '存储桶名称不能为空' })
   @MaxLength(63, { message: '存储桶名称长度不能超过 63 字符' })
   bucket!: string;
