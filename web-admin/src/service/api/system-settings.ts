@@ -106,6 +106,59 @@ export function fetchCaptcha() {
   return request<{ token: string; svg: string }>({ url: '/system-security/captcha' });
 }
 
+/** 腾讯云 COS 配置 */
+export interface TencentCosConfig {
+  enabled: boolean;
+  secretId: string;
+  secretKey: string;
+  bucket: string;
+  region: string;
+  appId: string;
+  domain: string;
+}
+
+/** 阿里云 OSS 配置 */
+export interface AliyunOssConfig {
+  enabled: boolean;
+  accessKeyId: string;
+  accessKeySecret: string;
+  bucket: string;
+  region: string;
+  endpoint: string;
+  domain: string;
+}
+
+/** 七牛云 Kodo 配置 */
+export interface QiniuKodoConfig {
+  enabled: boolean;
+  accessKey: string;
+  secretKey: string;
+  bucket: string;
+  region: string;
+  domain: string;
+}
+
+/** 云存储服务商 */
+export type CloudStorageProvider = 'tencent' | 'aliyun' | 'qiniu';
+
+/** 完整云存储配置 */
+export interface CloudStorageFullConfig {
+  provider: CloudStorageProvider;
+  tencent: TencentCosConfig;
+  aliyun: AliyunOssConfig;
+  qiniu: QiniuKodoConfig;
+}
+
+/** 获取云存储配置 */
+export function fetchCloudStorageConfig() {
+  return request<CloudStorageFullConfig>({ url: '/cloud-storage-config' });
+}
+
+/** 保存云存储配置 */
+export function fetchSaveCloudStorageConfig(data: CloudStorageFullConfig) {
+  return request<{ success: boolean }>({ url: '/cloud-storage-config/save', method: 'post', data });
+}
+
 /** 系统日志项 */
 export interface SystemLogItem {
   id: number;

@@ -16,8 +16,12 @@ import {
   fetchSystemLogExport,
   fetchSystemLogClean,
   fetchDeleteSystemLog,
+  fetchCloudStorageConfig,
+  fetchSaveCloudStorageConfig,
   type SystemConfigGroups,
-  type SystemLogItem
+  type SystemLogItem,
+  type CloudStorageFullConfig,
+  type CloudStorageProvider
 } from '@/service/api';
 
 defineOptions({ name: 'SystemSettings' });
@@ -68,6 +72,8 @@ const canViewLog = computed(() => hasAuth('system:settings:log:list'));
 const canDeleteLog = computed(() => hasAuth('system:settings:log:delete'));
 const canExportLog = computed(() => hasAuth('system:settings:log:export'));
 const canVerify = computed(() => hasAuth('system:settings:verify'));
+const canViewCloudStorage = computed(() => hasAuth('system:settings:cloud:list'));
+const canUpdateCloudStorage = computed(() => hasAuth('system:settings:cloud:update'));
 
 // ==================== 配置数据 ====================
 const activeTab = ref('basic');
@@ -77,6 +83,162 @@ const groups = ref<SystemConfigGroups>({ basic: [], security: [], log: [] });
 const basicModel = reactive<Record<string, string>>({});
 
 const securityModel = reactive<Record<string, any>>({});
+
+// ==================== 云存储配置 ====================
+const cloudLoading = ref(false);
+const cloudConfig = ref<CloudStorageFullConfig>({
+  provider: 'tencent',
+  tencent: { enabled: false, secretId: '', secretKey: '', bucket: '', region: '', appId: '', domain: '' },
+  aliyun: { enabled: false, accessKeyId: '', accessKeySecret: '', bucket: '', region: '', endpoint: '', domain: '' },
+  qiniu: { enabled: false, accessKey: '', secretKey: '', bucket: '', region: '', domain: '' }
+});
+
+const cloudModel = reactive<CloudStorageFullConfig & { touched: Record<string, boolean> }>({
+  provider: 'tencent',
+  tencent: { enabled: false, secretId: '', secretKey: '', bucket: '', region: '', appId: '', domain: '' },
+  aliyun: { enabled: false, accessKeyId: '', accessKeySecret: '', bucket: '', region: '', endpoint: '', domain: '' },
+  qiniu: { enabled: false, accessKey: '', secretKey: '', bucket: '', region: '', domain: '' },
+  touched: {}
+});
+
+const cloudProviderOptions = computed(() => [
+  { label: $t('page.systemSettings.cloudStorageProviderTencent'), value: 'tencent' },
+  { label: $t('page.systemSettings.cloudStorageProviderAliyun'), value: 'aliyun' },
+  { label: $t('page.systemSettings.cloudStorageProviderQiniu'), value: 'qiniu' }
+]);
+
+const cloudProviderNames: Record<CloudStorageProvider, string> = {
+  tencent: $t('page.systemSettings.cloudStorageProviderTencent'),
+  aliyun: $t('page.systemSettings.cloudStorageProviderAliyun'),
+  qiniu: $t('page.systemSettings.cloudStorageProviderQiniu')
+};
+
+const cloudFields: Record<
+  CloudStorageProvider,
+  { key: keyof CloudStorageFullConfig[CloudStorageProvider]; label: App.I18n.I18nKey; required?: boolean; type?: 'password' }[]
+> = {
+  tencent: [
+    { key: 'secretId', label: 'page.systemSettings.cloudStorageSecretId', required: true },
+    { key: 'secretKey', label: 'page.systemSettings.cloudStorageSecretKey', required: true, type: 'password' },
+    { key: 'bucket', label: 'page.systemSettings.cloudStorageBucket', required: true },
+    { key: 'region', label: 'page.systemSettings.cloudStorageRegion', required: true },
+    { key: 'appId', label: 'page.systemSettings.cloudStorageAppId' },
+    { key: 'domain', label: 'page.systemSettings.cloudStorageDomain' }
+  ],
+  aliyun: [
+    { key: 'accessKeyId', label: 'page.systemSettings.cloudStorageSecretId', required: true },
+    { key: 'accessKeySecret', label: 'page.systemSettings.cloudStorageAccessKeySecret', required: true, type: 'password' },
+    { key: 'bucket', label: 'page.systemSettings.cloudStorageBucket', required: true },
+    { key: 'region', label: 'page.systemSettings.cloudStorageRegion', required: true },
+    { key: 'endpoint', label: 'page.systemSettings.cloudStorageEndpoint' },
+    { key: 'domain', label: 'page.systemSettings.cloudStorageDomain' }
+  ],
+  qiniu: [
+    { key: 'accessKey', label: 'page.systemSettings.cloudStorageAccessKey', required: true },
+    { key: 'secretKey', label: 'page.systemSettings.cloudStorageSecretKey', required: true, type: 'password' },
+    { key: 'bucket', label: 'page.systemSettings.cloudStorageBucket', required: true },
+    { key: 'region', label: 'page.systemSettings.cloudStorageRegion' },
+    { key: 'domain', label: 'page.systemSettings.cloudStorageDomain' }
+  ]
+};
+
+function isMasked(value: string): boolean {
+  return typeof value === 'string' && value.includes('*');
+}
+
+function cloudFieldValue(provider: CloudStorageProvider, key: string): string {
+  return String((cloudModel[provider] as Record<string, unknown>)[key] ?? '');
+}
+
+function updateCloudField(provider: CloudStorageProvider, key: string, value: string) {
+  (cloudModel[provider] as Record<string, unknown>)[key] = value;
+}
+
+function handleCloudFieldFocus(provider: CloudStorageProvider, key: string) {
+  if (isMasked(cloudFieldValue(provider, key))) {
+    updateCloudField(provider, key, '');
+    cloudModel.touched[`${provider}.${key}`] = true;
+  }
+}
+
+async function loadCloudStorageConfig() {
+  if (!canViewCloudStorage.value) return;
+  cloudLoading.value = true;
+  try {
+    const { data } = await fetchCloudStorageConfig();
+    if (!data) return;
+    cloudConfig.value = data;
+    resetCloudModel();
+  } finally {
+    cloudLoading.value = false;
+  }
+}
+
+function resetCloudModel() {
+  const cfg = cloudConfig.value;
+  cloudModel.provider = cfg.provider;
+  for (const p of Object.keys(cloudFields) as CloudStorageProvider[]) {
+    const target = cfg[p];
+    const src = cloudModel[p];
+    for (const field of cloudFields[p]) {
+      const value = target[field.key as keyof typeof target];
+      (src as Record<string, unknown>)[field.key as string] = String(value ?? '');
+    }
+    src.enabled = target.enabled;
+  }
+  cloudModel.touched = {};
+}
+
+function validateCloudStorage(): boolean {
+  const providers: CloudStorageProvider[] = ['tencent', 'aliyun', 'qiniu'];
+  for (const p of providers) {
+    const model = cloudModel[p];
+    if (!model.enabled) continue;
+    for (const field of cloudFields[p]) {
+      if (!field.required) continue;
+      const value = String((model as Record<string, unknown>)[field.key as string] || '').trim();
+      if (value === '' || isMasked(value)) {
+        message.error(`${cloudProviderNames[p]} - ${$t(field.label)} ${$t('page.systemSettings.cloudStorageRequired')}`);
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
+async function handleSaveCloudStorage() {
+  if (!canUpdateCloudStorage.value) return;
+  if (!(await ensureVerified())) return;
+  if (!validateCloudStorage()) return;
+
+  const payload: CloudStorageFullConfig = {
+    provider: cloudModel.provider,
+    tencent: { ...cloudModel.tencent },
+    aliyun: { ...cloudModel.aliyun },
+    qiniu: { ...cloudModel.qiniu }
+  };
+
+  // 过滤掉仍被脱敏的敏感字段，避免用掩码覆盖真实密钥
+  const sensitiveFields: Record<CloudStorageProvider, string[]> = {
+    tencent: ['secretKey'],
+    aliyun: ['accessKeySecret'],
+    qiniu: ['secretKey']
+  };
+  for (const p of Object.keys(sensitiveFields) as CloudStorageProvider[]) {
+    for (const key of sensitiveFields[p]) {
+      const value = String((payload[p] as Record<string, unknown>)[key] || '');
+      if (isMasked(value)) {
+        (payload[p] as Record<string, unknown>)[key] = '';
+      }
+    }
+  }
+
+  const { error } = await fetchSaveCloudStorageConfig(payload);
+  if (!error) {
+    message.success($t('page.systemSettings.cloudStorageSaveSuccess'));
+    await loadCloudStorageConfig();
+  }
+}
 
 /** json 数组 <-> textarea 文本 */
 function jsonToText(value: unknown): string {
@@ -420,11 +582,15 @@ watch(activeTab, tab => {
     loadLogs();
     loadLogStats();
   }
+  if (tab === 'cloud' && canViewCloudStorage.value) {
+    loadCloudStorageConfig();
+  }
 });
 
 onMounted(() => {
   loadConfigs();
   loadSensitiveConfig();
+  loadCloudStorageConfig();
 });
 </script>
 
@@ -442,6 +608,7 @@ onMounted(() => {
         :tab="`${$t('page.systemSettings.log')} (${logStats.operation + logStats.error + logStats.access})`"
       />
       <NTabPane name="security" :tab="$t('page.systemSettings.security')" />
+      <NTabPane name="cloud" :tab="$t('page.systemSettings.cloudStorage')" />
     </NTabs>
 
     <div v-if="loading && activeTab !== 'log'" class="mt-24px">
@@ -696,6 +863,93 @@ onMounted(() => {
           :description="$t('page.systemSettings.noPermissionTip')"
         />
       </NCard>
+    </div>
+
+    <!-- 云存储配置面板 -->
+    <div v-else-if="activeTab === 'cloud'" class="mt-16px">
+      <NSpin :show="cloudLoading">
+        <NCard v-if="canViewCloudStorage" :bordered="false" class="shadow-sm mb-16px">
+          <template #header>{{ $t('page.systemSettings.cloudStorage') }}</template>
+          <template #header-extra>
+            <NTag type="info" size="small">{{ $t('page.systemSettings.cloudStorageTip') }}</NTag>
+          </template>
+
+          <div class="mb-24px">
+            <NForm label-placement="left" label-width="140px" :show-feedback="false">
+              <NFormItem :label="$t('page.systemSettings.cloudStorageProvider')">
+                <NSelect
+                  v-model:value="cloudModel.provider"
+                  class="w-240px"
+                  :disabled="!canUpdateCloudStorage"
+                  :options="cloudProviderOptions"
+                />
+              </NFormItem>
+            </NForm>
+            <NAlert type="warning" :show-icon="true">{{ $t('page.systemSettings.cloudStorageMaskTip') }}</NAlert>
+          </div>
+
+          <div class="grid grid-cols-1 xl:grid-cols-3 gap-16px">
+            <NCard
+              v-for="provider in (['tencent', 'aliyun', 'qiniu'] as CloudStorageProvider[])"
+              :key="provider"
+              :bordered="true"
+              class="shadow-sm"
+            >
+              <template #header>
+                <div class="flex items-center justify-between">
+                  <span>{{ cloudProviderNames[provider] }}</span>
+                  <NSwitch
+                    v-model:value="cloudModel[provider].enabled"
+                    :disabled="!canUpdateCloudStorage"
+                  >
+                    <template #checked>{{ $t('page.systemSettings.cloudStorageEnabled') }}</template>
+                    <template #unchecked>{{ $t('page.systemSettings.cloudStorageDisabled') }}</template>
+                  </NSwitch>
+                </div>
+              </template>
+
+              <NForm label-placement="left" label-width="120px" :show-feedback="false">
+                <NFormItem
+                  v-for="field in cloudFields[provider]"
+                  :key="field.key"
+                  :label="$t(field.label)"
+                >
+                  <NInput
+                    v-model:value="(cloudModel[provider] as Record<string, string>)[field.key as string]"
+                    :type="field.type === 'password' ? 'password' : 'text'"
+                    :placeholder="field.required ? $t('page.systemSettings.cloudStorageRequired') : ''"
+                    :disabled="!canUpdateCloudStorage || !cloudModel[provider].enabled"
+                    :show-password-on="field.type === 'password' ? 'click' : undefined"
+                    clearable
+                    @focus="handleCloudFieldFocus(provider, field.key as string)"
+                  />
+                </NFormItem>
+              </NForm>
+            </NCard>
+          </div>
+
+          <template #footer>
+            <div class="flex justify-end gap-12px">
+              <NButton
+                v-if="canUpdateCloudStorage"
+                type="primary"
+                :loading="cloudLoading"
+                @click="handleSaveCloudStorage"
+              >
+                {{ $t('page.systemSettings.cloudStorageSave') }}
+              </NButton>
+            </div>
+          </template>
+        </NCard>
+
+        <NCard v-else :bordered="false" class="shadow-sm">
+          <NResult
+            status="403"
+            :title="$t('page.systemSettings.noPermission')"
+            :description="$t('page.systemSettings.noPermissionTip')"
+          />
+        </NCard>
+      </NSpin>
     </div>
 
     <!-- 二次验证弹窗 -->

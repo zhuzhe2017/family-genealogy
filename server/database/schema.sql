@@ -759,7 +759,9 @@ INSERT IGNORE INTO `sys_permission` (`name`, `code`, `status`) VALUES
 ('日志查询',     'system:settings:log:list', 1),
 ('日志删除',     'system:settings:log:delete', 1),
 ('日志导出',     'system:settings:log:export', 1),
-('敏感操作验证', 'system:settings:verify', 1);
+('敏感操作验证', 'system:settings:verify', 1),
+('云存储配置查询', 'system:settings:cloud:list', 1),
+('云存储配置编辑', 'system:settings:cloud:update', 1);
 
 -- ------------------------------------------------------------
 -- 4. 将全部权限授予超级管理员角色（幂等）
