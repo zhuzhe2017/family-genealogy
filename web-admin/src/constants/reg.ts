@@ -7,9 +7,11 @@ export const REG_PHONE =
 /**
  * Password reg
  *
- * 6-18 characters, including letters, numbers, and underscores
+ * 6-18 characters. Letters, numbers and common special characters are allowed,
+ * e.g. !@#$%^&*()_+-=[]{}|;:,.<>?
+ * 6-18 位，允许字母、数字及常见特殊字符（!@#$%^&*()_+-=[]{}|;:,.<>? 等）
  */
-export const REG_PWD = /^\w{6,18}$/;
+export const REG_PWD = /^[\w!@#$%^&*()+\-=\[\]{}|;:,.<>?]{6,18}$/;
 
 /** Email reg */
 export const REG_EMAIL = /^\w+([-+.]\w+)*@\w+([-.]\w+)*\.\w+([-.]\w+)*$/;

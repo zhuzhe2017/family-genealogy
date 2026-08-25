@@ -91,6 +91,9 @@ export class SystemSecurityService {
     if (!password || password.length < policy.minLength) {
       return `密码长度不能少于 ${policy.minLength} 位`;
     }
+    if (/[\x00-\x1F\x7F]/.test(password)) {
+      return '密码包含不允许的控制字符';
+    }
     if (policy.requireUpper && !/[A-Z]/.test(password)) {
       return '密码必须包含至少 1 个大写字母';
     }
