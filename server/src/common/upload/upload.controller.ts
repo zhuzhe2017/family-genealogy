@@ -48,7 +48,7 @@ export class UploadController {
     private readonly cloudStorageUploadService: CloudStorageUploadService
   ) {}
 
-  /** 图片上传：云存储启用时存到 COS/OSS/Kodo 并返回公网 URL，否则存本地（/uploads/xxx.png） */
+  /** 图片上传：云存储启用时存到 COS 并返回公网 URL，否则存本地（/uploads/{分类}/xxx.png） */
   @Post('upload')
   @UseInterceptors(
     FileInterceptor('file', {
@@ -73,8 +73,15 @@ export class UploadController {
       throw new BadRequestException('请选择要上传的图片文件', '400');
     }
 
+    // 业务分类目录（photo/document/dynamic/album/member_avatar/event），未知类型归入 photo
+    const rawBizType = String((req?.body as Record<string, unknown>)?.bizType || 'photo');
+    const folder = BIZ_TYPES.includes(rawBizType) ? rawBizType : 'photo';
+    // 家族维度上传时按家族细分（{分类}/{familyId}/），管理员上传/无家族归属不加家族段
+    const familyId = Number((req?.body as Record<string, unknown>)?.familyId || 0);
+    const familyScope = familyId > 0 ? String(familyId) : '';
+
     // 优先上传云存储（已启用时）；未启用或上传失败则回退本地磁盘
-    const cloud = await this.cloudStorageUploadService.uploadImage(file.buffer, file.mimetype);
+    const cloud = await this.cloudStorageUploadService.uploadImage(file.buffer, file.mimetype, folder, familyScope);
     let url: string;
     let filename: string;
     if (cloud) {
@@ -85,25 +92,17 @@ export class UploadController {
       if (!existsSync(UPLOAD_DIR)) {
         mkdirSync(UPLOAD_DIR, { recursive: true });
       }
-      await writeFile(join(UPLOAD_DIR, filename), file.buffer);
+      const subDir = [folder, familyScope].filter(Boolean).join('/');
+      await writeFile(join(UPLOAD_DIR, folder, familyScope, filename), file.buffer);
+      filename = `${subDir}/${filename}`;
       url = `/uploads/${filename}`;
     }
-
-    const familyId = Number((req?.body as Record<string, unknown>)?.familyId || 0);
-    const bizType = String((req?.body as Record<string, unknown>)?.bizType || 'photo');
 
     // 家族维度上传（小程序用户令牌）：校验归属 + 存储额度 + 记账
     if (familyId > 0 && req?.user && typeof req.user.id === 'string') {
       await this.assertFamilyMember(String(req.user.id), familyId);
       await this.entitlementService.assertStorage(familyId, file.size);
-      await this.entitlementService.recordStorage(
-        familyId,
-        url,
-        file.size,
-        BIZ_TYPES.includes(bizType) ? bizType : 'photo',
-        '',
-        String(req.user.id)
-      );
+      await this.entitlementService.recordStorage(familyId, url, file.size, folder, '', String(req.user.id));
     }
     // 管理员上传 / 无家族归属（头像等）：不占家族存储额度
 
