@@ -37,10 +37,24 @@ export class AllExceptionsFilter implements ExceptionFilter {
       message = isUpload
         ? `文件大小不能超过 ${MAX_FILE_SIZE / (1024 * 1024)}MB`
         : exception.message;
+    } else if (exception instanceof HttpException) {
+      status = exception.getStatus();
+      const response = exception.getResponse();
+      if (typeof response === 'string') {
+        message = response;
+      } else {
+        const responseMessage = (response as { message?: unknown } | null)?.message;
+        if (typeof responseMessage === 'string') {
+          message = responseMessage;
+        } else if (Array.isArray(responseMessage)) {
+          // 校验类异常：如 ["tencent.SecretKey 不能为空"]，逐条拼接便于定位具体字段
+          message = responseMessage.join('；');
+        } else {
+          message = exception.message;
+        }
+      }
     } else {
-      status = exception instanceof HttpException
-        ? exception.getStatus()
-        : HttpStatus.INTERNAL_SERVER_ERROR;
+      status = HttpStatus.INTERNAL_SERVER_ERROR;
       message = exception instanceof Error ? exception.message : '服务器内部错误';
     }
 
