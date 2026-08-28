@@ -56,7 +56,6 @@ export class AdminController {
   }
 }
 
-@Roles('super')
 @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
 @Controller('admin')
 export class AdminManageController {

@@ -624,20 +624,7 @@ CREATE TABLE `sys_admin_role` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='管理员-角色关联表';
 
 -- ------------------------------------------------------------
--- 31. 角色-菜单关联表
--- ------------------------------------------------------------
-CREATE TABLE `sys_role_menu` (
-  `id`            INT UNSIGNED  NOT NULL AUTO_INCREMENT COMMENT 'ID',
-  `role_id`       INT UNSIGNED  NOT NULL COMMENT '角色ID',
-  `menu_id`       INT UNSIGNED  NOT NULL COMMENT '菜单ID',
-  `create_time`   DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `uk_role_menu` (`role_id`, `menu_id`),
-  INDEX `idx_menu` (`menu_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='角色-菜单关联表';
-
--- ------------------------------------------------------------
--- 32. 系统配置表
+-- 31. 系统配置表
 -- ------------------------------------------------------------
 CREATE TABLE `sys_config` (
   `id`           INT UNSIGNED  NOT NULL AUTO_INCREMENT COMMENT '配置ID',
@@ -813,7 +800,11 @@ WHERE a.`username` = 'admin' AND r.`code` = 'super';
 
 -- ============================================================
 -- 初始化默认菜单（用于动态路由模式）
--- 超级管理员默认可以看到所有启用菜单，非超级角色需通过角色管理绑定菜单
+-- 菜单可见性由 sys_menu.permission 与角色的 sys_role_permission 共同决定：
+-- 1. 叶子菜单若配置了 permission，则只有角色拥有该权限码时才可见；
+-- 2. 叶子菜单未配置 permission，则默认可见；
+-- 3. 目录菜单只有在其下存在可见子菜单时才保留。
+-- 超级管理员默认可以看到所有启用菜单。
 -- ============================================================
 INSERT INTO `sys_menu` (`parent_id`, `name`, `type`, `path`, `component`, `route_name`, `icon`, `permission`, `sort_order`, `status`, `visible`, `keep_alive`) VALUES
 (0, '首页', 'menu', '/home', 'layout.base$view.home', 'home', 'mdi:monitor-dashboard', '', 1, 1, 1, 1),
@@ -836,10 +827,6 @@ INSERT INTO `sys_menu` (`parent_id`, `name`, `type`, `path`, `component`, `route
 (@system_dir, '权限管理', 'menu', '/system/permission', 'view.system_permission', 'system_permission', '', 'system:permission:list', 2, 1, 1, 1),
 (@system_dir, '角色管理', 'menu', '/system/role', 'view.system_role', 'system_role', '', 'system:role:list', 3, 1, 1, 1),
 (@system_dir, '系统设置', 'menu', '/system/settings', 'view.system_settings', 'system_settings', 'mdi:application-cog-outline', 'system:settings:list', 4, 1, 1, 1);
-
--- 将默认菜单全部授权给超级管理员角色（幂等）
-INSERT IGNORE INTO `sys_role_menu` (`role_id`, `menu_id`)
-SELECT r.`id`, m.`id` FROM `sys_role` r, `sys_menu` m WHERE r.`code` = 'super';
 
 -- 插入默认相册分类（请根据实际家族替换 <family_id> 后执行）
 -- INSERT INTO `family_album_category` (`id`, `family_id`, `name`, `icon`, `sort_order`) VALUES
@@ -1305,13 +1292,8 @@ INSERT IGNORE INTO `sys_menu` (`parent_id`, `name`, `type`, `path`, `component`,
 (@mini_program_dir, '应用插件', 'menu', '/mini-program/plugin', 'view.mini-program_plugin', 'mini-program_plugin', 'mdi:puzzle', 'system:app-plugin:list', 12, 1, 1, 1),
 (@mini_program_dir, '宗亲聚会', 'menu', '/mini-program/gathering', 'view.mini-program_gathering', 'mini-program_gathering', 'mdi:account-group', 'system:gathering:list', 12, 1, 1, 1);
 
--- 将新增菜单授予超级管理员角色（幂等）
-INSERT IGNORE INTO `sys_role_menu` (`role_id`, `menu_id`)
-SELECT r.`id`, m.`id` FROM `sys_role` r, `sys_menu` m
-WHERE r.`code` = 'super' AND m.`route_name` IN (
-  'mini-program_subscription', 'mini-program_worship', 'mini-program_family-invitation',
-  'mini-program_banner', 'mini-program_plugin', 'mini-program_gathering'
-);
+-- 将新增菜单授予超级管理员角色（通过权限码自动可见）
+-- 超级管理员拥有所有 system:* 权限，因此会自动看到这些菜单
 
 -- "应用插件"菜单升级为顶级"应用中心"（来源: 20260819-app-center-menu.sql，依赖上方应用插件菜单）
 UPDATE `sys_menu`
@@ -1338,10 +1320,7 @@ WHERE NOT EXISTS (SELECT 1 FROM `sys_menu` WHERE `route_name` = 'app-center');
 -- 清理残留旧嵌套"应用插件"菜单，防止新旧并存
 DELETE FROM `sys_menu` WHERE `route_name` = 'mini-program_plugin';
 
--- 确保"应用中心"菜单已授权给超级管理员角色（幂等）
-INSERT IGNORE INTO `sys_role_menu` (`role_id`, `menu_id`)
-SELECT r.`id`, m.`id` FROM `sys_role` r, `sys_menu` m
-WHERE r.`code` = 'super' AND m.`route_name` = 'app-center';
+-- 应用中心菜单对超级管理员自动可见（通过 system:app-plugin:list 权限码）
 
 -- ------------------------------------------------------------
 -- 42. 数据回填与存量修复工具（幂等；新库无存量数据时自动跳过）
@@ -1573,7 +1552,26 @@ SET @mini_program_dir := (SELECT `id` FROM `sys_menu` WHERE `route_name` = 'mini
 INSERT IGNORE INTO `sys_menu` (`parent_id`, `name`, `type`, `path`, `component`, `route_name`, `icon`, `permission`, `sort_order`, `status`, `visible`, `keep_alive`) VALUES
 (@mini_program_dir, '会员管理', 'menu', '/mini-program/member', 'view.mini-program_member', 'mini-program_member', 'mdi:card-account-details', 'system:member:list', 7, 1, 1, 1);
 
--- 将会员管理菜单授予超级管理员角色（幂等）
-INSERT IGNORE INTO `sys_role_menu` (`role_id`, `menu_id`)
-SELECT r.`id`, m.`id` FROM `sys_role` r, `sys_menu` m
-WHERE r.`code` = 'super' AND m.`route_name` = 'mini-program_member';
+-- 注：超级管理员拥有所有 system:* 权限，会员管理菜单会自动可见。
+
+-- ============================================================
+-- 普通管理员默认授权：支持普通管理员登录总后台
+-- 权限范围：除"管理员/角色/权限/菜单/日志/系统设置"外的所有运营权限
+-- ============================================================
+
+-- 1. 普通管理员默认权限：排除高敏感配置类权限
+INSERT IGNORE INTO `sys_role_permission` (`role_id`, `permission_id`)
+SELECT r.`id`, p.`id` FROM `sys_role` r, `sys_permission` p
+WHERE r.`code` = 'admin'
+  AND p.`status` = 1
+  AND p.`code` LIKE 'system:%'
+  AND p.`code` NOT LIKE 'system:admin:%'
+  AND p.`code` NOT LIKE 'system:role:%'
+  AND p.`code` NOT LIKE 'system:permission:%'
+  AND p.`code` NOT LIKE 'system:menu:%'
+  AND p.`code` NOT LIKE 'system:settings:log:%'
+  AND p.`code` NOT LIKE 'system:settings:security:%'
+  AND p.`code` NOT LIKE 'system:settings:cloud:%'
+  AND p.`code` NOT LIKE 'system:settings:verify';
+
+-- 注：菜单可见性不再依赖 sys_role_menu，由 sys_menu.permission 与角色的 sys_role_permission 共同决定。

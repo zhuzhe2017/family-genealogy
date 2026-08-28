@@ -106,7 +106,8 @@ const surnameChartOptions = computed<ECOption>(() => {
       right: '2%',
       top: '6%',
       bottom: showZoom ? 64 : 36,
-      containLabel: true
+      outerBoundsMode: 'same',
+      outerBoundsContain: 'axisLabel'
     },
     xAxis: {
       type: 'category',

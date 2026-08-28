@@ -50,14 +50,9 @@ export function fetchAssignPermissions(id: number, permissionIds: number[]) {
   return request<{ success: boolean }>({ url: `/role/assign-permissions/${id}`, method: 'post', data: { permissionIds } });
 }
 
-/** 获取角色已绑定菜单 */
-export function fetchRoleMenus(id: number) {
-  return request<number[]>({ url: `/role/${id}/menus` });
-}
-
-/** 为角色分配菜单 */
-export function fetchAssignRoleMenus(id: number, menuIds: number[]) {
-  return request<{ success: boolean }>({ url: `/role/assign-menus/${id}`, method: 'post', data: { menuIds } });
+/** 获取角色已绑定权限ID列表 */
+export function fetchRolePermissions(id: number) {
+  return request<number[]>({ url: `/role/${id}/permissions` });
 }
 
 /** 获取权限列表 */

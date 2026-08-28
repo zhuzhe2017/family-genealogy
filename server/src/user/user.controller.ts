@@ -10,6 +10,27 @@ export class UserController {
   constructor(private readonly userService: UserService) {}
 
   /**
+   * 用户手机号密码登录(公开接口)
+   * 前期用于租户后台/PC 端快速验证流程逻辑
+   * 限流 20 次/分钟/IP
+   */
+  @Public()
+  @Throttle({ default: { limit: 20, ttl: 60_000 } })
+  @Post('pwd-login')
+  async pwdLogin(@Body() body: { phone: string; password: string }) {
+    return this.userService.pwdLogin(body.phone, body.password);
+  }
+
+  /**
+   * 刷新用户 token
+   */
+  @Public()
+  @Post('refreshToken')
+  async refreshToken(@Body() body: { refreshToken: string }) {
+    return this.userService.refreshToken(body.refreshToken);
+  }
+
+  /**
    * 微信小程序登录(公开接口)
    * 限流 30 次/分钟/IP,防止 code 暴力枚举
    */
@@ -44,6 +65,21 @@ export class UserController {
   }
 
   /**
+   * 设置/修改登录密码(需 user-jwt)
+   * 适用于手机号验证码登录后首次设密或修改密码
+   */
+  @Public()
+  @UseGuards(UserJwtAuthGuard)
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  @Post('set-password')
+  async setPassword(
+    @Req() req: AuthenticatedRequest,
+    @Body() body: { password: string }
+  ) {
+    return this.userService.setPassword(String(req.user.id), body.password);
+  }
+
+  /**
    * 绑定手机号(需登录,作为跨端统一锚点)
    * 已绑定其他账号的手机号返回 409
    */
@@ -70,78 +106,7 @@ export class UserController {
   }
 
   /**
-   * 获取我的家族关联信息（登录后自动检测并进入已关联家族支系）
-   * 返回：familyId / family / memberId / member / shareCode
-   */
-  @Public()
-  @UseGuards(UserJwtAuthGuard)
-  @Get('me/family')
-  async getMyFamily(@Req() req: AuthenticatedRequest) {
-    return this.userService.getMyFamily(String(req.user.id));
-  }
-
-  /**
-   * 加入家族支系（仅允许通过有效的分享码加入）
-   * body: { shareCode: string, memberId?: string }
-   * - 支持家族种子分享码（family.seed_share_code）或会员分享码（user.share_code）
-   * - memberId 可选，加入时同步绑定指定家族成员
-   */
-  @Public()
-  @UseGuards(UserJwtAuthGuard)
-  @Post('family/join')
-  async joinFamily(
-    @Req() req: AuthenticatedRequest,
-    @Body() body: { shareCode?: string; memberId?: string }
-  ) {
-    return this.userService.joinFamily(String(req.user.id), {
-      shareCode: body.shareCode,
-      memberId: body.memberId
-    });
-  }
-
-  /**
-   * 绑定家族成员（绑定后获得编辑该成员信息的权限，不受 VIP 状态限制）
-   * body: { memberId: string }
-   */
-  @Public()
-  @UseGuards(UserJwtAuthGuard)
-  @Put('family/bind-member')
-  async bindMember(
-    @Req() req: AuthenticatedRequest,
-    @Body() body: { memberId?: string }
-  ) {
-    return this.userService.bindMember(String(req.user.id), body.memberId || '');
-  }
-
-  /**
-   * 获取家族成员角色列表（角色管理入口，仅族长可分配/回收角色）
-   * 返回：familyId / familyName / leaderUserId / canManage / list[{userId,nickname,avatarUrl,memberId,role,roleLabel}]
-   */
-  @Public()
-  @UseGuards(UserJwtAuthGuard)
-  @Get('family/roles')
-  async getFamilyRoles(@Req() req: AuthenticatedRequest) {
-    return this.userService.getFamilyRoles(String(req.user.id));
-  }
-
-  /**
-   * 设置家族成员角色（仅族长）
-   * body: { role: 'admin' 设为管理员 | 'member' 取消管理员 }
-   */
-  @Public()
-  @UseGuards(UserJwtAuthGuard)
-  @Put('family/roles/:userId')
-  async setFamilyRole(
-    @Req() req: AuthenticatedRequest,
-    @Param('userId') targetUserId: string,
-    @Body() body: { role?: string }
-  ) {
-    return this.userService.setFamilyRole(String(req.user.id), targetUserId, body.role || '');
-  }
-
-  /**
    * 更新当前用户资料(昵称/头像/性别)
-   * @Public 跳过全局管理员 JwtAuthGuard,改用 UserJwtAuthGuard 校验用户令牌
    */
   @Public()
   @UseGuards(UserJwtAuthGuard)
@@ -151,16 +116,5 @@ export class UserController {
     @Body() body: { nickName?: string; avatarUrl?: string; gender?: number }
   ) {
     return this.userService.updateProfile(String(req.user.id), body);
-  }
-
-  /**
-   * 注销账号(删除用户记录,其发布内容匿名化保留)
-   * @Public 跳过全局管理员 JwtAuthGuard,改用 UserJwtAuthGuard 校验用户令牌
-   */
-  @Public()
-  @UseGuards(UserJwtAuthGuard)
-  @Delete('account')
-  async deleteAccount(@Req() req: AuthenticatedRequest) {
-    return this.userService.deleteAccount(String(req.user.id));
   }
 }

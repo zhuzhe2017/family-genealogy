@@ -80,7 +80,9 @@ export class FamilyService {
       where.push('(`f`.`name` LIKE ? OR `f`.`founder` LIKE ? OR `f`.`origin` LIKE ? OR `gt`.`surname` LIKE ? OR `gt`.`founder` LIKE ?)');
       values.push(`%${keyword}%`, `%${keyword}%`, `%${keyword}%`, `%${keyword}%`, `%${keyword}%`);
     }
-    if (status !== undefined && status !== null) {
+    if (status === -1) {
+      // 全部：不限制 status
+    } else if (status !== undefined && status !== null) {
       where.push('`f`.`status` = ?');
       values.push(status);
     } else {
@@ -93,7 +95,7 @@ export class FamilyService {
       values.push(isPublic);
     }
 
-    const whereClause = 'WHERE ' + where.join(' AND ');
+    const whereClause = where.length > 0 ? 'WHERE ' + where.join(' AND ') : '';
 
     const [countResult] = await this.dataSource.query<{ total: number }[]>(
       `SELECT COUNT(*) AS total FROM \`family\` \`f\` ${whereClause}`,
@@ -153,7 +155,9 @@ export class FamilyService {
       where.push('(`f`.`name` LIKE ? OR `f`.`founder` LIKE ?)');
       values.push(`%${keyword}%`, `%${keyword}%`);
     }
-    if (status !== undefined && status !== null) {
+    if (status === -1) {
+      // 全部：不限制 status
+    } else if (status !== undefined && status !== null) {
       where.push('`f`.`status` = ?');
       values.push(status);
     } else {
@@ -419,6 +423,29 @@ export class FamilyService {
     if (!row) throw new HttpException('家族不存在', HttpStatus.NOT_FOUND);
     await this.dataSource.query(
       "UPDATE `family` SET `status` = 0 WHERE `id` = ?",
+      [id]
+    );
+    return { success: true };
+  }
+
+  /** 恢复家族（status=1） */
+  async restore(id: number) {
+    const [row] = await this.dataSource.query<Pick<FamilyRow, 'id' | 'status' | 'name'>[]>(
+      'SELECT `id`, `status`, `name` FROM `family` WHERE `id` = ?',
+      [id]
+    );
+    if (!row) throw new HttpException('家族不存在', HttpStatus.NOT_FOUND);
+    if (row.status === 1) return { success: true };
+
+    // 恢复时校验名称唯一性（避免与现有正常家族重名）
+    const [dup] = await this.dataSource.query<Pick<FamilyRow, 'id'>[]>(
+      'SELECT `id` FROM `family` WHERE `name` = ? AND `status` = 1 AND `id` != ?',
+      [row.name, id]
+    );
+    if (dup) throw new HttpException('同名称的家族已存在，恢复前请先处理重名', HttpStatus.BAD_REQUEST);
+
+    await this.dataSource.query(
+      "UPDATE `family` SET `status` = 1 WHERE `id` = ?",
       [id]
     );
     return { success: true };

@@ -33,6 +33,7 @@ import { PluginModule } from './plugin/plugin.module';
 import { GatheringModule } from './gathering/gathering.module';
 import { FundModule } from './fund/fund.module';
 import { MemberModule } from './member/member.module';
+import { TenantModule } from './tenant/tenant.module';
 import { JwtAuthGuard } from './auth/guard/jwt-auth.guard';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 
@@ -78,7 +79,8 @@ import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
     PluginModule,
     GatheringModule,
     FundModule,
-    MemberModule
+    MemberModule,
+    TenantModule
   ],
   controllers: [AppController],
   providers: [

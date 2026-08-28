@@ -115,7 +115,7 @@ const cloudProviderNames: Record<CloudStorageProvider, string> = {
 
 const cloudFields: Record<
   CloudStorageProvider,
-  { key: keyof CloudStorageFullConfig[CloudStorageProvider]; label: App.I18n.I18nKey; required?: boolean; type?: 'password' }[]
+  { key: string; label: App.I18n.I18nKey; required?: boolean; type?: 'password' }[]
 > = {
   tencent: [
     { key: 'secretId', label: 'page.systemSettings.cloudStorageSecretId', required: true },
@@ -147,11 +147,11 @@ function isMasked(value: string): boolean {
 }
 
 function cloudFieldValue(provider: CloudStorageProvider, key: string): string {
-  return String((cloudModel[provider] as Record<string, unknown>)[key] ?? '');
+  return String((cloudModel[provider] as unknown as Record<string, string>)[key] ?? '');
 }
 
 function updateCloudField(provider: CloudStorageProvider, key: string, value: string) {
-  (cloudModel[provider] as Record<string, unknown>)[key] = value;
+  (cloudModel[provider] as unknown as Record<string, string>)[key] = value;
 }
 
 function handleCloudFieldFocus(provider: CloudStorageProvider, key: string) {
@@ -181,8 +181,8 @@ function resetCloudModel() {
     const target = cfg[p];
     const src = cloudModel[p];
     for (const field of cloudFields[p]) {
-      const value = target[field.key as keyof typeof target];
-      (src as Record<string, unknown>)[field.key as string] = String(value ?? '');
+      const value = (target as unknown as Record<string, unknown>)[field.key];
+      (src as unknown as Record<string, string>)[field.key] = String(value ?? '');
     }
     src.enabled = target.enabled;
   }
@@ -196,7 +196,7 @@ function validateCloudStorage(): boolean {
     if (!model.enabled) continue;
     for (const field of cloudFields[p]) {
       if (!field.required) continue;
-      const value = String((model as Record<string, unknown>)[field.key as string] || '').trim();
+      const value = String((model as unknown as Record<string, string>)[field.key] || '').trim();
       if (value === '' || isMasked(value)) {
         message.error(`${cloudProviderNames[p]} - ${$t(field.label)} ${$t('page.systemSettings.cloudStorageRequired')}`);
         return false;
@@ -226,9 +226,9 @@ async function handleSaveCloudStorage() {
   };
   for (const p of Object.keys(sensitiveFields) as CloudStorageProvider[]) {
     for (const key of sensitiveFields[p]) {
-      const value = String((payload[p] as Record<string, unknown>)[key] || '');
+      const value = String((payload[p] as unknown as Record<string, string>)[key] || '');
       if (isMasked(value)) {
-        (payload[p] as Record<string, unknown>)[key] = '';
+        (payload[p] as unknown as Record<string, string>)[key] = '';
       }
     }
   }
@@ -915,13 +915,13 @@ onMounted(() => {
                   :label="$t(field.label)"
                 >
                   <NInput
-                    v-model:value="(cloudModel[provider] as Record<string, string>)[field.key as string]"
+                    v-model:value="(cloudModel[provider] as unknown as Record<string, string>)[field.key]"
                     :type="field.type === 'password' ? 'password' : 'text'"
                     :placeholder="field.required ? $t('page.systemSettings.cloudStorageRequired') : ''"
                     :disabled="!canUpdateCloudStorage || !cloudModel[provider].enabled"
                     :show-password-on="field.type === 'password' ? 'click' : undefined"
                     clearable
-                    @focus="handleCloudFieldFocus(provider, field.key as string)"
+                    @focus="handleCloudFieldFocus(provider, field.key)"
                   />
                 </NFormItem>
               </NForm>

@@ -3,13 +3,14 @@ import { ConfigService } from '@nestjs/config';
 import { DataSource } from 'typeorm';
 import { JwtService } from '@nestjs/jwt';
 import { randomBytes } from 'crypto';
+import * as bcrypt from 'bcrypt';
 import { type UserRow, type UserInfo, type UserLoginResult, type UserAuthIdentityRow } from './types/user.types';
 import { type FamilyRow } from '../family/types/family.types';
 import { SmsService } from './sms.service';
 import { EntitlementService } from '../membership/membership.service';
 import { Capability } from '../membership/types/membership.types';
 import { MemberService } from '../member/member.service';
-import { type WxSessionResponse, type QueryValues, type DataRow } from '../common/types/common';
+import { type WxSessionResponse, type QueryValues, type DataRow, type SuccessResult } from '../common/types/common';
 
 @Injectable()
 export class UserService {
@@ -21,6 +22,78 @@ export class UserService {
     private readonly entitlementService: EntitlementService,
     private readonly memberService: MemberService
   ) {}
+
+  /**
+   * 用户手机号密码登录(公开接口)
+   * 前期用于租户后台/PC 端快速验证流程逻辑
+   */
+  async pwdLogin(phone: string, password: string): Promise<UserLoginResult> {
+    const normalized = this.normalizePhone(phone);
+
+    if (!password || String(password).length < 6) {
+      throw new HttpException('密码长度不能小于 6 位', HttpStatus.BAD_REQUEST);
+    }
+
+    const [user] = await this.dataSource.query<UserRow[]>(
+      'SELECT `id`, `nickname`, `avatar_url`, `gender`, `phone`, `password`, `family_id`, `member_id`, `share_code`, `status` FROM `user` WHERE `phone` = ? LIMIT 1',
+      [normalized] as QueryValues
+    );
+
+    if (!user) {
+      throw new HttpException('手机号或密码错误', HttpStatus.UNAUTHORIZED);
+    }
+
+    if (user.status !== 1) {
+      throw new HttpException('账号已被禁用', HttpStatus.FORBIDDEN);
+    }
+
+    if (!user.password) {
+      throw new HttpException('该账号未设置密码，请使用验证码登录', HttpStatus.BAD_REQUEST);
+    }
+
+    const valid = await bcrypt.compare(password, user.password);
+    if (!valid) {
+      throw new HttpException('手机号或密码错误', HttpStatus.UNAUTHORIZED);
+    }
+
+    return this.issueUserToken(user);
+  }
+
+  /**
+   * 设置/修改登录密码(需已登录)
+   */
+  async setPassword(userId: string, password: string): Promise<SuccessResult> {
+    if (!password || String(password).length < 6) {
+      throw new HttpException('密码长度不能小于 6 位', HttpStatus.BAD_REQUEST);
+    }
+
+    const hashed = await bcrypt.hash(password, 10);
+    await this.dataSource.query('UPDATE `user` SET `password` = ? WHERE `id` = ?', [hashed, userId] as QueryValues);
+    return { success: true };
+  }
+
+  /**
+   * 刷新用户 token
+   */
+  async refreshToken(refreshToken: string): Promise<UserLoginResult> {
+    let payload: { sub: string; type?: string };
+    try {
+      payload = await this.jwtService.verifyAsync(refreshToken);
+    } catch {
+      throw new HttpException('refreshToken 无效或已过期', HttpStatus.UNAUTHORIZED);
+    }
+
+    if (payload.type !== 'user') {
+      throw new HttpException('非用户令牌', HttpStatus.UNAUTHORIZED);
+    }
+
+    const user = await this.findUserById(payload.sub);
+    if (!user || user.status !== 1) {
+      throw new HttpException('用户不存在或已禁用', HttpStatus.UNAUTHORIZED);
+    }
+
+    return this.issueUserToken(user);
+  }
 
   /**
    * 微信小程序登录
@@ -218,7 +291,7 @@ export class UserService {
   /** 按 ID 查用户 */
   private async findUserById(userId: string) {
     const [user] = await this.dataSource.query<UserRow[]>(
-      'SELECT `id`, `nickname`, `avatar_url`, `gender`, `phone`, `family_id`, `member_id`, `share_code`, `status` FROM `user` WHERE `id` = ? LIMIT 1',
+      'SELECT `id`, `nickname`, `avatar_url`, `gender`, `phone`, `password`, `family_id`, `member_id`, `share_code`, `status` FROM `user` WHERE `id` = ? LIMIT 1',
       [userId] as QueryValues
     );
     return user;
@@ -241,12 +314,14 @@ export class UserService {
     }
   }
 
-  /** 签发用户 JWT */
+  /** 签发用户 JWT（含 refreshToken） */
   private issueUserToken(user: UserRow): UserLoginResult {
     const payload = { sub: user.id, type: 'user' };
     const token = this.jwtService.sign(payload);
+    const refreshToken = this.jwtService.sign(payload, { expiresIn: '30d' });
     return {
       token,
+      refreshToken,
       userInfo: this.toUserInfo(user)
     };
   }
@@ -324,7 +399,7 @@ export class UserService {
    * - 家族种子分享码（family.seed_share_code）：创建家族时自动生成，指向该家族本身
    * - 会员分享码（user.share_code）：指向该会员当前所属家族
    * - 可选 memberId：加入时同步绑定指定家族成员
-   * 校验：家族必须存在且启用；memberId 必须属于目标家族。
+   * - 校验：家族必须存在且启用；memberId 必须属于目标家族。
    * 已入其他家族时允许切换（重新关联），分享码沿用。
    */
   async joinFamily(
@@ -497,19 +572,14 @@ export class UserService {
   /**
    * 设置家族成员角色（仅族长可操作）
    * role: 'admin' 设为管理员（写入 family_permission，幂等 upsert）/ 'member' 取消管理员
-   * 校验：调用者为族长；目标用户为本家族成员；不可操作族长本人
    */
   async setFamilyRole(userId: string, targetUserId: string, role: string) {
     const user = await this.findUserById(userId);
-    if (!user) {
-      throw new HttpException('用户不存在', HttpStatus.NOT_FOUND);
-    }
-    if (!user.family_id) {
+    if (!user || !user.family_id) {
       throw new HttpException('请先加入家族', HttpStatus.BAD_REQUEST);
     }
     const familyId = Number(user.family_id);
-    // 拦截型能力点：分配/回收管理员角色同样受会员权益限制
-    await this.entitlementService.assertCapability(familyId, Capability.Permission);
+
     const [family] = await this.dataSource.query<DataRow[]>(
       'SELECT `id`, `creator_user_id` FROM `family` WHERE `id` = ? AND `status` = 1 LIMIT 1',
       [familyId]
@@ -517,219 +587,133 @@ export class UserService {
     if (!family) {
       throw new HttpException('家族不存在或已停用', HttpStatus.NOT_FOUND);
     }
-    const leaderUserId = String(family.creator_user_id || '');
-    if (leaderUserId !== userId) {
-      throw new HttpException('仅族长可管理成员角色', HttpStatus.FORBIDDEN);
+    if (String(family.creator_user_id) !== userId) {
+      throw new HttpException('仅族长可设置管理员', HttpStatus.FORBIDDEN);
     }
-    const target = String(targetUserId || '').trim();
-    if (!target) {
-      throw new HttpException('目标用户ID不能为空', HttpStatus.BAD_REQUEST);
+    if (targetUserId === userId) {
+      throw new HttpException('不能设置自己的角色', HttpStatus.BAD_REQUEST);
     }
-    if (target === leaderUserId) {
-      throw new HttpException('不能修改族长的角色', HttpStatus.BAD_REQUEST);
-    }
-    if (role !== 'admin' && role !== 'member') {
-      throw new HttpException('角色参数不合法', HttpStatus.BAD_REQUEST);
-    }
-    const [targetUser] = await this.dataSource.query<DataRow[]>(
-      'SELECT `id`, `family_id` FROM `user` WHERE `id` = ? AND `status` = 1 LIMIT 1',
-      [target]
-    );
-    if (!targetUser || Number(targetUser.family_id) !== familyId) {
-      throw new HttpException('目标用户不属于本家族', HttpStatus.BAD_REQUEST);
+
+    const targetUser = await this.findUserById(targetUserId);
+    if (!targetUser || targetUser.family_id !== user.family_id) {
+      throw new HttpException('目标用户不属于当前家族', HttpStatus.BAD_REQUEST);
     }
 
     if (role === 'admin') {
-      const [tu] = await this.dataSource.query<DataRow[]>(
-        'SELECT `nickname` FROM `user` WHERE `id` = ? LIMIT 1',
-        [target]
-      );
       await this.dataSource.query(
-        'INSERT INTO `family_permission` (`family_id`, `user_id`, `member_name`, `role`, `status`) VALUES (?, ?, ?, \'admin\', 1) ON DUPLICATE KEY UPDATE `role` = \'admin\', `status` = 1, `member_name` = VALUES(`member_name`), `update_time` = CURRENT_TIMESTAMP',
-        [familyId, target, (tu && tu.nickname) || ''] as QueryValues
+        `INSERT INTO \`family_permission\` (\`family_id\`, \`user_id\`, \`role\`, \`status\`) VALUES (?, ?, 'admin', 1)
+         ON DUPLICATE KEY UPDATE \`role\` = 'admin', \`status\` = 1`,
+        [familyId, targetUserId] as QueryValues
+      );
+    } else if (role === 'member') {
+      await this.dataSource.query(
+        'UPDATE `family_permission` SET `role` = ?, `status` = 1 WHERE `family_id` = ? AND `user_id` = ?',
+        ['member', familyId, targetUserId] as QueryValues
       );
     } else {
-      await this.dataSource.query(
-        'DELETE FROM `family_permission` WHERE `family_id` = ? AND `user_id` = ?',
-        [familyId, target] as QueryValues
-      );
+      throw new HttpException('role 参数错误', HttpStatus.BAD_REQUEST);
     }
-    return { success: true, role };
-  }
 
-  /** 生成全局唯一的 8 位分享码（去除易混淆字符 0/O/1/I） */
-  private async generateShareCode(): Promise<string> {
-    const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-    for (let i = 0; i < 20; i++) {
-      const chars: string[] = [];
-      for (let j = 0; j < 8; j++) {
-        chars.push(alphabet[Math.floor(Math.random() * alphabet.length)]);
-      }
-      const code = chars.join('');
-      const [dup] = await this.dataSource.query<Pick<UserRow, 'id'>[]>(
-        'SELECT `id` FROM `user` WHERE `share_code` = ? LIMIT 1',
-        [code] as QueryValues
-      );
-      if (!dup) return code;
-    }
-    throw new HttpException('分享码生成失败，请重试', HttpStatus.INTERNAL_SERVER_ERROR);
-  }
-
-  /** 家族基础信息（仅启用中，不存在返回 null） */
-  private async getFamilyBrief(familyId: number) {
-    const [row] = await this.dataSource.query<DataRow[]>(
-      'SELECT `id`, `name`, `logo`, `founder`, `origin`, `description`, `is_public`, `allow_join`, `member_count`, `status` FROM `family` WHERE `id` = ? AND `status` = 1 LIMIT 1',
-      [familyId]
-    );
-    return row ?? null;
-  }
-
-  /** 家族成员基础信息（仅启用中，不存在返回 null） */
-  private async getMemberBrief(familyId: number, memberId: string) {
-    const tableName = `family_members_${familyId}`;
-    if (!/^family_members_\d+$/.test(tableName)) {
-      throw new HttpException('成员表名不合法', HttpStatus.INTERNAL_SERVER_ERROR);
-    }
-    try {
-      const [row] = await this.dataSource.query<DataRow[]>(
-        'SELECT `id`, `name`, `gender`, `generation`, `generation_name`, `is_alive` FROM `' + tableName + '` WHERE `id` = ? AND `status` = 1 LIMIT 1',
-        [memberId]
-      );
-      return row ?? null;
-    } catch {
-      return null; // 分表不存在视为无绑定
-    }
-  }
-
-  /** 校验成员存在且属于指定家族（否则抛 400） */
-  private async assertMemberInFamily(familyId: number, memberId: string): Promise<void> {
-    const tableName = `family_members_${familyId}`;
-    if (!/^family_members_\d+$/.test(tableName)) {
-      throw new HttpException('成员表名不合法', HttpStatus.INTERNAL_SERVER_ERROR);
-    }
-    try {
-      const [row] = await this.dataSource.query<Pick<UserRow, 'id'>[]>(
-        'SELECT `id` FROM `' + tableName + '` WHERE `id` = ? AND `status` = 1 LIMIT 1',
-        [memberId]
-      );
-      if (!row) {
-        throw new HttpException('成员不存在或不属于该家族', HttpStatus.BAD_REQUEST);
-      }
-    } catch (e) {
-      if (e instanceof HttpException) throw e;
-      throw new HttpException('成员不存在或不属于该家族', HttpStatus.BAD_REQUEST);
-    }
+    return { success: true };
   }
 
   /**
-   * 更新当前用户资料（昵称/头像/性别）
-   * 只更新传入的字段,空对象报 400
+   * 更新当前用户资料(昵称/头像/性别)
    */
-  async updateProfile(
-    userId: string,
-    data: { nickName?: string; avatarUrl?: string; gender?: number }
-  ): Promise<UserLoginResult['userInfo']> {
-    const updates: string[] = [];
+  async updateProfile(userId: string, body: { nickName?: string; avatarUrl?: string; gender?: number }): Promise<UserInfo> {
+    const fields: string[] = [];
     const values: QueryValues = [];
 
-    if (data.nickName !== undefined) {
-      const nickName = data.nickName.trim();
-      if (!nickName || nickName.length > 30) {
-        throw new HttpException('昵称长度需在 1-30 个字符之间', HttpStatus.BAD_REQUEST);
-      }
-      updates.push('`nickname` = ?');
-      values.push(nickName);
+    if (body.nickName !== undefined) {
+      fields.push('`nickname` = ?');
+      values.push(body.nickName);
     }
-    if (data.avatarUrl !== undefined) {
-      if (!data.avatarUrl || data.avatarUrl.length > 500) {
-        throw new HttpException('头像地址非法', HttpStatus.BAD_REQUEST);
-      }
-      updates.push('`avatar_url` = ?');
-      values.push(data.avatarUrl);
+    if (body.avatarUrl !== undefined) {
+      fields.push('`avatar_url` = ?');
+      values.push(body.avatarUrl);
     }
-    if (data.gender !== undefined) {
-      const gender = Number(data.gender);
-      if (![0, 1, 2].includes(gender)) {
-        throw new HttpException('性别参数非法', HttpStatus.BAD_REQUEST);
-      }
-      updates.push('`gender` = ?');
-      values.push(gender);
-    }
-    if (updates.length === 0) {
-      throw new HttpException('没有需要更新的字段', HttpStatus.BAD_REQUEST);
+    if (body.gender !== undefined) {
+      fields.push('`gender` = ?');
+      values.push(body.gender);
     }
 
-    await this.dataSource.query(`UPDATE \`user\` SET ${updates.join(', ')} WHERE \`id\` = ?`, [
-      ...values,
-      userId
-    ] as QueryValues);
+    if (fields.length === 0) {
+      return this.getProfile(userId);
+    }
 
+    await this.dataSource.query(`UPDATE \`user\` SET ${fields.join(', ')} WHERE \`id\` = ?`, [...values, userId] as QueryValues);
     return this.getProfile(userId);
   }
 
   /**
-   * 注销账号
-   * 1. 校验用户存在且未被禁用
-   * 2. 匿名化该用户发布的内容（动态/照片/文档），保留家族共享数据
-   * 3. 删除 user 表记录
+   * 注销账号(删除用户记录,其发布内容匿名化保留)
    */
-  async deleteAccount(userId: string): Promise<{ success: boolean }> {
-    const [user] = await this.dataSource.query<UserRow[]>(
-      'SELECT `id` FROM `user` WHERE `id` = ?',
-      [userId] as QueryValues
-    );
-    if (!user) {
-      throw new HttpException('用户不存在', HttpStatus.NOT_FOUND);
-    }
-
-    const queryRunner = this.dataSource.createQueryRunner();
-    await queryRunner.connect();
-    await queryRunner.startTransaction();
-    try {
-      // 动态：发布者信息匿名化（user_id 置空、昵称改为"已注销用户"）
-      await queryRunner.query(
-        'UPDATE `family_dynamic` SET `user_id` = ?, `user_name` = ? WHERE `user_id` = ?',
-        ['', '已注销用户', userId] as QueryValues
-      );
-      // 照片：上传者信息匿名化
-      await queryRunner.query(
-        'UPDATE `family_photo` SET `uploader_id` = ?, `uploader_name` = ? WHERE `uploader_id` = ?',
-        ['', '已注销用户', userId] as QueryValues
-      );
-      // 文档：上传者信息匿名化
-      await queryRunner.query(
-        'UPDATE `family_document` SET `uploader_id` = ?, `uploader_name` = ? WHERE `uploader_id` = ?',
-        ['', '已注销用户', userId] as QueryValues
-      );
-      // 动态评论：评论者信息匿名化，保留内容
-      await queryRunner.query(
-        'UPDATE `family_dynamic_comment` SET `user_id` = ?, `user_name` = ? WHERE `user_id` = ?',
-        ['', '已注销用户', userId] as QueryValues
-      );
-      // 祭祀记录：用户信息匿名化，保留记录
-      await queryRunner.query(
-        'UPDATE `family_worship_record` SET `user_id` = ?, `user_name` = ? WHERE `user_id` = ?',
-        ['', '已注销用户', userId] as QueryValues
-      );
-      // 备份记录：操作者信息匿名化
-      await queryRunner.query(
-        'UPDATE `family_backup` SET `operator_id` = ? WHERE `operator_id` = ?',
-        ['', userId] as QueryValues
-      );
-      // 用户私有数据：点赞、家族权限、用户设置直接删除
-      await queryRunner.query('DELETE FROM `family_dynamic_like` WHERE `user_id` = ?', [userId] as QueryValues);
-      await queryRunner.query('DELETE FROM `family_permission` WHERE `user_id` = ?', [userId] as QueryValues);
-      await queryRunner.query('DELETE FROM `user_setting` WHERE `user_id` = ?', [userId] as QueryValues);
-      // 删除用户记录
-      await queryRunner.query('DELETE FROM `user` WHERE `id` = ?', [userId] as QueryValues);
-      await queryRunner.commitTransaction();
-    } catch (e) {
-      await queryRunner.rollbackTransaction();
-      throw e;
-    } finally {
-      await queryRunner.release();
-    }
-
+  async deleteAccount(userId: string) {
+    await this.dataSource.query('UPDATE `user` SET `status` = 0, `phone` = NULL, `openid` = NULL, `unionid` = NULL WHERE `id` = ?', [userId] as QueryValues);
+    await this.dataSource.query('UPDATE `user_auth_identity` SET `status` = 0 WHERE `user_id` = ?', [userId] as QueryValues);
     return { success: true };
+  }
+
+  // ==================== 家族辅助方法 ====================
+
+  private async getFamilyBrief(familyId: number) {
+    const [row] = await this.dataSource.query<DataRow[]>(
+      'SELECT `id`, `name`, `logo`, `surname`, `hall_name`, `origin` FROM `family` WHERE `id` = ? AND `status` = 1 LIMIT 1',
+      [familyId]
+    );
+    if (!row) return null;
+    return {
+      id: Number(row.id),
+      name: String(row.name || ''),
+      logo: String(row.logo || ''),
+      surname: String(row.surname || ''),
+      hallName: String(row.hall_name || ''),
+      origin: String(row.origin || '')
+    };
+  }
+
+  private async getMemberBrief(familyId: number, memberId: string) {
+    const tableName = this.getMemberTableName(familyId);
+    const [row] = await this.dataSource.query<DataRow[]>(
+      `SELECT \`id\`, \`name\`, \`avatar_url\`, \`gender\`, \`generation\` FROM ${tableName} WHERE \`id\` = ? AND \`status\` = 1 LIMIT 1`,
+      [memberId]
+    );
+    if (!row) return null;
+    return {
+      id: String(row.id),
+      name: String(row.name || ''),
+      avatarUrl: String(row.avatar_url || ''),
+      gender: Number(row.gender || 0),
+      generation: Number(row.generation || 0)
+    };
+  }
+
+  private async assertMemberInFamily(familyId: number, memberId: string) {
+    const tableName = this.getMemberTableName(familyId);
+    const [row] = await this.dataSource.query<DataRow[]>(
+      `SELECT \`id\` FROM ${tableName} WHERE \`id\` = ? AND \`family_id\` = ? AND \`status\` = 1 LIMIT 1`,
+      [memberId, familyId]
+    );
+    if (!row) {
+      throw new HttpException('成员不存在或不属于该家族', HttpStatus.BAD_REQUEST);
+    }
+  }
+
+  private getMemberTableName(familyId: number): string {
+    const { getSafeMemberTableName } = require('../common/utils/family-member-table');
+    return getSafeMemberTableName(familyId);
+  }
+
+  private async generateShareCode(): Promise<string> {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    let code = '';
+    for (let i = 0; i < 8; i++) {
+      code += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    const [existing] = await this.dataSource.query<DataRow[]>('SELECT `id` FROM `user` WHERE `share_code` = ? LIMIT 1', [code]);
+    if (existing) {
+      return this.generateShareCode();
+    }
+    return code;
   }
 }

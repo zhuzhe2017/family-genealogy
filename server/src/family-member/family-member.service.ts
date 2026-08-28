@@ -303,8 +303,8 @@ export class FamilyMemberService {
     return getSafeMemberPhotoTableName(familyId);
   }
 
-  /** 查询成员照片URL数组 */
-  private async getPhotos(familyId: number, memberId: string): Promise<string[]> {
+  /** 查询成员照片URL数组（租户后台等外部服务可直接调用） */
+  async getPhotos(familyId: number, memberId: string): Promise<string[]> {
     await this.ensurePhotoTable(familyId);
     const rows = await this.dataSource.query<{ photo_url: string }[]>(
       `SELECT \`photo_url\` FROM \`${this.photoTableName(familyId)}\`

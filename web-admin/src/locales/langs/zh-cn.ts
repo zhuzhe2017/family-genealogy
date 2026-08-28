@@ -241,6 +241,7 @@ const local: App.I18n.Schema = {
     'mini-program_banner': '广告轮播',
     'mini-program_family-invitation': '家族邀请',
     'mini-program_worship': '祭祀管理',
+    tenant: '租户管理',
     system: '系统管理',
     system_menu: '菜单管理',
     system_role: '角色管理',
@@ -459,7 +460,7 @@ const local: App.I18n.Schema = {
     },
     pwd: {
       required: '请输入密码',
-      invalid: '密码格式不正确，6-18位字符，可包含字母、数字及特殊字符 !@#$%^&*()_+-=[]{}|;:,.<>?'
+      invalid: '密码格式不正确，6-18位字符，可包含字母、数字及常用特殊字符'
     },
     confirmPwd: {
       required: '请输入确认密码',

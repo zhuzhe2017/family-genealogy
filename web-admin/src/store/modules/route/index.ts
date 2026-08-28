@@ -209,12 +209,13 @@ export const useRouteStore = defineStore(SetupStoreId.Route, () => {
     } else {
       const { authRoutes: staticAuthRoutes } = createStaticRoutes();
 
-      if (authStore.isStaticSuper) {
-        addAuthRoutes(staticAuthRoutes);
-      } else {
+      if (authStore.userInfo.roles.length > 0) {
         const filteredAuthRoutes = filterAuthRoutesByRoles(staticAuthRoutes, authStore.userInfo.roles);
 
         addAuthRoutes(filteredAuthRoutes);
+      } else {
+        // 无角色时不加载任何权限路由，避免越权
+        addAuthRoutes([]);
       }
     }
 

@@ -245,6 +245,7 @@ const local: App.I18n.Schema = {
     'mini-program_banner': 'Banner Management',
     'mini-program_family-invitation': 'Family Invitation',
     'mini-program_worship': 'Worship Management',
+    tenant: 'Tenant Management',
     system: 'System',
     system_menu: 'Menu Management',
     system_role: 'Role Management',
@@ -463,7 +464,7 @@ const local: App.I18n.Schema = {
     },
     pwd: {
       required: 'Please enter password',
-      invalid: '6-18 characters, including letters, numbers, and special characters !@#$%^&*()_+-=[]{}|;:,.<>?'
+      invalid: '6-18 characters, including letters, numbers, and common special characters'
     },
     confirmPwd: {
       required: 'Please enter password again',

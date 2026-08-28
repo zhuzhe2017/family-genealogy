@@ -122,14 +122,14 @@ describe('Role & Permission (e2e)', () => {
   });
 
   describe('DELETE /role/delete/:id', () => {
-    it('删除角色(事务清理 4 张关联表)', async () => {
+    it('删除角色(事务清理 3 张关联表)', async () => {
       queryMock.mockResolvedValueOnce([{ id: 1 }]); // 存在检查
 
       const res = await request(app.getHttpServer()).delete('/role/delete/1');
 
       expect(res.status).toBe(200);
       expect(res.body.code).toBe('0000');
-      expect(qrQueryMock).toHaveBeenCalledTimes(4); // 4 张关联表 DELETE
+      expect(qrQueryMock).toHaveBeenCalledTimes(3); // 3 张关联表 DELETE
     });
   });
 
@@ -142,22 +142,6 @@ describe('Role & Permission (e2e)', () => {
       const res = await request(app.getHttpServer())
         .post('/role/assign-permissions/1')
         .send({ permissionIds: [1] });
-
-      expect(res.status).toBe(201);
-      expect(res.body.code).toBe('0000');
-      expect(qrQueryMock).toHaveBeenCalledTimes(2); // DELETE + INSERT
-    });
-  });
-
-  describe('POST /role/assign-menus/:id', () => {
-    it('为角色分配菜单', async () => {
-      queryMock
-        .mockResolvedValueOnce([{ id: 1 }]) // 角色存在
-        .mockResolvedValueOnce([{ id: 1 }]); // 菜单存在校验
-
-      const res = await request(app.getHttpServer())
-        .post('/role/assign-menus/1')
-        .send({ menuIds: [1] });
 
       expect(res.status).toBe(201);
       expect(res.body.code).toBe('0000');

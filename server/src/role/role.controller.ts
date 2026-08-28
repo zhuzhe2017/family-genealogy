@@ -3,10 +3,8 @@ import { RoleService } from './role.service';
 import { JwtAuthGuard } from '../auth/guard/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { PermissionsGuard } from '../common/guards/permissions.guard';
-import { Roles } from '../common/decorators/roles.decorator';
 import { Permissions } from '../common/decorators/permissions.decorator';
 
-@Roles('super')
 @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
 @Controller('role')
 export class RoleController {
@@ -17,13 +15,6 @@ export class RoleController {
   @Get('list')
   async list() {
     return this.roleService.getRoles();
-  }
-
-  /** 获取角色已绑定菜单 */
-  @Permissions('system:role:list')
-  @Get(':id/menus')
-  async getRoleMenus(@Param('id') id: string) {
-    return this.roleService.getRoleMenus(Number(id));
   }
 
   /** 角色详情 */
@@ -63,19 +54,8 @@ export class RoleController {
   ) {
     return this.roleService.assignPermissions(Number(id), body.permissionIds || []);
   }
-
-  /** 为角色分配菜单 */
-  @Permissions('system:role:update')
-  @Post('assign-menus/:id')
-  async assignMenus(
-    @Param('id') id: string,
-    @Body() body: { menuIds: number[] }
-  ) {
-    return this.roleService.assignMenusToRole(Number(id), body.menuIds || []);
-  }
 }
 
-@Roles('super')
 @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
 @Controller('permission')
 export class PermissionController {
@@ -110,7 +90,6 @@ export class PermissionController {
   }
 }
 
-@Roles('super')
 @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
 @Controller('admin-role')
 export class AdminRoleController {

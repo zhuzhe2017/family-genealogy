@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { h, ref, reactive, onMounted } from 'vue';
-import type { DataTableColumn, FormInst, TreeOption } from 'naive-ui';
+import type { DataTableColumn, FormInst } from 'naive-ui';
 import { useMessage, useDialog, NButton, NSpace } from 'naive-ui';
 import {
   fetchRoleList,
@@ -8,10 +8,7 @@ import {
   fetchUpdateRole,
   fetchDeleteRole,
   fetchPermissionList,
-  fetchAssignPermissions,
-  fetchMenuTree,
-  fetchRoleMenus,
-  fetchAssignRoleMenus
+  fetchAssignPermissions
 } from '@/service/api';
 import type { RoleItem, PermissionItem } from '@/service/api';
 
@@ -43,12 +40,6 @@ const permissionList = ref<PermissionItem[]>([]);
 const selectedPermissions = ref<number[]>([]);
 const currentRoleId = ref<number | null>(null);
 
-const showMenuModal = ref(false);
-const menuLoading = ref(false);
-const menuAssigning = ref(false);
-const menuTreeData = ref<TreeOption[]>([]);
-const selectedMenus = ref<number[]>([]);
-
 const columns: DataTableColumn<RoleItem>[] = [
   { title: '角色名称', key: 'name', width: 160 },
   { title: '角色编码', key: 'code', width: 160 },
@@ -67,12 +58,11 @@ const columns: DataTableColumn<RoleItem>[] = [
   {
     title: '操作',
     key: 'actions',
-    width: 260,
+    width: 220,
     render: row => h(NSpace, null, {
       default: () => [
         h(NButton, { size: 'small', type: 'primary', ghost: true, onClick: () => handleEdit(row) }, { default: () => '编辑' }),
         h(NButton, { size: 'small', onClick: () => handleAssignPermission(row) }, { default: () => '分配权限' }),
-        h(NButton, { size: 'small', onClick: () => handleAssignMenu(row) }, { default: () => '分配菜单' }),
         h(NButton, { size: 'small', type: 'error', ghost: true, onClick: () => handleDelete(row) }, { default: () => '删除' })
       ]
     })
@@ -186,47 +176,6 @@ async function handleAssignSubmit() {
   }
 }
 
-async function handleAssignMenu(row: RoleItem) {
-  currentRoleId.value = row.id;
-  showMenuModal.value = true;
-  menuLoading.value = true;
-  selectedMenus.value = [];
-  try {
-    const [menuRes, roleMenuRes] = await Promise.all([
-      fetchMenuTree(),
-      fetchRoleMenus(row.id)
-    ]);
-    menuTreeData.value = buildMenuTree(menuRes.data || []);
-    selectedMenus.value = roleMenuRes.data || [];
-  } catch (err: any) {
-    message.error(err?.msg || '加载菜单列表失败');
-  } finally {
-    menuLoading.value = false;
-  }
-}
-
-function buildMenuTree(menus: any[]): TreeOption[] {
-  return menus.map(m => ({
-    id: m.id,
-    name: m.name,
-    children: m.children?.length ? buildMenuTree(m.children) : undefined
-  }));
-}
-
-async function handleAssignMenuSubmit() {
-  if (!currentRoleId.value) return;
-  menuAssigning.value = true;
-  try {
-    await fetchAssignRoleMenus(currentRoleId.value, selectedMenus.value);
-    message.success('菜单分配成功');
-    showMenuModal.value = false;
-  } catch (err: any) {
-    message.error(err?.msg || '菜单分配失败');
-  } finally {
-    menuAssigning.value = false;
-  }
-}
-
 onMounted(() => {
   loadData();
 });
@@ -281,28 +230,6 @@ onMounted(() => {
         <NSpace justify="end">
           <NButton @click="showPermissionModal = false">取消</NButton>
           <NButton type="primary" :loading="assigning" @click="handleAssignSubmit">确认</NButton>
-        </NSpace>
-      </template>
-    </NModal>
-
-    <NModal v-model:show="showMenuModal" title="分配菜单" :mask-closable="false" preset="card" style="width: 480px">
-      <NSpin :show="menuLoading">
-        <NTree
-          v-model:checked-keys="selectedMenus"
-          :data="menuTreeData"
-          checkable
-          cascade
-          check-on-click
-          default-expand-all
-          key-field="id"
-          label-field="name"
-          children-field="children"
-        />
-      </NSpin>
-      <template #footer>
-        <NSpace justify="end">
-          <NButton @click="showMenuModal = false">取消</NButton>
-          <NButton type="primary" :loading="menuAssigning" @click="handleAssignMenuSubmit">确认</NButton>
         </NSpace>
       </template>
     </NModal>

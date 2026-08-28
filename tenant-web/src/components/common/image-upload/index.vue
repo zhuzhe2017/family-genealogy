@@ -1,0 +1,247 @@
+<script setup lang="ts">
+import { ref, watch } from 'vue';
+import { NUpload, NButton, NProgress } from 'naive-ui';
+import { Icon } from '@iconify/vue';
+import type { UploadCustomRequestOptions, UploadInst } from 'naive-ui';
+import { uploadImage } from '@/service/api';
+import { resolveImageUrl } from '@/utils/image-url';
+
+defineOptions({
+  name: 'ImageUpload'
+});
+
+interface Props {
+  /** 当前图片相对 URL（/uploads/xxx.png 或完整 http 地址），v-model:value */
+  value: string;
+  /** 上传区域边长（正方形） */
+  size?: number;
+  /** 单个文件大小上限（MB） */
+  maxSize?: number;
+  /** 是否禁用上传 */
+  disabled?: boolean;
+  /** 推荐最小宽度（像素），用于前端提示 */
+  minWidth?: number;
+  /** 推荐最小高度（像素），用于前端提示 */
+  minHeight?: number;
+}
+
+const props = withDefaults(defineProps<Props>(), {
+  size: 120,
+  maxSize: 5
+});
+
+const emit = defineEmits<{
+  'update:value': [value: string];
+}>();
+
+const uploadRef = ref<UploadInst | null>(null);
+const uploading = ref(false);
+const uploadPercent = ref(0);
+const errorMsg = ref('');
+
+const ALLOWED_TYPES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'];
+
+/** 压缩参数：超过阈值大小或宽度的图片在客户端重编码，减小上传体积与加载带宽 */
+const COMPRESS_SIZE_THRESHOLD = 200 * 1024; // 大于 200KB 才压缩
+const COMPRESS_MAX_WIDTH = 1280; // 超过该宽度等比缩放
+const COMPRESS_QUALITY = 0.78;
+
+/** 解析图片尺寸与是否含透明通道 */
+function loadImageInfo(file: File): Promise<{ img: HTMLImageElement; width: number; height: number; hasAlpha: boolean }> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      // 采样部分像素判断透明通道（gif/png 含透明时需保留 png 格式）
+      let hasAlpha = false;
+      try {
+        const probe = document.createElement('canvas');
+        probe.width = 32;
+        probe.height = 32;
+        const ctx = probe.getContext('2d', { willReadFrequently: true });
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, 32, 32);
+          const data = ctx.getImageData(0, 0, 32, 32).data;
+          for (let i = 3; i < data.length; i += 4) {
+            if (data[i] < 255) { hasAlpha = true; break; }
+          }
+        }
+      } catch { /* 读取失败按不透明处理 */ }
+      resolve({ img, width: img.naturalWidth, height: img.naturalHeight, hasAlpha });
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('图片解码失败')); };
+    img.src = url;
+  });
+}
+
+function canvasToBlob(canvas: HTMLCanvasElement, type: string, quality: number): Promise<Blob | null> {
+  return new Promise(resolve => canvas.toBlob(resolve, type, quality));
+}
+
+/** 客户端压缩：动图不压；小图直传；大图/宽图等比缩放并重编码，压缩后更大则回退原图 */
+async function compressImage(file: File): Promise<File> {
+  if (file.type === 'image/gif' || file.size <= COMPRESS_SIZE_THRESHOLD) return file;
+  try {
+    const { img, width, height, hasAlpha } = await loadImageInfo(file);
+    const scale = Math.min(1, COMPRESS_MAX_WIDTH / width);
+
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.max(1, Math.round(width * scale));
+    canvas.height = Math.max(1, Math.round(height * scale));
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return file;
+
+    if (hasAlpha) ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+    // 含透明通道保留 png，否则统一转 jpeg 大幅降低体积
+    const outType = file.type === 'image/png' && hasAlpha ? 'image/png' : 'image/jpeg';
+    const blob = await canvasToBlob(canvas, outType, COMPRESS_QUALITY);
+    if (!blob || blob.size >= file.size) return file;
+    const name = outType === 'image/jpeg' ? file.name.replace(/\.(png|webp)$/i, '.jpg') : file.name;
+    return new File([blob], name, { type: blob.type });
+  } catch (e) {
+    console.warn('图片压缩失败，使用原图上传', e);
+    return file;
+  }
+}
+
+// 外部值变化时清空内部文件列表，避免 max=1 阻挡重新选择（预览由 value 驱动）
+watch(() => props.value, () => {
+  uploadRef.value?.clear();
+});
+
+function openFileDialog() {
+  uploadRef.value?.openOpenFileDialog?.();
+}
+
+async function handleCustomRequest(options: UploadCustomRequestOptions) {
+  const rawFile = options.file.file as File | null;
+  if (!rawFile) {
+    options.onError();
+    return;
+  }
+
+  // 客户端前置校验
+  if (!ALLOWED_TYPES.includes(rawFile.type)) {
+    errorMsg.value = '仅支持 png/jpg/jpeg/gif/webp 格式的图片';
+    options.onError();
+    return;
+  }
+  if (rawFile.size > props.maxSize * 1024 * 1024) {
+    errorMsg.value = `图片大小不能超过 ${props.maxSize}MB`;
+    options.onError();
+    return;
+  }
+
+  // 推荐尺寸校验（仅提示，不阻断上传，避免兼容性问题）
+  if (props.minWidth || props.minHeight) {
+    const img = new Image();
+    img.onload = () => {
+      const tips: string[] = [];
+      if (props.minWidth && img.naturalWidth < props.minWidth) {
+        tips.push(`宽度建议 ≥ ${props.minWidth}px`);
+      }
+      if (props.minHeight && img.naturalHeight < props.minHeight) {
+        tips.push(`高度建议 ≥ ${props.minHeight}px`);
+      }
+      if (tips.length > 0) {
+        errorMsg.value = `图片尺寸较小，${tips.join('，')}，可能影响展示效果`;
+      }
+    };
+    img.src = URL.createObjectURL(rawFile);
+  }
+
+  uploading.value = true;
+  uploadPercent.value = 0;
+  errorMsg.value = '';
+  try {
+    // 客户端压缩(大图/宽图),失败回退原图
+    const uploadFile = await compressImage(rawFile);
+    const { data, error } = await uploadImage(uploadFile, percent => {
+      uploadPercent.value = percent;
+      options.onProgress({ percent });
+    });
+    if (error || !data) {
+      errorMsg.value = (error as Error)?.message || '上传失败';
+      options.onError();
+      return;
+    }
+    emit('update:value', data.url);
+    options.onFinish();
+  } finally {
+    uploading.value = false;
+  }
+}
+
+/** 删除已上传图片并允许重新上传 */
+function handleRemove() {
+  uploadRef.value?.clear();
+  emit('update:value', '');
+}
+</script>
+
+<template>
+  <NUpload
+    ref="uploadRef"
+    accept="image/png,image/jpeg,image/gif,image/webp"
+    :max="1"
+    :show-file-list="false"
+    :custom-request="handleCustomRequest"
+    :disabled="props.disabled"
+  >
+    <div
+      class="image-upload-box relative overflow-hidden rd-8px border-1px border-dashed"
+      :class="{ disabled: props.disabled }"
+      :style="{ width: `${size}px`, height: `${size}px` }"
+    >
+      <!-- 上传中：进度指示 -->
+      <div v-if="uploading" class="absolute inset-0 flex flex-col items-center justify-center gap-8px bg-white/80 px-12px">
+        <NProgress type="circle" :percentage="uploadPercent" :stroke-width="6" :show-indicator="false" />
+        <span class="text-12px text-gray-600">{{ uploadPercent }}%</span>
+      </div>
+
+      <!-- 已有图片：预览 + 悬停操作 -->
+      <div
+        v-else-if="value"
+        class="group relative size-full"
+        :class="{ 'cursor-not-allowed': props.disabled }"
+      >
+        <img :src="resolveImageUrl(value)" alt="上传图片" class="size-full object-cover" />
+        <div
+          v-if="!props.disabled"
+          class="absolute inset-0 hidden flex-col items-center justify-center gap-6px bg-black/50 group-hover:flex"
+        >
+          <NButton size="tiny" type="primary" ghost @click.stop="openFileDialog">更换</NButton>
+          <NButton size="tiny" type="error" ghost @click.stop="handleRemove">删除</NButton>
+        </div>
+      </div>
+
+      <!-- 空状态：点击或拖拽上传 -->
+      <div
+        v-else
+        class="absolute inset-0 flex flex-col items-center justify-center gap-6px text-gray-500"
+        :class="props.disabled ? 'cursor-not-allowed' : 'cursor-pointer hover:text-primary'"
+      >
+        <Icon icon="carbon:add" :width="28" />
+        <span class="text-12px">{{ props.disabled ? '暂无图片' : '点击或拖拽上传' }}</span>
+        <span v-if="!props.disabled" class="text-10px text-gray-400">png/jpg/gif/webp ≤ {{ maxSize }}MB</span>
+      </div>
+    </div>
+  </NUpload>
+
+  <!-- 错误提示 -->
+  <div v-if="errorMsg" class="mt-6px text-12px text-red-500">{{ errorMsg }}</div>
+</template>
+
+<style scoped>
+.image-upload-box {
+  border-color: var(--n-border-color);
+  background: var(--n-color-1);
+  transition: border-color 0.2s;
+}
+.image-upload-box:hover {
+  border-color: #2080f0;
+}
+</style>

@@ -223,8 +223,7 @@ export const generatedRoutes: GeneratedRoute[] = [
       title: 'system',
       i18nKey: 'route.system',
       icon: 'mdi:cog-outline',
-      order: 2,
-      roles: ['super']
+      order: 3
     },
     children: [
       {
@@ -242,8 +241,7 @@ export const generatedRoutes: GeneratedRoute[] = [
         component: 'view.system_menu',
         meta: {
           title: 'system_menu',
-          i18nKey: 'route.system_menu',
-          roles: ['super']
+          i18nKey: 'route.system_menu'
         }
       },
       {
@@ -252,8 +250,7 @@ export const generatedRoutes: GeneratedRoute[] = [
         component: 'view.system_permission',
         meta: {
           title: 'system_permission',
-          i18nKey: 'route.system_permission',
-          roles: ['super']
+          i18nKey: 'route.system_permission'
         }
       },
       {
@@ -262,8 +259,7 @@ export const generatedRoutes: GeneratedRoute[] = [
         component: 'view.system_role',
         meta: {
           title: 'system_role',
-          i18nKey: 'route.system_role',
-          roles: ['super']
+          i18nKey: 'route.system_role'
         }
       },
       {
@@ -276,5 +272,14 @@ export const generatedRoutes: GeneratedRoute[] = [
         }
       }
     ]
+  },
+  {
+    name: 'tenant',
+    path: '/tenant',
+    component: 'layout.base$view.tenant',
+    meta: {
+      title: 'tenant',
+      i18nKey: 'route.tenant'
+    }
   }
 ];

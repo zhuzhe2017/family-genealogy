@@ -249,30 +249,28 @@ export class MenuService {
 
   /** 根据管理员ID获取其有权限访问的路由 */
   async getUserRoutes(adminId: number, defaultRole: string) {
-    let menuRows: MenuRow[];
+    const menuRows = await this.dataSource.query<MenuRow[]>(
+      `SELECT \`id\`, \`parent_id\`, \`name\`, \`type\`, \`path\`, \`component\`, \`route_name\`, \`icon\`, \`permission\`, \`sort_order\`, \`visible\`, \`keep_alive\`
+       FROM \`sys_menu\`
+       WHERE \`status\` = 1 AND \`type\` != 'button'
+       ORDER BY \`sort_order\` ASC, \`id\` ASC`
+    );
 
-    if (defaultRole === 'super') {
-      // 超级管理员返回所有启用菜单
-      menuRows = await this.dataSource.query<MenuRow[]>(
-        `SELECT \`id\`, \`parent_id\`, \`name\`, \`type\`, \`path\`, \`component\`, \`route_name\`, \`icon\`, \`permission\`, \`sort_order\`, \`visible\`, \`keep_alive\`
-         FROM \`sys_menu\`
-         WHERE \`status\` = 1 AND \`type\` != 'button'
-         ORDER BY \`sort_order\` ASC, \`id\` ASC`
-      );
-    } else {
-      // 非超级管理员：通过 sys_role_menu 过滤
-      menuRows = await this.dataSource.query<MenuRow[]>(
-        `SELECT DISTINCT m.\`id\`, m.\`parent_id\`, m.\`name\`, m.\`type\`, m.\`path\`, m.\`component\`, m.\`route_name\`, m.\`icon\`, m.\`permission\`, m.\`sort_order\`, m.\`visible\`, m.\`keep_alive\`
-         FROM \`sys_menu\` m
-         INNER JOIN \`sys_role_menu\` rm ON rm.\`menu_id\` = m.\`id\`
-         INNER JOIN \`sys_admin_role\` ar ON ar.\`role_id\` = rm.\`role_id\`
-         WHERE m.\`status\` = 1 AND m.\`type\` != 'button' AND ar.\`admin_id\` = ?
-         ORDER BY m.\`sort_order\` ASC, m.\`id\` ASC`,
+    let visibleRows = menuRows;
+    if (defaultRole !== 'super') {
+      const permissionRows = await this.dataSource.query<{ code: string }[]>(
+        `SELECT DISTINCT p.\`code\`
+         FROM \`sys_permission\` p
+         INNER JOIN \`sys_role_permission\` rp ON rp.\`permission_id\` = p.\`id\`
+         INNER JOIN \`sys_admin_role\` ar ON ar.\`role_id\` = rp.\`role_id\`
+         WHERE ar.\`admin_id\` = ? AND p.\`status\` = 1`,
         [adminId]
       );
+      const permissionSet = new Set(permissionRows.map(row => row.code));
+      visibleRows = this.filterVisibleMenus(menuRows, permissionSet);
     }
 
-    const routes = this.buildElegantRoutes(menuRows, 0);
+    const routes = this.buildElegantRoutes(visibleRows, 0);
 
     // 默认首页为 home，如未配置则取第一个叶子路由
     let home = 'home';
@@ -288,6 +286,31 @@ export class MenuService {
   async isRouteExist(routeName: string, adminId: number, defaultRole: string) {
     const { routes } = await this.getUserRoutes(adminId, defaultRole);
     return this.findRouteByName(routes, routeName) !== null;
+  }
+
+  /**
+   * 根据拥有的权限码过滤菜单：只保留有权限码的菜单且权限码命中，
+   * 无权限码的目录菜单只有在其下存在可见子节点时才保留。
+   */
+  private filterVisibleMenus(rows: MenuRow[], permissions: Set<string>): MenuRow[] {
+    // 按权限过滤叶子菜单（按钮已在查询中排除）
+    const allowed = rows.filter(r => {
+      if (r.type === 'directory') return true; // 目录是否保留取决于子节点
+      if (!r.permission) return true; // 无权限码的菜单默认可见
+      return permissions.has(r.permission);
+    });
+
+    // 递归清理空目录
+    const hasVisibleChildren = (rows: MenuRow[], parentId: number): boolean => {
+      return rows
+        .filter(r => r.parent_id === parentId)
+        .some(r => (r.type === 'directory' ? hasVisibleChildren(rows, r.id) : true));
+    };
+
+    return allowed.filter(r => {
+      if (r.type !== 'directory') return true;
+      return hasVisibleChildren(allowed, r.id);
+    });
   }
 
   // ==================== 私有方法 ====================

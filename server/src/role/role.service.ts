@@ -121,7 +121,7 @@ export class RoleService {
     return { success: true };
   }
 
-  /** 删除角色(事务:同时清理 4 张关联表,避免半删除状态) */
+  /** 删除角色(事务:同时清理权限关联和管理员绑定,避免半删除状态) */
   async deleteRole(id: number) {
     const [role] = await this.dataSource.query<Pick<RoleRow, 'id'>[]>('SELECT `id` FROM `sys_role` WHERE `id` = ?', [id]);
     if (!role) {
@@ -134,7 +134,6 @@ export class RoleService {
     try {
       await queryRunner.query('DELETE FROM `sys_role_permission` WHERE `role_id` = ?', [id]);
       await queryRunner.query('DELETE FROM `sys_admin_role` WHERE `role_id` = ?', [id]);
-      await queryRunner.query('DELETE FROM `sys_role_menu` WHERE `role_id` = ?', [id]);
       await queryRunner.query('DELETE FROM `sys_role` WHERE `id` = ?', [id]);
       await queryRunner.commitTransaction();
       return { success: true };
@@ -262,67 +261,6 @@ export class RoleService {
     try {
       await queryRunner.query('DELETE FROM `sys_role_permission` WHERE `permission_id` = ?', [id]);
       await queryRunner.query('DELETE FROM `sys_permission` WHERE `id` = ?', [id]);
-      await queryRunner.commitTransaction();
-      return { success: true };
-    } catch (err: unknown) {
-      await queryRunner.rollbackTransaction();
-      throw new HttpException(errMsg(err), HttpStatus.INTERNAL_SERVER_ERROR);
-    } finally {
-      await queryRunner.release();
-    }
-  }
-
-  /** 获取角色已绑定的菜单ID列表 */
-  async getRoleMenus(roleId: number) {
-    const [role] = await this.dataSource.query<Pick<RoleRow, 'id'>[]>('SELECT `id` FROM `sys_role` WHERE `id` = ?', [roleId]);
-    if (!role) {
-      throw new HttpException('角色不存在', HttpStatus.NOT_FOUND);
-    }
-
-    const rows = await this.dataSource.query<{ menu_id: number }[]>(
-      'SELECT `menu_id` FROM `sys_role_menu` WHERE `role_id` = ?',
-      [roleId]
-    );
-    return rows.map(r => r.menu_id);
-  }
-
-  /** 为角色分配菜单(事务:先删后插,失败回滚避免菜单权限丢失) */
-  async assignMenusToRole(roleId: number, menuIds: number[]) {
-    const [role] = await this.dataSource.query<Pick<RoleRow, 'id'>[]>('SELECT `id` FROM `sys_role` WHERE `id` = ?', [roleId]);
-    if (!role) {
-      throw new HttpException('角色不存在', HttpStatus.NOT_FOUND);
-    }
-
-    // 校验菜单ID有效性
-    if (menuIds.length > 0) {
-      const placeholders = menuIds.map(() => '?').join(', ');
-      const validMenus = await this.dataSource.query<Pick<PermissionRow, 'id'>[]>(
-        `SELECT \`id\` FROM \`sys_menu\` WHERE \`id\` IN (${placeholders})`,
-        menuIds
-      );
-      const validIds = validMenus.map(m => m.id);
-      const invalidIds = menuIds.filter(mid => !validIds.includes(mid));
-      if (invalidIds.length > 0) {
-        throw new HttpException(`菜单不存在: ${invalidIds.join(', ')}`, HttpStatus.BAD_REQUEST);
-      }
-    }
-
-    const queryRunner: QueryRunner = this.dataSource.createQueryRunner();
-    await queryRunner.connect();
-    await queryRunner.startTransaction();
-    try {
-      await queryRunner.query('DELETE FROM `sys_role_menu` WHERE `role_id` = ?', [roleId]);
-
-      if (menuIds.length > 0) {
-        const placeholders = menuIds.map(() => '(?, ?)').join(', ');
-        const values: QueryValues = [];
-        menuIds.forEach(mid => { values.push(roleId, mid); });
-        await queryRunner.query(
-          `INSERT INTO \`sys_role_menu\` (\`role_id\`, \`menu_id\`) VALUES ${placeholders}`,
-          values
-        );
-      }
-
       await queryRunner.commitTransaction();
       return { success: true };
     } catch (err: unknown) {

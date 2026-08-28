@@ -330,7 +330,7 @@ export class InvitationService {
       values.push(like, like, like);
     }
 
-    const whereClause = 'WHERE ' + where.join(' AND ');
+    const whereClause = where.length > 0 ? 'WHERE ' + where.join(' AND ') : '';
 
     const [countResult] = await this.dataSource.query<{ total: number }[]>(
       `SELECT COUNT(*) AS total FROM \`family_invitation\` i

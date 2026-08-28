@@ -39,6 +39,7 @@ export interface UserInfo {
 /** 登录响应 */
 export interface UserLoginResult {
   token: string;
+  refreshToken: string;
   userInfo: UserInfo;
 }
 

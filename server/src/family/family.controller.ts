@@ -90,6 +90,12 @@ export class FamilyController {
   }
 
   @Permissions('system:family:update')
+  @Post('restore/:id')
+  async restore(@Param('id', ParseIntPipe) id: number) {
+    return this.familyService.restore(id);
+  }
+
+  @Permissions('system:family:update')
   @Post('toggle-public/:id')
   async togglePublic(@Param('id', ParseIntPipe) id: number) {
     return this.familyService.togglePublic(id);

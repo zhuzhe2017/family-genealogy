@@ -167,7 +167,7 @@
 
 ### 4.1 现状
 
-- **平台层**：`sys_admin` + `sys_role` + `sys_permission` + `sys_admin_role` + `sys_role_menu` + `sys_admin_family`（管理员关联家族）→ 已完整支持平台 RBAC。
+- **平台层**：`sys_admin` + `sys_role` + `sys_permission` + `sys_admin_role` + `sys_menu`（菜单可见性由 `sys_menu.permission` 与 `sys_role_permission` 共同决定）+ `sys_admin_family`（管理员关联家族）→ 已完整支持平台 RBAC。
 - **租户（家族）层**：`family_permission`（user_id + family_id + role: admin/member）→ 已具备家族级访问控制。
 - **认证层**：JWT 双体系（管理员 / 小程序用户），`UserJwtAuthGuard` / `JwtAuthGuard`。
 - **权益层**：`EntitlementGuard` 能力点校验（新增层，已落地）。

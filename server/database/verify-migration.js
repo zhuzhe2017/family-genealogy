@@ -22,9 +22,6 @@ async function main() {
 
     const [menus] = await conn.query("SELECT `id`, `name`, `route_name`, `permission` FROM `sys_menu` WHERE `route_name` = 'system_settings'");
     console.log('系统设置菜单:', JSON.stringify(menus));
-
-    const [grants] = await conn.query(`SELECT COUNT(*) AS cnt FROM sys_role_menu rm INNER JOIN sys_menu m ON m.id = rm.menu_id WHERE m.route_name = 'system_settings'`);
-    console.log('菜单授权数:', grants[0].cnt);
   } catch (err) {
     console.error('验证失败:', err.message);
     process.exitCode = 1;
