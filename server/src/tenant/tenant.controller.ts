@@ -221,4 +221,36 @@ export class TenantController {
   async getSettings(@Param('familyId', ParseIntPipe) familyId: number) {
     return this.tenantService.getSettings(familyId);
   }
+
+  // ---------- 权限管理 ----------
+
+  /** 获取家族管理员权限列表（仅族长） */
+  @Get('family/:familyId/permissions')
+  async getFamilyPermissions(
+    @Param('familyId', ParseIntPipe) familyId: number,
+    @Req() req: TenantAuthenticatedRequest
+  ) {
+    return this.tenantService.getFamilyPermissions(familyId, String(req.user.id));
+  }
+
+  /** 设置家族成员角色（仅族长）：admin / member */
+  @Put('family/:familyId/permissions/:targetUserId/role')
+  async setFamilyPermissionRole(
+    @Param('familyId', ParseIntPipe) familyId: number,
+    @Param('targetUserId') targetUserId: string,
+    @Body() body: { role: string },
+    @Req() req: TenantAuthenticatedRequest
+  ) {
+    return this.tenantService.setFamilyPermissionRole(familyId, String(req.user.id), targetUserId, body.role);
+  }
+
+  /** 移除家族管理员权限（仅族长） */
+  @Delete('family/:familyId/permissions/:targetUserId')
+  async removeFamilyPermission(
+    @Param('familyId', ParseIntPipe) familyId: number,
+    @Param('targetUserId') targetUserId: string,
+    @Req() req: TenantAuthenticatedRequest
+  ) {
+    return this.tenantService.removeFamilyPermission(familyId, String(req.user.id), targetUserId);
+  }
 }

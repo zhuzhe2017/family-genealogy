@@ -2,7 +2,7 @@ import { computed, reactive, ref } from 'vue';
 import { useRoute } from 'vue-router';
 import { defineStore } from 'pinia';
 import { useLoading } from '@sa/hooks';
-import { fetchGetUserInfo, fetchUserPwdLogin } from '@/service/api';
+import { fetchGetUserInfo, fetchUserPhoneLogin, fetchUserPwdLogin } from '@/service/api';
 import { useRouterPush } from '@/hooks/common/router';
 import { localStg } from '@/utils/storage';
 import { SetupStoreId } from '@/enum';
@@ -93,38 +93,60 @@ export const useAuthStore = defineStore(SetupStoreId.Auth, () => {
   }
 
   /**
-   * 租户后台登录（前期使用手机号密码）
+   * 租户后台登录（手机号密码）
    */
   async function login(phone: string, password: string, redirect = true) {
     startLoading();
 
     const { data: loginToken, error } = await fetchUserPwdLogin(phone, password);
 
-    if (!error) {
-      const pass = await loginByToken(loginToken);
-
-      if (pass) {
-        // Check if the tab needs to be cleared
-        const isClear = checkTabClear();
-        let needRedirect = redirect;
-
-        if (isClear) {
-          // If the tab needs to be cleared,it means we don't need to redirect.
-          needRedirect = false;
-        }
-        await redirectFromLogin(needRedirect);
-
-        window.$notification?.success({
-          title: $t('page.login.common.loginSuccess'),
-          content: $t('page.login.common.welcomeBack', { userName: userInfo.userName }),
-          duration: 4500
-        });
-      }
-    } else {
-      resetStore();
-    }
+    await handleLoginResult(loginToken, error, redirect);
 
     endLoading();
+  }
+
+  /**
+   * 租户后台登录（手机号验证码）
+   */
+  async function loginByCode(phone: string, code: string, redirect = true) {
+    startLoading();
+
+    const { data: loginToken, error } = await fetchUserPhoneLogin(phone, code);
+
+    await handleLoginResult(loginToken, error, redirect);
+
+    endLoading();
+  }
+
+  async function handleLoginResult(
+    loginToken: Api.Auth.LoginToken | null | undefined,
+    error: Error | null | undefined,
+    redirect = true
+  ) {
+    if (error || !loginToken) {
+      resetStore();
+      return;
+    }
+
+    const pass = await loginByToken(loginToken);
+
+    if (pass) {
+      // Check if the tab needs to be cleared
+      const isClear = checkTabClear();
+      let needRedirect = redirect;
+
+      if (isClear) {
+        // If the tab needs to be cleared,it means we don't need to redirect.
+        needRedirect = false;
+      }
+      await redirectFromLogin(needRedirect);
+
+      window.$notification?.success({
+        title: $t('page.login.common.loginSuccess'),
+        content: $t('page.login.common.welcomeBack', { userName: userInfo.userName }),
+        duration: 4500
+      });
+    }
   }
 
   async function loginByToken(loginToken: Api.Auth.LoginToken) {
@@ -178,6 +200,7 @@ export const useAuthStore = defineStore(SetupStoreId.Auth, () => {
     loginLoading,
     resetStore,
     login,
+    loginByCode,
     initUserInfo
   };
 });

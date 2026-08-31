@@ -85,3 +85,47 @@ export function updateTenantContent(familyId: number, type: ContentType, id: str
 export function deleteTenantContent(familyId: number, type: ContentType, id: string) {
   return request<Api.Common.SuccessResult>({ url: `/tenant/family/${familyId}/content/${type}/${id}`, method: 'DELETE' });
 }
+
+// ---------- 权限管理 ----------
+
+export interface TenantPermissionItem {
+  userId: string;
+  nickname: string;
+  avatarUrl: string;
+  memberId: string;
+  role: 'creator' | 'admin' | 'member';
+  status: number;
+  isCreator: boolean;
+}
+
+export interface TenantPermissionResult {
+  familyId: number;
+  familyName: string;
+  creatorUserId: string;
+  canManage: boolean;
+  list: TenantPermissionItem[];
+  total: number;
+}
+
+/** 获取家族管理员权限列表 */
+export function fetchTenantPermissions(familyId: number) {
+  return request<TenantPermissionResult>({ url: `/tenant/family/${familyId}/permissions` });
+}
+
+/** 设置家族成员角色 */
+export function setTenantPermissionRole(familyId: number, targetUserId: string, role: 'admin' | 'member') {
+  return request<Api.Common.SuccessResult>({
+    url: `/tenant/family/${familyId}/permissions/${targetUserId}/role`,
+    method: 'PUT',
+    data: { role }
+  });
+}
+
+/** 移除家族管理员权限 */
+export function removeTenantPermission(familyId: number, targetUserId: string) {
+  return request<Api.Common.SuccessResult>({
+    url: `/tenant/family/${familyId}/permissions/${targetUserId}`,
+    method: 'DELETE'
+  });
+}
+

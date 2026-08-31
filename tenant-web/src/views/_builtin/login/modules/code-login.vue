@@ -3,6 +3,7 @@ import { computed, reactive } from 'vue';
 import { useRouterPush } from '@/hooks/common/router';
 import { useFormRules, useNaiveForm } from '@/hooks/common/form';
 import { useCaptcha } from '@/hooks/business/captcha';
+import { useAuthStore } from '@/store/modules/auth';
 import { $t } from '@/locales';
 
 defineOptions({
@@ -12,6 +13,7 @@ defineOptions({
 const { toggleLoginModule } = useRouterPush();
 const { formRef, validate } = useNaiveForm();
 const { label, isCounting, loading, getCaptcha } = useCaptcha();
+const authStore = useAuthStore();
 
 interface FormModel {
   phone: string;
@@ -34,8 +36,7 @@ const rules = computed<Record<keyof FormModel, App.Global.FormRule[]>>(() => {
 
 async function handleSubmit() {
   await validate();
-  // request
-  window.$message?.success($t('page.login.common.validateSuccess'));
+  await authStore.loginByCode(model.phone, model.code);
 }
 </script>
 

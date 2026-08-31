@@ -123,6 +123,16 @@ export const generatedRoutes: GeneratedRoute[] = [
         }
       },
       {
+        name: 'tenant_permission',
+        path: '/tenant/permission',
+        component: 'view.tenant_permission',
+        meta: {
+          title: 'tenant_permission',
+          i18nKey: 'route.tenant_permission',
+          icon: 'mdi:shield-account'
+        }
+      },
+      {
         name: 'tenant_photo',
         path: '/tenant/photo',
         component: 'view.tenant_photo',

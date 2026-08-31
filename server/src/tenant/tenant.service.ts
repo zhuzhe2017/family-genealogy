@@ -42,12 +42,20 @@ export class TenantService {
     const rows = await this.dataSource.query<
       { family_id: number; name: string; logo: string; role: string; status: number }[]
     >(
-      `SELECT f.\`id\` AS family_id, f.\`name\`, f.\`logo\`, fp.\`role\`, f.\`status\`
+      `SELECT f.\`id\` AS family_id, f.\`name\`, f.\`logo\`, fp.\`role\`, f.\`status\`, fp.\`create_time\` AS sort_time
        FROM \`family_permission\` fp
        INNER JOIN \`family\` f ON f.\`id\` = fp.\`family_id\`
-       WHERE fp.\`user_id\` = ? AND fp.\`status\` = 1 AND f.\`status\` = 1
-       ORDER BY fp.\`create_time\` DESC`,
-      [userId] as QueryValues
+       WHERE fp.\`user_id\` = ? AND fp.\`status\` = 1 AND fp.\`role\` IN ('admin', 'creator') AND f.\`status\` = 1
+       UNION ALL
+       SELECT f.\`id\` AS family_id, f.\`name\`, f.\`logo\`, 'creator' AS role, f.\`status\`, f.\`create_time\` AS sort_time
+       FROM \`family\` f
+       WHERE f.\`creator_user_id\` = ? AND f.\`status\` = 1
+         AND NOT EXISTS (
+           SELECT 1 FROM \`family_permission\` fp
+           WHERE fp.\`family_id\` = f.\`id\` AND fp.\`user_id\` = ? AND fp.\`status\` = 1 AND fp.\`role\` IN ('admin', 'creator')
+         )
+       ORDER BY sort_time DESC`,
+      [userId, userId, userId] as QueryValues
     );
 
     return rows.map(row => ({
@@ -234,6 +242,125 @@ export class TenantService {
     return family;
   }
 
+  // ---------- 权限管理 ----------
+
+  /**
+   * 获取家族权限列表（族长 + 管理员）
+   * - 仅族长可查看/操作
+   */
+  async getFamilyPermissions(familyId: number, userId: string): Promise<DataRow> {
+    await this.ensureFamilyCreator(familyId, userId);
+
+    const [family] = await this.dataSource.query<{ name: string; creator_user_id: string }[]>(
+      'SELECT `name`, `creator_user_id` FROM `family` WHERE `id` = ? AND `status` = 1',
+      [familyId] as QueryValues
+    );
+
+    if (!family) {
+      throw new HttpException('家族不存在', HttpStatus.NOT_FOUND);
+    }
+
+    const creatorUserId = String(family.creator_user_id || '');
+
+    const [rows] = await Promise.all([
+      this.dataSource.query<
+        { user_id: string; nickname: string; avatar_url: string; member_id: string; role: string; status: number }[]
+      >(
+        `SELECT u.\`id\` AS user_id, u.\`nickname\`, u.\`avatar_url\`, u.\`member_id\`,
+                COALESCE(fp.\`role\`, 'member') AS \`role\`, COALESCE(fp.\`status\`, 1) AS \`status\`
+         FROM \`user\` u
+         LEFT JOIN \`family_permission\` fp ON fp.\`family_id\` = ? AND fp.\`user_id\` = u.\`id\`
+         WHERE u.\`family_id\` = ? AND u.\`status\` = 1
+           AND (fp.\`status\` = 1 OR fp.\`status\` IS NULL)
+           AND (fp.\`role\` IN ('admin', 'creator') OR u.\`id\` = ?)
+         ORDER BY
+           CASE WHEN u.\`id\` = ? THEN 0 ELSE 1 END,
+           u.\`create_time\` ASC`,
+        [familyId, familyId, creatorUserId, creatorUserId] as QueryValues
+      )
+    ]);
+
+    const list = rows.map((row) => ({
+      userId: String(row.user_id),
+      nickname: String(row.nickname || ''),
+      avatarUrl: String(row.avatar_url || ''),
+      memberId: String(row.member_id || ''),
+      role: row.user_id === creatorUserId ? 'creator' : row.role,
+      status: Number(row.status),
+      isCreator: row.user_id === creatorUserId
+    }));
+
+    return {
+      familyId,
+      familyName: family.name,
+      creatorUserId,
+      canManage: creatorUserId === userId,
+      list,
+      total: list.length
+    };
+  }
+
+  /**
+   * 设置家族成员角色（仅族长）
+   * role: 'admin' | 'member'
+   */
+  async setFamilyPermissionRole(
+    familyId: number,
+    userId: string,
+    targetUserId: string,
+    role: string
+  ): Promise<SuccessResult> {
+    await this.ensureFamilyCreator(familyId, userId);
+
+    if (targetUserId === userId) {
+      throw new HttpException('不能设置自己的角色', HttpStatus.BAD_REQUEST);
+    }
+
+    const [targetUser] = await this.dataSource.query<{ family_id: number | null }[]>(
+      'SELECT `family_id` FROM `user` WHERE `id` = ? AND `status` = 1',
+      [targetUserId] as QueryValues
+    );
+
+    if (!targetUser || Number(targetUser.family_id) !== familyId) {
+      throw new HttpException('目标用户不属于当前家族', HttpStatus.BAD_REQUEST);
+    }
+
+    if (role === 'admin') {
+      await this.dataSource.query(
+        `INSERT INTO \`family_permission\` (\`family_id\`, \`user_id\`, \`role\`, \`status\`) VALUES (?, ?, 'admin', 1)
+         ON DUPLICATE KEY UPDATE \`role\` = 'admin', \`status\` = 1`,
+        [familyId, targetUserId] as QueryValues
+      );
+    } else if (role === 'member') {
+      await this.dataSource.query(
+        'UPDATE \`family_permission\` SET \`role\` = ?, \`status\` = 1 WHERE \`family_id\` = ? AND \`user_id\` = ?',
+        ['member', familyId, targetUserId] as QueryValues
+      );
+    } else {
+      throw new HttpException('role 参数错误', HttpStatus.BAD_REQUEST);
+    }
+
+    return { success: true };
+  }
+
+  /**
+   * 禁用/移除家族管理员权限（仅族长）
+   */
+  async removeFamilyPermission(familyId: number, userId: string, targetUserId: string): Promise<SuccessResult> {
+    await this.ensureFamilyCreator(familyId, userId);
+
+    if (targetUserId === userId) {
+      throw new HttpException('不能操作自己的权限', HttpStatus.BAD_REQUEST);
+    }
+
+    await this.dataSource.query(
+      'UPDATE \`family_permission\` SET \`status\` = 0 WHERE \`family_id\` = ? AND \`user_id\` = ?',
+      [familyId, targetUserId] as QueryValues
+    );
+
+    return { success: true };
+  }
+
   // ---------- 私有辅助方法 ----------
 
   private async getFamilyStats(familyId: number): Promise<DataRow> {
@@ -273,6 +400,13 @@ export class TenantService {
 
     if (!perm) {
       throw new HttpException('无家族管理权限', HttpStatus.FORBIDDEN);
+    }
+  }
+
+  private async ensureFamilyCreator(familyId: number, userId: string): Promise<void> {
+    const creatorId = await this.familyService.getCreatorUserId(familyId);
+    if (String(creatorId || '') !== String(userId)) {
+      throw new HttpException('仅族长可操作', HttpStatus.FORBIDDEN);
     }
   }
 

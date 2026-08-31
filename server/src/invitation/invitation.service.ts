@@ -409,6 +409,15 @@ export class InvitationService {
         [row.family_id, '', shareCode, familyRole, userId] as QueryValues
       );
 
+      // 被邀请为管理员时，同步写入 family_permission，保证 tenant-web 等管理后台权限一致
+      if (familyRole === 'admin') {
+        await manager.query(
+          `INSERT INTO \`family_permission\` (\`family_id\`, \`user_id\`, \`role\`, \`status\`) VALUES (?, ?, 'admin', 1)
+           ON DUPLICATE KEY UPDATE \`role\` = 'admin', \`status\` = 1`,
+          [row.family_id, userId] as QueryValues
+        );
+      }
+
       await manager.query(
         `UPDATE \`family_invitation\`
          SET \`status\` = 2, \`accepted_at\` = ?, \`processed_by\` = ?, \`invitee_user_id\` = ?, \`joined_count\` = \`joined_count\` + 1

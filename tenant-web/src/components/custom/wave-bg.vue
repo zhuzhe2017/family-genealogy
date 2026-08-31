@@ -1,61 +1,51 @@
 <script lang="ts" setup>
-import { computed } from 'vue';
-import { getPaletteColorByNumber } from '@sa/color';
-
 defineOptions({ name: 'WaveBg' });
-
-interface Props {
-  /** Theme color */
-  themeColor: string;
-}
-
-const props = defineProps<Props>();
-
-const lightColor = computed(() => getPaletteColorByNumber(props.themeColor, 200));
-const darkColor = computed(() => getPaletteColorByNumber(props.themeColor, 500));
 </script>
 
 <template>
   <div class="absolute-lt z-1 size-full overflow-hidden">
-    <div class="absolute -right-300px -top-900px lt-sm:(-right-100px -top-1170px)">
-      <svg height="1337" width="1337">
+    <!-- 银河星云光晕 -->
+    <div class="absolute -right-300px -top-900px opacity-80 blur-120px lt-sm:(-right-100px -top-1170px)">
+      <svg height="1337" width="1337" viewBox="0 0 1337 1337">
         <defs>
-          <path
-            id="path-1"
-            opacity="1"
-            fill-rule="evenodd"
-            d="M1337,668.5 C1337,1037.455193874239 1037.455193874239,1337 668.5,1337 C523.6725684305388,1337 337,1236 370.50000000000006,1094 C434.03835568300906,824.6732385973953 6.906089672974592e-14,892.6277623047779 0,668.5000000000001 C0,299.5448061257611 299.5448061257609,1.1368683772161603e-13 668.4999999999999,0 C1037.455193874239,0 1337,299.544806125761 1337,668.5Z"
-          />
-          <linearGradient id="linearGradient-2" x1="0.79" y1="0.62" x2="0.21" y2="0.86">
-            <stop offset="0" :stop-color="lightColor" stop-opacity="1" />
-            <stop offset="1" :stop-color="darkColor" stop-opacity="1" />
-          </linearGradient>
+          <radialGradient id="galaxy-1" cx="0.3" cy="0.3" r="0.9">
+            <stop offset="0%" stop-color="#7c3aed" />
+            <stop offset="45%" stop-color="#2563eb" />
+            <stop offset="100%" stop-color="#020617" stop-opacity="0" />
+          </radialGradient>
         </defs>
-        <g opacity="1">
-          <use xlink:href="#path-1" fill="url(#linearGradient-2)" fill-opacity="1" />
-        </g>
+        <circle cx="668.5" cy="668.5" r="668.5" fill="url(#galaxy-1)" />
       </svg>
     </div>
-    <div class="absolute -bottom-400px -left-200px lt-sm:(-bottom-760px -left-100px)">
-      <svg height="896" width="967.8852157128662">
+
+    <div class="absolute -bottom-400px -left-200px opacity-70 blur-100px lt-sm:(-bottom-760px -left-100px)">
+      <svg height="896" width="968" viewBox="0 0 968 896">
         <defs>
-          <path
-            id="path-2"
-            opacity="1"
-            fill-rule="evenodd"
-            d="M896,448 C1142.6325445712241,465.5747656464056 695.2579309733121,896 448,896 C200.74206902668806,896 5.684341886080802e-14,695.2579309733121 0,448.0000000000001 C0,200.74206902668806 200.74206902668791,5.684341886080802e-14 447.99999999999994,0 C695.2579309733121,0 475,418 896,448Z"
-          />
-          <linearGradient id="linearGradient-3" x1="0.5" y1="0" x2="0.5" y2="1">
-            <stop offset="0" :stop-color="darkColor" stop-opacity="1" />
-            <stop offset="1" :stop-color="lightColor" stop-opacity="1" />
-          </linearGradient>
+          <radialGradient id="galaxy-2" cx="0.7" cy="0.3" r="0.9">
+            <stop offset="0%" stop-color="#db2777" />
+            <stop offset="50%" stop-color="#4f46e5" />
+            <stop offset="100%" stop-color="#020617" stop-opacity="0" />
+          </radialGradient>
         </defs>
-        <g opacity="1">
-          <use xlink:href="#path-2" fill="url(#linearGradient-3)" fill-opacity="1" />
-        </g>
+        <circle cx="484" cy="448" r="448" fill="url(#galaxy-2)" />
       </svg>
     </div>
+
+    <!-- 星星层 -->
+    <div class="absolute inset-0 stars pointer-events-none"></div>
   </div>
 </template>
 
-<style scoped></style>
+<style scoped>
+.stars {
+  background-image:
+    radial-gradient(2px 2px at 20px 30px, #fff, transparent),
+    radial-gradient(2px 2px at 40px 70px, rgba(255, 255, 255, 0.8), transparent),
+    radial-gradient(1px 1px at 50px 90px, #fff, transparent),
+    radial-gradient(1px 1px at 130px 80px, rgba(255, 255, 255, 0.7), transparent),
+    radial-gradient(2px 2px at 200px 150px, #fff, transparent),
+    radial-gradient(1px 1px at 300px 250px, rgba(255, 255, 255, 0.8), transparent),
+    radial-gradient(2px 2px at 450px 100px, #fff, transparent);
+  background-size: 400px 300px;
+}
+</style>

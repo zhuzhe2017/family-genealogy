@@ -31,22 +31,40 @@ export class TenantAuthGuard implements CanActivate {
       throw new ForbiddenException('缺少家族ID');
     }
 
+    let role: string | undefined;
+    let status: number | undefined;
+
     const [permission] = await this.dataSource.query<FamilyPermissionRow[]>(
       'SELECT `family_id`, `user_id`, `role`, `status` FROM `family_permission` WHERE `family_id` = ? AND `user_id` = ?',
       [familyId, userId] as QueryValues
     );
 
-    if (!permission || permission.status !== 1) {
+    if (permission && permission.status === 1) {
+      role = permission.role;
+      status = permission.status;
+    } else {
+      // 兼容历史数据：未写入 family_permission 的族长通过 family.creator_user_id 识别
+      const [family] = await this.dataSource.query<{ creator_user_id: string }[]>(
+        'SELECT `creator_user_id` FROM `family` WHERE `id` = ? AND `status` = 1',
+        [familyId] as QueryValues
+      );
+      if (family && String(family.creator_user_id) === String(userId)) {
+        role = 'creator';
+        status = 1;
+      }
+    }
+
+    if (!role || status !== 1) {
       throw new ForbiddenException('您不是该家族成员');
     }
 
-    if (!['admin', 'creator'].includes(permission.role)) {
+    if (!['admin', 'creator'].includes(role)) {
       throw new ForbiddenException('需要家族管理员权限');
     }
 
     // 将租户上下文注入请求，供后续 service 使用
     (req as TenantAuthenticatedRequest).familyId = familyId;
-    (req as TenantAuthenticatedRequest).familyRole = permission.role;
+    (req as TenantAuthenticatedRequest).familyRole = role;
 
     return true;
   }

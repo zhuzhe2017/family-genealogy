@@ -117,4 +117,29 @@ export class UserController {
   ) {
     return this.userService.updateProfile(String(req.user.id), body);
   }
+
+  /**
+   * 获取当前家族成员角色列表（小程序端权限管理）
+   */
+  @Public()
+  @UseGuards(UserJwtAuthGuard)
+  @Get('family/roles')
+  async getFamilyRoles(@Req() req: AuthenticatedRequest) {
+    return this.userService.getFamilyRoles(String(req.user.id));
+  }
+
+  /**
+   * 设置家族成员角色（小程序端权限管理，仅族长）
+   * role: 'admin' | 'member'
+   */
+  @Public()
+  @UseGuards(UserJwtAuthGuard)
+  @Put('family/roles/:targetUserId')
+  async setFamilyRole(
+    @Req() req: AuthenticatedRequest,
+    @Param('targetUserId') targetUserId: string,
+    @Body() body: { role: string }
+  ) {
+    return this.userService.setFamilyRole(String(req.user.id), targetUserId, body.role);
+  }
 }

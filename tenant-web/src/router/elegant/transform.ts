@@ -174,6 +174,7 @@ const routeMap: RouteMap = {
   "tenant_event": "/tenant/event",
   "tenant_family": "/tenant/family",
   "tenant_member": "/tenant/member",
+  "tenant_permission": "/tenant/permission",
   "tenant_photo": "/tenant/photo",
   "tenant_select-family": "/tenant/select-family",
   "tenant_settings": "/tenant/settings"

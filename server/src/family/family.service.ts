@@ -254,8 +254,10 @@ export class FamilyService {
 
     const seedShareCode = await this.generateUniqueSeedShareCode();
 
+    // 步骤 1：先插入 family 主表并获取自增 ID。
+    // 注意：CREATE TABLE 属于 DDL，在 MySQL 事务中执行会触发隐式提交，破坏原子性，
+    // 因此必须将 DDL 移出事务，后续通过补偿删除保证一致性。
     const familyId = await this.dataSource.transaction(async manager => {
-      // 1. 插入家族主表
       const insertResult = await manager.query<InsertResult>(
         `INSERT INTO \`family\`
          (\`surname_id\`, \`generation_table_id\`, \`name\`, \`logo\`, \`founder\`, \`hall_name\`, \`origin\`, \`description\`,
@@ -277,28 +279,44 @@ export class FamilyService {
           data.creatorUserId ?? null
         ]
       );
-      const id = insertResult.insertId;
-      if (!id || id <= 0) {
+      const id = Number(insertResult.insertId);
+      if (!Number.isFinite(id) || id <= 0) {
         throw new HttpException('家族创建失败，未能获取家族ID', HttpStatus.INTERNAL_SERVER_ERROR);
       }
-
-      // 2. 创建对应的家族成员分表
-      const tableName = this.getMemberTableName(id);
-      this.validateTableName(tableName);
-      await this.createMemberTable(manager, tableName);
-
-      // 3. 初始化免费会员：家族订阅 free + 额度账户（能力点模型，新家族默认免费版）
-      await manager.query(
-        'INSERT INTO `family_subscription` (`family_id`, `plan_code`, `status`) VALUES (?, \'free\', \'active\')',
-        [id]
-      );
-      await manager.query(
-        'INSERT INTO `family_quota` (`family_id`) VALUES (?)',
-        [id]
-      );
-
       return id;
     });
+
+    try {
+      // 步骤 2：在事务外创建成员分表（DDL 隐式提交，不能放在上面的事务里）
+      const tableName = this.getMemberTableName(familyId);
+      this.validateTableName(tableName);
+      await this.createMemberTable(this.dataSource.manager, tableName);
+
+      // 步骤 3：初始化订阅、额度、创建者权限
+      await this.dataSource.transaction(async manager => {
+        await manager.query(
+          'INSERT INTO `family_subscription` (`family_id`, `plan_code`, `status`) VALUES (?, \'free\', \'active\')',
+          [familyId]
+        );
+        await manager.query(
+          'INSERT INTO `family_quota` (`family_id`) VALUES (?)',
+          [familyId]
+        );
+        if (data.creatorUserId) {
+          await manager.query(
+            `INSERT INTO \`family_permission\` (\`family_id\`, \`user_id\`, \`role\`, \`status\`) VALUES (?, ?, 'creator', 1)
+             ON DUPLICATE KEY UPDATE \`role\` = 'creator', \`status\` = 1`,
+            [familyId, data.creatorUserId]
+          );
+        }
+      });
+    } catch (error) {
+      // 步骤 4：补偿 —— 分表或后续初始化失败时，删除已插入的 family 主表记录，
+      // 避免留下没有对应成员表的"孤儿家族"。
+      await this.dataSource.query('DELETE FROM `family` WHERE `id` = ?', [familyId]).catch(() => {});
+      const message = error instanceof HttpException ? error.message : '家族初始化失败';
+      throw new HttpException(message, HttpStatus.INTERNAL_SERVER_ERROR);
+    }
 
     return { id: familyId, seedShareCode };
   }

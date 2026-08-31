@@ -12,7 +12,11 @@ describe('FamilyService', () => {
       const manager = { query: queryMock };
       return cb(manager);
     });
-    service = new FamilyService({ query: queryMock, transaction: transactionMock } as unknown as import('typeorm').DataSource);
+    service = new FamilyService({
+      query: queryMock,
+      transaction: transactionMock,
+      manager: { query: queryMock }
+    } as unknown as import('typeorm').DataSource);
   });
 
   describe('getList', () => {
@@ -76,7 +80,14 @@ describe('FamilyService', () => {
 
   describe('getAll', () => {
     it('返回数据含字辈信息', async () => {
-      queryMock.mockResolvedValueOnce([{ id: 1, name: '朱氏', generation_sequence: '[]' }]);
+      queryMock
+        .mockResolvedValueOnce([{ id: 1, name: '朱氏', generation_sequence: '[]' }])
+        .mockResolvedValueOnce([]) // memberCount
+        .mockResolvedValueOnce([]) // eventCount
+        .mockResolvedValueOnce([]) // photoCount
+        .mockResolvedValueOnce([]) // documentCount
+        .mockResolvedValueOnce([]) // dynamicCount
+        .mockResolvedValueOnce([]); // adminCount
       const result = await service.getAll({});
       expect(result).toHaveLength(1);
       expect(result[0].generation_sequence).toEqual([]);
@@ -130,19 +141,22 @@ describe('FamilyService', () => {
       });
     });
 
-    it('成功时创建家族并在事务内创建分表', async () => {
+    it('成功时创建家族并创建成员分表', async () => {
       queryMock
         .mockResolvedValueOnce([]) // 重复检查通过
+        .mockResolvedValueOnce([]) // 分享码查重通过
         .mockResolvedValueOnce({ insertId: 5 }) // INSERT family
-        .mockResolvedValueOnce([]); // CREATE TABLE family_members_5
+        .mockResolvedValueOnce([]) // CREATE TABLE family_members_5
+        .mockResolvedValueOnce([]) // INSERT family_subscription
+        .mockResolvedValueOnce([]); // INSERT family_quota
 
       const result = await service.create({ name: '新家族', isPublic: 1 });
 
       expect(result.id).toBe(5);
       expect(transactionMock).toHaveBeenCalled();
-      const insertCall = queryMock.mock.calls[1];
+      const insertCall = queryMock.mock.calls[2];
       expect(insertCall[0]).toContain('INSERT INTO `family`');
-      const createCall = queryMock.mock.calls[2];
+      const createCall = queryMock.mock.calls[3];
       expect(createCall[0]).toContain('CREATE TABLE IF NOT EXISTS `family_members_5`');
     });
 
@@ -177,12 +191,15 @@ describe('FamilyService', () => {
       queryMock
         .mockResolvedValueOnce([{ id: 'g1', status: 1, generation_sequence: '["文","武"]' }]) // 字辈表有效
         .mockResolvedValueOnce([]) // 重复检查通过
+        .mockResolvedValueOnce([]) // 分享码查重通过
         .mockResolvedValueOnce({ insertId: 7 }) // INSERT family
-        .mockResolvedValueOnce([]); // CREATE TABLE
+        .mockResolvedValueOnce([]) // CREATE TABLE
+        .mockResolvedValueOnce([]) // INSERT family_subscription
+        .mockResolvedValueOnce([]); // INSERT family_quota
 
       const result = await service.create({ name: '家族', generationTableId: 'g1' });
       expect(result.id).toBe(7);
-      const insertCall = queryMock.mock.calls[2];
+      const insertCall = queryMock.mock.calls[3];
       expect(insertCall[0]).toContain('`generation_table_id`');
       expect(insertCall[1]).toContain('g1');
     });
