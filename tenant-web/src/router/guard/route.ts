@@ -36,6 +36,25 @@ export function createRouteGuard(router: Router) {
       return { name: rootRoute };
     }
 
+    // tenant 后台子页面需要 familyId 参数：菜单/深链接产生无参路径时兜底补参或引导选择家族
+    const tenantSubRouteKeys: RouteKey[] = [
+      'tenant_document',
+      'tenant_event',
+      'tenant_member',
+      'tenant_permission',
+      'tenant_photo',
+      'tenant_settings'
+    ];
+    const entryRouteKey = to.name as RouteKey;
+    if (tenantSubRouteKeys.includes(entryRouteKey) && !to.params.familyId) {
+      const currentFamilyId = localStg.get('currentFamilyId');
+      if (currentFamilyId) {
+        return { path: buildTenantSubPath(entryRouteKey, currentFamilyId), replace: true };
+      }
+      // 未选择家族时回到首页,由首页弹窗引导选择家族
+      return { name: 'home' };
+    }
+
     // if the route does not need login, then it is allowed to access directly
     if (!needLogin) {
       return handleRouteSwitch(to, from);
@@ -174,4 +193,13 @@ function getRouteQueryOfLoginRoute(to: RouteLocationNormalized, routeHome: Route
   }
 
   return query;
+}
+
+/**
+ * 根据 tenant 子路由名 + familyId 生成真实路径。
+ * 家族概览已由首页承担,其余子页为 /tenant/{module}/:id。
+ */
+function buildTenantSubPath(routeName: RouteKey, familyId: string) {
+  const module = routeName.replace(/^tenant_/, '');
+  return `/tenant/${module}/${familyId}`;
 }

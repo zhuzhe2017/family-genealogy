@@ -12,26 +12,38 @@ import {
   ParseIntPipe
 } from '@nestjs/common';
 import { TenantJwtAuthGuard, TenantAuthGuard, TenantAuthenticatedRequest } from './guards/tenant-auth.guard';
+import { SkipFamilyCheck } from './guards/skip-family-check.decorator';
+import { Public } from '../common/decorators/public.decorator';
 import { TenantService } from './tenant.service';
 import { TenantMemberQueryDto } from './dto/tenant-member-query.dto';
 import { TenantMemberCreateDto } from './dto/tenant-member-create.dto';
 import { TenantMemberUpdateDto } from './dto/tenant-member-update.dto';
 import { TenantContentQueryDto } from './dto/tenant-content.dto';
+import { TenantSettingsUpdateDto } from './dto/tenant-settings.dto';
+import { EntitlementGuard } from '../membership/guards/entitlement.guard';
+import { Writable } from '../membership/decorators/entitlement.decorator';
 import { type ContentType } from '../content/types/content.types';
 
 /**
  * 租户业务后台接口
  * 面向家族管理员/创建者，数据范围严格限定在当前家族
  * 路由前缀 /api/tenant
+ *
+ * 权限三层（@Public 仅跳过全局管理员 JwtAuthGuard，本控制器不使用管理员令牌）：
+ * 1. TenantJwtAuthGuard   —— 认证（仅 C 端用户令牌 type='user'）
+ * 2. EntitlementGuard     —— 权益（标注 @Writable 的写接口校验订阅状态，过期只读）
+ * 3. TenantAuthGuard      —— 授权（family_permission 中 admin/creator）
  */
-@UseGuards(TenantJwtAuthGuard, TenantAuthGuard)
+@Public()
+@UseGuards(TenantJwtAuthGuard, EntitlementGuard, TenantAuthGuard)
 @Controller('tenant')
 export class TenantController {
   constructor(private readonly tenantService: TenantService) {}
 
   // ---------- 我的家族（切换列表） ----------
 
-  /** 获取当前用户拥有管理权限的家族列表 */
+  /** 获取当前用户拥有管理权限的家族列表（不携带 familyId，跳过家族权限校验） */
+  @SkipFamilyCheck()
   @Get('families')
   async getMyFamilies(@Req() req: TenantAuthenticatedRequest) {
     return this.tenantService.getMyFamilies(String(req.user.id));
@@ -70,6 +82,7 @@ export class TenantController {
   }
 
   /** 创建成员 */
+  @Writable()
   @Post('family/:familyId/members')
   async createMember(
     @Param('familyId', ParseIntPipe) familyId: number,
@@ -80,6 +93,7 @@ export class TenantController {
   }
 
   /** 更新成员 */
+  @Writable()
   @Put('family/:familyId/members/:id')
   async updateMember(
     @Param('familyId', ParseIntPipe) familyId: number,
@@ -91,6 +105,7 @@ export class TenantController {
   }
 
   /** 删除成员（软删除） */
+  @Writable()
   @Delete('family/:familyId/members/:id')
   async deleteMember(
     @Param('familyId', ParseIntPipe) familyId: number,
@@ -101,6 +116,7 @@ export class TenantController {
   }
 
   /** 切换在世状态 */
+  @Writable()
   @Post('family/:familyId/members/:id/toggle-alive')
   async toggleMemberAlive(
     @Param('familyId', ParseIntPipe) familyId: number,
@@ -168,10 +184,11 @@ export class TenantController {
     @Param('id') id: string
   ) {
     this.assertContentType(type);
-    return this.tenantService.getContentDetail(type, id);
+    return this.tenantService.getContentDetail(type, id, familyId);
   }
 
   /** 创建内容 */
+  @Writable()
   @Post('family/:familyId/content/:type')
   async createContent(
     @Param('familyId', ParseIntPipe) familyId: number,
@@ -189,7 +206,8 @@ export class TenantController {
     );
   }
 
-  /** 更新内容（目前仅 event 支持） */
+  /** 更新内容（photo/document/event 均支持） */
+  @Writable()
   @Put('family/:familyId/content/:type/:id')
   async updateContent(
     @Param('familyId', ParseIntPipe) familyId: number,
@@ -203,6 +221,7 @@ export class TenantController {
   }
 
   /** 删除内容（软删除） */
+  @Writable()
   @Delete('family/:familyId/content/:type/:id')
   async deleteContent(
     @Param('familyId', ParseIntPipe) familyId: number,
@@ -220,6 +239,17 @@ export class TenantController {
   @Get('family/:familyId/settings')
   async getSettings(@Param('familyId', ParseIntPipe) familyId: number) {
     return this.tenantService.getSettings(familyId);
+  }
+
+  /** 更新家族设置（家族管理员/族长） */
+  @Writable()
+  @Put('family/:familyId/settings')
+  async updateSettings(
+    @Param('familyId', ParseIntPipe) familyId: number,
+    @Body() body: TenantSettingsUpdateDto,
+    @Req() req: TenantAuthenticatedRequest
+  ) {
+    return this.tenantService.updateSettings(familyId, body, String(req.user.id));
   }
 
   // ---------- 权限管理 ----------

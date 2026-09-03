@@ -227,13 +227,12 @@ const local: App.I18n.Schema = {
     'iframe-page': '外链页面',
     home: '首页',
     tenant: '家族管理',
-    'tenant_select-family': '选择家族',
-    'tenant_family': '家族概览',
     'tenant_member': '成员管理',
     'tenant_photo': '相册管理',
     'tenant_document': '文档管理',
     'tenant_event': '事件管理',
-    'tenant_settings': '家族设置'
+    'tenant_settings': '家族设置',
+    'tenant_permission': '权限管理'
   },
   page: {
     login: {

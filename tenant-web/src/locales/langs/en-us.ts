@@ -231,13 +231,12 @@ const local: App.I18n.Schema = {
     'iframe-page': 'Iframe Page',
     home: 'Home',
     tenant: 'Family Management',
-    'tenant_select-family': 'Select Family',
-    'tenant_family': 'Family Overview',
     'tenant_member': 'Member Management',
     'tenant_photo': 'Photo Album',
     'tenant_document': 'Documents',
     'tenant_event': 'Events',
-    'tenant_settings': 'Family Settings'
+    'tenant_settings': 'Family Settings',
+    'tenant_permission': 'Permissions'
   },
   page: {
     login: {

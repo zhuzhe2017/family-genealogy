@@ -193,29 +193,19 @@ export const useRouteStore = defineStore(SetupStoreId.Route, () => {
   /**
    * Init static auth route
    *
-   * 混合模式：常量路由仍用前端静态定义（登录/403/404 等不受影响），
-   * 而菜单（auth routes）改为从后端 /route/getUserRoutes 加载（数据源 sys_menu），
-   * 管理后台修改菜单名称/排序后刷新即可生效；后端不可用时回退到前端静态路由。
+   * 纯静态模式：tenant-web 登录走 /user/* 用户体系，无法通过管理员鉴权的
+   * /route/getUserRoutes（JwtAuthGuard 仅校验 sys_admin 令牌），因此直接使用
+   * 前端静态路由并按用户角色过滤，避免每次登录都产生一次注定失败的请求。
    */
   async function initStaticAuthRoute() {
-    const { data, error } = await fetchGetUserRoutes();
+    const { authRoutes: staticAuthRoutes } = createStaticRoutes();
 
-    if (!error && data?.routes?.length) {
-      addAuthRoutes(data.routes);
-
-      setRouteHome(data.home);
-
-      handleUpdateRootRouteRedirect(data.home);
+    if (authStore.isStaticSuper) {
+      addAuthRoutes(staticAuthRoutes);
     } else {
-      const { authRoutes: staticAuthRoutes } = createStaticRoutes();
+      const filteredAuthRoutes = filterAuthRoutesByRoles(staticAuthRoutes, authStore.userInfo.roles);
 
-      if (authStore.isStaticSuper) {
-        addAuthRoutes(staticAuthRoutes);
-      } else {
-        const filteredAuthRoutes = filterAuthRoutesByRoles(staticAuthRoutes, authStore.userInfo.roles);
-
-        addAuthRoutes(filteredAuthRoutes);
-      }
+      addAuthRoutes(filteredAuthRoutes);
     }
 
     handleConstantAndAuthRoutes();

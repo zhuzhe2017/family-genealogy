@@ -540,8 +540,13 @@ declare namespace App {
         home: {
           title: string;
           desc: string;
-          memberCount: string;
+          totalUsers: string;
+          todayNewUsers: string;
           familyCount: string;
+          todayNewFamilies: string;
+          pendingAuditContents: string;
+          paidFamilies: string;
+          memberCount: string;
           photoCount: string;
           contentCount: string;
           contentBreakdown: string;

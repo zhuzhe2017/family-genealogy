@@ -6,7 +6,6 @@ export * from './menu';
 export * from './surname';
 export * from './role';
 export * from './admin';
-export * from './tenant';
 export * from './content';
 export * from './family';
 export * from './generation-table';

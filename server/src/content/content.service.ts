@@ -455,18 +455,108 @@ export class ContentService {
       return { id };
     }
 
+    if (type === 'document') {
+      if (!data.name?.trim()) {
+        throw new HttpException('文档名称不能为空', HttpStatus.BAD_REQUEST);
+      }
+      await this.dataSource.query(
+        `INSERT INTO \`family_document\`
+         (\`id\`, \`family_id\`, \`name\`, \`description\`, \`file_url\`, \`uploader_id\`)
+         VALUES (?, ?, ?, ?, ?, ?)`,
+        [id, data.familyId, data.name.trim(), data.description || null, data.fileUrl || '', data.uploaderId || '']
+      );
+      return { id };
+    }
+
     throw new HttpException('该内容类型暂不支持直接发布', HttpStatus.BAD_REQUEST);
   }
 
-  /** 更新内容（目前支持 event，事务内重建关联数据） */
+  /** 更新内容（photo/document 直接更新字段；event 事务内重建关联数据） */
   async update(type: ContentType, id: string, data: ContentCreateData) {
-    if (type !== 'event') {
-      throw new HttpException('该内容类型暂不支持编辑', HttpStatus.BAD_REQUEST);
-    }
     if (!data.familyId) {
       throw new HttpException('familyId 不能为空', HttpStatus.BAD_REQUEST);
     }
     await this.ensureExist(type, id);
+
+    if (type === 'photo') {
+      if (data.url !== undefined && !String(data.url).trim()) {
+        throw new HttpException('照片URL不能为空', HttpStatus.BAD_REQUEST);
+      }
+      if (data.categoryId) {
+        const [cat] = await this.dataSource.query<{ id: string }[]>(
+          'SELECT `id` FROM `family_album_category` WHERE `id` = ? AND `family_id` = ?',
+          [data.categoryId, data.familyId]
+        );
+        if (!cat) {
+          throw new HttpException('照片分类不存在或不属于该家族', HttpStatus.BAD_REQUEST);
+        }
+      }
+      const fields: string[] = [];
+      const values: QueryValues = [];
+      if (data.title !== undefined) {
+        fields.push('`title` = ?');
+        values.push(data.title);
+      }
+      if (data.url !== undefined) {
+        fields.push('`url` = ?');
+        values.push(data.url);
+      }
+      if (data.description !== undefined) {
+        fields.push('`description` = ?');
+        values.push(data.description);
+      }
+      if (data.year !== undefined) {
+        fields.push('`year` = ?');
+        values.push(data.year);
+      }
+      if (data.categoryId !== undefined) {
+        fields.push('`category_id` = ?');
+        values.push(data.categoryId);
+      }
+      if (fields.length) {
+        values.push(id);
+        await this.dataSource.query(`UPDATE \`family_photo\` SET ${fields.join(', ')} WHERE \`id\` = ?`, values);
+      }
+      return { id };
+    }
+
+    if (type === 'document') {
+      if (data.name !== undefined && !data.name.trim()) {
+        throw new HttpException('文档名称不能为空', HttpStatus.BAD_REQUEST);
+      }
+      const fields: string[] = [];
+      const values: QueryValues = [];
+      if (data.name !== undefined) {
+        fields.push('`name` = ?');
+        values.push(data.name.trim());
+      }
+      if (data.volume !== undefined) {
+        fields.push('`volume` = ?');
+        values.push(data.volume);
+      }
+      if (data.description !== undefined) {
+        fields.push('`description` = ?');
+        values.push(data.description);
+      }
+      if (data.pageCount !== undefined) {
+        fields.push('`page_count` = ?');
+        values.push(data.pageCount);
+      }
+      if (data.fileUrl !== undefined) {
+        fields.push('`file_url` = ?');
+        values.push(data.fileUrl);
+      }
+      if (fields.length) {
+        values.push(id);
+        await this.dataSource.query(`UPDATE \`family_document\` SET ${fields.join(', ')} WHERE \`id\` = ?`, values);
+      }
+      return { id };
+    }
+
+    if (type !== 'event') {
+      throw new HttpException('该内容类型暂不支持编辑', HttpStatus.BAD_REQUEST);
+    }
+
     const t = this.parseEventData(data);
     await this.saveEventWithRelations(id, data.familyId, t, data, true);
     return { id };

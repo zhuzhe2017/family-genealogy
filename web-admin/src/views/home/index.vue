@@ -3,10 +3,13 @@ import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { Icon } from '@iconify/vue';
+import dayjs from 'dayjs';
 import {
   fetchDashboardStats,
+  fetchDashboardSubscriptionStats,
   type DashboardStats,
-  type SurnameStat
+  type SurnameStat,
+  type SubscriptionStats
 } from '@/service/api/dashboard';
 import { useEcharts, type ECOption } from '@/hooks/common/echarts';
 import { useSiteConfigStore } from '@/store/modules/site-config';
@@ -16,7 +19,12 @@ const { t } = useI18n();
 const siteConfigStore = useSiteConfigStore();
 
 const stats = ref<DashboardStats>({
+  totalUsers: 0,
+  todayNewUsers: 0,
   totalFamilies: 0,
+  todayNewFamilies: 0,
+  pendingAuditContents: 0,
+  paidFamilies: 0,
   totalMembers: 0,
   content: { dynamics: 0, photos: 0, documents: 0, events: 0 },
   surnames: []
@@ -25,14 +33,6 @@ const loading = ref(true);
 const error = ref('');
 /** 数据最后更新时间 */
 const lastUpdated = ref('');
-
-const contentTotal = computed(
-  () =>
-    stats.value.content.dynamics +
-    stats.value.content.photos +
-    stats.value.content.documents +
-    stats.value.content.events
-);
 
 /** 姓氏 TOP 数据（最多展示 12 个） */
 const topSurnames = computed<SurnameStat[]>(() =>
@@ -106,8 +106,7 @@ const surnameChartOptions = computed<ECOption>(() => {
       right: '2%',
       top: '6%',
       bottom: showZoom ? 64 : 36,
-      outerBoundsMode: 'same',
-      outerBoundsContain: 'axisLabel'
+      containLabel: true
     },
     xAxis: {
       type: 'category',
@@ -166,41 +165,198 @@ const { domRef: chartDomRef, updateOptions: updateSurnameChart } = useEcharts(
   () => surnameChartOptions.value as ECOption
 );
 
-/** 快捷操作 */
-const shortcuts = [
-  {
-    title: '成员管理',
-    desc: '新增、编辑、删除家族成员信息',
-    icon: 'mdi:account-group',
-    color: '#18a058',
-    route: '/mini-program/members'
-  },
-  {
-    title: '家族管理',
-    desc: '管理家族档案、配置字辈表',
-    icon: 'mdi:family-tree',
-    color: '#2080f0',
-    route: '/mini-program/family'
-  },
-  {
-    title: '字辈管理',
-    desc: '维护家族辈分序列与行第',
-    icon: 'mdi:format-list-text',
-    color: '#f0a020',
-    route: '/mini-program/generation-table'
-  },
-  {
-    title: '家族树',
-    desc: '可视化展示家族谱系结构',
-    icon: 'mdi:graph-outline',
-    color: '#d03050',
-    route: '/mini-program/family-tree'
-  }
-];
+// ==================== 订阅与商业化分析 ====================
+const subscriptionStats = ref<SubscriptionStats>({
+  subscriptionGrowth: [],
+  revenue: [],
+  conversion: [],
+  kpis: { totalRevenue: 0, totalOrders: 0, totalPaidFamilies: 0, conversionRate: 0 }
+});
+const subscriptionLoading = ref(true);
+const subscriptionError = ref('');
 
-/** 按路由跳转 */
-function goRoute(route: string) {
-  router.push(route);
+/** 日期范围类型 */
+type DateRangeType = 'last7Days' | 'last30Days' | 'last90Days' | 'custom';
+const activeRange = ref<DateRangeType>('last30Days');
+const customDateRange = ref<[number, number] | null>(null);
+
+function getPresetDateRange(type: DateRangeType): { startDate: string; endDate: string } {
+  const end = dayjs();
+  let start = end;
+  if (type === 'last7Days') start = end.subtract(6, 'day');
+  if (type === 'last30Days') start = end.subtract(29, 'day');
+  if (type === 'last90Days') start = end.subtract(89, 'day');
+  return { startDate: start.format('YYYY-MM-DD'), endDate: end.format('YYYY-MM-DD') };
+}
+
+const subscriptionDateRange = computed(() => {
+  if (activeRange.value === 'custom' && customDateRange.value) {
+    const [startTs, endTs] = customDateRange.value;
+    return {
+      startDate: dayjs(startTs).format('YYYY-MM-DD'),
+      endDate: dayjs(endTs).format('YYYY-MM-DD')
+    };
+  }
+  return getPresetDateRange(activeRange.value);
+});
+
+const subscriptionDates = computed(() => subscriptionStats.value.subscriptionGrowth.map(d => d.date));
+
+/** 订阅增长趋势图配置 */
+const subscriptionGrowthOptions = computed<ECOption>(() => ({
+  tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+  legend: {
+    data: [t('page.home.chartNewSubscriptions'), t('page.home.chartTotalSubscriptions')],
+    bottom: 0
+  },
+  grid: { left: '2%', right: '2%', top: '8%', bottom: 40, containLabel: true },
+  xAxis: { type: 'category', data: subscriptionDates.value, axisLabel: { fontSize: 11 } },
+  yAxis: [
+    { type: 'value', name: t('page.home.chartNewSubscriptions'), axisLabel: { fontSize: 11 } },
+    { type: 'value', name: t('page.home.chartTotalSubscriptions'), axisLabel: { fontSize: 11 } }
+  ],
+  dataZoom: subscriptionDates.value.length > 8
+    ? [{ type: 'inside', xAxisIndex: 0, zoomOnMouseWheel: false, moveOnMouseWheel: true }]
+    : undefined,
+  series: [
+    {
+      name: t('page.home.chartNewSubscriptions'),
+      type: 'bar',
+      data: subscriptionStats.value.subscriptionGrowth.map(d => d.newSubscriptions),
+      barMaxWidth: 24,
+      itemStyle: {
+        color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: '#66b1ff' }, { offset: 1, color: '#2080f0' }] },
+        borderRadius: [4, 4, 0, 0]
+      }
+    },
+    {
+      name: t('page.home.chartTotalSubscriptions'),
+      type: 'line',
+      yAxisIndex: 1,
+      smooth: true,
+      data: subscriptionStats.value.subscriptionGrowth.map(d => d.totalSubscriptions),
+      itemStyle: { color: '#18a058' },
+      lineStyle: { width: 3 },
+      areaStyle: {
+        color: {
+          type: 'linear', x: 0, y: 0, x2: 0, y2: 1,
+          colorStops: [{ offset: 0, color: 'rgba(24,160,88,0.2)' }, { offset: 1, color: 'rgba(24,160,88,0.02)' }]
+        }
+      }
+    }
+  ]
+}));
+
+/** 商业化收入数据图表配置 */
+const revenueOptions = computed<ECOption>(() => ({
+  tooltip: { trigger: 'axis', formatter: '{b}<br/>{a}: ¥{c}' },
+  grid: { left: '2%', right: '2%', top: '8%', bottom: 24, containLabel: true },
+  xAxis: { type: 'category', data: subscriptionStats.value.revenue.map(d => d.date), axisLabel: { fontSize: 11 } },
+  yAxis: { type: 'value', name: '¥', axisLabel: { fontSize: 11 } },
+  dataZoom: subscriptionStats.value.revenue.length > 8
+    ? [{ type: 'inside', xAxisIndex: 0, zoomOnMouseWheel: false, moveOnMouseWheel: true }]
+    : undefined,
+  series: [
+    {
+      name: t('page.home.chartRevenue'),
+      type: 'bar',
+      data: subscriptionStats.value.revenue.map(d => d.amount),
+      barMaxWidth: 28,
+      itemStyle: {
+        color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: '#f0a020' }, { offset: 1, color: '#d03050' }] },
+        borderRadius: [4, 4, 0, 0]
+      }
+    }
+  ]
+}));
+
+/** 用户转化率分析图表配置 */
+const conversionOptions = computed<ECOption>(() => ({
+  tooltip: { trigger: 'axis' },
+  legend: {
+    data: [t('page.home.chartFamilyCount'), t('page.home.chartPaidCount'), t('page.home.chartConversionRate')],
+    bottom: 0
+  },
+  grid: { left: '2%', right: '2%', top: '8%', bottom: 40, containLabel: true },
+  xAxis: { type: 'category', data: subscriptionStats.value.conversion.map(d => d.date), axisLabel: { fontSize: 11 } },
+  yAxis: [
+    { type: 'value', name: t('page.home.countUnit'), axisLabel: { fontSize: 11 } },
+    { type: 'value', name: '%', max: 100, axisLabel: { fontSize: 11, formatter: '{value}%' } }
+  ],
+  dataZoom: subscriptionStats.value.conversion.length > 8
+    ? [{ type: 'inside', xAxisIndex: 0, zoomOnMouseWheel: false, moveOnMouseWheel: true }]
+    : undefined,
+  series: [
+    {
+      name: t('page.home.chartFamilyCount'),
+      type: 'line',
+      smooth: true,
+      data: subscriptionStats.value.conversion.map(d => d.familyCount),
+      itemStyle: { color: '#909399' },
+      lineStyle: { type: 'dashed' }
+    },
+    {
+      name: t('page.home.chartPaidCount'),
+      type: 'line',
+      smooth: true,
+      data: subscriptionStats.value.conversion.map(d => d.paidCount),
+      itemStyle: { color: '#2080f0' },
+      lineStyle: { width: 3 }
+    },
+    {
+      name: t('page.home.chartConversionRate'),
+      type: 'line',
+      yAxisIndex: 1,
+      smooth: true,
+      data: subscriptionStats.value.conversion.map(d => d.conversionRate),
+      itemStyle: { color: '#18a058' },
+      lineStyle: { width: 3 },
+      symbol: 'circle',
+      symbolSize: 6
+    }
+  ]
+}));
+
+const { domRef: growthChartRef, updateOptions: updateGrowthChart } = useEcharts(
+  () => subscriptionGrowthOptions.value as ECOption
+);
+const { domRef: revenueChartRef, updateOptions: updateRevenueChart } = useEcharts(
+  () => revenueOptions.value as ECOption
+);
+const { domRef: conversionChartRef, updateOptions: updateConversionChart } = useEcharts(
+  () => conversionOptions.value as ECOption
+);
+
+async function loadSubscriptionStats() {
+  subscriptionLoading.value = true;
+  subscriptionError.value = '';
+  try {
+    const result = await fetchDashboardSubscriptionStats(subscriptionDateRange.value);
+    subscriptionStats.value = result?.data || subscriptionStats.value;
+    updateGrowthChart(() => subscriptionGrowthOptions.value as ECOption);
+    updateRevenueChart(() => revenueOptions.value as ECOption);
+    updateConversionChart(() => conversionOptions.value as ECOption);
+  } catch (err: any) {
+    subscriptionError.value = t('page.home.subscriptionLoadError') || '获取订阅数据失败';
+    console.error('subscription stats error:', err);
+  } finally {
+    subscriptionLoading.value = false;
+  }
+}
+
+function handleRangeChange(type: DateRangeType) {
+  activeRange.value = type;
+  if (type !== 'custom') {
+    customDateRange.value = null;
+    loadSubscriptionStats();
+  }
+}
+
+function handleCustomDateChange() {
+  if (customDateRange.value) {
+    activeRange.value = 'custom';
+    loadSubscriptionStats();
+  }
 }
 
 async function loadStats() {
@@ -228,8 +384,12 @@ let timer: ReturnType<typeof setInterval> | null = null;
 onMounted(() => {
   siteConfigStore.fetchConfig();
   loadStats();
+  loadSubscriptionStats();
   // 每 60 秒自动刷新
-  timer = setInterval(loadStats, 60_000);
+  timer = setInterval(() => {
+    loadStats();
+    loadSubscriptionStats();
+  }, 60_000);
 });
 
 onUnmounted(() => {
@@ -254,21 +414,35 @@ onUnmounted(() => {
         <NAlert type="warning" :title="error" />
       </template>
       <NGrid x-gap="16" y-gap="16" responsive="screen" item-responsive>
-        <NGi span="24 s:12 m:6 l:6">
+        <NGi span="24 s:12 m:6 l:4">
           <div class="stat-item">
             <div class="stat-icon" style="background: rgba(24,160,88,0.12); color: #18a058;">
               <Icon icon="mdi:account-multiple" :width="28" />
             </div>
             <div class="stat-info">
-              <div class="stat-label">{{ $t('page.home.memberCount') }}</div>
+              <div class="stat-label">{{ $t('page.home.totalUsers') }}</div>
               <div class="stat-value">
                 <NSkeleton v-if="loading" text width="60" />
-                <NNumberAnimation v-else :from="0" :to="stats.totalMembers" :duration="1200" />
+                <NNumberAnimation v-else :from="0" :to="stats.totalUsers" :duration="1200" />
               </div>
             </div>
           </div>
         </NGi>
-        <NGi span="24 s:12 m:6 l:6">
+        <NGi span="24 s:12 m:6 l:4">
+          <div class="stat-item">
+            <div class="stat-icon" style="background: rgba(54,212,124,0.12); color: #36d47c;">
+              <Icon icon="mdi:account-plus" :width="28" />
+            </div>
+            <div class="stat-info">
+              <div class="stat-label">{{ $t('page.home.todayNewUsers') }}</div>
+              <div class="stat-value">
+                <NSkeleton v-if="loading" text width="60" />
+                <NNumberAnimation v-else :from="0" :to="stats.todayNewUsers" :duration="1200" />
+              </div>
+            </div>
+          </div>
+        </NGi>
+        <NGi span="24 s:12 m:6 l:4">
           <div class="stat-item">
             <div class="stat-icon" style="background: rgba(32,128,240,0.12); color: #2080f0;">
               <Icon icon="mdi:source-branch" :width="28" />
@@ -282,30 +456,44 @@ onUnmounted(() => {
             </div>
           </div>
         </NGi>
-        <NGi span="24 s:12 m:6 l:6">
+        <NGi span="24 s:12 m:6 l:4">
           <div class="stat-item">
-            <div class="stat-icon" style="background: rgba(240,160,32,0.12); color: #f0a020;">
-              <Icon icon="mdi:image-multiple" :width="28" />
+            <div class="stat-icon" style="background: rgba(102,177,255,0.12); color: #66b1ff;">
+              <Icon icon="mdi:family-tree" :width="28" />
             </div>
             <div class="stat-info">
-              <div class="stat-label">{{ $t('page.home.photoCount') }}</div>
+              <div class="stat-label">{{ $t('page.home.todayNewFamilies') }}</div>
               <div class="stat-value">
                 <NSkeleton v-if="loading" text width="60" />
-                <NNumberAnimation v-else :from="0" :to="stats.content.photos" :duration="1200" />
+                <NNumberAnimation v-else :from="0" :to="stats.todayNewFamilies" :duration="1200" />
               </div>
             </div>
           </div>
         </NGi>
-        <NGi span="24 s:12 m:6 l:6">
+        <NGi span="24 s:12 m:6 l:4">
           <div class="stat-item">
-            <div class="stat-icon" style="background: rgba(208,48,80,0.12); color: #d03050;">
-              <Icon icon="mdi:file-document-multiple" :width="28" />
+            <div class="stat-icon" style="background: rgba(240,160,32,0.12); color: #f0a020;">
+              <Icon icon="mdi:shield-alert" :width="28" />
             </div>
             <div class="stat-info">
-              <div class="stat-label">{{ $t('page.home.contentCount') }}</div>
+              <div class="stat-label">{{ $t('page.home.pendingAuditContents') }}</div>
               <div class="stat-value">
                 <NSkeleton v-if="loading" text width="60" />
-                <NNumberAnimation v-else :from="0" :to="contentTotal" :duration="1200" />
+                <NNumberAnimation v-else :from="0" :to="stats.pendingAuditContents" :duration="1200" />
+              </div>
+            </div>
+          </div>
+        </NGi>
+        <NGi span="24 s:12 m:6 l:4">
+          <div class="stat-item">
+            <div class="stat-icon" style="background: rgba(208,48,80,0.12); color: #d03050;">
+              <Icon icon="mdi:crown" :width="28" />
+            </div>
+            <div class="stat-info">
+              <div class="stat-label">{{ $t('page.home.paidFamilies') }}</div>
+              <div class="stat-value">
+                <NSkeleton v-if="loading" text width="60" />
+                <NNumberAnimation v-else :from="0" :to="stats.paidFamilies" :duration="1200" />
               </div>
             </div>
           </div>
@@ -313,63 +501,152 @@ onUnmounted(() => {
       </NGrid>
     </NCard>
 
-    <!-- 内容分类 & 快捷操作 -->
-    <NGrid x-gap="16" y-gap="16" responsive="screen" item-responsive>
-      <NGi span="24 s:24 m:14">
-        <NCard :bordered="false" :title="$t('page.home.contentBreakdown')">
-          <NGrid x-gap="12" y-gap="12" :cols="4">
-            <NGi span="6">
-              <div class="type-card type-dynamic" @click="goRoute('/mini-program/content')">
-                <div class="type-num">{{ stats.content.dynamics }}</div>
-                <div class="type-label">{{ $t('page.home.dynamics') }}</div>
-              </div>
-            </NGi>
-            <NGi span="6">
-              <div class="type-card type-photo" @click="goRoute('/mini-program/content')">
-                <div class="type-num">{{ stats.content.photos }}</div>
-                <div class="type-label">{{ $t('page.home.photos') }}</div>
-              </div>
-            </NGi>
-            <NGi span="6">
-              <div class="type-card type-doc" @click="goRoute('/mini-program/content')">
-                <div class="type-num">{{ stats.content.documents }}</div>
-                <div class="type-label">{{ $t('page.home.documents') }}</div>
-              </div>
-            </NGi>
-            <NGi span="6">
-              <div class="type-card type-event" @click="goRoute('/mini-program/content')">
-                <div class="type-num">{{ stats.content.events }}</div>
-                <div class="type-label">{{ $t('page.home.events') }}</div>
-              </div>
-            </NGi>
-          </NGrid>
-        </NCard>
-      </NGi>
-      <NGi span="24 s:24 m:10">
-        <NCard :bordered="false" :title="$t('page.home.quickActions')">
-          <NSpace vertical :size="0">
-            <div
-              v-for="item in shortcuts"
-              :key="item.title"
-              class="shortcut-item"
-              @click="goRoute(item.route)"
-            >
-              <div
-                class="shortcut-icon"
-                :style="{ background: item.color + '1a', color: item.color }"
+    <!-- 订阅与商业化分析 -->
+    <NCard :bordered="false" class="subscription-card">
+      <template #header>
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <span class="font-medium">{{ $t('page.home.subscriptionStatsTitle') }}</span>
+          <div class="flex items-center gap-3">
+            <NButtonGroup size="small">
+              <NButton
+                :type="activeRange === 'last7Days' ? 'primary' : 'default'"
+                @click="handleRangeChange('last7Days')"
               >
-                <Icon :icon="item.icon" :width="22" />
-              </div>
-              <div class="shortcut-text">
-                <div class="font-medium">{{ item.title }}</div>
-                <div class="text-xs text-gray-500">{{ item.desc }}</div>
-              </div>
-              <Icon icon="mdi:chevron-right" class="text-gray-400 ml-auto" />
+                {{ $t('page.home.last7Days') }}
+              </NButton>
+              <NButton
+                :type="activeRange === 'last30Days' ? 'primary' : 'default'"
+                @click="handleRangeChange('last30Days')"
+              >
+                {{ $t('page.home.last30Days') }}
+              </NButton>
+              <NButton
+                :type="activeRange === 'last90Days' ? 'primary' : 'default'"
+                @click="handleRangeChange('last90Days')"
+              >
+                {{ $t('page.home.last90Days') }}
+              </NButton>
+              <NButton
+                :type="activeRange === 'custom' ? 'primary' : 'default'"
+                @click="handleRangeChange('custom')"
+              >
+                {{ $t('page.home.customDate') }}
+              </NButton>
+            </NButtonGroup>
+            <NDatePicker
+              v-if="activeRange === 'custom'"
+              v-model:value="customDateRange"
+              type="daterange"
+              size="small"
+              clearable
+              @update:value="handleCustomDateChange"
+            />
+          </div>
+        </div>
+      </template>
+
+      <NAlert v-if="subscriptionError" type="warning" :title="subscriptionError" class="mb-4" />
+
+      <!-- KPI 指标卡 -->
+      <NGrid x-gap="16" y-gap="16" responsive="screen" item-responsive class="mb-5">
+        <NGi span="24 s:12 m:6">
+          <div class="kpi-card">
+            <div class="kpi-icon" style="background: rgba(240,160,32,0.12); color: #f0a020;">
+              <Icon icon="mdi:cash-multiple" :width="24" />
             </div>
-          </NSpace>
-        </NCard>
-      </NGi>
-    </NGrid>
+            <div class="kpi-info">
+              <div class="kpi-label">{{ $t('page.home.kpiTotalRevenue') }}</div>
+              <div class="kpi-value">
+                <NSkeleton v-if="subscriptionLoading" text width="80" />
+                <span v-else>¥{{ subscriptionStats.kpis.totalRevenue.toFixed(2) }}</span>
+              </div>
+            </div>
+          </div>
+        </NGi>
+        <NGi span="24 s:12 m:6">
+          <div class="kpi-card">
+            <div class="kpi-icon" style="background: rgba(32,128,240,0.12); color: #2080f0;">
+              <Icon icon="mdi:receipt-text" :width="24" />
+            </div>
+            <div class="kpi-info">
+              <div class="kpi-label">{{ $t('page.home.kpiPaidOrders') }}</div>
+              <div class="kpi-value">
+                <NSkeleton v-if="subscriptionLoading" text width="60" />
+                <NNumberAnimation v-else :from="0" :to="subscriptionStats.kpis.totalOrders" :duration="1000" />
+              </div>
+            </div>
+          </div>
+        </NGi>
+        <NGi span="24 s:12 m:6">
+          <div class="kpi-card">
+            <div class="kpi-icon" style="background: rgba(208,48,80,0.12); color: #d03050;">
+              <Icon icon="mdi:crown" :width="24" />
+            </div>
+            <div class="kpi-info">
+              <div class="kpi-label">{{ $t('page.home.kpiPaidFamilies') }}</div>
+              <div class="kpi-value">
+                <NSkeleton v-if="subscriptionLoading" text width="60" />
+                <NNumberAnimation v-else :from="0" :to="subscriptionStats.kpis.totalPaidFamilies" :duration="1000" />
+              </div>
+            </div>
+          </div>
+        </NGi>
+        <NGi span="24 s:12 m:6">
+          <div class="kpi-card">
+            <div class="kpi-icon" style="background: rgba(24,160,88,0.12); color: #18a058;">
+              <Icon icon="mdi:trending-up" :width="24" />
+            </div>
+            <div class="kpi-info">
+              <div class="kpi-label">{{ $t('page.home.kpiConversionRate') }}</div>
+              <div class="kpi-value">
+                <NSkeleton v-if="subscriptionLoading" text width="60" />
+                <span v-else>{{ subscriptionStats.kpis.conversionRate }}%</span>
+              </div>
+            </div>
+          </div>
+        </NGi>
+      </NGrid>
+
+      <!-- 图表区 -->
+      <NGrid x-gap="16" y-gap="16" responsive="screen" item-responsive>
+        <NGi span="24 s:24 m:24 l:16">
+          <NCard :bordered="false" :title="$t('page.home.chartSubscriptionGrowth')" class="chart-card">
+            <NSkeleton v-if="subscriptionLoading" text :repeat="6" />
+            <div
+              v-else-if="subscriptionStats.subscriptionGrowth.length === 0"
+              class="flex items-center justify-center h-72 text-gray-400"
+            >
+              {{ $t('page.home.noData') }}
+            </div>
+            <div v-else ref="growthChartRef" class="chart-container" />
+          </NCard>
+        </NGi>
+        <NGi span="24 s:24 m:24 l:8">
+          <NCard :bordered="false" :title="$t('page.home.chartRevenue')" class="chart-card">
+            <NSkeleton v-if="subscriptionLoading" text :repeat="6" />
+            <div
+              v-else-if="subscriptionStats.revenue.length === 0"
+              class="flex items-center justify-center h-72 text-gray-400"
+            >
+              {{ $t('page.home.noData') }}
+            </div>
+            <div v-else ref="revenueChartRef" class="chart-container" />
+          </NCard>
+        </NGi>
+        <NGi span="24 s:24 m:24 l:24">
+          <NCard :bordered="false" :title="$t('page.home.chartConversion')" class="chart-card">
+            <NSkeleton v-if="subscriptionLoading" text :repeat="6" />
+            <div
+              v-else-if="subscriptionStats.conversion.length === 0"
+              class="flex items-center justify-center h-72 text-gray-400"
+            >
+              {{ $t('page.home.noData') }}
+            </div>
+            <div v-else ref="conversionChartRef" class="chart-container" />
+          </NCard>
+        </NGi>
+      </NGrid>
+    </NCard>
 
     <!-- 姓氏统计图表 -->
     <NGrid x-gap="16" y-gap="16" responsive="screen" item-responsive>
@@ -439,6 +716,10 @@ onUnmounted(() => {
 }
 
 .stats-card {
+  --n-padding: 20px;
+}
+
+.subscription-card {
   --n-padding: 20px;
 }
 
@@ -544,9 +825,49 @@ onUnmounted(() => {
   min-width: 0;
 }
 
+.kpi-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px;
+  border-radius: 12px;
+  background: var(--n-color-hover);
+}
+
+.kpi-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 10px;
+  flex-shrink: 0;
+}
+
+.kpi-info {
+  min-width: 0;
+}
+
+.kpi-label {
+  font-size: 13px;
+  color: var(--n-text-color-2);
+  margin-bottom: 4px;
+}
+
+.kpi-value {
+  font-size: 24px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+}
+
+.chart-card {
+  --n-padding: 16px;
+}
+
 .chart-container {
   width: 100%;
-  height: 340px;
+  height: 300px;
 }
 
 .surname-rank-list {

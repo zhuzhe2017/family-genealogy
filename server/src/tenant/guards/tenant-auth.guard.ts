@@ -1,7 +1,9 @@
 import { Injectable, CanActivate, ExecutionContext, ForbiddenException } from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
 import { AuthGuard } from '@nestjs/passport';
 import { DataSource } from 'typeorm';
 import { type AuthenticatedRequest, type QueryValues } from '../../common/types/common';
+import { SKIP_FAMILY_CHECK_KEY } from './skip-family-check.decorator';
 
 /**
  * 租户后台 JWT 认证守卫
@@ -16,7 +18,10 @@ export class TenantJwtAuthGuard extends AuthGuard('user-jwt') {}
  */
 @Injectable()
 export class TenantAuthGuard implements CanActivate {
-  constructor(private readonly dataSource: DataSource) {}
+  constructor(
+    private readonly dataSource: DataSource,
+    private readonly reflector: Reflector
+  ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const req = context.switchToHttp().getRequest<AuthenticatedRequest>();
@@ -24,6 +29,15 @@ export class TenantAuthGuard implements CanActivate {
 
     if (!userId) {
       throw new ForbiddenException('未登录');
+    }
+
+    // 标记了 @SkipFamilyCheck 的接口（无 familyId）仅要求登录
+    const skip = this.reflector.getAllAndOverride<boolean>(SKIP_FAMILY_CHECK_KEY, [
+      context.getHandler(),
+      context.getClass()
+    ]);
+    if (skip) {
+      return true;
     }
 
     const familyId = this.extractFamilyId(req);

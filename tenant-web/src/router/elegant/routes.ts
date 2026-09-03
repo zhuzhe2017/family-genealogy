@@ -56,7 +56,8 @@ export const generatedRoutes: GeneratedRoute[] = [
     props: true,
     meta: {
       title: 'iframe-page',
-      i18nKey: 'route.iframe-page'
+      i18nKey: 'route.iframe-page',
+      hideInMenu: true
     }
   },
   {
@@ -84,7 +85,7 @@ export const generatedRoutes: GeneratedRoute[] = [
     children: [
       {
         name: 'tenant_document',
-        path: '/tenant/document',
+        path: '/tenant/document/:familyId?',
         component: 'view.tenant_document',
         meta: {
           title: 'tenant_document',
@@ -94,27 +95,17 @@ export const generatedRoutes: GeneratedRoute[] = [
       },
       {
         name: 'tenant_event',
-        path: '/tenant/event',
+        path: '/tenant/event/:familyId?',
         component: 'view.tenant_event',
         meta: {
           title: 'tenant_event',
           i18nKey: 'route.tenant_event',
-          icon: 'mdi:calendar-star'
-        }
-      },
-      {
-        name: 'tenant_family',
-        path: '/tenant/family',
-        component: 'view.tenant_family',
-        meta: {
-          title: 'tenant_family',
-          i18nKey: 'route.tenant_family',
-          hideInMenu: true
+          icon: 'mdi:calendar-account'
         }
       },
       {
         name: 'tenant_member',
-        path: '/tenant/member',
+        path: '/tenant/member/:familyId?',
         component: 'view.tenant_member',
         meta: {
           title: 'tenant_member',
@@ -124,7 +115,7 @@ export const generatedRoutes: GeneratedRoute[] = [
       },
       {
         name: 'tenant_permission',
-        path: '/tenant/permission',
+        path: '/tenant/permission/:familyId?',
         component: 'view.tenant_permission',
         meta: {
           title: 'tenant_permission',
@@ -134,32 +125,22 @@ export const generatedRoutes: GeneratedRoute[] = [
       },
       {
         name: 'tenant_photo',
-        path: '/tenant/photo',
+        path: '/tenant/photo/:familyId?',
         component: 'view.tenant_photo',
         meta: {
           title: 'tenant_photo',
           i18nKey: 'route.tenant_photo',
-          icon: 'mdi:image-album'
-        }
-      },
-      {
-        name: 'tenant_select-family',
-        path: '/tenant/select-family',
-        component: 'view.tenant_select-family',
-        meta: {
-          title: 'tenant_select-family',
-          i18nKey: 'route.tenant_select-family',
-          icon: 'mdi:home-switch'
+          icon: 'mdi:image-multiple'
         }
       },
       {
         name: 'tenant_settings',
-        path: '/tenant/settings',
+        path: '/tenant/settings/:familyId?',
         component: 'view.tenant_settings',
         meta: {
           title: 'tenant_settings',
           i18nKey: 'route.tenant_settings',
-          icon: 'mdi:cog'
+          icon: 'mdi:cog-outline'
         }
       }
     ]

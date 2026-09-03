@@ -1,15 +1,92 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards, ParseIntPipe } from '@nestjs/common';
+import {
+  Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards, ParseIntPipe,
+  HttpException, HttpStatus, UploadedFile, Req, UseInterceptors, BadRequestException, Header, Res
+} from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { memoryStorage } from 'multer';
+import { Response } from 'express';
 import { FamilyService } from './family.service';
+import { FamilyImportService, IMPORT_SUPPORTED_EXTS, MAX_IMPORT_FILE_SIZE } from './family-import.service';
 import { JwtAuthGuard } from '../auth/guard/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { PermissionsGuard } from '../common/guards/permissions.guard';
 import { Permissions } from '../common/decorators/permissions.decorator';
+import { type AuthenticatedRequest } from '../common/types/common';
 import { type FamilyCreateData, type FamilyUpdateData } from './types/family.types';
 
 @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
 @Controller('family')
 export class FamilyController {
-  constructor(private readonly familyService: FamilyService) {}
+  constructor(
+    private readonly familyService: FamilyService,
+    private readonly familyImportService: FamilyImportService
+  ) {}
+
+  /** 下载 CSV 导入模板（需在 :id 路由之前注册，避免被参数路由吞掉） */
+  @Permissions('system:family:import')
+  @Get('import-template')
+  @Header('Content-Type', 'text/csv; charset=utf-8')
+  @Header('Content-Disposition', 'attachment; filename="family-import-template.csv"')
+  getImportTemplate() {
+    return this.familyImportService.buildTemplate();
+  }
+
+  /** 导出家族列表（需在 :id 路由之前注册） */
+  @Permissions('system:family:export')
+  @Get('export')
+  async exportList(
+    @Query('keyword') keyword?: string,
+    @Query('status') status?: string,
+    @Query('isPublic') isPublic?: string,
+    @Res({ passthrough: false }) res?: Response
+  ) {
+    const params = {
+      keyword,
+      status: status !== undefined && status !== '' ? Number(status) : undefined,
+      isPublic: isPublic !== undefined && isPublic !== '' ? Number(isPublic) : undefined
+    };
+    const csv = await this.familyService.export(params);
+    if (res) {
+      res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+      res.setHeader('Content-Disposition', 'attachment; filename="family-export.csv"');
+      res.send(csv);
+      return;
+    }
+    return csv;
+  }
+
+  /** 文件批量导入（Excel/CSV，multipart，字段名 file） */
+  @Permissions('system:family:import')
+  @Post('import')
+  @UseInterceptors(
+    FileInterceptor('file', {
+      storage: memoryStorage(),
+      limits: { fileSize: MAX_IMPORT_FILE_SIZE },
+      fileFilter: (_req, file, cb) => {
+        const ext = (file.originalname.split('.').pop() || '').toLowerCase();
+        if (!IMPORT_SUPPORTED_EXTS.includes(ext)) {
+          return cb(new BadRequestException('仅支持 .xlsx / .xls / .csv 格式的文件', '400'), false);
+        }
+        cb(null, true);
+      }
+    })
+  )
+  async importFile(
+    @UploadedFile() file?: Express.Multer.File,
+    @Req() req?: AuthenticatedRequest
+  ) {
+    if (!file) {
+      throw new BadRequestException('请选择要上传的文件', '400');
+    }
+    return this.familyImportService.importFromFile(
+      file,
+      typeof req?.user?.id === 'number' ? req.user.id : undefined,
+      {
+        username: req?.user?.username || 'admin',
+        id: req?.user?.id
+      }
+    );
+  }
 
   @Permissions('system:family:list')
   @Get('list')

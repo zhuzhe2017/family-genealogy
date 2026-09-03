@@ -79,4 +79,28 @@ export interface FamilyUpdateData {
   status?: number;
 }
 
+/** 家族导入行数据 */
+export interface FamilyImportItem {
+  id?: number;
+  name: string;
+  surnameName?: string;
+  founder?: string;
+  hallName?: string;
+  origin?: string;
+  description?: string;
+  isPublic?: number;
+  allowJoin?: number;
+  status?: number;
+}
+
+/** 家族导入文件结果 */
+export interface FamilyImportFileReport {
+  fileName: string;
+  total: number;
+  imported: number;
+  created: number;
+  updated: number;
+  errors: string[];
+}
+
 export type { DataRow, QueryValues, PaginationResult, IdResult, SuccessResult };

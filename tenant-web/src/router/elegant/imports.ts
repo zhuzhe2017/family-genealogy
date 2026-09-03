@@ -23,10 +23,8 @@ export const views: Record<LastLevelRouteKey, RouteComponent | (() => Promise<Ro
   home: () => import("@/views/home/index.vue"),
   tenant_document: () => import("@/views/tenant/document/index.vue"),
   tenant_event: () => import("@/views/tenant/event/index.vue"),
-  tenant_family: () => import("@/views/tenant/family/index.vue"),
   tenant_member: () => import("@/views/tenant/member/index.vue"),
   tenant_permission: () => import("@/views/tenant/permission/index.vue"),
   tenant_photo: () => import("@/views/tenant/photo/index.vue"),
-  "tenant_select-family": () => import("@/views/tenant/select-family/index.vue"),
   tenant_settings: () => import("@/views/tenant/settings/index.vue"),
 };

@@ -44,7 +44,6 @@ declare module "@elegant-router/types" {
     "system_permission": "/system/permission";
     "system_role": "/system/role";
     "system_settings": "/system/settings";
-    "tenant": "/tenant";
   };
 
   /**
@@ -85,7 +84,6 @@ declare module "@elegant-router/types" {
     | "login"
     | "mini-program"
     | "system"
-    | "tenant"
   >;
 
   /**
@@ -127,7 +125,6 @@ declare module "@elegant-router/types" {
     | "system_permission"
     | "system_role"
     | "system_settings"
-    | "tenant"
   >;
 
   /**

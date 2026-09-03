@@ -272,14 +272,5 @@ export const generatedRoutes: GeneratedRoute[] = [
         }
       }
     ]
-  },
-  {
-    name: 'tenant',
-    path: '/tenant',
-    component: 'layout.base$view.tenant',
-    meta: {
-      title: 'tenant',
-      i18nKey: 'route.tenant'
-    }
   }
 ];

@@ -59,6 +59,12 @@ export interface ContentCreateData {
   categoryId?: string;
   uploaderId?: string;
   uploaderName?: string;
+  /** document 专用 */
+  name?: string;
+  volume?: string;
+  pageCount?: number;
+  fileUrl?: string;
+  coverUrl?: string;
   /** event 专用 */
   month?: number;
   day?: number;

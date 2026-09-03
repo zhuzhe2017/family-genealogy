@@ -4,13 +4,6 @@
     <view class="header-desc">邀请亲友加入您的家族，共同完善家谱</view>
   </view>
 
-  <view class="action-bar">
-    <view class="create-btn" bindtap="openCreateModal">
-      <text class="create-btn-icon">+</text>
-      <text class="create-btn-text">创建邀请</text>
-    </view>
-  </view>
-
   <view class="tabs">
     <view class="tab {{activeTab === 'sent' ? 'active' : ''}}" bindtap="switchTab" data-tab="sent">
       <text>我发出的</text>
@@ -61,7 +54,7 @@
     </view>
     <view class="empty" wx:if="{{!sentLoading && sentList.length === 0}}">
       <text>暂无发出的邀请</text>
-      <text class="empty-sub">点击上方“创建邀请”邀请亲友</text>
+      <text class="empty-sub">点击底部“创建邀请”邀请亲友</text>
     </view>
     <view class="loadmore" wx:if="{{sentLoading && sentList.length > 0}}">加载中...</view>
   </scroll-view>
@@ -105,6 +98,16 @@
     </view>
     <view class="loadmore" wx:if="{{receivedLoading && receivedList.length > 0}}">加载中...</view>
   </scroll-view>
+
+  <view class="bottom-bar-spacer"></view>
+</view>
+
+<!-- 底部固定创建邀请按钮 -->
+<view class="action-bar bottom-bar">
+  <view class="create-btn" bindtap="openCreateModal">
+    <text class="create-btn-icon">+</text>
+    <text class="create-btn-text">创建邀请</text>
+  </view>
 </view>
 
 <!-- 创建邀请弹层 -->

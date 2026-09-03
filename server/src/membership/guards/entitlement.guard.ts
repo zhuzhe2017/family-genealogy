@@ -2,13 +2,19 @@ import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import type { AuthenticatedRequest } from '../../common/types/common';
 import { EntitlementService } from '../membership.service';
-import { ENTITLEMENT_KEY, type EntitlementMetadata } from '../decorators/entitlement.decorator';
+import {
+  ENTITLEMENT_KEY,
+  ENTITLEMENT_WRITABLE_KEY,
+  type EntitlementMetadata,
+  type WritableMetadata
+} from '../decorators/entitlement.decorator';
 import { EntitlementException, ENTITLEMENT_ERRORS } from '../membership.exception';
 
 /**
  * 权益校验守卫（认证 → 授权 → 权益 三层中的第三层）：
- * 读取 @Entitlement(capability) 元数据，解析 familyId，调用 EntitlementService.assertCapability。
- * 仅拦截标注了能力点的接口；未标注的接口直接放行。
+ * - @Entitlement(capability)：校验能力点
+ * - @Writable()：仅校验订阅状态（过期只读）
+ * 均未标注的接口直接放行。
  */
 @Injectable()
 export class EntitlementGuard implements CanActivate {
@@ -18,6 +24,20 @@ export class EntitlementGuard implements CanActivate {
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
+    const writableMeta = this.reflector.getAllAndOverride<WritableMetadata>(ENTITLEMENT_WRITABLE_KEY, [
+      context.getHandler(),
+      context.getClass()
+    ]);
+    if (writableMeta) {
+      const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
+      const familyId = this.resolveFamilyId(request, writableMeta.familyFrom);
+      if (!familyId) {
+        throw new EntitlementException(ENTITLEMENT_ERRORS.GENERIC, '无法确定所属家族，权益校验失败');
+      }
+      await this.entitlementService.assertWritable(familyId);
+      return true;
+    }
+
     const meta = this.reflector.getAllAndOverride<EntitlementMetadata>(ENTITLEMENT_KEY, [
       context.getHandler(),
       context.getClass()

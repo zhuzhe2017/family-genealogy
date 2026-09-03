@@ -10,6 +10,8 @@ interface JwtPayload {
   sub: number;
   username: string;
   role: string;
+  /** 令牌类型:admin-后台管理员。签发端已写入,用于与 C 端用户令牌(type='user')严格区分 */
+  type?: string;
 }
 
 @Injectable()
@@ -27,6 +29,12 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   }
 
   async validate(payload: JwtPayload) {
+    // 严格校验令牌类型:user 令牌的 sub 是 user 表(VARCHAR)主键,
+    // 若不拦截,MySQL 隐式类型转换可能使数字开头的 user.id 撞上同号 sys_admin,造成越权
+    if (payload.type !== 'admin') {
+      throw new UnauthorizedException('非管理员令牌');
+    }
+
     const [admin] = await this.dataSource.query<AdminRow[]>(
       'SELECT `id`, `username`, `nickname`, `role`, `status` FROM `sys_admin` WHERE `id` = ? AND `status` = 1',
       [payload.sub] as QueryValues

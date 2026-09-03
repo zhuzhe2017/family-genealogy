@@ -24,14 +24,12 @@ declare module "@elegant-router/types" {
     "iframe-page": "/iframe-page/:url";
     "login": "/login/:module(pwd-login|code-login|register|reset-pwd|bind-wechat)?";
     "tenant": "/tenant";
-    "tenant_document": "/tenant/document";
-    "tenant_event": "/tenant/event";
-    "tenant_family": "/tenant/family";
-    "tenant_member": "/tenant/member";
-    "tenant_permission": "/tenant/permission";
-    "tenant_photo": "/tenant/photo";
-    "tenant_select-family": "/tenant/select-family";
-    "tenant_settings": "/tenant/settings";
+    "tenant_document": "/tenant/document/:familyId?";
+    "tenant_event": "/tenant/event/:familyId?";
+    "tenant_member": "/tenant/member/:familyId?";
+    "tenant_permission": "/tenant/permission/:familyId?";
+    "tenant_photo": "/tenant/photo/:familyId?";
+    "tenant_settings": "/tenant/settings/:familyId?";
   };
 
   /**
@@ -94,11 +92,9 @@ declare module "@elegant-router/types" {
     | "home"
     | "tenant_document"
     | "tenant_event"
-    | "tenant_family"
     | "tenant_member"
     | "tenant_permission"
     | "tenant_photo"
-    | "tenant_select-family"
     | "tenant_settings"
   >;
 

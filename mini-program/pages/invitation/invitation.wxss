@@ -25,6 +25,21 @@
   padding: 24rpx 32rpx;
 }
 
+.action-bar.bottom-bar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 24rpx 32rpx calc(24rpx + env(safe-area-inset-bottom));
+  background: #fff;
+  box-shadow: 0 -2rpx 12rpx rgba(0, 0, 0, 0.06);
+  z-index: 100;
+}
+
+.bottom-bar-spacer {
+  height: 140rpx;
+}
+
 .create-btn {
   display: flex;
   align-items: center;
@@ -84,7 +99,8 @@
 }
 
 .list-scroll {
-  height: calc(100vh - 320rpx);
+  height: calc(100vh - 220rpx);
+  padding-bottom: 140rpx;
 }
 
 .invitation-list {

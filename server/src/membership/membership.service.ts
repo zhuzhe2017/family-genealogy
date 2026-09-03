@@ -181,6 +181,17 @@ export class EntitlementService implements OnModuleInit {
     }
   }
 
+  /**
+   * 订阅可写校验：不检查具体能力点，仅校验订阅状态。
+   * active/grace 可写；expired / frozen 到期只读。供不绑定能力点的基础写操作使用。
+   */
+  async assertWritable(familyId: number): Promise<void> {
+    const sub = await this.getSubscription(familyId);
+    if (sub.status === 'expired' || (sub.status === 'frozen' && this.isPast(sub.expireAt))) {
+      throw new EntitlementException(ENTITLEMENT_ERRORS.SUBSCRIPTION_EXPIRED, '订阅已过期，数据为只读状态，请续费后继续使用');
+    }
+  }
+
   // ==================== 额度型能力点 ====================
 
   /**

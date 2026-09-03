@@ -15,6 +15,21 @@ export function fetchTenantFamilySettings(familyId: number) {
   return request<Api.Tenant.FamilySettings>({ url: `/tenant/family/${familyId}/settings` });
 }
 
+/** 更新家族设置 */
+export interface TenantSettingsUpdateData {
+  name?: string;
+  logo?: string;
+  hallName?: string;
+  origin?: string;
+  description?: string;
+  isPublic?: number;
+  allowJoin?: number;
+}
+
+export function updateTenantFamilySettings(familyId: number, data: TenantSettingsUpdateData) {
+  return request<Api.Common.SuccessResult>({ url: `/tenant/family/${familyId}/settings`, method: 'PUT', data });
+}
+
 // ---------- 成员管理 ----------
 
 /** 成员列表 */

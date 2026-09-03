@@ -5,6 +5,7 @@ import { FamilyService } from '../family/family.service';
 import { ContentService, type ContentType } from '../content/content.service';
 import { getSafeMemberTableName } from '../common/utils/family-member-table';
 import { type TenantMemberQueryParams, type TenantFamilyItem } from './types/tenant.types';
+import { type TenantSettingsUpdateDto as TenantSettingsUpdateData } from './dto/tenant-settings.dto';
 import {
   type QueryValues,
   type PaginationResult,
@@ -175,9 +176,10 @@ export class TenantService {
     });
   }
 
-  /** 内容详情 */
-  async getContentDetail(type: ContentType, id: string): Promise<DataRow> {
+  /** 内容详情（校验内容归属，防跨家族越权读取） */
+  async getContentDetail(type: ContentType, id: string, familyId: number): Promise<DataRow> {
     this.assertEditableContentType(type);
+    await this.ensureContentBelongs(type, id, familyId);
     return this.contentService.getById(type, id);
   }
 
@@ -199,7 +201,7 @@ export class TenantService {
     return this.contentService.create(type, payload);
   }
 
-  /** 更新内容（目前仅 event 支持） */
+  /** 更新内容（photo/document/event 均支持，由 tenant 后台使用） */
   async updateContent(type: ContentType, id: string, familyId: number, data: ContentCreateData, userId: string): Promise<IdResult> {
     this.assertEditableContentType(type);
     await this.ensureContentBelongs(type, id, familyId);
@@ -240,6 +242,58 @@ export class TenantService {
     }
 
     return family;
+  }
+
+  /**
+   * 更新家族设置
+   * - 家族管理员/族长可操作
+   * - 字段白名单更新,未提供的字段保持不变
+   */
+  async updateSettings(familyId: number, data: TenantSettingsUpdateData, userId: string): Promise<{ success: boolean }> {
+    await this.ensureFamilyAdmin(familyId, userId);
+
+    const fields: string[] = [];
+    const values: QueryValues = [];
+    if (data.name !== undefined) {
+      fields.push('`name` = ?');
+      values.push(data.name);
+    }
+    if (data.logo !== undefined) {
+      fields.push('`logo` = ?');
+      values.push(data.logo);
+    }
+    if (data.hallName !== undefined) {
+      fields.push('`hall_name` = ?');
+      values.push(data.hallName);
+    }
+    if (data.origin !== undefined) {
+      fields.push('`origin` = ?');
+      values.push(data.origin);
+    }
+    if (data.description !== undefined) {
+      fields.push('`description` = ?');
+      values.push(data.description);
+    }
+    if (data.isPublic !== undefined) {
+      fields.push('`is_public` = ?');
+      values.push(data.isPublic);
+    }
+    if (data.allowJoin !== undefined) {
+      fields.push('`allow_join` = ?');
+      values.push(data.allowJoin);
+    }
+
+    if (!fields.length) {
+      throw new HttpException('没有可更新的字段', HttpStatus.BAD_REQUEST);
+    }
+
+    values.push(familyId);
+    await this.dataSource.query(
+      `UPDATE \`family\` SET ${fields.join(', ')} WHERE \`id\` = ? AND \`status\` = 1`,
+      values
+    );
+
+    return { success: true };
   }
 
   // ---------- 权限管理 ----------

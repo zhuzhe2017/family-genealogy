@@ -45,7 +45,8 @@ export class AdminService {
       throw new HttpException('账号或密码错误', HttpStatus.UNAUTHORIZED);
     }
 
-    const payload = { sub: admin.id, username: admin.username, role: admin.role };
+    // type 字段用于与 C 端用户令牌(type='user')严格区分,防止跨体系令牌混淆
+    const payload = { sub: admin.id, username: admin.username, role: admin.role, type: 'admin' };
     const token = this.jwtService.sign(payload, { expiresIn: await this.getAccessTokenExpiresIn() });
 
     // 更新最后登录时间和IP
@@ -64,11 +65,16 @@ export class AdminService {
    * 校验 refreshToken 并签发新的 access token + refreshToken
    */
   async refreshToken(refreshToken: string) {
-    let payload: { sub: number; username: string; role: string };
+    let payload: { sub: number; username: string; role: string; type?: string };
     try {
       payload = await this.jwtService.verifyAsync(refreshToken);
     } catch {
       throw new HttpException('refreshToken 无效或已过期', HttpStatus.UNAUTHORIZED);
+    }
+
+    // 拒绝非管理员令牌(如小程序用户令牌 type='user')冒用刷新
+    if (payload.type !== 'admin') {
+      throw new HttpException('非管理员令牌', HttpStatus.UNAUTHORIZED);
     }
 
     const [admin] = await this.dataSource.query<AdminRow[]>(
@@ -80,7 +86,7 @@ export class AdminService {
       throw new HttpException('管理员不存在或已禁用', HttpStatus.UNAUTHORIZED);
     }
 
-    const newPayload = { sub: admin.id, username: admin.username, role: admin.role };
+    const newPayload = { sub: admin.id, username: admin.username, role: admin.role, type: 'admin' as const };
     return {
       token: this.jwtService.sign(newPayload, { expiresIn: await this.getAccessTokenExpiresIn() }),
       refreshToken: this.jwtService.sign(newPayload, { expiresIn: '30d' })

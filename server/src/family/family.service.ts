@@ -484,6 +484,79 @@ export class FamilyService {
     return { id, isPublic: newVal };
   }
 
+  /** 导出家族列表为 CSV（按 keyword/status/isPublic 筛选） */
+  async export(params: { keyword?: string; status?: number; isPublic?: number }) {
+    const { keyword, status, isPublic } = params;
+    const where: string[] = [];
+    const values: QueryValues = [];
+
+    if (keyword) {
+      where.push('(`f`.`name` LIKE ? OR `f`.`founder` LIKE ? OR `f`.`origin` LIKE ? OR `s`.`surname` LIKE ?)');
+      values.push(`%${keyword}%`, `%${keyword}%`, `%${keyword}%`, `%${keyword}%`);
+    }
+    if (status === -1) {
+      // 全部
+    } else if (status !== undefined && status !== null) {
+      where.push('`f`.`status` = ?');
+      values.push(status);
+    }
+    if (isPublic !== undefined && isPublic !== null) {
+      where.push('`f`.`is_public` = ?');
+      values.push(isPublic);
+    }
+
+    const whereClause = where.length > 0 ? 'WHERE ' + where.join(' AND ') : '';
+
+    const rows = await this.dataSource.query<
+      Pick<
+        FamilyRow,
+        | 'id'
+        | 'surname_name'
+        | 'name'
+        | 'founder'
+        | 'hall_name'
+        | 'origin'
+        | 'description'
+        | 'is_public'
+        | 'allow_join'
+        | 'status'
+        | 'create_time'
+      >[]
+    >(
+      `SELECT \`f\`.\`id\`, \`s\`.\`surname\` AS \`surname_name\`, \`f\`.\`name\`, \`f\`.\`founder\`,
+              \`f\`.\`hall_name\`, \`f\`.\`origin\`, \`f\`.\`description\`,
+              \`f\`.\`is_public\`, \`f\`.\`allow_join\`, \`f\`.\`status\`, \`f\`.\`create_time\`
+       FROM \`family\` \`f\`
+       LEFT JOIN \`surname\` \`s\` ON \`f\`.\`surname_id\` = \`s\`.\`id\`
+       ${whereClause}
+       ORDER BY \`f\`.\`create_time\` DESC, \`f\`.\`id\` DESC`,
+      values
+    );
+
+    const header = [
+      'id', 'name', 'surname', 'founder', 'hall_name', 'origin',
+      'description', 'is_public', 'allow_join', 'status', 'create_time'
+    ];
+    const lines = [header];
+    rows.forEach(row => {
+      lines.push([
+        String(row.id),
+        csvEscape(row.name),
+        csvEscape(row.surname_name || ''),
+        csvEscape(row.founder || ''),
+        csvEscape(row.hall_name || ''),
+        csvEscape(row.origin || ''),
+        csvEscape(row.description || ''),
+        String(row.is_public ?? 0),
+        String(row.allow_join ?? 0),
+        String(row.status ?? 1),
+        csvEscape(row.create_time || '')
+      ]);
+    });
+
+    return '\uFEFF' + lines.map(r => r.join(',')).join('\r\n');
+  }
+
   /** 批量获取家族的关联统计 */
   private async batchStats(ids: number[]): Promise<Record<number, FamilyStats>> {
     const result: Record<number, FamilyStats> = {};
@@ -566,6 +639,12 @@ export class FamilyService {
     });
     return result;
   }
+}
+
+function csvEscape(value: string): string {
+  const s = String(value ?? '');
+  if (/[",\n\r]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+  return s;
 }
 
 interface InsertResult {

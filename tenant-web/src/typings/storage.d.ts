@@ -39,5 +39,7 @@ declare namespace StorageType {
     };
     /** The last login user id */
     lastLoginUserId: string;
+    /** 当前管理中的家族ID（tenant 后台，用于菜单跳转补参） */
+    currentFamilyId: string;
   }
 }

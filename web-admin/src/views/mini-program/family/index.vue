@@ -1,14 +1,15 @@
 <script setup lang="ts">
 import { h, ref, reactive, onMounted } from 'vue';
-import type { DataTableColumn, FormInst } from 'naive-ui';
-import { useMessage, useDialog, NTag, NSwitch, NImage, NButton, NSpace } from 'naive-ui';
+import type { DataTableColumn, FormInst, UploadCustomRequestOptions } from 'naive-ui';
+import { useMessage, useDialog, NTag, NSwitch, NImage, NButton, NSpace, NUpload } from 'naive-ui';
 import { useAuth } from '@/hooks/business/auth';
 import ImageUpload from '@/components/common/image-upload/index.vue';
 import { resolveImageUrl } from '@/utils/image-url';
 import {
   fetchFamilyList, fetchCreateFamily, fetchUpdateFamily,
-  fetchDeleteFamily, fetchToggleFamilyPublic,
-  fetchAllSurnames, fetchAllGenerationTables
+  fetchDeleteFamily, fetchRestoreFamily, fetchToggleFamilyPublic,
+  fetchAllSurnames, fetchAllGenerationTables,
+  fetchImportFamily, exportFamily, downloadFamilyImportTemplate
 } from '@/service/api';
 import type { FamilyItem, GenerationTableItem } from '@/service/api';
 
@@ -145,8 +146,10 @@ const columns: DataTableColumn<FamilyItem>[] = [
     title: '操作', key: 'actions', width: 150, fixed: 'right',
     render: row => h(NSpace, null, {
       default: () => [
-        hasAuth('system:family:update') && h(NButton, { size: 'small', type: 'primary', ghost: true, onClick: () => handleEdit(row) }, { default: () => '编辑' }),
-        hasAuth('system:family:delete') && h(NButton, { size: 'small', type: 'error', ghost: true, onClick: () => handleDelete(row) }, { default: () => '删除' })
+        row.status === 1 && hasAuth('system:family:update') && h(NButton, { size: 'small', type: 'primary', ghost: true, onClick: () => handleEdit(row) }, { default: () => '编辑' }),
+        row.status === 1
+          ? hasAuth('system:family:delete') && h(NButton, { size: 'small', type: 'error', ghost: true, onClick: () => handleDelete(row) }, { default: () => '删除' })
+          : hasAuth('system:family:update') && h(NButton, { size: 'small', type: 'warning', ghost: true, onClick: () => handleRestore(row) }, { default: () => '恢复' })
       ]
     })
   }
@@ -320,6 +323,25 @@ function handleDelete(row: FamilyItem) {
   });
 }
 
+// ===== 恢复已删除 =====
+function handleRestore(row: FamilyItem) {
+  dialog.warning({
+    title: '确认恢复',
+    content: `恢复后该家族将重新启用，确定恢复「${row.name}」吗？`,
+    positiveText: '确认恢复',
+    negativeText: '取消',
+    onPositiveClick: async () => {
+      try {
+        await fetchRestoreFamily(row.id);
+        message.success('恢复成功');
+        loadData();
+      } catch (err: any) {
+        message.error(err?.msg || '恢复失败');
+      }
+    }
+  });
+}
+
 // ===== 切换公开状态 =====
 async function handleTogglePublic(row: FamilyItem) {
   try {
@@ -328,6 +350,55 @@ async function handleTogglePublic(row: FamilyItem) {
     loadData();
   } catch (err: any) {
     message.error(err?.msg || '操作失败');
+  }
+}
+
+// ===== 导出 =====
+async function handleExport() {
+  try {
+    await exportFamily({
+      keyword: searchParams.keyword || undefined,
+      status: searchParams.status ?? undefined,
+      isPublic: searchParams.isPublic ?? undefined
+    });
+  } catch (err: any) {
+    message.error(err?.msg || '导出失败');
+  }
+}
+
+// ===== 导入 =====
+async function handleImportRequest({ file, onFinish, onError }: UploadCustomRequestOptions) {
+  const f = file.file;
+  if (!f) {
+    message.error('请选择文件');
+    onError();
+    return;
+  }
+  try {
+    const { data } = await fetchImportFamily(f);
+    onFinish();
+    if (data?.errors?.length) {
+      dialog.warning({
+        title: '导入完成，部分失败',
+        content: `共 ${data.total} 行：新增 ${data.created}，更新 ${data.updated}，失败 ${data.errors.length}。\n${data.errors.slice(0, 10).join('\n')}`,
+        positiveText: '确定'
+      });
+    } else {
+      message.success(`导入完成：新增 ${data?.created ?? 0}，更新 ${data?.updated ?? 0}`);
+    }
+    loadData();
+  } catch (err: any) {
+    onError();
+    message.error(err?.msg || '导入失败');
+  }
+}
+
+// ===== 下载导入模板 =====
+async function handleDownloadTemplate() {
+  try {
+    await downloadFamilyImportTemplate();
+  } catch (err: any) {
+    message.error(err?.msg || '模板下载失败');
   }
 }
 
@@ -361,6 +432,16 @@ onMounted(() => { loadData(); loadSurnameOptions(); loadGenerationTableOptions()
     <NCard :bordered="false" title="家族管理">
       <template #header-extra>
         <NSpace>
+          <NButton v-if="hasAuth('system:family:export')" @click="handleExport">导出</NButton>
+          <NButton v-if="hasAuth('system:family:import')" @click="handleDownloadTemplate">下载导入模板</NButton>
+          <NUpload
+            v-if="hasAuth('system:family:import')"
+            accept=".csv,.xlsx,.xls"
+            :show-file-list="false"
+            :custom-request="handleImportRequest"
+          >
+            <NButton type="primary" ghost>导入家族</NButton>
+          </NUpload>
           <NButton v-if="hasAuth('system:family:create')" type="primary" @click="handleAdd">新增家族</NButton>
         </NSpace>
       </template>
