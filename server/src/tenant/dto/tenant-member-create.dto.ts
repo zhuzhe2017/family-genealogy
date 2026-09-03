@@ -71,8 +71,11 @@ export class TenantMemberCreateDto {
   bio?: string;
 
   @IsOptional()
+  @IsString({ each: true })
+  photos?: string[];
+
+  @IsOptional()
   @IsString()
-  @Matches(/^\//)
   avatarUrl?: string;
 
   @IsOptional()

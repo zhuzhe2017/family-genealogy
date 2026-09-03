@@ -567,6 +567,25 @@ declare namespace App {
           chartMember: string;
           chartFamily: string;
           chartSurnameTip: string;
+          subscriptionStatsTitle: string;
+          last7Days: string;
+          last30Days: string;
+          last90Days: string;
+          customDate: string;
+          kpiTotalRevenue: string;
+          kpiPaidOrders: string;
+          kpiPaidFamilies: string;
+          kpiConversionRate: string;
+          chartSubscriptionGrowth: string;
+          chartRevenue: string;
+          chartConversion: string;
+          chartNewSubscriptions: string;
+          chartTotalSubscriptions: string;
+          chartFamilyCount: string;
+          chartPaidCount: string;
+          chartConversionRate: string;
+          countUnit: string;
+          subscriptionLoadError: string;
         };
         systemSettings: {
           title: string;

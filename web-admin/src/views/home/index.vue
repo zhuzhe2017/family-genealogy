@@ -611,38 +611,44 @@ onUnmounted(() => {
       <NGrid x-gap="16" y-gap="16" responsive="screen" item-responsive>
         <NGi span="24 s:24 m:24 l:16">
           <NCard :bordered="false" :title="$t('page.home.chartSubscriptionGrowth')" class="chart-card">
-            <NSkeleton v-if="subscriptionLoading" text :repeat="6" />
-            <div
-              v-else-if="subscriptionStats.subscriptionGrowth.length === 0"
-              class="flex items-center justify-center h-72 text-gray-400"
-            >
-              {{ $t('page.home.noData') }}
+            <div class="relative">
+              <NSkeleton v-if="subscriptionLoading" text :repeat="6" class="absolute inset-0 z-10 bg-white dark:bg-[#101014]" />
+              <div
+                v-if="!subscriptionLoading && subscriptionStats.subscriptionGrowth.length === 0"
+                class="flex items-center justify-center h-72 text-gray-400"
+              >
+                {{ $t('page.home.noData') }}
+              </div>
+              <div ref="growthChartRef" class="chart-container" />
             </div>
-            <div v-else ref="growthChartRef" class="chart-container" />
           </NCard>
         </NGi>
         <NGi span="24 s:24 m:24 l:8">
           <NCard :bordered="false" :title="$t('page.home.chartRevenue')" class="chart-card">
-            <NSkeleton v-if="subscriptionLoading" text :repeat="6" />
-            <div
-              v-else-if="subscriptionStats.revenue.length === 0"
-              class="flex items-center justify-center h-72 text-gray-400"
-            >
-              {{ $t('page.home.noData') }}
+            <div class="relative">
+              <NSkeleton v-if="subscriptionLoading" text :repeat="6" class="absolute inset-0 z-10 bg-white dark:bg-[#101014]" />
+              <div
+                v-if="!subscriptionLoading && subscriptionStats.revenue.length === 0"
+                class="flex items-center justify-center h-72 text-gray-400"
+              >
+                {{ $t('page.home.noData') }}
+              </div>
+              <div ref="revenueChartRef" class="chart-container" />
             </div>
-            <div v-else ref="revenueChartRef" class="chart-container" />
           </NCard>
         </NGi>
         <NGi span="24 s:24 m:24 l:24">
           <NCard :bordered="false" :title="$t('page.home.chartConversion')" class="chart-card">
-            <NSkeleton v-if="subscriptionLoading" text :repeat="6" />
-            <div
-              v-else-if="subscriptionStats.conversion.length === 0"
-              class="flex items-center justify-center h-72 text-gray-400"
-            >
-              {{ $t('page.home.noData') }}
+            <div class="relative">
+              <NSkeleton v-if="subscriptionLoading" text :repeat="6" class="absolute inset-0 z-10 bg-white dark:bg-[#101014]" />
+              <div
+                v-if="!subscriptionLoading && subscriptionStats.conversion.length === 0"
+                class="flex items-center justify-center h-72 text-gray-400"
+              >
+                {{ $t('page.home.noData') }}
+              </div>
+              <div ref="conversionChartRef" class="chart-container" />
             </div>
-            <div v-else ref="conversionChartRef" class="chart-container" />
           </NCard>
         </NGi>
       </NGrid>
