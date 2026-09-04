@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue';
 import { useAuthStore } from '@/store/modules/auth';
 import { useFormRules, useNaiveForm } from '@/hooks/common/form';
+import { useRouterPush } from '@/hooks/common/router';
 import { $t } from '@/locales';
 
 defineOptions({
@@ -9,6 +10,7 @@ defineOptions({
 });
 
 const authStore = useAuthStore();
+const { toggleLoginModule } = useRouterPush();
 const { formRef, validate } = useNaiveForm();
 
 interface FormModel {
@@ -50,7 +52,12 @@ async function handleSubmit() {
       />
     </NFormItem>
     <NSpace vertical :size="24">
-      <NCheckbox>{{ $t('page.login.pwdLogin.rememberMe') }}</NCheckbox>
+      <div class="flex-y-center justify-between">
+        <NCheckbox>{{ $t('page.login.pwdLogin.rememberMe') }}</NCheckbox>
+        <NButton text type="primary" @click="toggleLoginModule('code-login')">
+          {{ $t('page.login.common.codeLogin') }}
+        </NButton>
+      </div>
       <NButton type="primary" size="large" round block :loading="authStore.loginLoading" @click="handleSubmit">
         {{ $t('common.confirm') }}
       </NButton>
