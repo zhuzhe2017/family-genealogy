@@ -12,12 +12,13 @@ const TYPE_OPTIONS = [
   { value: 'other', label: '其他' }
 ];
 
+/** 成员搜索防抖计时器 */
+let memberSearchTimer = null;
+
 Page({
   data: {
     isEdit: false,
     typeOptions: TYPE_OPTIONS,
-    members: [],          // 可选关联成员 {id,name,gender}
-    selectedMemberIds: [],// 已选关联成员 ID
     yearRange: [],
     monthRange: ['不详', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'],
     dayRange: ['不详', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', '13', '14', '15', '16', '17', '18', '19', '20', '21', '22', '23', '24', '25', '26', '27', '28', '29', '30', '31'],
@@ -30,7 +31,18 @@ Page({
       typeName: '其他',
       description: '',
       photos: []
-    }
+    },
+    // 关联成员搜索选择状态
+    memberKeyword: '',
+    memberResults: [],
+    memberSelected: [],
+    selectedMemberIds: [],
+    memberPage: 1,
+    memberPageSize: 20,
+    memberTotal: 0,
+    memberHasMore: false,
+    memberLoading: false,
+    memberSearched: false
   },
 
   onLoad(options) {
@@ -45,23 +57,6 @@ Page({
       this.setData({ isEdit: true });
       this.loadEditData(options.id);
     }
-    this.loadMembers();
-  },
-
-  /** 加载成员候选列表（关联成员选择用） */
-  loadMembers() {
-    const familyId = (app.globalData.currentFamily || {}).id;
-    if (USE_MOCK || !getToken() || !familyId) return;
-    familyMember.getAll(familyId, { status: 1 })
-      .then((list) => {
-        this.setData({
-          members: (list || []).map(m => {
-            const n = normalizeMember(m);
-            return { id: n.id, name: n.name, gender: n.gender };
-          })
-        });
-      })
-      .catch((err) => console.error('成员列表加载失败', err));
   },
 
   /** 编辑模式:加载事件详情回填表单 */
@@ -71,6 +66,11 @@ Page({
     content.getById('event', id)
       .then((row) => {
         const e = normalizeEvent(row);
+        const relatedMembers = (row.relatedMembers || []).map(m => ({
+          id: String(m.id),
+          name: m.name || '',
+          gender: m.gender || 'male'
+        }));
         this.setData({
           'form.title': e.title,
           'form.year': e.year || '',
@@ -80,7 +80,8 @@ Page({
           'form.typeName': e.typeName || this.typeLabel(e.type || 'other'),
           'form.description': e.description || '',
           'form.photos': resolveImageUrls(row.photos || []),
-          selectedMemberIds: (row.relatedMembers || []).map(m => String(m.id))
+          memberSelected: relatedMembers,
+          selectedMemberIds: relatedMembers.map(m => String(m.id))
         });
         wx.setNavigationBarTitle({ title: '编辑事件' });
       })
@@ -126,17 +127,131 @@ Page({
     this.setData({ 'form.type': value, 'form.typeName': typeName });
   },
 
-  /** 勾选/取消关联成员 */
+  // ==================== 关联成员搜索选择 ====================
+
+  /** 搜索输入 */
+  onMemberKeywordInput(e) {
+    const keyword = e.detail.value || '';
+    this.setData({ memberKeyword: keyword });
+
+    if (memberSearchTimer) {
+      clearTimeout(memberSearchTimer);
+      memberSearchTimer = null;
+    }
+
+    // 为空时清空结果
+    if (!keyword.trim()) {
+      this.setData({
+        memberResults: [],
+        memberTotal: 0,
+        memberHasMore: false,
+        memberSearched: false,
+        memberLoading: false
+      });
+      return;
+    }
+
+    // 超过一个字符才发起查询
+    if (keyword.trim().length <= 1) {
+      return;
+    }
+
+    memberSearchTimer = setTimeout(() => {
+      this.searchMembers(true);
+    }, 300);
+  },
+
+  /** 执行成员搜索 */
+  searchMembers(reset = false) {
+    const familyId = (app.globalData.currentFamily || {}).id;
+    const keyword = this.data.memberKeyword.trim();
+
+    if (!familyId || !getToken() || USE_MOCK) return;
+    if (!keyword || keyword.length <= 1) return;
+
+    const page = reset ? 1 : this.data.memberPage;
+    this.setData({ memberLoading: true });
+
+    familyMember.search(familyId, {
+      keyword,
+      page,
+      pageSize: this.data.memberPageSize
+    })
+      .then((res) => {
+        const list = (res.list || []).map(m => {
+          const n = normalizeMember(m);
+          return { id: String(n.id), name: n.name, gender: n.gender };
+        });
+        const merged = reset ? list : this.data.memberResults.concat(list);
+        this.setData({
+          memberResults: merged,
+          memberPage: (res.page || page) + 1,
+          memberPageSize: res.pageSize || this.data.memberPageSize,
+          memberTotal: res.total || 0,
+          memberHasMore: !!res.hasMore,
+          memberSearched: true,
+          memberLoading: false
+        });
+      })
+      .catch((err) => {
+        console.error('成员搜索失败', err);
+        this.setData({ memberLoading: false });
+        wx.showToast({ title: (err && err.message) || '搜索失败', icon: 'none' });
+      });
+  },
+
+  /** 加载更多搜索结果 */
+  loadMoreMembers() {
+    if (this.data.memberLoading || !this.data.memberHasMore) return;
+    this.searchMembers(false);
+  },
+
+  /** 清空成员搜索关键词 */
+  clearMemberKeyword() {
+    this.setData({
+      memberKeyword: '',
+      memberResults: [],
+      memberTotal: 0,
+      memberHasMore: false,
+      memberSearched: false,
+      memberLoading: false
+    });
+    if (memberSearchTimer) {
+      clearTimeout(memberSearchTimer);
+      memberSearchTimer = null;
+    }
+  },
+
+  /** 同步 selectedMemberIds，方便 WXML 判断选中态 */
+  syncSelectedIds(selected) {
+    return {
+      memberSelected: selected,
+      selectedMemberIds: selected.map(m => String(m.id))
+    };
+  },
+
+  /** 从结果中选择/取消成员 */
   toggleMember(e) {
     const id = String(e.currentTarget.dataset.id);
-    const selected = this.data.selectedMemberIds;
-    const idx = selected.indexOf(id);
+    const name = e.currentTarget.dataset.name;
+    const gender = e.currentTarget.dataset.gender || 'male';
+    const selected = this.data.memberSelected.slice();
+    const idx = selected.findIndex(m => String(m.id) === id);
+
     if (idx >= 0) {
       selected.splice(idx, 1);
     } else {
-      selected.push(id);
+      selected.push({ id, name, gender });
     }
-    this.setData({ selectedMemberIds: selected });
+
+    this.setData(this.syncSelectedIds(selected));
+  },
+
+  /** 移除已选成员 */
+  removeSelectedMember(e) {
+    const id = String(e.currentTarget.dataset.id);
+    const selected = this.data.memberSelected.filter(m => String(m.id) !== id);
+    this.setData(this.syncSelectedIds(selected));
   },
 
   /** 选择照片(最多9张) */
@@ -226,10 +341,11 @@ Page({
       const readyPhotos = (form.photos || []).filter(p => !this.isLocalTempFile(p));
       Promise.all(tempPhotos.map(p => this.uploadImage(p)))
         .then((urls) => {
-          const selectedIds = this.data.selectedMemberIds;
-          const relatedMembers = this.data.members
-            .filter(m => selectedIds.includes(String(m.id)))
-            .map(m => ({ id: String(m.id), name: m.name, gender: m.gender || '' }));
+          const relatedMembers = this.data.memberSelected.map(m => ({
+            id: String(m.id),
+            name: m.name,
+            gender: m.gender || ''
+          }));
           const payload = {
             familyId,
             title: form.title.trim(),

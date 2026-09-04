@@ -78,6 +78,10 @@ const familyMember = {
   getAll: function (familyId, params) {
     return request({ url: '/user/family/' + familyId + '/members', data: params || {} });
   },
+  /** 成员轻量搜索(选择场景用,仅 id/name/gender,支持分页) */
+  search: function (familyId, params) {
+    return request({ url: '/user/family/' + familyId + '/members/search', data: params || {} });
+  },
   /** 成员详情 */
   getById: function (familyId, id) {
     return request({ url: '/user/family/' + familyId + '/members/' + id });

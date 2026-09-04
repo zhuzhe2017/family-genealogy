@@ -162,6 +162,14 @@ export class PortalService {
     return this.familyMemberService.getChildren(familyId, memberId);
   }
 
+  /** 成员轻量搜索（事件关联成员等选择场景，仅 id/name/gender） */
+  searchMembers(
+    familyId: number,
+    params: { keyword?: string; page?: number; pageSize?: number } = {}
+  ) {
+    return this.familyMemberService.searchMembers(familyId, params);
+  }
+
   /** 父亲候选列表（上一代男性成员，按姓名/母亲姓名模糊搜索，供添加成员选择父亲） */
   getFatherCandidates(familyId: number, generation: number, keyword: string) {
     return this.familyMemberService.getFatherCandidates(familyId, generation, keyword);

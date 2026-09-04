@@ -112,30 +112,61 @@
 }
 
 /* 关联成员 */
-.member-list {
+.member-search-box {
+  display: flex;
+  align-items: center;
+  background: #F8F8F8;
+  border-radius: 12rpx;
+  padding: 0 20rpx;
+  height: 80rpx;
+  margin-bottom: 20rpx;
+}
+
+.member-search-icon {
+  font-size: 28rpx;
+  color: #999;
+  margin-right: 12rpx;
+}
+
+.member-search-input {
+  flex: 1;
+  height: 80rpx;
+  line-height: 80rpx;
+  font-size: 28rpx;
+  color: #333;
+}
+
+.member-search-clear {
+  width: 40rpx;
+  height: 40rpx;
+  line-height: 38rpx;
+  text-align: center;
+  background: #CCC;
+  color: #FFF;
+  border-radius: 50%;
+  font-size: 28rpx;
+}
+
+.selected-members {
   display: flex;
   flex-wrap: wrap;
   gap: 16rpx;
+  margin-bottom: 20rpx;
 }
 
-.member-item {
+.selected-member-item {
   display: flex;
   align-items: center;
-  gap: 12rpx;
-  padding: 12rpx 20rpx;
-  background: #F5F5F5;
-  border-radius: 36rpx;
-  border: 2rpx solid transparent;
-}
-
-.member-item.selected {
+  gap: 10rpx;
+  padding: 10rpx 16rpx;
   background: #FDF0F0;
-  border-color: #8B1A1A;
+  border: 2rpx solid #8B1A1A;
+  border-radius: 36rpx;
 }
 
-.member-avatar {
-  width: 52rpx;
-  height: 52rpx;
+.selected-member-avatar {
+  width: 44rpx;
+  height: 44rpx;
   border-radius: 50%;
   background: linear-gradient(135deg, #8B1A1A, #B22222);
   display: flex;
@@ -144,25 +175,112 @@
   flex-shrink: 0;
 }
 
-.member-avatar.female {
+.selected-member-avatar.female {
   background: linear-gradient(135deg, #FF6B9D, #FFB6C1);
 }
 
-.member-avatar text {
-  font-size: 22rpx;
+.selected-member-avatar text {
+  font-size: 20rpx;
   color: #FFFFFF;
   font-weight: 500;
 }
 
-.member-name {
+.selected-member-name {
+  font-size: 24rpx;
+  color: #8B1A1A;
+}
+
+.selected-member-remove {
+  font-size: 24rpx;
+  color: #8B1A1A;
+  padding: 0 4rpx;
+}
+
+.member-tip {
+  font-size: 24rpx;
+  color: #999;
+  text-align: center;
+  padding: 24rpx 0;
+}
+
+.member-status {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32rpx 0;
+}
+
+.member-status-text {
   font-size: 26rpx;
+  color: #999;
+}
+
+.member-result-list {
+  max-height: 600rpx;
+  overflow-y: auto;
+}
+
+.member-result-item {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  padding: 16rpx;
+  border-radius: 12rpx;
+  background: #F8F8F8;
+  margin-bottom: 12rpx;
+  border: 2rpx solid transparent;
+}
+
+.member-result-item.selected {
+  background: #FDF0F0;
+  border-color: #8B1A1A;
+}
+
+.member-result-avatar {
+  width: 56rpx;
+  height: 56rpx;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #8B1A1A, #B22222);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.member-result-avatar.female {
+  background: linear-gradient(135deg, #FF6B9D, #FFB6C1);
+}
+
+.member-result-avatar text {
+  font-size: 24rpx;
+  color: #FFFFFF;
+  font-weight: 500;
+}
+
+.member-result-name {
+  flex: 1;
+  font-size: 28rpx;
   color: #333;
 }
 
-.member-check {
+.member-result-check {
   color: #8B1A1A;
-  font-size: 26rpx;
+  font-size: 28rpx;
   font-weight: bold;
+  width: 40rpx;
+  text-align: right;
+}
+
+.member-load-more {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20rpx 0;
+}
+
+.member-load-more text {
+  font-size: 24rpx;
+  color: #8B1A1A;
 }
 
 /* 照片九宫格 */

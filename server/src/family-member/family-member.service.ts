@@ -229,6 +229,56 @@ export class FamilyMemberService {
     };
   }
 
+  /**
+   * 成员轻量搜索（用于事件关联成员等选择场景）。
+   * 仅返回选择所需字段（id/name/gender），支持 keyword 姓名模糊、分页。
+   * 单次 pageSize 限制在 1~50 之间，默认 20。
+   */
+  async searchMembers(
+    familyId: number,
+    params: { keyword?: string; page?: number; pageSize?: number } = {}
+  ): Promise<{ list: { id: string; name: string; gender: string }[]; total: number; page: number; pageSize: number; hasMore: boolean }> {
+    await this.ensureTable(familyId);
+    const tableName = getSafeMemberTableName(familyId);
+    const { keyword } = params;
+    const page = Math.max(1, Math.floor(Number(params.page) || 1));
+    const pageSize = Math.min(50, Math.max(1, Math.floor(Number(params.pageSize) || 20)));
+    const offset = (page - 1) * pageSize;
+
+    const where: string[] = ['`status` = ?'];
+    const values: QueryValues = [1];
+
+    const trimmed = (keyword || '').trim();
+    if (trimmed) {
+      where.push('`name` LIKE ?');
+      values.push(`%${trimmed}%`);
+    }
+
+    const whereSql = where.join(' AND ');
+
+    const [countRow] = await this.dataSource.query<{ total: number }[]>(
+      `SELECT COUNT(*) AS total FROM \`${tableName}\` WHERE ${whereSql}`,
+      values
+    );
+    const total = Number(countRow?.total || 0);
+
+    const list = await this.dataSource.query<{ id: string; name: string; gender: string }[]>(
+      `SELECT \`id\`, \`name\`, \`gender\` FROM \`${tableName}\`
+       WHERE ${whereSql}
+       ORDER BY \`generation\` ASC, \`sort_order\` ASC, \`create_time\` ASC
+       LIMIT ? OFFSET ?`,
+      [...values, pageSize, offset]
+    );
+
+    return {
+      list: list || [],
+      total,
+      page,
+      pageSize,
+      hasMore: page * pageSize < total
+    };
+  }
+
   /** 家族最顶层代数（启用成员中的最小 generation）；无启用成员返回 null */
   async getMinGeneration(familyId: number): Promise<number | null> {
     await this.ensureTable(familyId);

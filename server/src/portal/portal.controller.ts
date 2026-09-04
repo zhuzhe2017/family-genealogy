@@ -78,6 +78,20 @@ export class PortalController {
     });
   }
 
+  @Get('family/:familyId/members/search')
+  searchMembers(
+    @Param('familyId', ParseIntPipe) familyId: number,
+    @Query('keyword') keyword?: string,
+    @Query('page') page?: string,
+    @Query('pageSize') pageSize?: string
+  ) {
+    return this.portalService.searchMembers(familyId, {
+      keyword: (keyword || '').trim(),
+      page: page ? Number(page) : undefined,
+      pageSize: pageSize ? Number(pageSize) : undefined
+    });
+  }
+
   @Get('family/:familyId/members/:id')
   getFamilyMemberDetail(
     @Param('familyId', ParseIntPipe) familyId: number,

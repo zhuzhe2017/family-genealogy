@@ -44,21 +44,75 @@
   </view>
 
   <!-- 关联成员 -->
-  <view class="form-card" wx:if="{{members.length > 0}}">
-    <view class="card-title">关联成员 <text class="card-sub">可多选</text></view>
-    <view class="member-list">
+  <view class="form-card">
+    <view class="card-title">关联成员 <text class="card-sub">手动搜索选择，可多选</text></view>
+
+    <!-- 搜索输入 -->
+    <view class="member-search-box">
+      <text class="member-search-icon">🔍</text>
+      <input
+        class="member-search-input"
+        placeholder="输入成员姓名关键词搜索"
+        value="{{memberKeyword}}"
+        bindinput="onMemberKeywordInput"
+        maxlength="50"
+      />
+      <view wx:if="{{memberKeyword}}" class="member-search-clear" bindtap="clearMemberKeyword">×</view>
+    </view>
+
+    <!-- 已选成员 -->
+    <view wx:if="{{memberSelected.length > 0}}" class="selected-members">
       <view
-        wx:for="{{members}}"
+        wx:for="{{memberSelected}}"
         wx:key="id"
-        class="member-item {{selectedMemberIds.indexOf('' + item.id) >= 0 ? 'selected' : ''}}"
+        class="selected-member-item"
         data-id="{{item.id}}"
-        bindtap="toggleMember"
+        bindtap="removeSelectedMember"
       >
-        <view class="member-avatar {{item.gender === 'female' ? 'female' : ''}}">
+        <view class="selected-member-avatar {{item.gender === 'female' ? 'female' : ''}}">
           <text>{{item.name ? item.name[0] : ''}}</text>
         </view>
-        <text class="member-name">{{item.name}}</text>
-        <text class="member-check">{{selectedMemberIds.indexOf('' + item.id) >= 0 ? '✓' : ''}}</text>
+        <text class="selected-member-name">{{item.name}}</text>
+        <text class="selected-member-remove">×</text>
+      </view>
+    </view>
+
+    <!-- 搜索提示 -->
+    <view wx:if="{{!memberSearched && !memberKeyword}}" class="member-tip">输入成员姓名，超过1个字符后自动搜索</view>
+    <view wx:if="{{!memberSearched && memberKeyword.length === 1}}" class="member-tip">请继续输入以搜索</view>
+
+    <!-- 加载中 -->
+    <view wx:if="{{memberLoading && memberResults.length === 0}}" class="member-status">
+      <text class="member-status-text">搜索中...</text>
+    </view>
+
+    <!-- 无结果 -->
+    <view wx:if="{{memberSearched && !memberLoading && memberResults.length === 0}}" class="member-status">
+      <text class="member-status-text">未找到匹配成员</text>
+    </view>
+
+    <!-- 搜索结果列表 -->
+    <view wx:if="{{memberResults.length > 0}}" class="member-result-list">
+      <view
+        wx:for="{{memberResults}}"
+        wx:key="id"
+        class="member-result-item {{selectedMemberIds.indexOf('' + item.id) >= 0 ? 'selected' : ''}}"
+        data-id="{{item.id}}"
+        data-name="{{item.name}}"
+        data-gender="{{item.gender}}"
+        bindtap="toggleMember"
+      >
+        <view class="member-result-avatar {{item.gender === 'female' ? 'female' : ''}}">
+          <text>{{item.name ? item.name[0] : ''}}</text>
+        </view>
+        <text class="member-result-name">{{item.name}}</text>
+        <text class="member-result-check">{{selectedMemberIds.indexOf('' + item.id) >= 0 ? '✓' : ''}}</text>
+      </view>
+
+      <!-- 加载更多 -->
+      <view wx:if="{{memberHasMore || memberLoading}}" class="member-load-more" bindtap="loadMoreMembers">
+        <text wx:if="{{memberLoading}}">加载中...</text>
+        <text wx:else>点击加载更多</text>
       </view>
     </view>
   </view>
