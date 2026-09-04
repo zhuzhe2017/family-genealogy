@@ -27,8 +27,9 @@ out/
 *.tsbuildinfo
 tsconfig.tsbuildinfo
 
-# 保留 web-admin 的 Vite 构建配置目录
+# 保留 web-admin 和 tenant-web 的 Vite 构建配置目录
 !web-admin/build/
+!tenant-web/build/
 
 # ---- 测试覆盖率 ----
 coverage/
