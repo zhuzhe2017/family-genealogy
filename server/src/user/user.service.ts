@@ -658,15 +658,23 @@ export class UserService {
 
   private async getFamilyBrief(familyId: number) {
     const [row] = await this.dataSource.query<DataRow[]>(
-      'SELECT `id`, `name`, `logo`, `surname`, `hall_name`, `origin` FROM `family` WHERE `id` = ? AND `status` = 1 LIMIT 1',
+      'SELECT `id`, `name`, `logo`, `surname_id`, `hall_name`, `origin` FROM `family` WHERE `id` = ? AND `status` = 1 LIMIT 1',
       [familyId]
     );
     if (!row) return null;
+    let surname = '';
+    if (row.surname_id) {
+      const [surnameRow] = await this.dataSource.query<DataRow[]>(
+        'SELECT `surname` FROM `surname` WHERE `id` = ? LIMIT 1',
+        [row.surname_id]
+      );
+      surname = String(surnameRow?.surname || '');
+    }
     return {
       id: Number(row.id),
       name: String(row.name || ''),
       logo: String(row.logo || ''),
-      surname: String(row.surname || ''),
+      surname,
       hallName: String(row.hall_name || ''),
       origin: String(row.origin || '')
     };
