@@ -449,17 +449,21 @@ export class UserService {
       await this.assertMemberInFamily(familyId, memberId);
     }
 
+    // 同家族重复加入且未指定 memberId 时，保留原绑定，避免清空 member_id
+    const isSameFamily = Number(user.family_id) === familyId;
+    const finalMemberId = memberId || (isSameFamily ? user.member_id : '');
+
     // 生成分享码（幂等：已持有则沿用），保证该会员可继续邀请他人
     const code = user.share_code || (await this.generateShareCode());
     await this.dataSource.query(
       'UPDATE `user` SET `family_id` = ?, `member_id` = ?, `share_code` = ? WHERE `id` = ?',
-      [familyId, memberId, code, userId] as QueryValues
+      [familyId, finalMemberId, code, userId] as QueryValues
     );
 
     return {
-      userInfo: this.toUserInfo({ ...user, family_id: familyId, member_id: memberId, share_code: code }),
+      userInfo: this.toUserInfo({ ...user, family_id: familyId, member_id: finalMemberId, share_code: code }),
       family: await this.getFamilyBrief(familyId),
-      member: memberId ? await this.getMemberBrief(familyId, memberId) : null,
+      member: finalMemberId ? await this.getMemberBrief(familyId, finalMemberId) : null,
       shareCode: code
     };
   }
