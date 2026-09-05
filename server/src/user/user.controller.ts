@@ -119,6 +119,22 @@ export class UserController {
   }
 
   /**
+   * 加入家族支系（需 user-jwt，仅支持分享码）
+   * shareCode: 家族种子分享码 或 会员分享码
+   * memberId: 可选，加入时同步绑定指定家族成员
+   */
+  @Public()
+  @UseGuards(UserJwtAuthGuard)
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  @Post('family/join')
+  async joinFamily(
+    @Req() req: AuthenticatedRequest,
+    @Body() body: { shareCode: string; memberId?: string }
+  ) {
+    return this.userService.joinFamily(String(req.user.id), body);
+  }
+
+  /**
    * 获取当前家族成员角色列表（小程序端权限管理）
    */
   @Public()

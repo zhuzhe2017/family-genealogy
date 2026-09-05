@@ -83,7 +83,7 @@ function handleDropdown(key: DropdownKey) {
   <NButton v-if="!authStore.isLogin" quaternary @click="loginOrRegister">
     {{ $t('page.login.common.loginOrRegister') }}
   </NButton>
-  <NDropdown v-else placement="bottom" trigger="click" :options="options" @select="handleDropdown">
+  <NDropdown v-else placement="bottom" trigger="click" :options="options" :z-index="9999" @select="handleDropdown">
     <div>
       <ButtonIcon>
         <SvgIcon icon="ph:user-circle" class="text-icon-large" />
