@@ -6,6 +6,37 @@
   box-sizing: border-box;
 }
 
+/* 字辈筛选标签:从首页字辈跳入时展示 */
+.gen-filter-tag {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #FDF6EC;
+  border: 1rpx solid #E8D5B5;
+  border-radius: 16rpx;
+  padding: 18rpx 24rpx;
+  margin-bottom: 20rpx;
+}
+
+.gen-filter-tag-text {
+  font-size: 26rpx;
+  color: #8B1A1A;
+  font-weight: 500;
+}
+
+.gen-filter-tag-clear {
+  font-size: 22rpx;
+  color: #999999;
+  padding: 4rpx 8rpx;
+  border-radius: 8rpx;
+  transition: color 0.2s, background-color 0.2s;
+}
+
+.gen-filter-tag-clear:active {
+  color: #8B1A1A;
+  background: rgba(139, 26, 26, 0.08);
+}
+
 /* 自定义导航栏 */
 .nav-bar {
   position: sticky;

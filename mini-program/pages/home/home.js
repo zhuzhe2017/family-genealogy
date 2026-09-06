@@ -34,6 +34,12 @@ Page({
     charityFailed: false,   // 加载失败
     charityEmpty: false,    // 暂无捐赠数据
     isMock: false,           // 开发模式模拟数据角标
+    // 家族字辈
+    generationList: [],      // 扁平字辈数组 [{ name, generation }](弹窗跳转用)
+    generationGroups: [],    // 按代分组 [{ generation, chars: [字...], firstChar, hasMore, expanded }]
+    generationClamped: false,// 字辈是否被四行截断
+    generationModalVisible: false, // 弹窗是否渲染(控制节点存在)
+    generationModalShow: false,    // 弹窗是否展示(控制过渡动画)
     // 广告轮播
     banners: [],             // 轮播广告列表
     bannerInterval: 3000,    // 自动切换间隔(ms),由后端 sys_config 下发
@@ -44,6 +50,7 @@ Page({
     this.setData({
       currentFamily: app.globalData.currentFamily || {}
     });
+    this.refreshGeneration();
     this.loadDynamics();
     this.loadBanners();
   },
@@ -52,6 +59,7 @@ Page({
     this.setData({
       currentFamily: app.globalData.currentFamily || {}
     });
+    this.refreshGeneration();
     // 每次可见时刷新,获取最新登录态与动态(有数据时不再闪加载态)
     this.loadDynamics();
     // 仅在家族或登录态变化时重新加载广告,避免重复请求导致闪烁
@@ -390,10 +398,149 @@ Page({
     }, 500);
   },
 
-  switchFamily() {
-    // family-tree 是 tabBar 页面,必须用 switchTab 跳转
-    wx.switchTab({
-      url: '/pages/family-tree/family-tree'
+  /**
+   * 解析字辈数据:优先用 generationSequence(结构 {代:[字1,字2]})按代分组,
+   * 同代多字辈时首页只展示首字并带"+"角标,点击横向展开;
+   * 无 sequence 时回退用 generationNames 扁平串按序号分组。最后测量是否超四行。
+   */
+  refreshGeneration() {
+    const family = this.data.currentFamily || {};
+    const seqRaw = family.generationSequence;
+    let groups = [];
+
+    if (seqRaw) {
+      // 解析 {代: [字1,字2]} 结构
+      let obj = seqRaw;
+      if (typeof obj === 'string') {
+        try { obj = JSON.parse(obj); } catch (e) { obj = null; }
+      }
+      if (obj && typeof obj === 'object' && !Array.isArray(obj)) {
+        groups = Object.keys(obj)
+          .sort((a, b) => Number(a) - Number(b))
+          .map(k => {
+            const arr = Array.isArray(obj[k]) ? obj[k] : [obj[k]];
+            const chars = arr.filter(Boolean).map(String);
+            return {
+              generation: Number(k),
+              chars: chars,
+              firstChar: chars[0] || '',
+              hasMore: chars.length > 1,
+              expanded: false
+            };
+          })
+          .filter(g => g.firstChar);
+      }
+    }
+
+    // 回退:generationNames 扁平串,按序号分组(每代单字)
+    if (!groups.length) {
+      const names = (family.generationNames || '').trim();
+      if (!names) {
+        this.setData({ generationList: [], generationGroups: [], generationClamped: false });
+        return;
+      }
+      const arr = names.split(/[、,，\s]+/).filter(Boolean);
+      groups = arr.map((name, index) => ({
+        generation: index + 1,
+        chars: [name],
+        firstChar: name,
+        hasMore: false,
+        expanded: false
+      }));
+    }
+
+    // 扁平列表(供弹窗跳转按字定位 generation)
+    const generationList = [];
+    groups.forEach(g => {
+      g.chars.forEach(c => generationList.push({ name: c, generation: g.generation }));
+    });
+
+    this.setData({ generationGroups: groups, generationList: generationList });
+    this.measureGenerationClamp();
+  },
+  /** 测量字辈区是否超过两行 */
+  measureGenerationClamp() {
+    wx.createSelectorQuery()
+      .select('.generation-clamp')
+      .boundingClientRect((rect) => {
+        if (!rect) return;
+        const win = wx.getWindowInfo ? wx.getWindowInfo() : wx.getSystemInfoSync();
+        const maxHeight = 108 * (win.windowWidth || 375) / 750;
+        this.setData({ generationClamped: rect.height > maxHeight + 1 });
+      })
+      .exec();
+  },
+
+  /** 点击某代的 "+" 角标:横向展开/收起该代全部字辈 */
+  toggleGenerationExpand(e) {
+    const generation = Number(e.currentTarget.dataset.generation);
+    const groups = this.data.generationGroups.map(g => {
+      if (g.generation === generation) {
+        return Object.assign({}, g, { expanded: !g.expanded });
+      }
+      return g;
+    });
+    this.setData({ generationGroups: groups });
+    // 展开/收起后重新测量高度
+    setTimeout(() => this.measureGenerationClamp(), 60);
+  },
+
+  /** 打开字辈诗弹窗(带过渡动画) */
+  openGenerationModal() {
+    this.setData({ generationModalVisible: true });
+    // 等待节点渲染后再触发展示态,确保过渡动画生效
+    setTimeout(() => {
+      this.setData({ generationModalShow: true });
+    }, 30);
+  },
+
+  /** 关闭字辈诗弹窗(先播收起动画再移除节点) */
+  closeGenerationModal() {
+    this.setData({ generationModalShow: false });
+    clearTimeout(this._generationModalTimer);
+    this._generationModalTimer = setTimeout(() => {
+      this.setData({ generationModalVisible: false });
+    }, 280);
+  },
+
+  /** 点击具体字辈:关闭弹窗并跳转该字辈家族成员列表
+   *  参数传递:优先取点击元素自身的 data-name(最可靠),generation 取 data-generation
+   *  二者任一缺失即视为参数异常,toast 提示并终止跳转 */
+  goGenerationMembers(e) {
+    const dataset = e.currentTarget.dataset || {};
+    const generation = Number(dataset.generation);
+    // 优先用点击元素携带的字辈名,其次回退到列表查找
+    let name = (dataset.name || '').trim();
+    if (!name) {
+      const item = (this.data.generationList || []).find(g => g.generation === generation) || {};
+      name = (item.name || '').trim();
+    }
+    const familyId = (this.data.currentFamily || {}).id;
+
+    // 参数校验:代数/家族ID 缺失直接报错
+    if (!generation || generation < 1 || !Number.isInteger(generation)) {
+      wx.showToast({ title: '字辈代数信息缺失', icon: 'none' });
+      return;
+    }
+    if (!familyId) {
+      wx.showToast({ title: '请先选择家族', icon: 'none' });
+      return;
+    }
+
+    // 弹窗打开时先关闭,避免返回时弹窗仍展示
+    if (this.data.generationModalVisible) {
+      this.closeGenerationModal();
+    }
+    // encodeURIComponent 保证中文/特殊字辈名跨页传递不丢乱码
+    const url = '/pages/member-list/member-list?familyId=' + encodeURIComponent(String(familyId))
+      + '&generation=' + generation
+      + '&generationName=' + encodeURIComponent(name);
+    wx.navigateTo({
+      url: url,
+      fail: (err) => {
+        console.error('跳转成员列表失败', err);
+        wx.showToast({ title: '页面跳转失败,请重试', icon: 'none' });
+      }
     });
   },
 

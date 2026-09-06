@@ -38,6 +38,8 @@ function normalizeFamily(row) {
     memberCount: row.member_count != null ? row.member_count : (row.memberCount || 0),
     generationCount: row.gen_count != null ? row.gen_count : (row.generationCount || 0),
     generationNames: generationNamesOf(row),
+    // 透传原始字辈序列(结构 {代: [字1,字2]}),供首页按代分组展示多字辈
+    generationSequence: row.generation_sequence || row.generationSequence || '',
     createTime: row.create_time || '',
     isPublic: row.is_public != null ? row.is_public : 1,
     allowJoin: row.allow_join != null ? row.allow_join : 1,

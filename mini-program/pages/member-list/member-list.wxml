@@ -27,6 +27,12 @@
     </view>
   </view>
 
+  <!-- 字辈筛选标签:从首页字辈跳入时展示,点击可清除筛选回全部成员 -->
+  <view class="gen-filter-tag" wx:if="{{generation > 0}}" bindtap="clearGenerationFilter">
+    <text class="gen-filter-tag-text">{{navTitle || (generationName ? generationName + '字辈' : '第' + generation + '代')}}</text>
+    <text class="gen-filter-tag-clear">✕ 清除筛选</text>
+  </view>
+
   <!-- 统计信息 -->
   <view class="stats-bar">
     <view class="stat-pill">

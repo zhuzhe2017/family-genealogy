@@ -158,12 +158,269 @@ swiper-item {
   display: block;
 }
 
+/* 兼容旧引用,字辈展示已由 .generation-section 系列接管 */
 .family-generation-names {
   font-size: 22rpx;
   color: rgba(255,255,255,0.9);
   margin-top: 8rpx;
   display: block;
   font-family: 'KaiTi', serif;
+}
+
+/* 字辈区域:最多四行,超出省略号截断 */
+.generation-section {
+  display: flex;
+  align-items: flex-start;
+  margin-top: 10rpx;
+  padding: 10rpx 0;
+  border-radius: 12rpx;
+  transition: opacity 0.2s;
+}
+
+.generation-section:active {
+  opacity: 0.75;
+}
+
+.generation-label {
+  font-size: 22rpx;
+  color: rgba(255, 255, 255, 0.7);
+  margin-right: 12rpx;
+  line-height: 1.9;
+  flex-shrink: 0;
+  padding-top: 2rpx;
+}
+
+.generation-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.generation-clamp {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8rpx 4rpx;
+  /* 最多两行:行高26rpx*1.9≈49.4rpx,2行+1个行间距8rpx ≈ 107rpx,留1rpx余量 */
+  max-height: 108rpx;
+  overflow: hidden;
+}
+
+.generation-char {
+  font-size: 26rpx;
+  color: rgba(255, 255, 255, 0.95);
+  font-family: 'KaiTi', serif;
+  line-height: 1.9;
+  padding: 0 6rpx;
+  border-radius: 8rpx;
+  transition: background-color 0.2s, transform 0.2s;
+}
+
+/* 每一代的容器:横向排列该代字辈,组间用 margin 分隔 */
+.generation-char-group {
+  display: flex;
+  align-items: center;
+}
+
+.generation-char-group.expanded {
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 10rpx;
+  padding: 0 8rpx;
+  margin: 2rpx 0;
+}
+
+/* 多字辈 "+" 角标:提示该代还有其它字辈,点击横向展开 */
+.generation-plus {
+  font-size: 20rpx;
+  color: #FFFFFF;
+  background: rgba(255, 255, 255, 0.28);
+  width: 28rpx;
+  height: 28rpx;
+  line-height: 28rpx;
+  text-align: center;
+  border-radius: 50%;
+  margin-left: 4rpx;
+  flex-shrink: 0;
+  transition: transform 0.2s, background-color 0.2s;
+}
+
+.generation-plus:active {
+  transform: scale(1.25);
+  background: rgba(255, 255, 255, 0.45);
+}
+
+.generation-char:active {
+  background: rgba(255, 255, 255, 0.2);
+  transform: scale(0.92);
+}
+
+.generation-more {
+  font-size: 26rpx;
+  color: rgba(255, 255, 255, 0.9);
+  font-family: 'KaiTi', serif;
+  line-height: 1.9;
+  letter-spacing: 2rpx;
+}
+
+/* 字辈诗弹窗 */
+.generation-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.generation-mask {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.55);
+  opacity: 0;
+  transition: opacity 0.28s ease;
+}
+
+.generation-mask.show {
+  opacity: 1;
+}
+
+.generation-dialog {
+  position: relative;
+  width: 660rpx;
+  max-width: 92vw;
+  /* 弹窗高度增大:最高占屏幕 86%,内容区更多可视空间 */
+  max-height: 86vh;
+  background: #FFFFFF;
+  border-radius: 28rpx;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  opacity: 0;
+  transform: scale(0.86) translateY(30rpx);
+  transition: opacity 0.28s ease, transform 0.28s cubic-bezier(0.34, 1.4, 0.64, 1);
+  box-shadow: 0 12rpx 48rpx rgba(0, 0, 0, 0.18);
+}
+
+.generation-dialog.show {
+  opacity: 1;
+  transform: scale(1) translateY(0);
+}
+
+.generation-dialog-header {
+  position: relative;
+  z-index: 2;
+  background: #FFFFFF;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 32rpx 32rpx 20rpx;
+  border-bottom: 1rpx solid #F5F0E8;
+}
+
+.generation-dialog-title {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: #333333;
+  position: relative;
+  padding-left: 20rpx;
+}
+
+.generation-dialog-title::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 6rpx;
+  height: 28rpx;
+  background: #8B1A1A;
+  border-radius: 3rpx;
+}
+
+.generation-dialog-close {
+  width: 56rpx;
+  height: 56rpx;
+  border-radius: 50%;
+  background: #F5F5F5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.2s, transform 0.2s;
+}
+
+.generation-dialog-close:active {
+  background: #E8E8E8;
+  transform: scale(0.9);
+}
+
+.generation-dialog-close-icon {
+  font-size: 26rpx;
+  color: #666666;
+}
+
+.generation-dialog-body {
+  /* 固定高度 + overflow-y,内容超出垂直滚动;用普通 view 规避原生 scroll-view 层级问题 */
+  position: relative;
+  z-index: 1;
+  height: 680rpx;
+  max-height: 68vh;
+  box-sizing: border-box;
+  padding: 36rpx 32rpx;
+  background: #FFFFFF;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.generation-poem {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  /* 用 margin 替代 gap,兼容旧基础库,避免换行错位 */
+  margin: -10rpx -6rpx;
+}
+
+/* 字辈圆:view 容器才能正常应用 flex 居中和固定宽高 */
+.generation-poem-char {
+  width: 88rpx;
+  height: 88rpx;
+  margin: 10rpx 6rpx;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #FDF6EC, #F8ECD4);
+  border: 2rpx solid #E8D5B5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.2s, box-shadow 0.2s, background 0.2s;
+}
+
+.generation-poem-char-text {
+  font-size: 40rpx;
+  color: #8B1A1A;
+  font-family: 'KaiTi', serif;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.generation-poem-char:active {
+  transform: scale(0.9);
+  background: linear-gradient(135deg, #8B1A1A, #A93226);
+  box-shadow: 0 4rpx 16rpx rgba(139, 26, 26, 0.3);
+}
+
+.generation-poem-char:active .generation-poem-char-text {
+  color: #FFFFFF;
+}
+
+.generation-dialog-tip {
+  display: block;
+  text-align: center;
+  font-size: 22rpx;
+  color: #999999;
+  margin-top: 32rpx;
 }
 
 .switch-icon {

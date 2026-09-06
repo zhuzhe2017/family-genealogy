@@ -25,16 +25,62 @@ Page({
     loadError: false,     // 加载失败（用于展示重试）
     // 筛选状态
     filter: { gender: '', sort: '' },
+    // 按代筛选(从首页字辈点击进入时携带)
+    generation: 0,
+    generationName: '',
+    navTitle: '',          // 当前筛选标题(如 "德字辈成员"),用于顶部标签展示
     // 自定义导航栏适配（状态栏高度 + 导航栏高度）
     statusBarHeight: 20,
     navBarTotal: 64
   },
 
-  onLoad() {
+  onLoad(options) {
     const win = wx.getWindowInfo ? wx.getWindowInfo() : wx.getSystemInfoSync();
     const statusBarHeight = (win && win.statusBarHeight) || 20;
     this.setData({ statusBarHeight, navBarTotal: statusBarHeight + 44 });
-    this.refresh();
+
+    // 解析字辈跳转参数:generation(第几代)、generationName(字辈文字)
+    const params = this.parseGenerationParams(options);
+    if (params.error) {
+      // 参数异常:提示后仍展示全部成员,不中断页面
+      wx.showToast({ title: params.error, icon: 'none', duration: 2500 });
+    }
+    const next = { generation: params.generation, generationName: params.generationName };
+    if (params.generation > 0) {
+      next.navTitle = params.generationName
+        ? params.generationName + '字辈成员'
+        : '第' + params.generation + '代成员';
+      wx.setNavigationBarTitle({ title: next.navTitle });
+    }
+    // 先同步写入参数再加载,避免 fetchPage 读到旧 generation
+    this.setData(next, () => {
+      this.refresh();
+    });
+  },
+
+  /** 解析并校验字辈跳转参数,返回 { generation, generationName, error } */
+  parseGenerationParams(options) {
+    const o = options || {};
+    const result = { generation: 0, generationName: '', error: '' };
+    const rawGen = o.generation;
+    // 未传 generation 视为普通进入(展示全部成员),非错误
+    if (rawGen === undefined || rawGen === null || rawGen === '') {
+      return result;
+    }
+    const gen = Number(rawGen);
+    if (!Number.isInteger(gen) || gen < 1) {
+      result.error = '字辈代数参数无效';
+      return result;
+    }
+    result.generation = gen;
+    try {
+      result.generationName = decodeURIComponent(o.generationName || '').trim();
+    } catch (e) {
+      // 解码失败(异常编码),仅提示,仍按代数筛选
+      result.generationName = '';
+      result.error = '字辈名称解析失败,已按代数筛选';
+    }
+    return result;
   },
 
   /** 返回时置位标记,避免"族成员" tab 入口页再次自动跳转造成循环。
@@ -85,6 +131,7 @@ Page({
       if (kw) params.keyword = kw;
       if (gender) params.gender = gender;
       if (sort) params.sort = sort;
+      if (this.data.generation > 0) params.generations = this.data.generation;
       familyMember.getAll(familyId, params)
         .then(done)
         .catch((err) => {
@@ -96,10 +143,11 @@ Page({
       // mock：本地分页，模拟服务端行为
       const all = this.getMockMembers();
       const filtered = all.filter(m => {
-        const hitName = !kw || (m.name || '').includes(kw);
-        const hitGender = !gender || m.gender === gender;
-        return hitName && hitGender;
-      });
+      const hitName = !kw || (m.name || '').includes(kw);
+      const hitGender = !gender || m.gender === gender;
+      const hitGen = !this.data.generation || m.generation === this.data.generation;
+      return hitName && hitGender && hitGen;
+    });
       const start = (page - 1) * PAGE_SIZE;
       const pageList = filtered.slice(start, start + PAGE_SIZE);
       done({
@@ -163,6 +211,17 @@ Page({
         this.refresh();
       }
     });
+  },
+
+  /** 清除字辈筛选,恢复展示全部成员 */
+  clearGenerationFilter() {
+    this.setData({
+      generation: 0,
+      generationName: '',
+      navTitle: ''
+    });
+    wx.setNavigationBarTitle({ title: '家族成员' });
+    this.refresh();
   },
 
   /** 加载失败重试 */

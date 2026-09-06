@@ -397,6 +397,8 @@ App({
         memberCount: 126,
         generationCount: 8,
         generationNames: '文、德、永、世、兴、明、道、广',
+        // 按代字辈序列:同代可有多字辈,首页只显首字带+角标
+        generationSequence: { 1: ['文'], 2: ['德', '得'], 3: ['永'], 4: ['世', '士'], 5: ['兴'], 6: ['明'], 7: ['道'], 8: ['广'] },
         founder: '朱太公',
         origin: '山东济南',
         hallName: '颍川堂',

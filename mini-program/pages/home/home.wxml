@@ -30,7 +30,8 @@
         <view class="family-pattern"></view>
       </view>
       <view class="family-info">
-        <view class="family-selector" bindtap="switchFamily">
+        <!-- 家族信息:纯展示,不跳转家谱树 -->
+        <view class="family-selector">
           <view class="family-logo">
             <text class="family-logo-text">{{f.firstChar(currentFamily.name)}}</text>
           </view>
@@ -38,9 +39,32 @@
             <text class="family-name">{{currentFamily.name}}</text>
             <text class="family-origin">{{currentFamily.origin}}</text>
             <text class="family-origin" wx:if="{{currentFamily.hallName}}">堂号：{{currentFamily.hallName}}</text>
-            <text class="family-generation-names" wx:if="{{currentFamily.generationNames}}">字辈：{{currentFamily.generationNames}}</text>
+            <!-- 字辈区域:按代展示,同代多字辈只显首字带+角标,点击+横向展开;点击区域弹窗查看完整字辈诗 -->
+            <view class="generation-section" wx:if="{{generationGroups.length > 0}}" bindtap="openGenerationModal">
+              <text class="generation-label">字辈</text>
+              <view class="generation-content">
+                <view class="generation-clamp">
+                  <block wx:for="{{generationGroups}}" wx:key="generation" wx:for-item="group">
+                    <!-- 展开态:横向展示该代全部字辈(hidden 控制,避免 wx:if/else 组件复用问题) -->
+                    <view class="generation-char-group expanded" hidden="{{!group.expanded}}">
+                      <text wx:for="{{group.chars}}" wx:for-item="c" wx:key="*this" class="generation-char">{{c}}</text>
+                    </view>
+                    <!-- 收起态:首字 + 多字辈角标 -->
+                    <view class="generation-char-group" hidden="{{group.expanded}}">
+                      <text class="generation-char">{{group.firstChar}}</text>
+                      <text
+                        wx:if="{{group.hasMore}}"
+                        class="generation-plus"
+                        data-generation="{{group.generation}}"
+                        catchtap="toggleGenerationExpand"
+                      >+</text>
+                    </view>
+                  </block>
+                </view>
+                <text class="generation-more" wx:if="{{generationClamped}}">……</text>
+              </view>
+            </view>
           </view>
-          <text class="switch-icon">▼</text>
         </view>
 
         <view class="family-stats">
@@ -199,6 +223,35 @@
         </view>
         <text class="charity-amount">¥{{item.amount}}</text>
       </view>
+    </view>
+  </view>
+</view>
+
+<!-- 字辈诗完整弹窗 -->
+<view class="generation-modal" wx:if="{{generationModalVisible}}">
+  <view class="generation-mask {{generationModalShow ? 'show' : ''}}" bindtap="closeGenerationModal"></view>
+  <view class="generation-dialog {{generationModalShow ? 'show' : ''}}">
+    <view class="generation-dialog-header">
+      <text class="generation-dialog-title">家族字辈诗</text>
+      <view class="generation-dialog-close" bindtap="closeGenerationModal">
+        <text class="generation-dialog-close-icon">✕</text>
+      </view>
+    </view>
+    <!-- 用普通 view + overflow-y 滚动,规避 scroll-view 原生组件层级高于 header 导致的重叠 -->
+    <view class="generation-dialog-body">
+      <view class="generation-poem">
+        <view
+          wx:for="{{generationList}}"
+          wx:key="index"
+          class="generation-poem-char"
+          data-generation="{{item.generation}}"
+          data-name="{{item.name}}"
+          bindtap="goGenerationMembers"
+        >
+          <text class="generation-poem-char-text">{{item.name}}</text>
+        </view>
+      </view>
+      <text class="generation-dialog-tip">点击字辈可查看该字辈家族成员</text>
     </view>
   </view>
 </view>
