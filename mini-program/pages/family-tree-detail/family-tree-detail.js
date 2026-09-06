@@ -5,14 +5,14 @@ const { USE_MOCK } = require('../../utils/config');
 const { getToken } = require('../../utils/request');
 
 // 节点绘制常量
-const NODE_W = 120;    // 节点卡片宽度（rpx 单位，实际绘制按 dpr 缩放）
-const NODE_H = 76;     // 节点卡片高度
+const NODE_W = 100;    // 节点卡片宽度（更紧凑）
+const NODE_H = 80;     // 节点卡片高度（基础高度，不含配偶行）
 const LEVEL_H = 180;   // 代际垂直间距
-const NODE_GAP_X = 32; // 节点水平间距
-const SUBTREE_GAP = 16;// 子树之间额外间距
-const TEXT_H = 14;     // 文字行高
-const AVATAR_R = 16;   // 头像半径
-const PADDING = 24;    // 画布内边距
+const NODE_GAP_X = 16; // 节点水平间距（更紧凑）
+const SUBTREE_GAP = 10;// 子树之间额外间距
+const TEXT_H = 12;     // 文字行高（更小字号）
+const AVATAR_R = 13;   // 头像半径（更小）
+const PADDING = 16;    // 画布内边距
 const MIN_SCALE = 0.3; // 最小缩放倍率
 const MAX_SCALE = 1.5; // 最大缩放倍率（过大容易拖出可视区域找不到树）
 // 极端宽树（内容宽度超过画布两屏以上）的初始适配下限：允许整体缩小到屏幕内
@@ -28,15 +28,15 @@ const LOD_BLOCK_THRESHOLD = 40;  // 卡片 < 40px 时仅画色块，跳过全部
 const LOD_MEDIUM_THRESHOLD = 90; // 卡片 < 90px 时画简版（仅名字）
 
 // 直系图（vertical）常量：圆形头像、角色标注、配偶在侧
-const V_AVATAR_R = 34;            // 主成员头像半径（世界坐标），符合中尺寸规格
+const V_AVATAR_R = 26;            // 主成员头像半径（世界坐标）
 const V_SPOUSE_AVATAR_R = V_AVATAR_R * 0.8; // 配偶头像半径（主成员的 0.8 倍，视觉略小、主次分明）
-const V_LEVEL_H = 160;            // 代际垂直间距
-const V_SPOUSE_GAP = 28;          // 夫妇头像间距
-const V_PADDING_X = 48;           // 直系图水平内边距
-const V_MARGIN_Y = 36;            // 上下边距
-// 直系图缩放范围：有效缩放（初始适配 × 双指手势）统一控制在 0.5~1.2
+const V_LEVEL_H = 112;            // 代际垂直间距（紧凑布局）
+const V_SPOUSE_GAP = 36;          // 夫妇头像间距（需大于红心宽度 24px + 两侧留白，避免重叠）
+const V_PADDING_X = 32;           // 直系图水平内边距
+const V_MARGIN_Y = 24;            // 上下边距
+// 直系图缩放范围：有效缩放（初始适配 × 双指手势）统一控制在 0.5~1.0
 const V_SCALE_MIN = 0.5;  // 直系图缩放下限
-const V_SCALE_MAX = 1.2;  // 直系图缩放上限
+const V_SCALE_MAX = 1.0;  // 直系图缩放上限（初始即最大，禁止放大）
 
 // 头像组件常量（canvas 2d 绘制层组件化）
 const AVATAR_SIZE = { small: 22, medium: V_AVATAR_R, large: 46 }; // 尺寸规格（半径 px）
@@ -57,6 +57,9 @@ Page({
     showSearchBar: false,
     searchKeyword: '',
     canSearch: false,         // 输入≥2字符后搜索按钮可用（手动搜索）
+    // 同名成员下拉选择
+    showNamePicker: false,    // 是否显示同名选择弹窗
+    namePickerList: [],       // 同名候选列表 [{id, name, generation, fatherName}]
     loading: false,
     empty: false,
     loadError: '',
@@ -68,12 +71,12 @@ Page({
     treeLod: 'lod2',            // 当前缩放对应的细节等级：lod0 色块 / lod1 仅名字 / lod2 完整
     treeStageW: 0,              // 树状图舞台宽（世界坐标 px）
     treeStageH: 0,
-    // DOM 直系图（CSS 方案）
-    vDomNodes: [],              // 各代成员 {id,x,y,w,firstChar,gender,spouseFirstChar,spouseLeft,coupleW,heartLeft,name,role,highlight}
-    vLinks: [],                 // 代际连接线 {id,x,y,h}
-    vTransform: 'translate(0px, 0px) scale(1)',
-    vStageW: 0,
-    vStageH: 0
+    // 鹰眼图（缩略图导航）
+    minimapVisible: true,       // 是否显示鹰眼图
+    minimapTransform: '',       // 缩略图内容变换
+    minimapViewportStyle: '',   // 高亮框样式
+    minimapW: 160,              // 鹰眼图宽度（px）
+    minimapH: 120,              // 鹰眼图高度（px）
   },
 
   // 视图容器状态（不放入 data，避免频繁 setData 重绘）
@@ -121,12 +124,19 @@ Page({
   _vContentSize: null,       // 直系图布局尺寸缓存（calcVerticalLayout 写入，避免每帧重算）
   _vLayoutDirty: true,       // 直系图布局脏标记：renderNodes / vRootId 变化后置 true，渲染时重建
   _renderScheduledAt: 0,     // 上一次渲染调度时间戳（raf 停摆兜底检测）
+  // 鹰眼图状态
+  _minimapScale: 0.1,        // 鹰眼图缩放比例（自动计算）
+  _minimapDragStart: null,   // 拖拽高亮框起始状态
+  _minimapViewWorldX: 0,     // 当前视口中心的世界坐标 X
+  _minimapViewWorldY: 0,     // 当前视口中心的世界坐标 Y
+  _minimapStageOffsetX: 0,   // 缩略图内容居中偏移 X
+  _minimapStageOffsetY: 0,   // 缩略图内容居中偏移 Y
 
   onLoad() {
     const win = wx.getWindowInfo ? wx.getWindowInfo() : wx.getSystemInfoSync();
     const statusBarHeight = (win && win.statusBarHeight) || 20;
     this.setData({ statusBarHeight, navBarTotal: statusBarHeight + 44 });
-    // 默认按「默认(3代)」窗口加载
+    // 默认按「默认(5代)」窗口加载
     this.loadTreeData(this.data.selectedGen);
   },
 
@@ -202,15 +212,18 @@ Page({
   },
 
   /**
-   * 加载家族树：按代数窗口请求服务端（默认=3代、5代、7代）。
+   * 加载家族树：按代数窗口请求服务端（默认=5代、7代）。
    * 结果按窗口缓存，切换代数命中缓存时不重复请求；失败回退 mock。
    */
   loadTreeData(gen) {
     const familyId = (app.globalData.currentFamily || {}).id;
     const genKey = gen === undefined || gen === null || gen === '' ? 'default' : gen;
+    // 缓存键包含实际代数，避免切换 default/具体代数值时命中旧缓存
+    const genNum = genKey === 'default' ? 5 : Number(genKey);
+    const cacheKey = `${genKey}_${genNum}`;
     const cache = (this._genCache = this._genCache || {});
-    if (cache[genKey]) {
-      this.buildTree(cache[genKey]);
+    if (cache[cacheKey]) {
+      this.buildTree(cache[cacheKey]);
       return;
     }
     this.setData({ loading: true, loadError: '', empty: false });
@@ -225,12 +238,12 @@ Page({
       finishLoading();
     };
     if (!USE_MOCK && getToken() && familyId) {
-      const params = { generations: genKey === 'default' ? 3 : Number(genKey) };
+      const params = { generations: genNum };
       familyMember.getAll(familyId, params)
         .then((res) => {
-          console.log('loadTreeData: API 返回', genKey, (res || []).length, '人');
+          console.log('loadTreeData: API 返回', cacheKey, (res || []).length, '人');
           const members = (res || []).map(normalizeMember);
-          cache[genKey] = members;
+          cache[cacheKey] = members;
           this.setData({ empty: members.length === 0 });
           this.buildTree(members);
           finishLoading();
@@ -348,6 +361,8 @@ Page({
     this.setData({ memberCount: members.length });
     // 树与列表统一由 applyFilter 驱动（含代数过滤与列表分页）
     this.applyFilter();
+    // 同步更新鹰眼图（确保数据加载后缩略图立即显示）
+    this.updateMinimap();
     // 视图容器可能尚未测量，重新尝试渲染
     if (!this.canvasReady) {
       this.initViewport();
@@ -398,8 +413,8 @@ Page({
     let nodes = this.allNodes;
     // 搜索时后端已返回完整子图（命中+祖先+后3代），跳过代数裁剪，避免剪掉窗口外祖先
     if (gen && !kw) {
-      // 'default' 默认显示 3 代；'5'/'7' 显示对应代数
-      const maxGen = gen === 'default' ? 3 : Number(gen);
+      // 'default' 默认显示 5 代；'7'/'9' 显示对应代数
+      const maxGen = gen === 'default' ? 5 : Number(gen);
       const keep = new Set();
       const collect = (node) => {
         if (node.generation > maxGen) return;
@@ -483,11 +498,17 @@ Page({
     const visibleSet = new Set(this.renderNodes.map(n => n.id));
     let cursorX = PADDING; // 多个根节点子树依次排列的起始坐标
 
+    // 获取节点实际高度（含多配偶行）
+    const getNodeHeight = (node) => {
+      const spouseList = (node.spouseList || []).filter(s => s.name);
+      return NODE_H + (spouseList.length > 0 ? spouseList.length * 14 : 0);
+    };
+
     const traverse = (node, startX) => {
       if (!node) return { left: startX, right: startX };
       const visibleChildren = node.children.filter(c => visibleSet.has(c.id));
-      // 主树视图仅绘制血亲成员，配偶信息移至直系图展示，故节点宽度固定为卡片宽度（布局更紧凑）
       const nodeWidth = NODE_W;
+      const nodeHeight = getNodeHeight(node);
       const level = node.generation - 1;
       const y = PADDING + level * LEVEL_H;
 
@@ -497,7 +518,7 @@ Page({
         // 叶子：顺序排列
         left = startX;
         right = startX + nodeWidth;
-        layoutMap[node.id] = { x: left, y, width: nodeWidth, node };
+        layoutMap[node.id] = { x: left, y, width: nodeWidth, height: nodeHeight, node };
         return { left, right };
       }
 
@@ -514,7 +535,7 @@ Page({
       right = bounds[bounds.length - 1].right;
       // 父节点居中到子树范围中心；若父节点比子树更宽导致左越界，则回推对齐子树左侧
       const nodeX = Math.max(startX, (left + right) / 2 - nodeWidth / 2);
-      layoutMap[node.id] = { x: nodeX, y, width: nodeWidth, node };
+      layoutMap[node.id] = { x: nodeX, y, width: nodeWidth, height: nodeHeight, node };
       return { left: Math.min(left, nodeX), right: Math.max(right, nodeX + nodeWidth) };
     };
 
@@ -713,17 +734,25 @@ Page({
     (this.renderNodes || []).forEach(n => {
       const l = this.layoutMap[n.id];
       if (!l) return;
+      // 配偶信息：支持多配偶
+      const spouseList = (n.spouseList || []).filter(s => s.name);
+      const hasSpouse = spouseList.length > 0;
+      // 动态计算节点高度：基础高度 + 每个配偶行高
+      const spouseRowH = 14;
+      const nodeH = NODE_H + (hasSpouse ? spouseList.length * spouseRowH : 0);
       domNodes.push({
         id: n.id,
         x: Math.round(l.x),
         y: Math.round(l.y),
         w: NODE_W,
-        h: NODE_H,
+        h: nodeH,
         name: n.name || '',
         firstChar: (n.name || '?').charAt(0),
         gender: n.gender === 'female' ? 'female' : 'male',
         generation: n.generation || '',
         generationName: n.generationName || '',
+        hasSpouse: hasSpouse,
+        spouseList: spouseList,
         canCollapse: !!(n.children && n.children.length),
         collapsed: this.collapsedIds.has(n.id),
         descendantCount: n.descendantCount || n.children.length || 0,
@@ -731,7 +760,7 @@ Page({
       });
     });
 
-    // 连接线：父底中点到子代横线再分叉到各子顶（与 Canvas 折线同几何）
+    // 连接线：父底中点到子代横线再分叉到各子顶（从父子连线中部开始分树，折线连接卡片上线中部）
     const treeLinks = [];
     const visibleSet = new Set((this.renderNodes || []).map(n => n.id));
     (this.renderNodes || []).forEach(n => {
@@ -740,30 +769,50 @@ Page({
       const pl = this.layoutMap[n.id];
       if (!pl) return;
       const px = pl.x + pl.width / 2;
-      const pyBottom = pl.y + NODE_H;
-      const midY = pl.y + NODE_H + LEVEL_H / 2;
+      const pyBottom = pl.y + (pl.height || NODE_H); // 父节点底部中点
+      
+      // 找到所有子节点的顶部中点
+      const childCenters = children.map(child => {
+        const cl = this.layoutMap[child.id];
+        return {
+          x: cl.x + cl.width / 2,
+          y: cl.y
+        };
+      });
+
       if (children.length === 1) {
-        const cl = this.layoutMap[children[0].id];
-        const cx = cl.x + cl.width / 2;
-        treeLinks.push({ id: 'v' + n.id, kind: 'v', x: cx - 0.75, y: pyBottom, w: 0, h: cl.y - pyBottom });
+        // 单个子节点：直接折线连接（父底中点 → 子顶中点）
+        const child = childCenters[0];
+        const midY = (pyBottom + child.y) / 2;
+        // 竖线：父底到中部
+        treeLinks.push({ id: 'v' + n.id, kind: 'v', x: px - 0.75, y: pyBottom, w: 0, h: midY - pyBottom });
+        // 横线：中部到子节点水平位置
+        const hStartX = Math.min(px, child.x);
+        const hEndX = Math.max(px, child.x);
+        treeLinks.push({ id: 'h' + n.id, kind: 'h', x: hStartX, y: midY - 0.75, w: hEndX - hStartX, h: 0 });
+        // 竖线：中部到子节点顶部
+        treeLinks.push({ id: 's' + n.id + '_' + children[0].id, kind: 'v', x: child.x - 0.75, y: midY, w: 0, h: child.y - midY });
       } else {
-        let minCx = Infinity;
-        let maxCx = -Infinity;
-        children.forEach(child => {
-          const cl = this.layoutMap[child.id];
-          const cx = cl.x + cl.width / 2;
-          minCx = Math.min(minCx, cx);
-          maxCx = Math.max(maxCx, cx);
-        });
-        // 主干竖线
+        // 多个子节点：从父子连线中部开始分树
+        const minChildX = Math.min(...childCenters.map(c => c.x));
+        const maxChildX = Math.max(...childCenters.map(c => c.x));
+        const avgChildY = childCenters.reduce((sum, c) => sum + c.y, 0) / childCenters.length;
+        const midY = (pyBottom + avgChildY) / 2;
+        
+        // 主干竖线：从父节点底部中点到分叉点
         treeLinks.push({ id: 't' + n.id, kind: 'v', x: px - 0.75, y: pyBottom, w: 0, h: midY - pyBottom });
-        // 横向分支线
-        treeLinks.push({ id: 'h' + n.id, kind: 'h', x: minCx, y: midY - 0.75, w: maxCx - minCx, h: 0 });
-        // 各子节点竖线
-        children.forEach(child => {
-          const cl = this.layoutMap[child.id];
-          const cx = cl.x + cl.width / 2;
-          treeLinks.push({ id: 's' + n.id + '_' + child.id, kind: 'v', x: cx - 0.75, y: midY, w: 0, h: cl.y - midY });
+        // 横向分支线：从分叉点到最左子节点
+        if (px > minChildX) {
+          treeLinks.push({ id: 'h' + n.id, kind: 'h', x: minChildX, y: midY - 0.75, w: px - minChildX, h: 0 });
+        }
+        // 横向分支线：从分叉点到最右子节点
+        if (maxChildX > px) {
+          treeLinks.push({ id: 'h2' + n.id, kind: 'h', x: px, y: midY - 0.75, w: maxChildX - px, h: 0 });
+        }
+        // 各子节点竖线：从分叉点连接到子节点顶部中点
+        children.forEach((child, idx) => {
+          const cc = childCenters[idx];
+          treeLinks.push({ id: 's' + n.id + '_' + child.id, kind: 'v', x: cc.x - 0.75, y: midY, w: 0, h: cc.y - midY });
         });
       }
     });
@@ -787,6 +836,8 @@ Page({
       this._lod = lod;
     }
     this.setData(data);
+    // 同步更新鹰眼图
+    this.updateMinimap();
   },
 
   /** 渲染直系图（DOM/CSS 方案）：布局脏时重建各代成员与连接线，随后应用视口变换 */
@@ -833,9 +884,12 @@ Page({
         spouseName: spouse ? (spouse.name || '') : '',
         spouseRole: this.getSpouseRole(l.role, node.gender),
         spouseLeft: Math.round(spouseLeft),
-        // 夫妇连线：主头像右缘外 10px → 配偶头像左缘外 10px（红心覆盖中部断口）
-        coupleLineWidth: Math.round(spouseLeft - V_AVATAR_R * 2 - 20),
+        // 夫妇连线：从红心右缘 → 配偶头像左缘外 10px（红心覆盖左端，无外露线段）
+        coupleLineLeft: Math.round(midX - l.x + 12),
+        coupleLineTop: V_AVATAR_R - 1, // 垂直居中于主头像（连线高 2px）
+        coupleLineWidth: Math.round(spouseLeft - (midX - l.x + 12) - 10),
         heartLeft: Math.round(midX - l.x - 12),
+        heartTop: V_AVATAR_R - 12,     // 垂直居中于主头像（红心高 24px）
         role: l.role,
         highlight: this.highlightId === node.id
       });
@@ -850,6 +904,8 @@ Page({
 
     this._vDomDirty = false;
     this.setData({ vDomNodes, vLinks, vStageW: contentW, vStageH: contentH });
+    // 同步更新鹰眼图
+    this.updateMinimap();
   },
 
   /** 将当前视口变换应用到直系图舞台 */
@@ -858,6 +914,8 @@ Page({
     this.setData({
       vTransform: `translate(${offsetX.toFixed(2)}px, ${offsetY.toFixed(2)}px) scale(${scale})`
     });
+    // 同步更新鹰眼图
+    this.updateMinimap();
   },
 
   /** 直系图统一坐标变换 */
@@ -870,6 +928,234 @@ Page({
     const offsetX = (this.canvasWidth - contentW * scale) / 2 + this.vPan.x;
     const offsetY = this.getContentOffsetY(contentH, scale) + this.vPan.y;
     return { scale, offsetX, offsetY };
+  },
+
+  // ==================== 鹰眼图（缩略图导航） ====================
+
+  /** 切换鹰眼图显示/隐藏 */
+  toggleMinimap() {
+    this.setData({ minimapVisible: !this.data.minimapVisible });
+  },
+
+  /** 计算鹰眼图缩放比例，使内容适应缩略图容器 */
+  computeMinimapScale(contentW, contentH) {
+    const { minimapW, minimapH } = this.data;
+    if (!contentW || !contentH) return 0.1;
+    const scaleX = minimapW / contentW;
+    const scaleY = minimapH / contentH;
+    return Math.min(scaleX, scaleY) * 0.9; // 留 10% 边距
+  },
+
+  /** 更新鹰眼图：同步主视图状态，重绘缩略图和高亮框 */
+  updateMinimap() {
+    if (!this.data.minimapVisible) return;
+    
+    // 视图容器未就绪时跳过更新，避免用错误的默认值计算导致偏移
+    if (!this.canvasWidth || !this.canvasHeight) {
+      // 延迟重试，等待视图测量完成
+      setTimeout(() => this.updateMinimap(), 100);
+      return;
+    }
+    
+    const canvasW = this.canvasWidth;
+    const canvasH = this.canvasHeight;
+    
+    // 获取当前内容尺寸和视口变换
+    const isVertical = this.data.viewMode === 'vertical';
+    let contentW, contentH, viewScale, viewOffsetX, viewOffsetY;
+    
+    if (isVertical) {
+      const size = this.getVerticalContentSize();
+      contentW = size.contentW;
+      contentH = size.contentH;
+      const transform = this.getVerticalTransform();
+      viewScale = transform.scale;
+      viewOffsetX = transform.offsetX;
+      viewOffsetY = transform.offsetY;
+    } else {
+      const size = this.getContentSize();
+      contentW = size.contentW;
+      contentH = size.contentH;
+      const transform = this.getViewTransform();
+      viewScale = transform.scale;
+      viewOffsetX = transform.offsetX;
+      viewOffsetY = transform.offsetY;
+    }
+
+    // 计算鹰眼图缩放比例
+    this._minimapScale = this.computeMinimapScale(contentW, contentH);
+    const minimapScale = this._minimapScale;
+
+    // 计算缩略图内容的居中偏移
+    const stageOffsetX = (this.data.minimapW - contentW * minimapScale) / 2;
+    const stageOffsetY = (this.data.minimapH - contentH * minimapScale) / 2;
+    
+    // 更新缩略图变换（居中显示）
+    const minimapTransform = `translate(${stageOffsetX.toFixed(2)}px, ${stageOffsetY.toFixed(2)}px) scale(${minimapScale})`;
+
+    // 计算高亮框位置和大小（将视口区域映射到鹰眼图坐标，包含居中偏移）
+    // 高亮框是 minimap-viewport 的直接子元素，坐标相对于 viewport
+    // 视口左上角的世界坐标：(-viewOffsetX / viewScale, -viewOffsetY / viewScale)
+    // 转换到鹰眼图坐标：世界坐标 * minimapScale + stageOffset
+    const viewportX = (-viewOffsetX / viewScale) * minimapScale + stageOffsetX;
+    const viewportY = (-viewOffsetY / viewScale) * minimapScale + stageOffsetY;
+    const viewportW = (canvasW / viewScale) * minimapScale;
+    const viewportH = (canvasH / viewScale) * minimapScale;
+
+    // 记录当前视口中心的世界坐标（供拖拽起始使用）
+    this._minimapViewWorldX = (canvasW / 2 - viewOffsetX) / viewScale;
+    this._minimapViewWorldY = (canvasH / 2 - viewOffsetY) / viewScale;
+    
+    // 记录 stage 偏移（供拖拽换算使用）
+    this._minimapStageOffsetX = stageOffsetX;
+    this._minimapStageOffsetY = stageOffsetY;
+
+    // 更新高亮框样式
+    const minimapViewportStyle = `left:${viewportX.toFixed(2)}px;top:${viewportY.toFixed(2)}px;width:${viewportW.toFixed(2)}px;height:${viewportH.toFixed(2)}px;`;
+
+    this.setData({ minimapTransform, minimapViewportStyle });
+  },
+
+  /** 鹰眼图触摸开始：记录起始状态，判断是拖拽还是缩放 */
+  onMinimapTouchStart(e) {
+    const touches = e.touches;
+    if (touches.length === 1) {
+      // 获取触摸点相对于鹰眼图视口的坐标
+      const touchX = touches[0].clientX;
+      const touchY = touches[0].clientY;
+      
+      // 计算触摸点相对于高亮框中心的偏移（用于保持拖拽时的相对位置）
+      // 需要从 minimapViewportStyle 中解析当前高亮框位置
+      const style = this.data.minimapViewportStyle || '';
+      const leftMatch = style.match(/left:([\d.-]+)px/);
+      const topMatch = style.match(/top:([\d.-]+)px/);
+      const widthMatch = style.match(/width:([\d.-]+)px/);
+      const heightMatch = style.match(/height:([\d.-]+)px/);
+      
+      const boxX = leftMatch ? parseFloat(leftMatch[1]) : 0;
+      const boxY = topMatch ? parseFloat(topMatch[1]) : 0;
+      const boxW = widthMatch ? parseFloat(widthMatch[1]) : 0;
+      const boxH = heightMatch ? parseFloat(heightMatch[1]) : 0;
+      
+      // 获取鹰眼图视口在页面中的位置
+      const query = this.createSelectorQuery();
+      query.select('.minimap-viewport').boundingClientRect((rect) => {
+        if (!rect) return;
+        
+        // 触摸点相对于视口的位置
+        const relX = touchX - rect.left;
+        const relY = touchY - rect.top;
+        
+        // 高亮框中心位置
+        const boxCenterX = boxX + boxW / 2;
+        const boxCenterY = boxY + boxH / 2;
+        
+        // 记录触摸点与框中心的偏移（在鹰眼图坐标系中）
+        const grabOffsetX = relX - boxCenterX;
+        const grabOffsetY = relY - boxCenterY;
+        
+        // 转换为世界坐标偏移
+        const grabOffsetWorldX = grabOffsetX / this._minimapScale;
+        const grabOffsetWorldY = grabOffsetY / this._minimapScale;
+        
+        this._minimapDragStart = {
+          x: touchX,
+          y: touchY,
+          // 记录起始时高亮框在主视图中的位置（世界坐标）
+          startWorldX: this._minimapViewWorldX || 0,
+          startWorldY: this._minimapViewWorldY || 0,
+          // 记录抓取点与框中心的偏移（世界坐标）
+          grabOffsetWorldX,
+          grabOffsetWorldY,
+        };
+      }).exec();
+    }
+  },
+
+  /** 鹰眼图触摸移动：拖拽高亮框导航主视图 */
+  onMinimapTouchMove(e) {
+    if (!this._minimapDragStart || e.touches.length !== 1) return;
+    
+    const touch = e.touches[0];
+    const dx = touch.clientX - this._minimapDragStart.x;
+    const dy = touch.clientY - this._minimapDragStart.y;
+    
+    // 将拖拽距离转换为世界坐标偏移（除以鹰眼图缩放比例）
+    const worldDx = dx / this._minimapScale;
+    const worldDy = dy / this._minimapScale;
+    
+    // 计算新的抓取点世界坐标（保持抓取点与框中心的相对位置）
+    const grabWorldX = this._minimapDragStart.startWorldX + this._minimapDragStart.grabOffsetWorldX + worldDx;
+    const grabWorldY = this._minimapDragStart.startWorldY + this._minimapDragStart.grabOffsetWorldY + worldDy;
+    
+    // 新的视口中心 = 抓取点 - 抓取偏移
+    const newWorldX = grabWorldX - this._minimapDragStart.grabOffsetWorldX;
+    const newWorldY = grabWorldY - this._minimapDragStart.grabOffsetWorldY;
+    
+    // 更新主视图平移，使视口中心对准新的世界坐标
+    this.centerViewAt(newWorldX, newWorldY);
+  },
+
+  /** 将主视图中心对准指定的世界坐标 */
+  centerViewAt(worldX, worldY) {
+    const isVertical = this.data.viewMode === 'vertical';
+    let viewScale, contentW, contentH;
+    
+    if (isVertical) {
+      const transform = this.getVerticalTransform();
+      viewScale = transform.scale;
+      const size = this.getVerticalContentSize();
+      contentW = size.contentW;
+      contentH = size.contentH;
+    } else {
+      const transform = this.getViewTransform();
+      viewScale = transform.scale;
+      const size = this.getContentSize();
+      contentW = size.contentW;
+      contentH = size.contentH;
+    }
+    
+    // 计算使视口中心对准目标世界坐标所需的 offset
+    // 注意：这里必须用真实的 canvasWidth/Height，不能用默认值
+    const canvasW = this.canvasWidth;
+    const canvasH = this.canvasHeight;
+    if (!canvasW || !canvasH) return; // 视图未就绪，跳过
+    
+    const targetOffsetX = canvasW / 2 - worldX * viewScale;
+    const targetOffsetY = canvasH / 2 - worldY * viewScale;
+    
+    // 反算 pan 值（与 getViewTransform 的公式一致）
+    if (isVertical) {
+      this.vPan.x = targetOffsetX - (canvasW - contentW * viewScale) / 2;
+      this.vPan.y = targetOffsetY - this.getContentOffsetY(contentH, viewScale);
+      this.renderVerticalTree();
+    } else {
+      this.pan.x = targetOffsetX - (canvasW - contentW * viewScale) / 2;
+      this.pan.y = targetOffsetY - this.getContentOffsetY(contentH, viewScale);
+      this.renderTree();
+    }
+  },
+
+  /** 鹰眼图触摸结束 */
+  onMinimapTouchEnd() {
+    this._minimapDragStart = null;
+  },
+
+  /** 鹰眼图缩放控制 */
+  minimapZoomIn() {
+    const { minimapW, minimapH } = this.data;
+    this.setData({
+      minimapW: Math.min(minimapW * 1.25, 320),
+      minimapH: Math.min(minimapH * 1.25, 240)
+    }, () => this.updateMinimap());
+  },
+
+  minimapZoomOut() {
+    const { minimapW, minimapH } = this.data;
+    this.setData({
+      minimapW: Math.max(minimapW * 0.8, 100),
+      minimapH: Math.max(minimapH * 0.8, 75)
+    }, () => this.updateMinimap());
   },
 
   /** 直系图尺寸（复用 calcVerticalLayout 的缓存，避免每帧重算布局） */
@@ -1256,32 +1542,11 @@ Page({
     return this._contentSizeCache;
   },
 
-  /** 基础适配缩放：小树放大到可读尺寸，大树按宽度适配，超大宽树整体缩小 */
-  computeFitScale(contentW, contentH) {
-    if (!this.canvasWidth || !this.canvasHeight) return 1;
-    const fitX = this.canvasWidth / contentW;
-    const fitY = this.canvasHeight / contentH;
-    let fit;
-    if (contentW > this.canvasWidth && contentH > this.canvasHeight) {
-      // 双向超屏：整体适配
-      fit = Math.min(fitX, fitY);
-    } else if (contentW > this.canvasWidth) {
-      // 仅宽度超屏：按宽度适配
-      fit = fitX;
-    } else {
-      // 宽度未超屏：按较大比例放大，让内容填满画面
-      fit = Math.max(fitX, fitY);
-    }
-    // 可读性下限：普通宽度树放大到卡片可读（120 * 0.75 = 90px，完整细节等级）；
-    // 超过八屏宽的极端大树跳过下限，仍整体缩小到屏幕内（HTML 方案同款处理，
-    // 避免被 MIN_SCALE=0.3 卡住导致大族树永远只能看到局部）
-    const overRatio = contentW / this.canvasWidth;
-    this._extremeWideTree = overRatio > 8;
-    if (this._extremeWideTree) {
-      return Math.max(MIN_EXTREME_SCALE, Math.min(MAX_INITIAL_SCALE, fit));
-    }
-    return Math.max(MIN_SCALE, Math.min(MAX_INITIAL_SCALE, Math.max(fit, MIN_FIT_SCALE)));
-  },
+  /** 基础适配缩放：始终以原始比例 1:1 显示，不进行自动缩小或放大。
+ *  用户可通过手势或工具栏手动缩放。 */
+computeFitScale(contentW, contentH) {
+  return 1;
+},
 
   /** 统一视图变换（渲染与命中检测共用），保证点击坐标与绘制一致 */
   getViewTransform() {
@@ -1303,59 +1568,82 @@ Page({
     return Math.sqrt(Math.pow(t0.clientX - t1.clientX, 2) + Math.pow(t0.clientY - t1.clientY, 2));
   },
 
-  /** 绘制父节点到子节点的折线连接 */
+  /** 绘制父节点到子节点的折线连接：从父子连线中部开始分树，折线连接卡片上线中部 */
   drawConnection(ctx, parentLayout, children) {
     const px = parentLayout.x + parentLayout.width / 2;
-    const pyBottom = parentLayout.y + NODE_H;
-    const midY = parentLayout.y + NODE_H + LEVEL_H / 2;
+    const pyBottom = parentLayout.y + parentLayout.height; // 父节点底部中点
+    
+    // 找到所有子节点的顶部中点
+    const childCenters = children.map(child => {
+      const childL = this.layoutMap[child.id];
+      return {
+        x: childL.x + childL.width / 2,
+        y: childL.y
+      };
+    });
+
+    if (children.length === 1) {
+      // 单个子节点：直接折线连接（父底中点 → 子顶中点）
+      const child = childCenters[0];
+      // 分叉点：父子连线中部（垂直方向中点）
+      const midY = (pyBottom + child.y) / 2;
+      
+      ctx.beginPath();
+      ctx.strokeStyle = '#C08A55';
+      ctx.lineWidth = 1.5;
+      ctx.moveTo(px, pyBottom);
+      ctx.lineTo(px, midY);        // 竖线到中部
+      ctx.lineTo(child.x, midY);   // 横线到子节点水平位置
+      ctx.lineTo(child.x, child.y); // 竖线到子节点顶部
+      ctx.stroke();
+      return;
+    }
+
+    // 多个子节点：从父子连线中部开始分树
+    const minChildX = Math.min(...childCenters.map(c => c.x));
+    const maxChildX = Math.max(...childCenters.map(c => c.x));
+    // 分叉点 Y 坐标：取所有子节点顶部 Y 的平均值（同一层级，应该相同）
+    const avgChildY = childCenters.reduce((sum, c) => sum + c.y, 0) / childCenters.length;
+    // 父子连线中部：父节点底部到子节点顶部的中点
+    const midY = (pyBottom + avgChildY) / 2;
 
     ctx.beginPath();
     ctx.strokeStyle = '#C08A55';
     ctx.lineWidth = 1.5;
 
-    if (children.length === 1) {
-      const childL = this.layoutMap[children[0].id];
-      const cx = childL.x + childL.width / 2;
-      ctx.moveTo(px, pyBottom);
-      ctx.lineTo(cx, childL.y);
-    } else {
-      let minCx = Infinity;
-      let maxCx = -Infinity;
-      children.forEach(child => {
-        const childL = this.layoutMap[child.id];
-        const cx = childL.x + childL.width / 2;
-        minCx = Math.min(minCx, cx);
-        maxCx = Math.max(maxCx, cx);
-      });
+    // 主干竖线：从父节点底部中点到分叉点
+    ctx.moveTo(px, pyBottom);
+    ctx.lineTo(px, midY);
 
-      ctx.moveTo(px, pyBottom);
-      ctx.lineTo(px, midY);
-      ctx.lineTo(minCx, midY);
-      ctx.lineTo(maxCx, midY);
-      ctx.stroke();
-
-      children.forEach(child => {
-        const childL = this.layoutMap[child.id];
-        const cx = childL.x + childL.width / 2;
-        ctx.beginPath();
-        ctx.moveTo(cx, midY);
-        ctx.lineTo(cx, childL.y);
-        ctx.stroke();
-      });
-      return;
+    // 横向分支线：从分叉点到最左、最右子节点水平位置
+    if (px > minChildX) {
+      ctx.lineTo(minChildX, midY);
+    }
+    if (maxChildX > px) {
+      ctx.moveTo(px, midY);
+      ctx.lineTo(maxChildX, midY);
     }
     ctx.stroke();
+
+    // 各子节点竖线：从分叉点连接到子节点顶部中点
+    childCenters.forEach(child => {
+      ctx.beginPath();
+      ctx.moveTo(child.x, midY);
+      ctx.lineTo(child.x, child.y);
+      ctx.stroke();
+    });
   },
 
-  /** 绘制单个节点卡片（含配偶），按缩放比例分级 LOD */
+  /** 绘制单个节点卡片（含多配偶），按缩放比例分级 LOD */
   drawNode(ctx, layout, scale) {
     const node = layout.node;
     const x = layout.x;
     const y = layout.y;
     const isFemale = node.gender === 'female';
+    const nodeH = layout.height || NODE_H; // 使用实际高度（含多配偶行）
 
     // 主节点背景（所有 LOD 都绘制色块，性别色保留；轻阴影增强与背景的区分度）
-    this.roundRect(ctx, x, y, NODE_W, NODE_H, 10);
+    this.roundRect(ctx, x, y, NODE_W, nodeH, 10);
     ctx.save();
     ctx.shadowColor = 'rgba(0, 0, 0, 0.1)';
     ctx.shadowBlur = 5;
@@ -1372,7 +1660,7 @@ Page({
       ctx.save();
       ctx.strokeStyle = '#E07A5F';
       ctx.lineWidth = 2.5;
-      this.roundRect(ctx, x - 3, y - 3, NODE_W + 6, NODE_H + 6, 12);
+      this.roundRect(ctx, x - 3, y - 3, NODE_W + 6, nodeH + 6, 12);
       ctx.stroke();
       ctx.restore();
     }
@@ -1387,44 +1675,70 @@ Page({
 
     // LOD1 中距视图：只画名字（垂直居中），跳过头像/徽标/标签细节
     if (cardScreenW < LOD_MEDIUM_THRESHOLD) {
-      this.drawName(ctx, node, x, y, NODE_W - 44 - 8, y + NODE_H / 2);
+      this.drawName(ctx, node, x, y, NODE_W - 40 - 8, y + nodeH / 2);
       return;
     }
 
     // LOD2 近距视图：完整细节
-    this.drawAvatar(ctx, x + 24, y + 34, node.name, isFemale ? '#FF6B9D' : '#8B1A1A');
+    this.drawAvatar(ctx, x + 20, y + 30, node.name, isFemale ? '#FF6B9D' : '#8B1A1A');
 
     // 右上角代数徽标：与标签行分离，避免宽度挤占
     const genText = node.generation + '代';
-    ctx.font = '9px sans-serif';
+    ctx.font = '8px sans-serif';
     const genW = ctx.measureText(genText).width;
-    const badgeX = x + NODE_W - genW - 8;
-    this.roundRect(ctx, badgeX - 4, y + 3, genW + 8, 14, 7);
+    const badgeX = x + NODE_W - genW - 6;
+    this.roundRect(ctx, badgeX - 3, y + 2, genW + 6, 12, 6);
     ctx.fillStyle = 'rgba(139, 26, 26, 0.08)';
     ctx.fill();
     ctx.fillStyle = '#8B1A1A';
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
-    ctx.fillText(genText, badgeX, y + 10);
+    ctx.fillText(genText, badgeX, y + 8);
 
     // 名字：按徽标左侧可用宽度截断，不超出卡片、不与徽标重叠
-    this.drawName(ctx, node, x, y, badgeX - 4 - (x + 44) - 4, y + 22);
+    this.drawName(ctx, node, x, y, badgeX - 4 - (x + 40) - 4, y + 18);
 
     // 标签行：字辈标签
     if (node.generationName) {
       const text = node.generationName + '字辈';
-      const tagX = x + 44;
-      const tagY = y + 52;
-      const tagW = ctx.measureText(text).width + 10;
-      ctx.font = '9px sans-serif';
-      this.roundRect(ctx, tagX, tagY - 7, tagW, 14, 3);
+      const tagX = x + 40;
+      const tagY = y + 46;
+      const tagW = ctx.measureText(text).width + 8;
+      ctx.font = '8px sans-serif';
+      this.roundRect(ctx, tagX, tagY - 6, tagW, 12, 3);
       ctx.fillStyle = '#EFE7DA';
       ctx.fill();
       ctx.strokeStyle = '#CFC2AE';
       ctx.lineWidth = 1;
       ctx.stroke();
       ctx.fillStyle = '#7A6A56';
-      ctx.fillText(text, tagX + 5, tagY);
+      ctx.fillText(text, tagX + 4, tagY);
+    }
+
+    // 配偶信息行：支持多配偶，与主成员信息视觉区分（更小字号、灰色）
+    const spouseList = (node.spouseList || []).filter(s => s.name);
+    if (spouseList.length > 0) {
+      spouseList.forEach((spouse, idx) => {
+        const spouseY = y + 62 + idx * 14; // 每个配偶行高 14px
+        // "配" 前缀标签
+        ctx.font = '7px sans-serif';
+        const labelW = 12;
+        this.roundRect(ctx, x + 40, spouseY - 5, labelW, 10, 2);
+        ctx.fillStyle = '#F5F5F5';
+        ctx.fill();
+        ctx.strokeStyle = '#DDDDDD';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+        ctx.fillStyle = '#999999';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('配', x + 42, spouseY);
+        
+        // 配偶姓名（灰色、小字号）
+        ctx.font = '9px sans-serif';
+        ctx.fillStyle = '#888888';
+        ctx.fillText(spouse.name, x + 40 + labelW + 3, spouseY);
+      });
     }
 
     // 折叠/展开指示器（仅完整细节等级；有子节点才可折叠）
@@ -1434,9 +1748,9 @@ Page({
       if (collapsed) {
         // 折叠态：显示隐藏的后代数量
         const label = '+' + (node.descendantCount || node.children.length);
-        ctx.font = '9px sans-serif';
-        const pw = ctx.measureText(label).width + 8;
-        this.roundRect(ctx, pos.x - pw / 2, pos.y - 6, pw, 12, 6);
+        ctx.font = '8px sans-serif';
+        const pw = ctx.measureText(label).width + 6;
+        this.roundRect(ctx, pos.x - pw / 2, pos.y - 5, pw, 10, 5);
         ctx.fillStyle = 'rgba(139, 26, 26, 0.1)';
         ctx.fill();
         ctx.fillStyle = '#8B1A1A';
@@ -1446,14 +1760,14 @@ Page({
       } else {
         // 展开态：圆形减号
         ctx.beginPath();
-        ctx.arc(pos.x, pos.y, 9, 0, Math.PI * 2);
+        ctx.arc(pos.x, pos.y, 8, 0, Math.PI * 2);
         ctx.fillStyle = '#F5EFE6';
         ctx.strokeStyle = '#C08A55';
         ctx.lineWidth = 1;
         ctx.fill();
         ctx.stroke();
         ctx.fillStyle = '#8B1A1A';
-        ctx.font = 'bold 12px sans-serif';
+        ctx.font = 'bold 11px sans-serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText('−', pos.x, pos.y + 0.5);
@@ -1464,12 +1778,12 @@ Page({
   /** 绘制名字（按可用宽度截断，默认位于卡片上部）；color 为空时使用默认深灰 */
   drawName(ctx, node, x, y, maxW, centerY, color) {
     ctx.fillStyle = color || '#333333';
-    ctx.font = 'bold 12px sans-serif';
+    ctx.font = 'bold 11px sans-serif';
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
     const text = this.ellipsizeByWidth(ctx, node.name, maxW);
-    const textX = x + 44;
-    const textY = centerY || y + 22;
+    const textX = x + 40;
+    const textY = centerY || y + 18;
     ctx.fillText(text, textX, textY);
     const textW = ctx.measureText(text).width;
     const boxH = 14;
@@ -1484,7 +1798,7 @@ Page({
     ctx.fillStyle = color;
     ctx.fill();
     ctx.fillStyle = '#FFFFFF';
-    ctx.font = 'bold 12px KaiTi, serif';
+    ctx.font = 'bold 11px KaiTi, serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     const char = (name || '').charAt(0) || '?';
@@ -1704,7 +2018,7 @@ Page({
       (Math.abs(t.clientX - this.vTapInfo.x) > 10 || Math.abs(t.clientY - this.vTapInfo.y) > 10)) {
       this.vTapInfo = null;
     }
-    this.vPan.x = t.clientX - this.vPan.startX;
+    this.vPan.x = 0; // 锁定水平方向，仅允许上下滑动
     this.vPan.y = t.clientY - this.vPan.startY;
     this.requestRender();
   },
@@ -1815,12 +2129,36 @@ Page({
     }
   },
 
-  /** 搜索后定位到首个命中成员（高亮 + 居中） */
+  /** 搜索后定位到命中成员：多个同名时弹出下拉选择，单个直接定位 */
   locateFirstMatch(kw) {
     const k = (kw || '').trim().toLowerCase();
     if (!k) return;
-    const hit = (this.renderNodes || []).find(n => (n.name || '').toLowerCase().indexOf(k) > -1);
-    if (hit) this.locateMember(hit.id);
+    const hits = (this.renderNodes || []).filter(n => (n.name || '').toLowerCase().indexOf(k) > -1);
+    if (!hits.length) return;
+    if (hits.length === 1) {
+      this.locateMember(hits[0].id);
+      return;
+    }
+    // 多个同名：构建候选列表（附世代/父亲信息帮助区分），弹出下拉选择
+    const list = hits.map(n => ({
+      id: n.id,
+      name: n.name,
+      generation: n.generation || '',
+      fatherName: n.parentId && this.nodeMap[n.parentId] ? this.nodeMap[n.parentId].name : ''
+    }));
+    this.setData({ showNamePicker: true, namePickerList: list });
+  },
+
+  /** 同名选择弹窗：点击候选项后定位并关闭 */
+  onPickName(e) {
+    const id = e.currentTarget.dataset.id;
+    this.setData({ showNamePicker: false });
+    this.locateMember(id);
+  },
+
+  /** 关闭同名选择弹窗 */
+  onCloseNamePicker() {
+    this.setData({ showNamePicker: false });
   },
 
   /** 清除高亮 */

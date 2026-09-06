@@ -243,21 +243,21 @@
   box-shadow: 0 0 0 2px #8B1A1A, 0 2px 6px rgba(0, 0, 0, 0.1);
 }
 
-/* 首字头像（圆心 x+24,y+34，r16） */
+/* 首字头像（圆心 x+20,y+28，r13） */
 .tree-node-avatar {
   position: absolute;
-  left: 8px;
-  top: 18px;
-  width: 32px;
-  height: 32px;
+  left: 7px;
+  top: 15px;
+  width: 26px;
+  height: 26px;
   border-radius: 50%;
   background: #8B1A1A;
   color: #FFFFFF;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: bold;
   font-family: 'KaiTi', 'STKaiti', serif;
   text-align: center;
-  line-height: 32px;
+  line-height: 26px;
   overflow: hidden;
 }
 
@@ -268,13 +268,13 @@
 /* 名字（左上，可截断）+ 字辈标签 */
 .tree-node-name {
   position: absolute;
-  left: 44px;
-  right: 6px;
-  top: 14px;
-  font-size: 12px;
+  left: 38px;
+  right: 5px;
+  top: 10px;
+  font-size: 11px;
   font-weight: bold;
   color: #333333;
-  line-height: 16px;
+  line-height: 14px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -282,14 +282,14 @@
 
 .tree-node-tag {
   position: absolute;
-  left: 44px;
-  top: 44px;
-  max-width: 70px;
+  left: 38px;
+  top: 38px;
+  max-width: 60px;
   box-sizing: border-box;
-  padding: 0 5px;
-  height: 14px;
-  line-height: 14px;
-  font-size: 9px;
+  padding: 0 4px;
+  height: 12px;
+  line-height: 12px;
+  font-size: 8px;
   color: #7A6A56;
   background: #EFE7DA;
   border: 1px solid #CFC2AE;
@@ -302,15 +302,54 @@
 /* 代数徽标（右上角） */
 .tree-node-gen {
   position: absolute;
-  right: 4px;
-  top: 3px;
-  height: 14px;
-  line-height: 14px;
-  padding: 0 4px;
-  font-size: 9px;
+  right: 3px;
+  top: 2px;
+  height: 12px;
+  line-height: 12px;
+  padding: 0 3px;
+  font-size: 8px;
   color: #8B1A1A;
   background: rgba(139, 26, 26, 0.08);
-  border-radius: 7px;
+  border-radius: 6px;
+}
+
+/* 配偶信息行：与主成员信息视觉区分（更小字号、灰色、前缀标签） */
+.tree-node-spouse-list {
+  position: absolute;
+  left: 40px;
+  right: 5px;
+  top: 56px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.tree-node-spouse {
+  display: flex;
+  align-items: center;
+  height: 14px;
+  line-height: 14px;
+}
+
+.tree-node-spouse .spouse-label {
+  flex-shrink: 0;
+  font-size: 7px;
+  color: #999999;
+  background: #F5F5F5;
+  border: 1px solid #DDDDDD;
+  border-radius: 2px;
+  padding: 0 2px;
+  margin-right: 3px;
+  line-height: 10px;
+  height: 10px;
+}
+
+.tree-node-spouse .spouse-name {
+  font-size: 9px;
+  color: #888888;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* 折叠/展开指示器（右侧垂直居中；视觉圆 22px，点击热区 44×44 提升可点性，符合微信最小点击规范） */
@@ -418,7 +457,7 @@
 
 .v-row {
   position: absolute;
-  height: 110px;
+  height: 90px;
 }
 
 /* 按下反馈 */
@@ -431,8 +470,8 @@
   position: absolute;
   left: 0;
   top: 0;
-  width: 68px;
-  height: 68px;
+  width: 52px;
+  height: 52px;
   border-radius: 50%;
   background: #6A8BAE;
   color: #FFFFFF;
@@ -440,7 +479,7 @@
   font-weight: bold;
   font-family: 'KaiTi', 'STKaiti', serif;
   text-align: center;
-  line-height: 68px;
+  line-height: 52px;
   overflow: hidden;
 }
 
@@ -455,8 +494,8 @@
 .v-name {
   position: absolute;
   left: 0;
-  top: 76px;
-  width: 68px;
+  top: 58px;
+  width: 52px;
   text-align: center;
   font-size: 14px;
   font-weight: bold;
@@ -470,8 +509,8 @@
 .v-role {
   position: absolute;
   left: 0;
-  top: 94px;
-  width: 68px;
+  top: 76px;
+  width: 52px;
   text-align: center;
   font-size: 12px;
   color: #8B7D6B;
@@ -481,8 +520,8 @@
 .v-spouse-avatar {
   position: absolute;
   top: 0;
-  width: 54.4px;
-  height: 54.4px;
+  width: 41.6px;
+  height: 41.6px;
   border-radius: 50%;
   background: #D98BA6;
   color: #FFFFFF;
@@ -490,7 +529,7 @@
   font-weight: bold;
   font-family: 'KaiTi', 'STKaiti', serif;
   text-align: center;
-  line-height: 54.4px;
+  line-height: 41.6px;
   overflow: hidden;
 }
 
@@ -500,8 +539,8 @@
 
 .v-spouse-name {
   position: absolute;
-  top: 62.4px;
-  width: 54.4px;
+  top: 47.6px;
+  width: 41.6px;
   text-align: center;
   font-size: 14px;
   font-weight: bold;
@@ -514,8 +553,8 @@
 
 .v-spouse-role {
   position: absolute;
-  top: 80.4px;
-  width: 54.4px;
+  top: 65.6px;
+  width: 41.6px;
   text-align: center;
   font-size: 12px;
   color: #8B7D6B;
@@ -539,6 +578,108 @@
   line-height: 24px;
   text-align: center;
   z-index: 2;
+}
+
+/* ==========================================================================
+   同名成员选择弹窗
+   ========================================================================== */
+.name-picker-mask {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 200;
+}
+
+.name-picker {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: #FFFFFF;
+  border-radius: 40rpx 40rpx 0 0;
+  z-index: 201;
+  padding-bottom: calc(24rpx + env(safe-area-inset-bottom));
+  max-height: 70vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.name-picker-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 40rpx 40rpx 24rpx;
+  border-bottom: 1px solid #F0E8DC;
+}
+
+.name-picker-title {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: #333333;
+}
+
+.name-picker-close {
+  width: 60rpx;
+  height: 60rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 44rpx;
+  color: #999999;
+  line-height: 1;
+}
+
+.name-picker-list {
+  flex: 1;
+  padding: 16rpx 40rpx;
+  max-height: 50vh;
+}
+
+.name-picker-item {
+  display: flex;
+  align-items: center;
+  padding: 20rpx 0;
+  border-bottom: 1px solid #F5F0E8;
+}
+
+.name-picker-item:last-child {
+  border-bottom: none;
+}
+
+.name-picker-avatar {
+  width: 80rpx;
+  height: 80rpx;
+  border-radius: 50%;
+  background: #6A8BAE;
+  color: #FFFFFF;
+  font-size: 32rpx;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-right: 24rpx;
+  font-family: 'KaiTi', 'STKaiti', serif;
+}
+
+.name-picker-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4rpx;
+}
+
+.name-picker-name {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #333333;
+}
+
+.name-picker-detail {
+  font-size: 24rpx;
+  color: #8B7D6B;
 }
 
 /* ==========================================================================
@@ -886,6 +1027,114 @@
 .modal-btn.primary {
   background: linear-gradient(135deg, #8B1A1A, #B22222);
   color: #FFFFFF;
+}
+
+/* ==========================================================================
+   鹰眼图（缩略图导航）：右下角浮动面板，实时同步主视图状态
+   ========================================================================== */
+.minimap-container {
+  position: absolute;
+  right: 16rpx;
+  bottom: 80rpx;
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 16rpx;
+  box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.15);
+  overflow: hidden;
+  z-index: 50;
+}
+
+.minimap-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8rpx 16rpx;
+  background: #F5F5F5;
+  border-bottom: 1rpx solid #E0E0E0;
+}
+
+.minimap-title {
+  font-size: 22rpx;
+  color: #666;
+  font-weight: 500;
+}
+
+.minimap-controls {
+  display: flex;
+  gap: 8rpx;
+}
+
+.minimap-btn {
+  width: 40rpx;
+  height: 40rpx;
+  border-radius: 8rpx;
+  background: #FFFFFF;
+  border: 1rpx solid #DDD;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24rpx;
+  color: #666;
+}
+
+.minimap-btn:active {
+  background: #F0F0F0;
+}
+
+.minimap-viewport {
+  position: relative;
+  overflow: hidden;
+  background: #F0E9DD;
+}
+
+.minimap-stage {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform-origin: 0 0;
+  pointer-events: none;
+}
+
+/* 缩略图节点（简化样式） */
+.minimap-node {
+  position: absolute;
+  box-sizing: border-box;
+  background: rgba(139, 26, 26, 0.6);
+  border-radius: 2px;
+}
+
+.minimap-node.female {
+  background: rgba(255, 107, 157, 0.6);
+}
+
+/* 直系图缩略图节点 */
+.minimap-v-node {
+  position: absolute;
+  box-sizing: border-box;
+  background: rgba(106, 139, 174, 0.5);
+  border-radius: 50%;
+}
+
+/* 缩略图连线 */
+.minimap-link {
+  position: absolute;
+  background: rgba(192, 138, 85, 0.4);
+}
+
+.minimap-link-v {
+  width: 1px;
+}
+
+.minimap-link-h {
+  height: 1px;
+}
+
+/* 高亮框：指示当前主视图位置 */
+.minimap-viewport-indicator {
+  position: absolute;
+  border: 2px solid #E07A5F;
+  background: rgba(224, 122, 95, 0.1);
+  box-sizing: border-box;
+  pointer-events: none;
 }
 
 

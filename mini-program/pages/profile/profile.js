@@ -324,9 +324,9 @@ Page({
       content: '确定要退出登录吗？',
       success: (res) => {
         if (res.confirm) {
-          // 清除本地 token
+          // 清除本地 token 和用户态缓存
           clearToken();
-          app.globalData.userInfo = null;
+          app.clearCachedUserInfo();
           app.globalData.isOnline = false;
           wx.showToast({ title: '已退出登录', icon: 'success' });
           setTimeout(() => {
@@ -367,7 +367,7 @@ Page({
         .then(() => {
           wx.hideLoading();
           clearToken();
-          app.globalData.userInfo = null;
+          app.clearCachedUserInfo();
           app.globalData.isOnline = false;
           wx.showToast({ title: '账号已注销', icon: 'success' });
           setTimeout(() => {

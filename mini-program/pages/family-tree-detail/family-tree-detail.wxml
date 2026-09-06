@@ -15,8 +15,7 @@
       <view class="generation-filter {{viewMode === 'vertical' ? 'disabled' : ''}}">
         <text class="filter-label">显示代数：</text>
         <view class="filter-options">
-          <view class="filter-item {{selectedGen === 'default' ? 'active' : ''}}" bindtap="filterGen" data-gen="default">3代</view>
-          <view class="filter-item {{selectedGen === '5' ? 'active' : ''}}" bindtap="filterGen" data-gen="5">5代</view>
+          <view class="filter-item {{selectedGen === 'default' ? 'active' : ''}}" bindtap="filterGen" data-gen="default">5代</view>
           <view class="filter-item {{selectedGen === '7' ? 'active' : ''}}" bindtap="filterGen" data-gen="7">7代</view>
         </view>
       </view>
@@ -30,6 +29,9 @@
       </view>
       <view class="tool-btn" bindtap="resetView">
         <text>重置</text>
+      </view>
+      <view class="tool-btn" bindtap="toggleMinimap">
+        <text>全景</text>
       </view>
       <view class="tool-btn" bindtap="toggleView">
         <text>{{viewMode === 'tree' ? '直系' : '树状'}}</text>
@@ -81,6 +83,13 @@
           <view class="tree-node-main">
             <text class="tree-node-name">{{item.name}}</text>
             <view class="tree-node-tag" wx:if="{{item.generationName}}">{{item.generationName}}字辈</view>
+            <!-- 配偶信息：支持多配偶，与主成员信息视觉区分 -->
+            <view class="tree-node-spouse-list" wx:if="{{item.hasSpouse}}">
+              <view class="tree-node-spouse" wx:for="{{item.spouseList}}" wx:for-item="spouse" wx:key="index">
+                <text class="spouse-label">配</text>
+                <text class="spouse-name">{{spouse.name}}</text>
+              </view>
+            </view>
           </view>
           <view class="tree-node-gen">{{item.generation}}代</view>
           <view wx:if="{{item.canCollapse}}" class="collapse-toggle {{item.collapsed ? 'collapsed' : ''}}"
@@ -94,6 +103,32 @@
     </view>
     <view class="tree-hint">
       <text class="hint-text">共 {{memberCount}} 人 · 拖动平移 · 双指缩放 · 点击节点弹出操作</text>
+    </view>
+    <!-- 鹰眼图（缩略图导航） -->
+    <view class="minimap-container" wx:if="{{minimapVisible}}">
+      <view class="minimap-header">
+        <text class="minimap-title">全景</text>
+        <view class="minimap-controls">
+          <view class="minimap-btn" catchtap="minimapZoomOut">−</view>
+          <view class="minimap-btn" catchtap="minimapZoomIn">＋</view>
+          <view class="minimap-btn" catchtap="toggleMinimap">×</view>
+        </view>
+      </view>
+      <view class="minimap-viewport"
+        style="width:{{minimapW}}px;height:{{minimapH}}px;"
+        bindtouchstart="onMinimapTouchStart"
+        catchtouchmove="onMinimapTouchMove"
+        bindtouchend="onMinimapTouchEnd">
+        <!-- 缩略图内容（复用主视图节点数据，缩小渲染） -->
+        <view class="minimap-stage" style="transform:{{minimapTransform}};">
+          <view wx:for="{{domNodes}}" wx:key="id" class="minimap-node {{item.gender}}"
+            style="left:{{item.x}}px;top:{{item.y}}px;width:{{item.w}}px;height:{{item.h}}px;"></view>
+          <view wx:for="{{treeLinks}}" wx:key="id" class="minimap-link {{item.kind === 'v' ? 'minimap-link-v' : 'minimap-link-h'}}"
+            style="left:{{item.x}}px;top:{{item.y}}px;{{item.kind === 'v' ? 'height:' + item.h + 'px' : 'width:' + item.w + 'px'}}"></view>
+        </view>
+        <!-- 高亮框：指示当前主视图位置 -->
+        <view class="minimap-viewport-indicator" style="{{minimapViewportStyle}}"></view>
+      </view>
     </view>
   </view>
 
@@ -113,8 +148,8 @@
           style="left:{{item.x}}px;top:{{item.y}}px;width:{{item.w}}px;"
           data-id="{{item.id}}" bindtap="onNodeTap">
           <!-- 夫妇连线（中间断口由红心覆盖，与 Canvas 断线视觉一致） -->
-          <view class="v-couple-line" style="left:78px;top:26.2px;width:{{item.coupleLineWidth}}px;"></view>
-          <view class="v-heart" style="left:{{item.heartLeft}}px;top:15px;">
+          <view class="v-couple-line" style="left:{{item.coupleLineLeft}}px;top:{{item.coupleLineTop}}px;width:{{item.coupleLineWidth}}px;"></view>
+          <view class="v-heart" style="left:{{item.heartLeft}}px;top:{{item.heartTop}}px;">
             <text>❤</text>
           </view>
           <!-- 主成员头像 + 名字 + 角色 -->
@@ -135,6 +170,32 @@
     </view>
     <view class="tree-hint">
       <text class="hint-text">直系共 {{memberCount}} 人 · 拖动查看，双指缩放 · 点击成员弹出操作</text>
+    </view>
+    <!-- 鹰眼图（缩略图导航） -->
+    <view class="minimap-container" wx:if="{{minimapVisible}}">
+      <view class="minimap-header">
+        <text class="minimap-title">全景</text>
+        <view class="minimap-controls">
+          <view class="minimap-btn" catchtap="minimapZoomOut">−</view>
+          <view class="minimap-btn" catchtap="minimapZoomIn">＋</view>
+          <view class="minimap-btn" catchtap="toggleMinimap">×</view>
+        </view>
+      </view>
+      <view class="minimap-viewport"
+        style="width:{{minimapW}}px;height:{{minimapH}}px;"
+        bindtouchstart="onMinimapTouchStart"
+        catchtouchmove="onMinimapTouchMove"
+        bindtouchend="onMinimapTouchEnd">
+        <!-- 缩略图内容（复用直系图数据，缩小渲染） -->
+        <view class="minimap-stage" style="transform:{{minimapTransform}};">
+          <view wx:for="{{vDomNodes}}" wx:key="id" class="minimap-v-node"
+            style="left:{{item.x}}px;top:{{item.y}}px;width:{{item.w}}px;height:110px;"></view>
+          <view wx:for="{{vLinks}}" wx:key="id" class="minimap-link minimap-link-v"
+            style="left:{{item.x}}px;top:{{item.y}}px;height:{{item.h}}px;"></view>
+        </view>
+        <!-- 高亮框：指示当前主视图位置 -->
+        <view class="minimap-viewport-indicator" style="{{minimapViewportStyle}}"></view>
+      </view>
     </view>
   </view>
 
@@ -222,6 +283,24 @@
     <view class="modal-btn primary" bindtap="editNode">编辑</view>
     <view class="modal-btn" wx:if="{{viewMode === 'vertical'}}" bindtap="setAsVerticalRoot">以此为中心</view>
   </view>
+</view>
+
+<!-- 同名成员选择弹窗 -->
+<view class="name-picker-mask" wx:if="{{showNamePicker}}" bindtap="onCloseNamePicker"></view>
+<view class="name-picker" wx:if="{{showNamePicker}}">
+  <view class="name-picker-header">
+    <text class="name-picker-title">找到 {{namePickerList.length}} 位同名成员，请选择</text>
+    <view class="name-picker-close" bindtap="onCloseNamePicker">×</view>
+  </view>
+  <scroll-view class="name-picker-list" scroll-y>
+    <view class="name-picker-item" wx:for="{{namePickerList}}" wx:key="id" data-id="{{item.id}}" bindtap="onPickName">
+      <view class="name-picker-avatar">{{item.name.charAt(0)}}</view>
+      <view class="name-picker-info">
+        <text class="name-picker-name">{{item.name}}</text>
+        <text class="name-picker-detail">{{item.generation}}代{{item.fatherName ? ' · 父：' + item.fatherName : ''}}</text>
+      </view>
+    </view>
+  </scroll-view>
 </view>
 
 
