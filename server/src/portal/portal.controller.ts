@@ -63,10 +63,12 @@ export class PortalController {
     @Query('keyword') keyword?: string,
     @Query('gender') gender?: string,
     @Query('sort') sort?: string,
+    @Query('generation') generation?: string,
     @Query('generations') generations?: string
   ) {
     const p = page !== undefined && page !== '' ? Number(page) : undefined;
     const ps = pageSize !== undefined && pageSize !== '' ? Number(pageSize) : undefined;
+    const g = generation !== undefined && generation !== '' ? Number(generation) : undefined;
     const n = generations !== undefined && generations !== '' ? Number(generations) : undefined;
     return this.portalService.getFamilyMembers(familyId, {
       page: p && Number.isInteger(p) && p > 0 ? p : undefined,
@@ -74,6 +76,7 @@ export class PortalController {
       keyword: keyword || undefined,
       gender: gender || undefined,
       sort: sort || undefined,
+      generation: g && Number.isInteger(g) && g > 0 ? g : undefined,
       generations: n && Number.isInteger(n) && n > 0 ? n : undefined
     });
   }

@@ -399,7 +399,13 @@ Page({
   },
 
   /**
-   * 解析字辈数据:优先用 generationSequence(结构 {代:[字1,字2]})按代分组,
+   * 解析字辈数据:优先用 generationSequence 按代分组。
+   * 兼容两种结构:
+   *   1) 对象 {代:[字1,字2]}(旧结构)
+   *   2) 数组 [项1,项2,...](generation_table 形态):每项即一代,
+   *      同代多字辈写在同一项内。
+   * 代内取值规则:数组原样用;字符串按分隔符拆分,无分隔符时按单字拆分
+   * (字辈均为单字,长度>1 即视为同代多字,如 "文武贤良臣" -> ["文","武","贤","良","臣"])。
    * 同代多字辈时首页只展示首字并带"+"角标,点击横向展开;
    * 无 sequence 时回退用 generationNames 扁平串按序号分组。最后测量是否超四行。
    */
@@ -408,20 +414,48 @@ Page({
     const seqRaw = family.generationSequence;
     let groups = [];
 
+    // 代内字符串 -> 单字数组:先按分隔符(空格/逗号/顿号/分号)拆分;
+    // 无分隔符且长度>1 时按单字拆分(字辈均为单字,连续汉字即同代多字)
+    const toChars = (v) => {
+      if (Array.isArray(v)) return v.filter(Boolean).map(String);
+      const s = String(v == null ? '' : v).trim();
+      if (!s) return [];
+      if (/[\s,，、;；]+/.test(s)) {
+        return s.split(/[\s,，、;；]+/).map(x => x.trim()).filter(Boolean);
+      }
+      // 无分隔符:长度 1 返回自身,长度 >1 按单字拆分
+      if (s.length === 1) return [s];
+      return s.split('');
+    };
+
     if (seqRaw) {
-      // 解析 {代: [字1,字2]} 结构
+      // 解析 {代:[字1,字2]} 或 [项1,项2,...] 结构
       let obj = seqRaw;
       if (typeof obj === 'string') {
         try { obj = JSON.parse(obj); } catch (e) { obj = null; }
       }
+      // 对象形态:{代:[字...]},键为代序号
       if (obj && typeof obj === 'object' && !Array.isArray(obj)) {
         groups = Object.keys(obj)
           .sort((a, b) => Number(a) - Number(b))
           .map(k => {
-            const arr = Array.isArray(obj[k]) ? obj[k] : [obj[k]];
-            const chars = arr.filter(Boolean).map(String);
+            const chars = toChars(obj[k]);
             return {
               generation: Number(k),
+              chars: chars,
+              firstChar: chars[0] || '',
+              hasMore: chars.length > 1,
+              expanded: false
+            };
+          })
+          .filter(g => g.firstChar);
+      } else if (Array.isArray(obj)) {
+        // 数组形态:每项即一代,同代多字辈写在同一项内
+        groups = obj
+          .map((item, index) => {
+            const chars = toChars(item);
+            return {
+              generation: index + 1,
               chars: chars,
               firstChar: chars[0] || '',
               hasMore: chars.length > 1,
@@ -449,11 +483,13 @@ Page({
       }));
     }
 
-    // 扁平列表(供弹窗跳转按字定位 generation)
-    const generationList = [];
-    groups.forEach(g => {
-      g.chars.forEach(c => generationList.push({ name: c, generation: g.generation }));
-    });
+    // 弹窗按代分组渲染:同代多字辈的格子包一层容器加底色,体现归属同一代
+    // 结构:[{ generation, isGroup, chars: [{ name }] }]
+    const generationList = groups.map(g => ({
+      generation: g.generation,
+      isGroup: g.chars.length > 1,
+      chars: g.chars.map(c => ({ name: c }))
+    }));
 
     this.setData({ generationGroups: groups, generationList: generationList });
     this.measureGenerationClamp();
@@ -510,11 +546,12 @@ Page({
     const dataset = e.currentTarget.dataset || {};
     // dataset.generation 经小程序传递后为字符串,Number 转回数字
     const generation = parseInt(dataset.generation, 10);
-    // 优先用点击元素携带的字辈名,其次回退到列表查找
+    // 优先用点击元素携带的字辈名,其次回退到分组列表查找该代首字
     let name = (dataset.name || '').trim();
     if (!name) {
-      const item = (this.data.generationList || []).find(g => g.generation === generation) || {};
-      name = (item.name || '').trim();
+      const group = (this.data.generationList || []).find(g => g.generation === generation) || {};
+      const first = (group.chars || [])[0] || {};
+      name = (first.name || '').trim();
     }
     // familyId 实时取 globalData,兼容数字 id 与字符串 id(如 mock 'fam001')
     const family = app.globalData.currentFamily || this.data.currentFamily || {};

@@ -123,7 +123,7 @@ export class PortalService {
    * - 搜索模式（keyword 无 page）：返回命中成员 + 祖先链 + 后3代子图
    * - 窗口模式（generations）：从家族最顶层代数起返回 N 代
    */
-  async getFamilyMembers(familyId: number, opts: { generations?: number; keyword?: string; page?: number; pageSize?: number; gender?: string; sort?: string } = {}) {
+  async getFamilyMembers(familyId: number, opts: { generations?: number; generation?: number; keyword?: string; page?: number; pageSize?: number; gender?: string; sort?: string } = {}) {
     // 分页模式
     if (opts.page !== undefined) {
       return this.familyMemberService.getPaged(familyId, {
@@ -131,7 +131,8 @@ export class PortalService {
         pageSize: opts.pageSize,
         keyword: opts.keyword,
         gender: opts.gender,
-        sort: opts.sort
+        sort: opts.sort,
+        generation: opts.generation
       });
     }
     // 搜索：返回命中成员 + 祖先链 + 后 3 代子孙（递归子图）

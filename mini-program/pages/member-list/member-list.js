@@ -139,7 +139,7 @@ Page({
       if (kw) params.keyword = kw;
       if (gender) params.gender = gender;
       if (sort) params.sort = sort;
-      if (this.data.generation > 0) params.generations = this.data.generation;
+      if (this.data.generation > 0) params.generation = this.data.generation;
       familyMember.getAll(familyId, params)
         .then(done)
         .catch((err) => {

@@ -240,16 +240,32 @@
     <!-- 用普通 view + overflow-y 滚动,规避 scroll-view 原生组件层级高于 header 导致的重叠 -->
     <view class="generation-dialog-body">
       <view class="generation-poem">
-        <view
-          wx:for="{{generationList}}"
-          wx:key="index"
-          class="generation-poem-char"
-          data-generation="{{item.generation}}"
-          data-name="{{item.name}}"
-          bindtap="goGenerationMembers"
-        >
-          <text class="generation-poem-char-text">{{item.name}}</text>
-        </view>
+        <block wx:for="{{generationList}}" wx:key="generation" wx:for-item="group">
+          <!-- 同代多字辈:包一层分组容器,底色串联体现同代归属 -->
+          <view class="generation-poem-group" wx:if="{{group.isGroup}}">
+            <view
+              wx:for="{{group.chars}}"
+              wx:for-item="c"
+              wx:key="name"
+              class="generation-poem-char"
+              data-generation="{{group.generation}}"
+              data-name="{{c.name}}"
+              bindtap="goGenerationMembers"
+            >
+              <text class="generation-poem-char-text">{{c.name}}</text>
+            </view>
+          </view>
+          <!-- 单字辈:独立格子 -->
+          <view
+            wx:if="{{!group.isGroup && group.chars.length}}"
+            class="generation-poem-char"
+            data-generation="{{group.generation}}"
+            data-name="{{group.chars[0].name}}"
+            bindtap="goGenerationMembers"
+          >
+            <text class="generation-poem-char-text">{{group.chars[0].name}}</text>
+          </view>
+        </block>
       </view>
       <text class="generation-dialog-tip">点击字辈可查看该字辈家族成员</text>
     </view>

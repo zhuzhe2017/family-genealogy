@@ -47,7 +47,8 @@ function normalizeFamily(row) {
   };
 }
 
-/** 从 generation_sequence 提取字辈字符串（取每代第一个字，顿号连接） */
+/** 从 generation_sequence 提取字辈字符串（取每代第一个字，顿号连接）
+ *  同代多字辈：对象形态取 arr[0]，数组形态取项首字符（"文武贤良"->"文"） */
 function generationNamesOf(row) {
   if (row.generationNames) return row.generationNames;
   const seq = row.generation_sequence;
@@ -60,7 +61,16 @@ function generationNamesOf(row) {
       return seq;
     }
   }
-  if (Array.isArray(obj)) return obj.join('、');
+  if (Array.isArray(obj)) {
+    // 数组形态：每项即一代，同代多字辈取首字符，保持与首页卡片 firstChar 一致
+    return obj
+      .map(item => {
+        if (Array.isArray(item)) return (item[0] || '').trim().charAt(0);
+        return String(item == null ? '' : item).trim().charAt(0);
+      })
+      .filter(Boolean)
+      .join('、');
+  }
   if (obj && typeof obj === 'object') {
     return Object.keys(obj)
       .sort((a, b) => Number(a) - Number(b))

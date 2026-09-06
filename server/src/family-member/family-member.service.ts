@@ -180,11 +180,11 @@ export class FamilyMemberService {
    */
   async getPaged(
     familyId: number,
-    params: { page?: number; pageSize?: number; keyword?: string; gender?: string; sort?: string } = {}
+    params: { page?: number; pageSize?: number; keyword?: string; gender?: string; sort?: string; generation?: number } = {}
   ) {
     await this.ensureTable(familyId);
     const tableName = getSafeMemberTableName(familyId);
-    const { page = 1, pageSize = 15, keyword, gender, sort } = params;
+    const { page = 1, pageSize = 15, keyword, gender, sort, generation } = params;
     const safePageSize = Math.min(Math.max(pageSize, 1), 100);
     const where: string[] = ['`status` = ?'];
     const values: QueryValues = [1];
@@ -195,6 +195,10 @@ export class FamilyMemberService {
     if (gender === 'male' || gender === 'female') {
       where.push('`gender` = ?');
       values.push(gender);
+    }
+    if (generation !== undefined && generation > 0) {
+      where.push('`generation` = ?');
+      values.push(generation);
     }
     const whereSql = where.join(' AND ');
     // 统计（一次查询同时取总数与性别分布）
