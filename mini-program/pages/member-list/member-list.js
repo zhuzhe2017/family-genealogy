@@ -47,11 +47,11 @@ Page({
       wx.showToast({ title: params.error, icon: 'none', duration: 2500 });
     }
     const next = { generation: params.generation, generationName: params.generationName };
-    // 解析 URL 传入的 familyId(字辈跳转会携带),优先于 globalData
+    // 解析 URL 传入的 familyId(字辈跳转会携带),优先于 globalData;统一转字符串避免类型不一致
     try {
-      next.familyId = decodeURIComponent((options && options.familyId) || '') || (app.globalData.currentFamily || {}).id || '';
+      next.familyId = String(decodeURIComponent((options && options.familyId) || '') || (app.globalData.currentFamily || {}).id || '');
     } catch (e) {
-      next.familyId = (app.globalData.currentFamily || {}).id || '';
+      next.familyId = String((app.globalData.currentFamily || {}).id || '');
     }
     if (params.generation > 0) {
       next.navTitle = params.generationName
@@ -108,7 +108,7 @@ Page({
   /** 拉取一页数据。reset 为 true 表示第一页（清空已加载列表） */
   fetchPage(page, reset) {
     // 优先用 URL 传入的 familyId(字辈跳转会携带),避免切换家族后串数据;为空回退 globalData
-    const familyId = this.data.familyId || (app.globalData.currentFamily || {}).id;
+    const familyId = String(this.data.familyId || (app.globalData.currentFamily || {}).id || '');
     const kw = this.data.searching ? this.data.keyword.trim() : '';
     const { gender, sort } = this.data.filter;
 
