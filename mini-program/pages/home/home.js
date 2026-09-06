@@ -505,24 +505,29 @@ Page({
 
   /** 点击具体字辈:关闭弹窗并跳转该字辈家族成员列表
    *  参数传递:优先取点击元素自身的 data-name(最可靠),generation 取 data-generation
-   *  二者任一缺失即视为参数异常,toast 提示并终止跳转 */
+   *  familyId 实时从 globalData 取(避免 data 快照过期);字符串/数字 id 均合法 */
   goGenerationMembers(e) {
     const dataset = e.currentTarget.dataset || {};
-    const generation = Number(dataset.generation);
+    // dataset.generation 经小程序传递后为字符串,Number 转回数字
+    const generation = parseInt(dataset.generation, 10);
     // 优先用点击元素携带的字辈名,其次回退到列表查找
     let name = (dataset.name || '').trim();
     if (!name) {
       const item = (this.data.generationList || []).find(g => g.generation === generation) || {};
       name = (item.name || '').trim();
     }
-    const familyId = (this.data.currentFamily || {}).id;
+    // familyId 实时取 globalData,兼容数字 id 与字符串 id(如 mock 'fam001')
+    const family = app.globalData.currentFamily || this.data.currentFamily || {};
+    const familyId = family.id;
 
     // 参数校验:代数/家族ID 缺失直接报错
     if (!generation || generation < 1 || !Number.isInteger(generation)) {
+      console.error('[goGenerationMembers] 代数无效', dataset);
       wx.showToast({ title: '字辈代数信息缺失', icon: 'none' });
       return;
     }
-    if (!familyId) {
+    if (familyId === undefined || familyId === null || familyId === '') {
+      console.error('[goGenerationMembers] 家族ID缺失', family);
       wx.showToast({ title: '请先选择家族', icon: 'none' });
       return;
     }
@@ -531,14 +536,15 @@ Page({
     if (this.data.generationModalVisible) {
       this.closeGenerationModal();
     }
-    // encodeURIComponent 保证中文/特殊字辈名跨页传递不丢乱码
+    // encodeURIComponent 保证中文/特殊字辈名与字符串家族id跨页传递不丢乱码
     const url = '/pages/member-list/member-list?familyId=' + encodeURIComponent(String(familyId))
       + '&generation=' + generation
       + '&generationName=' + encodeURIComponent(name);
+    console.log('[goGenerationMembers] 跳转:', url);
     wx.navigateTo({
       url: url,
       fail: (err) => {
-        console.error('跳转成员列表失败', err);
+        console.error('[goGenerationMembers] 跳转失败', err, 'url=', url);
         wx.showToast({ title: '页面跳转失败,请重试', icon: 'none' });
       }
     });

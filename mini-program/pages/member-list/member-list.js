@@ -29,6 +29,7 @@ Page({
     generation: 0,
     generationName: '',
     navTitle: '',          // 当前筛选标题(如 "德字辈成员"),用于顶部标签展示
+    familyId: '',          // URL 传入的家族ID,优先于 globalData,避免切换家族后串数据
     // 自定义导航栏适配（状态栏高度 + 导航栏高度）
     statusBarHeight: 20,
     navBarTotal: 64
@@ -46,6 +47,12 @@ Page({
       wx.showToast({ title: params.error, icon: 'none', duration: 2500 });
     }
     const next = { generation: params.generation, generationName: params.generationName };
+    // 解析 URL 传入的 familyId(字辈跳转会携带),优先于 globalData
+    try {
+      next.familyId = decodeURIComponent((options && options.familyId) || '') || (app.globalData.currentFamily || {}).id || '';
+    } catch (e) {
+      next.familyId = (app.globalData.currentFamily || {}).id || '';
+    }
     if (params.generation > 0) {
       next.navTitle = params.generationName
         ? params.generationName + '字辈成员'
@@ -100,7 +107,8 @@ Page({
 
   /** 拉取一页数据。reset 为 true 表示第一页（清空已加载列表） */
   fetchPage(page, reset) {
-    const familyId = (app.globalData.currentFamily || {}).id;
+    // 优先用 URL 传入的 familyId(字辈跳转会携带),避免切换家族后串数据;为空回退 globalData
+    const familyId = this.data.familyId || (app.globalData.currentFamily || {}).id;
     const kw = this.data.searching ? this.data.keyword.trim() : '';
     const { gender, sort } = this.data.filter;
 
