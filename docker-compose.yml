@@ -1,0 +1,129 @@
+# ============================================================
+# 数字家谱 生产环境编排（docker compose v2 语法）
+# 一键启动：MySQL + NestJS 后端 + web-admin(nginx) + tenant-web(nginx)
+#
+# 使用方式：
+#   1. 复制 .env.example 为 .env 并填入强随机密钥（JWT_SECRET / CLOUD_STORAGE_ENCRYPT_SECRET 等）
+#   2. 首次启动数据库并初始化 schema：
+#        docker compose up -d mysql
+#        # 等待 mysql 健康检查通过后，执行建表脚本：
+#        docker compose exec -T mysql sh -c "mysql -uroot -p$MYSQL_ROOT_PASSWORD $MYSQL_DATABASE" < server/database/schema.sql
+#   3. 启动全部服务：docker compose up -d --build
+#   4. 访问：http://localhost:9527 (web-admin)  http://localhost:9528 (tenant-web)
+# ============================================================
+
+name: family-genealogy
+
+services:
+  # ---------------- MySQL 8 ----------------
+  mysql:
+    image: mysql:8.0
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:?请先在 .env 中设置 DB_PASSWORD}
+      MYSQL_DATABASE: ${DB_DATABASE:-family_genealogy}
+      TZ: Asia/Shanghai
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --default-authentication-plugin=mysql_native_password
+      - --binlog-expire-logs-seconds=604800
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./backups/mysql:/backups
+    healthcheck:
+      test: ['CMD', 'mysqladmin', 'ping', '-h', '127.0.0.1', '-u', 'root', '-p$${MYSQL_ROOT_PASSWORD}']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    networks:
+      - app
+
+  # ---------------- NestJS 后端 ----------------
+  server:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_DATABASE: ${DB_DATABASE:-family_genealogy}
+      DB_USERNAME: ${DB_USERNAME:-root}
+      DB_PASSWORD: ${DB_PASSWORD:?请先在 .env 中设置 DB_PASSWORD}
+      DB_POOL_SIZE: ${DB_POOL_SIZE:-10}
+      DB_POOL_TIMEOUT: ${DB_POOL_TIMEOUT:-60000}
+      # 逗号分隔的前端来源白名单，生产必须改为实际域名，禁止 *
+      CORS_ORIGINS: ${CORS_ORIGINS:?请先在 .env 中设置 CORS_ORIGINS（生产域名白名单）}
+      JWT_SECRET: ${JWT_SECRET:?请先在 .env 中设置 JWT_SECRET（openssl rand -base64 48 生成）}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
+      WX_APPID: ${WX_APPID:-}
+      WX_SECRET: ${WX_SECRET:-}
+      SMS_PROVIDER: ${SMS_PROVIDER:-mock}
+      SMS_ALIYUN_ACCESS_KEY_ID: ${SMS_ALIYUN_ACCESS_KEY_ID:-}
+      SMS_ALIYUN_ACCESS_KEY_SECRET: ${SMS_ALIYUN_ACCESS_KEY_SECRET:-}
+      SMS_ALIYUN_SIGN_NAME: ${SMS_ALIYUN_SIGN_NAME:-}
+      SMS_ALIYUN_TEMPLATE_CODE: ${SMS_ALIYUN_TEMPLATE_CODE:-}
+      SMS_TENCENT_SECRET_ID: ${SMS_TENCENT_SECRET_ID:-}
+      SMS_TENCENT_SECRET_KEY: ${SMS_TENCENT_SECRET_KEY:-}
+      SMS_TENCENT_SDK_APP_ID: ${SMS_TENCENT_SDK_APP_ID:-}
+      SMS_TENCENT_SIGN_NAME: ${SMS_TENCENT_SIGN_NAME:-}
+      SMS_TENCENT_TEMPLATE_ID: ${SMS_TENCENT_TEMPLATE_ID:-}
+      WX_MCH_ID: ${WX_MCH_ID:-}
+      WX_MCH_SERIAL_NO: ${WX_MCH_SERIAL_NO:-}
+      WX_MCH_PRIVATE_KEY: ${WX_MCH_PRIVATE_KEY:-}
+      WX_PAY_API_V3_KEY: ${WX_PAY_API_V3_KEY:-}
+      WX_PAY_NOTIFY_URL: ${WX_PAY_NOTIFY_URL:-}
+      CLOUD_STORAGE_ENCRYPT_SECRET: ${CLOUD_STORAGE_ENCRYPT_SECRET:?请先在 .env 中设置 CLOUD_STORAGE_ENCRYPT_SECRET}
+      TZ: Asia/Shanghai
+    volumes:
+      - server_uploads:/app/uploads
+      - ./server/database:/app/database:ro
+    networks:
+      - app
+
+  # ---------------- web-admin 平台管理后台 (nginx) ----------------
+  web-admin:
+    build:
+      context: ./web-admin
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      - server
+    environment:
+      BACKEND_HOST: server
+      BACKEND_PORT: 3000
+    ports:
+      - '9527:80'
+    networks:
+      - app
+
+  # ---------------- tenant-web 租户后台 (nginx) ----------------
+  tenant-web:
+    build:
+      context: ./tenant-web
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      - server
+    environment:
+      BACKEND_HOST: server
+      BACKEND_PORT: 3000
+    ports:
+      - '9528:80'
+    networks:
+      - app
+
+volumes:
+  mysql_data:
+  server_uploads:
+
+networks:
+  app:
+    driver: bridge

@@ -49,6 +49,22 @@ const auth = {
   /** 注销账号 */
   deleteAccount: function () {
     return request({ url: '/user/account', method: 'DELETE' });
+  },
+  /** 记录隐私政策/用户协议同意（docType: privacy / agreement / member_notice） */
+  recordConsent: function (docType, docVersion) {
+    return request({ url: '/user/consent', method: 'POST', data: { docType: docType, docVersion: docVersion } });
+  },
+  /** 查询当前用户已同意的文档版本 */
+  getConsents: function () {
+    return request({ url: '/user/consent' });
+  },
+  /** 记录微信订阅消息授权（wx.requestSubscribeMessage 成功后调用） */
+  recordSubscribeAuth: function (tmplId, scene) {
+    return request({ url: '/user/subscribe-message/record', method: 'POST', data: { tmplId: tmplId, scene: scene || 'renewal_reminder' } });
+  },
+  /** 查询当前用户订阅消息授权数量 */
+  getSubscribeCount: function () {
+    return request({ url: '/user/subscribe-message/count' });
   }
 };
 
@@ -269,6 +285,10 @@ const invitation = {
   /** 通过邀请码查询邀请信息（含小程序码/分享/加入计数） */
   getInfoByCode: function (code) {
     return request({ url: '/user/invitation/info/' + encodeURIComponent(code) });
+  },
+  /** 主动触发生成小程序码（微信凭证未配置时 qrCodeUrl 为空串） */
+  generateWxacode: function (code) {
+    return request({ url: '/user/invitation/wxacode/' + encodeURIComponent(code) });
   },
   /** 记录一次分享（分享海报/链接/扫码） */
   recordShare: function (code) {

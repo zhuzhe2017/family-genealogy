@@ -42,6 +42,16 @@ export interface EventMemberData {
   relation?: string;
 }
 
+/** 文档章节（family_document_chapter 行） */
+export interface DocumentChapterData {
+  id: number;
+  number: string;
+  title: string;
+  startPage?: number;
+  endPage?: number;
+  sortOrder?: number;
+}
+
 /** 内容创建/更新数据（dynamic/photo/event 三类公共可空字段合并） */
 export interface ContentCreateData {
   familyId: number;

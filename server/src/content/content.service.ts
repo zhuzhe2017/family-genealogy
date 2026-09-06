@@ -2,7 +2,7 @@ import { Injectable, HttpException, HttpStatus } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { randomBytes } from 'crypto';
 import { EntitlementService } from '../membership/membership.service';
-import { type ContentType, type ContentConfig, type ContentRow, type ContentQueryParams, type ContentCreateData, type EventDetailData, type EventMemberData } from './types/content.types';
+import { type ContentType, type ContentConfig, type ContentRow, type ContentQueryParams, type ContentCreateData, type EventDetailData, type EventMemberData, type DocumentChapterData } from './types/content.types';
 import { type QueryValues } from '../common/types/common';
 
 const CONTENT_CONFIG: Record<ContentType, ContentConfig> = {
@@ -390,6 +390,21 @@ export class ContentService {
         [id]
       );
       (row as ContentRow & { photos?: string[] }).photos = photos.map(p => p.photo_url);
+    }
+    if (type === 'document') {
+      // 附带章节目录（family_document_chapter 按 sort_order 排序）
+      const chapters = await this.dataSource.query<{ id: number; number: string; title: string; start_page: number; end_page: number; sort_order: number }[]>(
+        'SELECT `id`, `number`, `title`, `start_page`, `end_page`, `sort_order` FROM `family_document_chapter` WHERE `document_id` = ? ORDER BY `sort_order`',
+        [id]
+      );
+      (row as ContentRow & { chapters?: DocumentChapterData[] }).chapters = chapters.map(c => ({
+        id: c.id,
+        number: c.number,
+        title: c.title,
+        startPage: c.start_page,
+        endPage: c.end_page,
+        sortOrder: c.sort_order
+      }));
     }
     return row;
   }

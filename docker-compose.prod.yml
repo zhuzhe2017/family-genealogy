@@ -1,0 +1,111 @@
+# ============================================================
+# docker compose 编排覆盖文件：docker-compose.prod.yml
+# 生产环境附加：HTTPS 终止、日志轮转、资源限制、每日数据库备份
+# 用法：docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+#
+# 前置条件：
+#   1. 已准备 TLS 证书（如 Let's Encrypt），放置于 ./ssl 目录：
+#        ssl/admin.your-domain.com.crt / .key   （web-admin）
+#        ssl/tenant.your-domain.com.crt / .key  （tenant-web）
+#   2. 已修改下方 server_name 为你的真实域名
+#   3. 备份目录 ./backups 会自动创建，建议为独立磁盘或定期同步到对象存储/异地
+# ============================================================
+
+services:
+  # ---------------- MySQL 8（生产加固）----------------
+  mysql:
+    # 生产建议为 MySQL 追加内存/CPU 限制，避免与后端争抢资源
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2G
+    logging:
+      driver: json-file
+      options:
+        max-size: '50m'
+        max-file: '3'
+
+  # ---------------- NestJS 后端（生产加固 + 备份任务）----------------
+  server:
+    deploy:
+      resources:
+        limits:
+          cpus: '1.5'
+          memory: 1G
+    logging:
+      driver: json-file
+      options:
+        max-size: '50m'
+        max-file: '3'
+    volumes:
+      # 覆盖基础编排中的只读挂载，备份脚本需要可写目录
+      - ./server/database:/app/database
+      # 每日全量备份输出目录（保留 30 天，见下方 backup 服务）
+      - ./backups:/backups
+
+  # ---------------- web-admin（HTTPS + 日志轮转）----------------
+  web-admin:
+    ports:
+      # 生产通过宿主机 443/80 暴露，宿主机 iptables/防火墙按需限制
+      - '443:443'
+      - '80:80'
+    volumes:
+      # TLS 证书（按实际域名替换）
+      - ./ssl/admin.your-domain.com.crt:/etc/nginx/ssl/server.crt:ro
+      - ./ssl/admin.your-domain.com.key:/etc/nginx/ssl/server.key:ro
+      # 用生产 nginx 配置覆盖镜像内配置（启用 443 + 强制跳转）
+      - ./web-admin/nginx.prod.conf:/etc/nginx/conf.d/default.conf:ro
+    logging:
+      driver: json-file
+      options:
+        max-size: '50m'
+        max-file: '3'
+
+  # ---------------- tenant-web（HTTPS + 日志轮转）----------------
+  tenant-web:
+    ports:
+      - '8443:443'
+      - '8080:80'
+    volumes:
+      - ./ssl/tenant.your-domain.com.crt:/etc/nginx/ssl/server.crt:ro
+      - ./ssl/tenant.your-domain.com.key:/etc/nginx/ssl/server.key:ro
+      - ./tenant-web/nginx.prod.conf:/etc/nginx/conf.d/default.conf:ro
+    logging:
+      driver: json-file
+      options:
+        max-size: '50m'
+        max-file: '3'
+
+  # ---------------- 每日数据库全量备份（mysqldump + 保留 30 天）----------------
+  # 基于 mysql 镜像的轻量 sidecar，通过 cron 表达式每日 03:00 执行备份
+  # 注意：docker compose 本身无 cron，需宿主机 crontab 或外部调度器触发：
+  #   0 3 * * * cd /path/to/family-genealogy && docker compose -f docker-compose.yml -f docker-compose.prod.yml run --rm backup
+  backup:
+    image: mysql:8.0
+    profiles: ['backup']          # 默认不随 up 启动，仅手动/定时触发
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      MYSQL_PWD: ${DB_PASSWORD:?请先在 .env 中设置 DB_PASSWORD}
+      DB_DATABASE: ${DB_DATABASE:-family_genealogy}
+      BACKUP_DIR: /backups
+      RETENTION_DAYS: '30'
+    volumes:
+      - ./backups:/backups
+    entrypoint: /bin/sh
+    command:
+      - -c
+      - |
+        set -e
+        TS=$$(date +%Y%m%d_%H%M%S)
+        OUT="$${BACKUP_DIR}/$${DB_DATABASE}_$${TS}.sql.gz"
+        echo "[backup] dumping $${DB_DATABASE} -> $${OUT}"
+        mysqldump -h mysql -u root --single-transaction --quick --routines --triggers "$${DB_DATABASE}" | gzip > "$${OUT}"
+        echo "[backup] cleaning backups older than $${RETENTION_DAYS} days"
+        find "$${BACKUP_DIR}" -name "$${DB_DATABASE}_*.sql.gz" -mtime +$${RETENTION_DAYS} -delete
+        echo "[backup] done. current backups:"
+        ls -lh "$${BACKUP_DIR}"
+    networks:
+      - app

@@ -1,13 +1,19 @@
 import { Controller, Post, Get, Put, Delete, Body, Param, UseGuards, Req } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { UserService } from './user.service';
+import { ConsentService, type ConsentDocType } from './consent.service';
+import { WxSubscribeMessageService, type SubscribeScene } from './wx-subscribe-message.service';
 import { UserJwtAuthGuard } from './user.guard';
 import { Public } from '../common/decorators/public.decorator';
 import { type AuthenticatedRequest } from '../common/types/common';
 
 @Controller('user')
 export class UserController {
-  constructor(private readonly userService: UserService) {}
+  constructor(
+    private readonly userService: UserService,
+    private readonly consentService: ConsentService,
+    private readonly wxSubscribeMessageService: WxSubscribeMessageService
+  ) {}
 
   /**
    * 用户手机号密码登录(公开接口)
@@ -157,5 +163,79 @@ export class UserController {
     @Body() body: { role: string }
   ) {
     return this.userService.setFamilyRole(String(req.user.id), targetUserId, body.role);
+  }
+
+  /**
+   * 记录隐私政策/用户协议同意（需 user-jwt，满足《个保法》告知-同意留存）
+   * doc_type: privacy / agreement / member_notice；重复上报同一版本幂等
+   * 限流 30 次/分钟/IP，防止刷写同意记录
+   */
+  @Public()
+  @UseGuards(UserJwtAuthGuard)
+  @Throttle({ default: { limit: 30, ttl: 60_000 } })
+  @Post('consent')
+  async recordConsent(
+    @Req() req: AuthenticatedRequest,
+    @Body() body: { docType: ConsentDocType; docVersion?: string; consent?: boolean }
+  ) {
+    return this.consentService.record(
+      String(req.user.id),
+      body.docType,
+      body.docVersion || this.consentService.currentVersion(),
+      body.consent !== false,
+      { ip: req.ip, userAgent: req.headers?.['user-agent'] }
+    );
+  }
+
+  /** 查询当前用户已同意的文档版本（小程序启动时判断是否需要弹窗） */
+  @Public()
+  @UseGuards(UserJwtAuthGuard)
+  @Get('consent')
+  async listConsents(@Req() req: AuthenticatedRequest) {
+    const list = await this.consentService.list(String(req.user.id));
+    return { list, currentVersion: this.consentService.currentVersion() };
+  }
+
+  /**
+   * 记录微信订阅消息授权（小程序端 wx.requestSubscribeMessage 成功后调用）
+   * tmplId: 用户授权的模板ID；scene: 业务场景
+   * 限流 30 次/分钟/IP
+   */
+  @Public()
+  @UseGuards(UserJwtAuthGuard)
+  @Throttle({ default: { limit: 30, ttl: 60_000 } })
+  @Post('subscribe-message/record')
+  async recordSubscribeAuth(
+    @Req() req: AuthenticatedRequest,
+    @Body() body: { tmplId: string; scene?: SubscribeScene }
+  ) {
+    const userId = String(req.user.id);
+    const openid = (req.user as { openid?: string }).openid || '';
+    await this.wxSubscribeMessageService.recordAuth(userId, openid, body.tmplId, body.scene || 'renewal_reminder');
+    return { success: true };
+  }
+
+  /** 查询当前用户订阅消息授权数量 */
+  @Public()
+  @UseGuards(UserJwtAuthGuard)
+  @Get('subscribe-message/count')
+  async getSubscribeCount(@Req() req: AuthenticatedRequest) {
+    const count = await this.wxSubscribeMessageService.getAvailableCount(String(req.user.id), 'renewal_reminder');
+    return { count, configured: this.wxSubscribeMessageService.isConfigured() };
+  }
+
+  /**
+   * 注销当前账号（需 user-jwt）
+   * 撤销登录凭证、联系方式置空、记录注销审计；发布内容匿名化保留
+   */
+  @Public()
+  @UseGuards(UserJwtAuthGuard)
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  @Delete('account')
+  async deleteAccount(
+    @Req() req: AuthenticatedRequest,
+    @Body() body: { reason?: string }
+  ) {
+    return this.userService.deleteAccount(String(req.user.id), body?.reason);
   }
 }

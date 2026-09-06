@@ -79,6 +79,18 @@ export class InvitationController {
   }
 
   /**
+   * 主动触发生成小程序码（供海报单独拉取，无需先查邀请信息）
+   * 返回 { qrCodeUrl }，微信凭证未配置或生成失败时 qrCodeUrl 为空串
+   */
+  @Get('wxacode/:code')
+  generateWxacode(
+    @Req() req: AuthenticatedRequest,
+    @Param('code') code: string
+  ) {
+    return this.invitationService.generateQrCode(String(req.user.id), code);
+  }
+
+  /**
    * 记录一次分享（分享海报/链接/扫码），用于分享记录与加入状态跟踪
    */
   @Post('share/:code')

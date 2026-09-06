@@ -10,6 +10,7 @@ import { SmsService } from './sms.service';
 import { EntitlementService } from '../membership/membership.service';
 import { Capability } from '../membership/types/membership.types';
 import { MemberService } from '../member/member.service';
+import { MaskingService } from '../common/masking/masking.service';
 import { type WxSessionResponse, type QueryValues, type DataRow, type SuccessResult } from '../common/types/common';
 
 @Injectable()
@@ -20,7 +21,8 @@ export class UserService {
     private readonly configService: ConfigService,
     private readonly smsService: SmsService,
     private readonly entitlementService: EntitlementService,
-    private readonly memberService: MemberService
+    private readonly memberService: MemberService,
+    private readonly maskingService: MaskingService
   ) {}
 
   /**
@@ -322,7 +324,8 @@ export class UserService {
     return {
       token,
       refreshToken,
-      userInfo: this.toUserInfo(user)
+      // 登录响应为本人上下文：手机号原样返回（本人查看不脱敏）
+      userInfo: this.maskUserPhone(user.id, user)
     };
   }
 
@@ -340,6 +343,20 @@ export class UserService {
     };
   }
 
+  /**
+   * 出参脱敏：个人资料/登录结果中的手机号对他人不可见时掩码（138****5678）
+   * @param viewerUserId 当前查看者；为空（登录前/系统上下文）一律掩码
+   */
+  private maskUserPhone(viewerUserId: string | null, user: UserRow): UserInfo {
+    const info = this.toUserInfo(user);
+    if (user.phone) {
+      info.phone = viewerUserId
+        ? this.maskingService.phoneForViewer(viewerUserId, user.id, user.phone)
+        : this.maskingService.phone(user.phone);
+    }
+    return info;
+  }
+
   /** 获取当前用户信息 */
   async getProfile(userId: string): Promise<UserInfo> {
     const [user] = await this.dataSource.query<UserRow[]>(
@@ -349,7 +366,8 @@ export class UserService {
     if (!user) {
       throw new HttpException('用户不存在', HttpStatus.NOT_FOUND);
     }
-    return this.toUserInfo(user);
+    // 本人查看：手机号不脱敏
+    return this.maskUserPhone(userId, user);
   }
 
   /** 获取用户家族绑定信息（供权限判断，仅需 family_id/member_id） */
@@ -650,10 +668,14 @@ export class UserService {
   }
 
   /**
-   * 注销账号(删除用户记录,其发布内容匿名化保留)
+   * 注销账号(停用用户记录并匿名化：联系方式置空，其发布内容匿名化保留)
+   * 满足《个保法》删除权：撤销登录凭证 + 记录注销审计（deleted_at / delete_reason）
    */
-  async deleteAccount(userId: string) {
-    await this.dataSource.query('UPDATE `user` SET `status` = 0, `phone` = NULL, `openid` = NULL, `unionid` = NULL WHERE `id` = ?', [userId] as QueryValues);
+  async deleteAccount(userId: string, reason?: string) {
+    await this.dataSource.query(
+      'UPDATE `user` SET `status` = 0, `phone` = NULL, `openid` = NULL, `unionid` = NULL, `deleted_at` = NOW(), `delete_reason` = ? WHERE `id` = ?',
+      [reason || '', userId] as QueryValues
+    );
     await this.dataSource.query('UPDATE `user_auth_identity` SET `status` = 0 WHERE `user_id` = ?', [userId] as QueryValues);
     return { success: true };
   }

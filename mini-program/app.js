@@ -31,8 +31,77 @@ App({
     // 登录:优先走真实 API,失败时回退 mock
     this.login();
 
+    // 合规：首次进入/隐私政策更新后，弹窗征得用户同意（需登录态，token 就绪后异步检查）
+    this.checkPrivacyConsent();
+
     // 初始化家族数据
     this.initFamilyData();
+  },
+
+  /**
+   * 隐私政策/用户协议 告知-同意（《个保法》合规红线）
+   * - 登录后检查当前生效版本（consentVersion）是否已同意，未同意则弹窗征得
+   * - 本地记录已展示版本，避免每次启动重复弹窗；服务端留存同意记录（含 IP/UA 审计）
+   * - 与后端 ConsentService.currentVersion() 保持一致
+   */
+  consentVersion: 'v1.0',
+
+  checkPrivacyConsent() {
+    if (USE_MOCK) return;
+    // 等待登录态就绪（token 由 login() 异步获取）
+    const tryCheck = (retries) => {
+      if (!getToken()) {
+        if (retries > 0) setTimeout(() => tryCheck(retries - 1), 500);
+        return;
+      }
+      const shownKey = 'consent_shown_' + this.consentVersion;
+      try {
+        // 已对本版本弹过窗（无论同意与否，避免打扰），直接尝试上报服务端留痕
+        if (wx.getStorageSync(shownKey)) {
+          this.recordConsentSilently('privacy');
+          return;
+        }
+      } catch (e) { /* 缓存读取失败继续弹窗 */ }
+
+      wx.showModal({
+        title: '隐私政策与用户协议',
+        content: '为向你提供家族谱系服务，我们需要收集并使用你的微信身份信息及你主动填写的资料。详情请阅读《隐私政策》与《用户协议》。继续使用即表示你同意我们按政策收集、使用和保护你的个人信息。',
+        confirmText: '同意并继续',
+        cancelText: '查看协议',
+        confirmColor: '#8B1A1A',
+        success: (res) => {
+          try { wx.setStorageSync(shownKey, Date.now()); } catch (e) { /* ignore */ }
+          if (res.confirm) {
+            this.recordConsent('privacy');
+            this.recordConsent('agreement');
+          } else {
+            // 引导至协议页阅读，返回后可再次弹窗征得同意
+            wx.navigateTo({ url: '/pages/privacy/privacy?tab=privacy' });
+          }
+        }
+      });
+    };
+    tryCheck(20);
+  },
+
+  /** 上报同意记录到服务端（含 IP/UA 审计留痕） */
+  recordConsent(docType) {
+    const { auth } = require('./utils/api');
+    auth.recordConsent(docType, this.consentVersion).catch((err) => {
+      console.warn('[App] 同意记录上报失败:', err.message || err);
+    });
+  },
+
+  /** 静默补报：已弹过窗但服务端无记录时（如换设备/清缓存），不打扰用户 */
+  recordConsentSilently(docType) {
+    const { auth } = require('./utils/api');
+    auth.getConsents()
+      .then((data) => {
+        const list = (data && data.list) || [];
+        const agreed = list.some((c) => c.docType === docType && c.docVersion === this.consentVersion && c.consent);
+        if (!agreed) this.recordConsent(docType);
+      })
+      .catch(() => { /* 服务端不可用时静默忽略 */ });
   },
 
   /**

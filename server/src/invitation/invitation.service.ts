@@ -502,11 +502,33 @@ export class InvitationService {
   // ==================== 分享海报/小程序码 ====================
 
   /**
+   * 主动触发生成小程序码（供小程序端单独调用，无需先查邀请信息）。
+   * - 校验邀请码有效且当前用户是家族成员
+   * - 返回 { qrCodeUrl }，生成失败时 qrCodeUrl 为空串
+   */
+  async generateQrCode(userId: string, inviteCode: string): Promise<{ qrCodeUrl: string }> {
+    const code = String(inviteCode || '').trim().toUpperCase();
+    if (!code) {
+      throw new HttpException('邀请码不能为空', HttpStatus.BAD_REQUEST);
+    }
+    const row = await this.findValidInvitation(code);
+    if (!row) {
+      throw new HttpException('邀请码无效或已过期', HttpStatus.NOT_FOUND);
+    }
+    const familyRole = await this.getFamilyRole(userId, row.family_id);
+    if (familyRole === 'none') {
+      throw new HttpException('您不是该家族成员，无法生成小程序码', HttpStatus.FORBIDDEN);
+    }
+    const qrCodeUrl = await this.ensureQrCode(row);
+    return { qrCodeUrl };
+  }
+
+  /**
    * 生成/复用邀请对应的小程序码图片（供海报绘制）。
    * - 微信凭证(WX_APPID/WX_SECRET)未配置时返回空串，前端海报以邀请码替代
    * - 生成成功后保存到 uploads/poster/{code}.png 并缓存 poster_url
    */
-  private async ensureQrCode(row: InvitationRow): Promise<string> {
+  async ensureQrCode(row: InvitationRow): Promise<string> {
     if (row.poster_url) return row.poster_url;
 
     const appId = this.configService.get<string>('WX_APPID');

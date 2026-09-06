@@ -1,7 +1,10 @@
 const app = getApp();
-const { subscription } = require('../../utils/api');
+const { subscription, auth } = require('../../utils/api');
 const { getToken } = require('../../utils/request');
 const { USE_MOCK } = require('../../utils/config');
+
+/** 订阅消息模板ID（需与后端 WX_SUBSCRIBE_TMPL_RENEWAL 配置一致） */
+const SUBSCRIBE_TMPL_ID = 'renewal_reminder_tmpl_id';
 
 /** 能力点 → 展示文案（与后端 Capability 枚举一致） */
 const CAPABILITY_LABELS = {
@@ -247,15 +250,41 @@ Page({
       });
       return;
     }
-    wx.showModal({
-      title: '确认开通' + plan.name,
-      content: '为「' + family.name + '」开通' + plan.name + '（' + plan.price + plan.unit + '），家族内成员共享全部权益。',
-      confirmText: '立即开通',
-      confirmColor: '#8B1A1A',
-      success: (res) => {
-        if (res.confirm) {
-          this.doPrepay(plan, family);
+    // 支付前请求订阅消息授权（用于后续续费提醒）
+    this.requestSubscribeAuth(() => {
+      wx.showModal({
+        title: '确认开通' + plan.name,
+        content: '为「' + family.name + '」开通' + plan.name + '（' + plan.price + plan.unit + '），家族内成员共享全部权益。',
+        confirmText: '立即开通',
+        confirmColor: '#8B1A1A',
+        success: (res) => {
+          if (res.confirm) {
+            this.doPrepay(plan, family);
+          }
         }
+      });
+    });
+  },
+
+  /** 请求微信订阅消息授权（静默失败，不阻塞主流程） */
+  requestSubscribeAuth(callback) {
+    if (!wx.requestSubscribeMessage) {
+      callback();
+      return;
+    }
+    wx.requestSubscribeMessage({
+      tmplIds: [SUBSCRIBE_TMPL_ID],
+      success: (res) => {
+        // 用户授权成功，记录到后端
+        if (res[SUBSCRIBE_TMPL_ID] === 'accept') {
+          auth.recordSubscribeAuth(SUBSCRIBE_TMPL_ID, 'renewal_reminder')
+            .catch(() => {});
+        }
+        callback();
+      },
+      fail: () => {
+        // 用户拒绝或模板未配置，继续主流程
+        callback();
       }
     });
   },

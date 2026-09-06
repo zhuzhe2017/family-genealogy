@@ -1,0 +1,238 @@
+# ============================================================
+# 数字家谱 Gitee Go CI/CD 流水线配置
+# 文件路径：.workflow/gitee-ci.yml（Gitee Go 默认识别路径）
+#
+# 流程：
+#   push main → CI（lint/test/build）→ docker（构建镜像）
+#   → deploy-staging（自动部署到测试服务器）
+#   → deploy-production（人工卡点，审批后继续部署生产）
+#
+# 使用前配置：
+#   1. Gitee 仓库 → 设置 → Gitee Go → 环境变量/密钥
+#   2. 配置 REGISTRY / NAMESPACE / DEPLOY_* 等变量（见文末清单）
+#   3. 开启 Gitee Go 服务并关联本仓库
+# ============================================================
+
+name: family-genealogy-cicd
+
+# 触发条件：push 到 main/master 分支
+on:
+  push:
+    branches: [main, master]
+  # 手动触发（Gitee 页面点击「运行」）
+  workflow_dispatch:
+
+# 全局环境变量（可在 Gitee Go 环境变量中覆盖）
+env:
+  REGISTRY: docker.io
+  NAMESPACE: your-registry-namespace   # TODO: 替换为实际镜像仓库命名空间
+  IMAGE_TAG: ${CI_COMMIT_SHORT_SHA:-latest}
+
+stages:
+  # ============================================================
+  # 阶段一：CI（lint / test / build）
+  # ============================================================
+  - stage: ci
+    name: 持续集成
+    jobs:
+      - job: server-ci
+        name: 后端 CI（lint/test/build）
+        runs-on: docker
+        services:
+          - image: mysql:8.0
+            name: mysql
+            env:
+              MYSQL_ROOT_PASSWORD: root
+              MYSQL_DATABASE: family_genealogy_test
+        steps:
+          - checkout
+          - run: |
+              cd server
+              pnpm install --frozen-lockfile
+              pnpm lint
+              pnpm test
+              pnpm build
+          # 初始化测试库 schema
+          - run: |
+              mysql -h 127.0.0.1 -uroot -proot family_genealogy_test < database/schema.sql
+          # 端到端测试
+          - run: |
+              cd server
+              DB_HOST=127.0.0.1 DB_PORT=3306 DB_DATABASE=family_genealogy_test \
+              DB_USERNAME=root DB_PASSWORD=root \
+              JWT_SECRET=ci_test_jwt_secret CLOUD_STORAGE_ENCRYPT_SECRET=ci_test_cloud_storage_secret \
+              pnpm test:e2e
+
+      - job: web-admin-ci
+        name: web-admin CI（lint/build）
+        runs-on: docker
+        steps:
+          - checkout
+          - run: |
+              cd web-admin
+              pnpm install --frozen-lockfile
+              pnpm lint
+              pnpm build
+
+      - job: tenant-web-ci
+        name: tenant-web CI（lint/build）
+        runs-on: docker
+        steps:
+          - checkout
+          - run: |
+              cd tenant-web
+              pnpm install --frozen-lockfile
+              pnpm lint
+              pnpm build
+
+  # ============================================================
+  # 阶段二：构建镜像 → 推送镜像仓库
+  # ============================================================
+  - stage: docker
+    name: 构建镜像
+    needs: ci
+    jobs:
+      - job: build-push
+        name: 构建并推送镜像
+        runs-on: docker
+        steps:
+          - checkout
+          # 登录镜像仓库（Docker Hub / 阿里云 ACR / 腾讯云 TCR）
+          - run: |
+              docker login -u $REGISTRY_USERNAME -p $REGISTRY_PASSWORD $REGISTRY
+          # 后端镜像（多阶段构建）
+          - run: |
+              docker build \
+                -t $REGISTRY/$NAMESPACE/family-server:$CI_COMMIT_SHORT_SHA \
+                -t $REGISTRY/$NAMESPACE/family-server:latest \
+                ./server
+              docker push $REGISTRY/$NAMESPACE/family-server:$CI_COMMIT_SHORT_SHA
+              docker push $REGISTRY/$NAMESPACE/family-server:latest
+          # web-admin 镜像
+          - run: |
+              docker build \
+                -t $REGISTRY/$NAMESPACE/family-web-admin:$CI_COMMIT_SHORT_SHA \
+                -t $REGISTRY/$NAMESPACE/family-web-admin:latest \
+                ./web-admin
+              docker push $REGISTRY/$NAMESPACE/family-web-admin:$CI_COMMIT_SHORT_SHA
+              docker push $REGISTRY/$NAMESPACE/family-web-admin:latest
+          # tenant-web 镜像
+          - run: |
+              docker build \
+                -t $REGISTRY/$NAMESPACE/family-tenant-web:$CI_COMMIT_SHORT_SHA \
+                -t $REGISTRY/$NAMESPACE/family-tenant-web:latest \
+                ./tenant-web
+              docker push $REGISTRY/$NAMESPACE/family-tenant-web:$CI_COMMIT_SHORT_SHA
+              docker push $REGISTRY/$NAMESPACE/family-tenant-web:latest
+
+  # ============================================================
+  # 阶段三：部署到 Staging（自动，无需审批）
+  # ============================================================
+  - stage: deploy-staging
+    name: 部署 Staging（自动）
+    needs: docker
+    jobs:
+      - job: deploy-staging
+        name: 自动部署到 Staging
+        runs-on: docker
+        steps:
+          # 配置 SSH 免密（使用 Gitee Go 密钥 DEPLOY_SSH_KEY）
+          - run: |
+              mkdir -p ~/.ssh
+              echo "$DEPLOY_SSH_KEY" > ~/.ssh/id_rsa
+              chmod 600 ~/.ssh/id_rsa
+              ssh-keyscan -H $STAGING_HOST >> ~/.ssh/known_hosts
+          # 部署到 staging 服务器
+          - run: |
+              ssh -o StrictHostKeyChecking=no $DEPLOY_USER@$STAGING_HOST "
+                set -e
+                cd $DEPLOY_PATH
+                # 拉取最新镜像
+                docker compose pull
+                # 滚动重启
+                docker compose up -d --remove-orphans
+                # 健康检查（最长 60s）
+                for i in \$(seq 1 30); do
+                  if curl -sf http://localhost:3000/api/health > /dev/null 2>&1; then
+                    echo 'Staging backend is healthy'
+                    exit 0
+                  fi
+                  sleep 2
+                done
+                echo 'Staging health check failed after 60s'
+                exit 1
+              "
+
+  # ============================================================
+  # 阶段四：部署到 Production（人工卡点，需审批）
+  # ============================================================
+  - stage: deploy-production
+    name: 部署 Production（需审批）
+    needs: deploy-staging
+    jobs:
+      # 人工卡点：流水线暂停，等待审批人在 Gitee 页面点击「继续」
+      - job: approval
+        name: 人工审批（生产部署确认）
+        runs-on: docker
+        manual: true
+
+      # 审批通过后执行生产部署
+      - job: deploy-production
+        name: 部署到 Production
+        needs: approval
+        runs-on: docker
+        steps:
+          # 配置 SSH 免密
+          - run: |
+              mkdir -p ~/.ssh
+              echo "$DEPLOY_SSH_KEY" > ~/.ssh/id_rsa
+              chmod 600 ~/.ssh/id_rsa
+              ssh-keyscan -H $PROD_HOST >> ~/.ssh/known_hosts
+          # 部署前备份数据库（回滚兜底）
+          - run: |
+              ssh -o StrictHostKeyChecking=no $DEPLOY_USER@$PROD_HOST "
+                set -e
+                cd $DEPLOY_PATH
+                bash scripts/backup-db.sh
+              "
+          # 部署到 production 服务器
+          - run: |
+              ssh -o StrictHostKeyChecking=no $DEPLOY_USER@$PROD_HOST "
+                set -e
+                cd $DEPLOY_PATH
+                # 拉取最新镜像
+                docker compose -f docker-compose.yml -f docker-compose.prod.yml pull
+                # 滚动重启
+                docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --remove-orphans
+                # 健康检查（最长 60s）
+                for i in \$(seq 1 30); do
+                  if curl -sf http://localhost:3000/api/health > /dev/null 2>&1; then
+                    echo 'Production backend is healthy'
+                    exit 0
+                  fi
+                  sleep 2
+                done
+                echo 'Production health check failed after 60s'
+                exit 1
+              "
+
+# ============================================================
+# Gitee Go 环境变量/密钥配置清单
+# 配置路径：Gitee 仓库 → 设置 → Gitee Go → 环境变量 / 密钥
+# ============================================================
+#
+# 【密钥 Secrets】
+#   REGISTRY_USERNAME      镜像仓库账号（Docker Hub / 阿里云 ACR / 腾讯云 TCR）
+#   REGISTRY_PASSWORD      镜像仓库密码
+#   DEPLOY_SSH_KEY         SSH 私钥（用于免密登录 staging/production 服务器）
+#
+# 【环境变量 Variables】
+#   REGISTRY               镜像仓库地址（如 docker.io / registry.cn-hangzhou.aliyuncs.com）
+#   NAMESPACE              镜像仓库命名空间（如 your-username / your-org）
+#
+#   STAGING_HOST           Staging 服务器 IP/域名
+#   PROD_HOST              Production 服务器 IP/域名
+#   DEPLOY_USER            SSH 登录用户（如 root / ubuntu）
+#   DEPLOY_PATH            项目部署目录（如 /opt/family-genealogy）
+#
+# ============================================================

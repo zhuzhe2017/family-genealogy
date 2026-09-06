@@ -1,5 +1,6 @@
 import { Injectable, Logger, type OnModuleInit } from '@nestjs/common';
 import { DataSource } from 'typeorm';
+import { ModuleRef } from '@nestjs/core';
 import {
   Capability,
   type ExpireScanResult,
@@ -30,7 +31,10 @@ export class EntitlementService implements OnModuleInit {
   /** 扫描中标志，防止 DB 卡顿时 setInterval 叠加并发执行 */
   private scanRunning = false;
 
-  constructor(private readonly dataSource: DataSource) {}
+  constructor(
+    private readonly dataSource: DataSource,
+    private readonly moduleRef: ModuleRef
+  ) {}
 
   /** 应用启动后注册到期扫描定时任务（active→grace→expired 状态机自动流转） */
   onModuleInit() {
@@ -50,6 +54,14 @@ export class EntitlementService implements OnModuleInit {
       const reconciled = await this.reconcileStorage();
       if (reconciled > 0) {
         this.logger.log(`存储对账完成：修正 ${reconciled} 个家族存储用量偏差`);
+      }
+      // 续费提醒：联动 RenewalReminderService（延迟导入避免循环依赖），对临近到期/宽限订阅推送续费提醒
+      try {
+        const { RenewalReminderService } = await import('../subscription/renewal-reminder.service');
+        const reminder = this.moduleRef.get(RenewalReminderService, { strict: false });
+        if (reminder) await reminder.scanAndRemind();
+      } catch {
+        // 提醒服务不可用时静默跳过，不阻塞到期扫描主流程
       }
     } catch (err) {
       this.logger.error(`订阅到期扫描失败: ${err instanceof Error ? err.message : String(err)}`);

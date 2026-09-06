@@ -10,7 +10,7 @@
     <view class="settings-item" bindtap="clearCache">
       <view class="settings-icon">🗑️</view>
       <text class="settings-text">清理缓存</text>
-      <text class="settings-value">12.5MB</text>
+      <text class="settings-value">{{cacheSize}}</text>
       <text class="settings-arrow">›</text>
     </view>
   </view>

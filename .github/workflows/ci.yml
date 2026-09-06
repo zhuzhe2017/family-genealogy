@@ -1,0 +1,310 @@
+name: CI/CD
+
+# ============================================================
+# 数字家谱 CI/CD 流水线（GitHub Environments 审批流版）
+#
+# 流程：
+#   push/PR → CI（lint/test/build/e2e）
+#   push main → docker（构建镜像 + 推送镜像仓库）
+#   push main → deploy-staging（自动部署到 staging 环境，无需审批）
+#   push main → deploy-production（触发 GitHub Environments 审批，审批人确认后部署生产）
+#
+# GitHub Environments 配置（需仓库管理员在 Settings → Environments 中创建）：
+#   - staging：无保护规则，自动部署
+#   - production：Required reviewers = 审批人（如 1-2 名核心开发），
+#                 Deployment branches = main/master，Secrets 独立配置
+# ============================================================
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+# 镜像命名空间（推送到 Docker Hub / 阿里云 ACR / 腾讯云 TCR 均可，修改 REGISTRY 即可）
+env:
+  REGISTRY: docker.io
+  IMAGE_NAMESPACE: your-dockerhub-username   # TODO: 替换为实际镜像仓库命名空间
+
+jobs:
+  # ============================================================
+  # CI：后端（lint / 单测 / 构建 / e2e + MySQL 服务容器）
+  # ============================================================
+  server:
+    name: server (lint / test / build / e2e)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: server
+
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: family_genealogy_test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -proot"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+          cache-dependency-path: server/pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Unit tests
+        run: pnpm test
+
+      - name: Build
+        run: pnpm build
+
+      - name: Init test database schema
+        run: |
+          mysql -h 127.0.0.1 -uroot -proot family_genealogy_test < database/schema.sql
+
+      - name: E2E tests
+        env:
+          DB_HOST: 127.0.0.1
+          DB_PORT: 3306
+          DB_DATABASE: family_genealogy_test
+          DB_USERNAME: root
+          DB_PASSWORD: root
+          JWT_SECRET: ci_test_jwt_secret_please_replace
+          CLOUD_STORAGE_ENCRYPT_SECRET: ci_test_cloud_storage_encrypt_secret
+        run: pnpm test:e2e
+
+  # ============================================================
+  # CI：前端（lint / build）
+  # ============================================================
+  web-admin:
+    name: web-admin (lint / build)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web-admin
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+          cache-dependency-path: web-admin/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm build
+
+  tenant-web:
+    name: tenant-web (lint / build)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: tenant-web
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+          cache-dependency-path: tenant-web/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm build
+
+  # ============================================================
+  # CD：构建镜像 → 推送镜像仓库
+  # 仅在 push 至 main/master 时执行（PR 不触发）
+  # ============================================================
+  docker:
+    name: docker (build / push)
+    runs-on: ubuntu-latest
+    needs: [server, web-admin, tenant-web]
+    if: github.event_name == 'push'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Login to registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ secrets.REGISTRY_USERNAME }}
+          password: ${{ secrets.REGISTRY_PASSWORD }}
+
+      - name: Extract metadata
+        id: meta
+        run: |
+          SHA=$(echo ${{ github.sha }} | cut -c1-7)
+          BRANCH=$(echo ${{ github.ref_name }} | tr '/' '-')
+          echo "server_tag=${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/family-server:${BRANCH}-${SHA}" >> $GITHUB_OUTPUT
+          echo "server_latest=${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/family-server:latest" >> $GITHUB_OUTPUT
+          echo "admin_tag=${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/family-web-admin:${BRANCH}-${SHA}" >> $GITHUB_OUTPUT
+          echo "admin_latest=${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/family-web-admin:latest" >> $GITHUB_OUTPUT
+          echo "tenant_tag=${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/family-tenant-web:${BRANCH}-${SHA}" >> $GITHUB_OUTPUT
+          echo "tenant_latest=${{ env.REGISTRY }}/${{ env.IMAGE_NAMESPACE }}/family-tenant-web:latest" >> $GITHUB_OUTPUT
+
+      - name: Build & push server image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./server
+          platforms: linux/amd64,linux/arm64
+          push: true
+          cache-from: type=gha,scope=server
+          cache-to: type=gha,scope=server,mode=max
+          tags: |
+            ${{ steps.meta.outputs.server_tag }}
+            ${{ steps.meta.outputs.server_latest }}
+
+      - name: Build & push web-admin image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./web-admin
+          platforms: linux/amd64,linux/arm64
+          push: true
+          cache-from: type=gha,scope=web-admin
+          cache-to: type=gha,scope=web-admin,mode=max
+          tags: |
+            ${{ steps.meta.outputs.admin_tag }}
+            ${{ steps.meta.outputs.admin_latest }}
+
+      - name: Build & push tenant-web image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./tenant-web
+          platforms: linux/amd64,linux/arm64
+          push: true
+          cache-from: type=gha,scope=tenant-web
+          cache-to: type=gha,scope=tenant-web,mode=max
+          tags: |
+            ${{ steps.meta.outputs.tenant_tag }}
+            ${{ steps.meta.outputs.tenant_latest }}
+
+  # ============================================================
+  # CD：部署到 staging 环境（自动，无需审批）
+  # 用于验证镜像与配置，确认无误后再手动审批生产部署
+  # ============================================================
+  deploy-staging:
+    name: deploy staging (auto)
+    runs-on: ubuntu-latest
+    needs: [docker]
+    if: github.event_name == 'push'
+    environment: staging
+
+    steps:
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.DEPLOY_SSH_KEY }}
+
+      - name: Add server to known_hosts
+        run: |
+          ssh-keyscan -H ${{ secrets.DEPLOY_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Deploy to staging via docker compose
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script: |
+            cd ${{ secrets.DEPLOY_PATH }}
+            docker compose pull
+            docker compose up -d --remove-orphans
+            for i in $(seq 1 30); do
+              if curl -sf http://localhost:3000/api/health > /dev/null 2>&1; then
+                echo "Staging backend is healthy"
+                exit 0
+              fi
+              sleep 2
+            done
+            echo "Staging health check failed after 60s"
+            exit 1
+
+  # ============================================================
+  # CD：部署到 production 环境（需 GitHub Environments 审批）
+  # 审批人在 GitHub Actions 页面点击「Approve and deploy」后触发
+  # ============================================================
+  deploy-production:
+    name: deploy production (manual approval)
+    runs-on: ubuntu-latest
+    needs: [deploy-staging]
+    if: github.event_name == 'push'
+    environment: production
+
+    steps:
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.DEPLOY_SSH_KEY }}
+
+      - name: Add server to known_hosts
+        run: |
+          ssh-keyscan -H ${{ secrets.DEPLOY_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Backup database before deploy
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script: |
+            cd ${{ secrets.DEPLOY_PATH }}
+            bash scripts/backup-db.sh
+
+      - name: Deploy to production via docker compose
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script: |
+            cd ${{ secrets.DEPLOY_PATH }}
+            docker compose -f docker-compose.yml -f docker-compose.prod.yml pull
+            docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --remove-orphans
+            for i in $(seq 1 30); do
+              if curl -sf http://localhost:3000/api/health > /dev/null 2>&1; then
+                echo "Production backend is healthy"
+                exit 0
+              fi
+              sleep 2
+            done
+            echo "Production health check failed after 60s"
+            exit 1
+
+      - name: Rollback on failure
+        if: failure()
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script: |
+            cd ${{ secrets.DEPLOY_PATH }}
+            echo "Deployment failed, initiating rollback..."
+            docker compose -f docker-compose.yml -f docker-compose.prod.yml ps -a

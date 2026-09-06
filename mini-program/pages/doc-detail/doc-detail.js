@@ -24,7 +24,13 @@ Page({
             document: Object.assign({}, d, {
               updateTime: d.updateTime || '',
               categoryName: d.category || '',
-              chapters: [] // 章节表 family_document_chapter 一期未接
+              chapters: (row.chapters || []).map(c => ({
+                id: c.id,
+                number: c.number,
+                title: c.title,
+                startPage: c.startPage || 0,
+                endPage: c.endPage || 0
+              }))
             })
           });
         })
@@ -56,16 +62,33 @@ Page({
     };
   },
 
+  /** 点击章节：提示阅读器定位到该章起始页 */
   viewChapter(e) {
     const index = e.currentTarget.dataset.index;
-    wx.showToast({ title: '打开章节', icon: 'none' });
+    const chapter = (this.data.document.chapters || [])[index];
+    if (!chapter) return;
+    const pageInfo = chapter.startPage ? `第${chapter.startPage}页` : '';
+    wx.showToast({
+      title: `「${chapter.title}」${pageInfo}（阅读器待接入）`,
+      icon: 'none',
+      duration: 2000
+    });
   },
 
   shareDoc() {
     wx.showShareMenu({ withShareTicket: true });
   },
 
+  /** 打开阅读器：有文件URL时跳转 webview，否则提示 */
   readDoc() {
-    wx.showToast({ title: '打开阅读器', icon: 'none' });
+    const doc = this.data.document;
+    const fileUrl = doc.fileUrl || doc.file_url;
+    if (fileUrl) {
+      wx.navigateTo({
+        url: '/pages/webview/webview?url=' + encodeURIComponent(fileUrl)
+      });
+    } else {
+      wx.showToast({ title: '文档文件未上传', icon: 'none' });
+    }
   }
 });

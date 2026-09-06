@@ -1,4 +1,5 @@
-import { Injectable, HttpException, HttpStatus } from '@nestjs/common';
+import { Injectable, HttpException, HttpStatus, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { DataSource } from 'typeorm';
 import { EntitlementService } from '../membership/membership.service';
 import { SystemLogService } from '../system-log/system-log.service';
@@ -15,12 +16,15 @@ import {
 
 @Injectable()
 export class SubscriptionService {
+  private readonly logger = new Logger(SubscriptionService.name);
+
   constructor(
     private readonly dataSource: DataSource,
     private readonly wxPayService: WxPayService,
     private readonly entitlementService: EntitlementService,
     private readonly systemLogService: SystemLogService,
-    private readonly memberService: MemberService
+    private readonly memberService: MemberService,
+    private readonly configService: ConfigService
   ) {}
 
   // ==================== 下单 ====================
@@ -67,7 +71,12 @@ export class SubscriptionService {
     );
 
     // 模拟模式（未配置微信商户）：直接完成支付，便于本地联调
+    // 生产环境 NODE_ENV=production 时强制校验回调地址，避免误配导致真实支付链路断裂
     if (!this.wxPayService.isConfigured()) {
+      if (process.env.NODE_ENV === 'production') {
+        this.logger.error('生产环境微信支付配置不完整（需 WX_MCH_ID/WX_MCH_SERIAL_NO/WX_MCH_PRIVATE_KEY/WX_PAY_API_V3_KEY/WX_PAY_NOTIFY_URL），拒绝模拟支付');
+        throw new HttpException('支付服务未正确配置，请联系管理员', HttpStatus.SERVICE_UNAVAILABLE);
+      }
       await this.handlePaid(tradeNo, `MOCK_${tradeNo}`, new Date());
       this.systemLogService.write({
         logType: 'operation',
@@ -81,6 +90,13 @@ export class SubscriptionService {
         detail: `orderNo=${tradeNo} plan=${plan.code} family=${dto.familyId}`
       });
       return { mock: true, orderNo: tradeNo };
+    }
+
+    // 生产环境回调地址兜底校验：微信要求 notify_url 必须公网可达，否则支付成功但无法激活订阅
+    const notifyUrl = this.configService.get<string>('WX_PAY_NOTIFY_URL') || '';
+    if (process.env.NODE_ENV === 'production' && (!notifyUrl || !/^https:\/\//.test(notifyUrl))) {
+      this.logger.error(`WX_PAY_NOTIFY_URL 配置不合法（当前值: ${notifyUrl || '空'}），生产环境必须为 https:// 开头公网可达地址`);
+      throw new HttpException('支付回调地址未正确配置，请联系管理员', HttpStatus.SERVICE_UNAVAILABLE);
     }
 
     const [user] = await this.dataSource.query<{ openid: string }[]>(
