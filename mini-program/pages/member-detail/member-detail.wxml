@@ -89,18 +89,41 @@
   <view class="info-card">
     <view class="card-title">家庭关系</view>
     <view class="relation-section">
-      <!-- 配偶（多位配偶循环展示） -->
+      <!-- 配偶（多位配偶循环展示，点击展开/收起详情） -->
       <view class="relation-block" wx:if="{{member.spouseList && member.spouseList.length}}">
         <text class="relation-label">配偶</text>
-        <view class="relation-person" wx:for="{{member.spouseList}}" wx:for-item="sp" wx:key="name" bindtap="viewSpouse">
+        <view class="relation-person" wx:for="{{member.spouseList}}" wx:for-item="sp" wx:for-index="si" wx:key="name" data-index="{{si}}" bindtap="viewSpouse">
           <view class="relation-avatar {{member.gender === 'male' ? 'female' : ''}}">
             <text>{{f.firstChar(sp.name || '配')}}</text>
           </view>
           <view class="relation-info">
             <text class="relation-name">{{sp.name || '本族成员'}}</text>
-            <text class="relation-desc">{{sp.birthDate ? '生于' + sp.birthDate : ''}}</text>
+            <text class="relation-desc">{{sp.birthDate ? '生于' + sp.birthDate : ''}}{{sp.deathDate ? ' · 逝于' + sp.deathDate : ''}}</text>
           </view>
-          <text class="relation-arrow">›</text>
+          <text class="relation-arrow">{{sp.collapsed ? '›' : '⌄'}}</text>
+        </view>
+        <!-- 配偶详细信息（展开时显示） -->
+        <view class="spouse-detail-panel" wx:for="{{member.spouseList}}" wx:for-item="sp" wx:for-index="si" wx:key="name" wx:if="{{!sp.collapsed}}">
+          <view class="spouse-detail-row" wx:if="{{sp.birthDate}}">
+            <text class="detail-label">出生日期</text>
+            <text class="detail-value">{{sp.birthDate}}</text>
+          </view>
+          <view class="spouse-detail-row" wx:if="{{sp.deathDate}}">
+            <text class="detail-label">逝世日期</text>
+            <text class="detail-value">{{sp.deathDate}}</text>
+          </view>
+          <view class="spouse-detail-row" wx:if="{{sp.deathPlace}}">
+            <text class="detail-label">安葬地点</text>
+            <text class="detail-value">{{sp.deathPlace}}</text>
+          </view>
+          <view class="spouse-detail-row" wx:if="{{sp.longitude && sp.latitude}}">
+            <text class="detail-label">墓茔坐标</text>
+            <text class="detail-value">{{sp.longitude}}, {{sp.latitude}}</text>
+          </view>
+          <view class="spouse-detail-row" wx:if="{{sp.bio}}">
+            <text class="detail-label">简介</text>
+            <text class="detail-value">{{sp.bio}}</text>
+          </view>
         </view>
       </view>
 

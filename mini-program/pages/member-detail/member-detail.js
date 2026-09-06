@@ -53,7 +53,8 @@ Page({
         // 后端返回当前用户是否可编辑（绑定该成员ID的会员或家族创建者）
         canEdit: !!me.canEdit,
         // 配偶信息统一为数组（多配偶循环展示），spouseInfo 兼容取第一位
-        spouseList,
+        // 首位配偶默认展开详情，其余折叠，点击可切换
+        spouseList: spouseList.map((s, i) => ({ ...s, collapsed: i !== 0 })),
         spouseInfo: spouseList[0] || {},
         spouseNames: spouseList.map(s => s.name).join('、'),
         father: father ? father.name : '',
@@ -84,7 +85,14 @@ Page({
           deathDate: '1960年11月8日',
           deathPlace: '山东省济南市朱氏祖坟',
           longitude: '117.000923',
-          latitude: '36.675807'
+          latitude: '36.675807',
+          collapsed: false
+        },
+        {
+          name: '侧室王氏',
+          birthDate: '1890年1月1日',
+          bio: '侧室，生一女。',
+          collapsed: true
         }
       ],
       spouseInfo: {
@@ -108,8 +116,11 @@ Page({
     };
   },
 
-  viewSpouse() {
-    wx.showToast({ title: '查看配偶', icon: 'none' });
+  /** 点击配偶：展开/收起该配偶的详细信息（手风琴效果，首位默认展开） */
+  viewSpouse(e) {
+    const index = e.currentTarget.dataset.index;
+    const key = `member.spouseList[${index}].collapsed`;
+    this.setData({ [key]: !this.data.member.spouseList[index].collapsed });
   },
 
   viewParent(e) {
