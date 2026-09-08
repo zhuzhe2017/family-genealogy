@@ -1,7 +1,7 @@
 const app = getApp();
 const { family } = require('../../utils/api');
-const { API_BASE_URL, USE_MOCK } = require('../../utils/config');
-const { getToken } = require('../../utils/request');
+const { USE_MOCK } = require('../../utils/config');
+const { getToken, upload } = require('../../utils/request');
 const { normalizeFamily } = require('../../utils/format');
 
 Page({
@@ -121,29 +121,7 @@ Page({
 
   /** 上传图片到后端,返回可访问 URL */
   uploadImage(filePath) {
-    return new Promise((resolve, reject) => {
-      wx.uploadFile({
-        url: API_BASE_URL + '/common/upload',
-        filePath: filePath,
-        name: 'file',
-        header: { Authorization: 'Bearer ' + getToken() },
-        success(res) {
-          try {
-            const data = JSON.parse(res.data);
-            if (data.code === '0000') {
-              resolve(data.data.url);
-            } else {
-              reject(new Error(data.msg || '上传失败'));
-            }
-          } catch (e) {
-            reject(new Error('上传响应解析失败'));
-          }
-        },
-        fail(err) {
-          reject(new Error((err && err.errMsg) || '上传失败'));
-        }
-      });
-    });
+    return upload({ url: '/common/upload', filePath }).then(data => data.url);
   },
 
   /** 创建成功后刷新全局家族列表;focusId 存在时自动进入该新创建的家族并本地记忆 */

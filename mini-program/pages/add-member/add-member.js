@@ -1,8 +1,8 @@
 const app = getApp();
 const { familyMember } = require('../../utils/api');
 const { normalizeMember, parseSpouseList } = require('../../utils/format');
-const { API_BASE_URL, USE_MOCK } = require('../../utils/config');
-const { getToken } = require('../../utils/request');
+const { USE_MOCK } = require('../../utils/config');
+const { getToken, upload } = require('../../utils/request');
 
 Page({
   data: {
@@ -574,31 +574,9 @@ Page({
 
   /** 上传图片到后端,返回可访问 URL；bizType 用于存储额度记账分类 */
   uploadImage(filePath, bizType) {
-    return new Promise((resolve, reject) => {
-      const familyId = (app.globalData.currentFamily || {}).id;
-      wx.uploadFile({
-        url: API_BASE_URL + '/common/upload',
-        filePath: filePath,
-        name: 'file',
-        header: { Authorization: 'Bearer ' + getToken() },
-        formData: familyId ? { familyId: String(familyId), bizType: bizType || 'photo' } : {},
-        success(res) {
-          try {
-            const data = JSON.parse(res.data);
-            if (data.code === '0000') {
-              resolve(data.data.url);
-            } else {
-              reject(new Error(data.msg || '上传失败'));
-            }
-          } catch (e) {
-            reject(new Error('上传响应解析失败'));
-          }
-        },
-        fail(err) {
-          reject(new Error((err && err.errMsg) || '上传失败'));
-        }
-      });
-    });
+    const familyId = (app.globalData.currentFamily || {}).id;
+    const formData = familyId ? { familyId: String(familyId), bizType: bizType || 'photo' } : {};
+    return upload({ url: '/common/upload', filePath, formData }).then(data => data.url);
   },
 
   validateGenerationName(value) {

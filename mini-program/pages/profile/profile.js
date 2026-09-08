@@ -1,7 +1,7 @@
 const app = getApp();
 const { auth, subscription } = require('../../utils/api');
-const { clearToken, getToken } = require('../../utils/request');
-const { API_BASE_URL, USE_MOCK } = require('../../utils/config');
+const { clearToken, getToken, upload } = require('../../utils/request');
+const { USE_MOCK } = require('../../utils/config');
 const { resolveImageUrl, normalizeFamily } = require('../../utils/format');
 
 Page({
@@ -218,29 +218,7 @@ Page({
 
   /** 上传头像到后端,返回可访问的 URL */
   uploadAvatar(filePath) {
-    return new Promise((resolve, reject) => {
-      wx.uploadFile({
-        url: API_BASE_URL + '/common/upload',
-        filePath: filePath,
-        name: 'file',
-        header: { Authorization: 'Bearer ' + getToken() },
-        success(res) {
-          try {
-            const data = JSON.parse(res.data);
-            if (data.code === '0000') {
-              resolve(data.data.url);
-            } else {
-              reject(new Error(data.msg || '头像上传失败'));
-            }
-          } catch (e) {
-            reject(new Error('上传响应解析失败'));
-          }
-        },
-        fail(err) {
-          reject(new Error((err && err.errMsg) || '头像上传失败'));
-        }
-      });
-    });
+    return upload({ url: '/common/upload', filePath }).then(data => data.url);
   },
 
   /** 保存资料:头像为新选择的临时路径时先上传,再调用更新接口 */

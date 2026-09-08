@@ -215,6 +215,7 @@ App({
       wx.removeStorageSync('userInfo');
       wx.removeStorageSync('myFamily');
       wx.removeStorageSync('current_family');
+      wx.removeStorageSync('refreshToken');
       console.log('[App] 已清除本地用户态缓存');
     } catch (e) {
       console.error('[App] 清除缓存失败:', e);
@@ -262,6 +263,13 @@ App({
   applyLogin(data) {
     if (data && data.token) {
       setToken(data.token);
+    }
+    if (data && data.refreshToken) {
+      try {
+        wx.setStorageSync('refreshToken', data.refreshToken);
+      } catch (e) {
+        console.error('refreshToken 保存失败', e);
+      }
     }
     this.globalData.userInfo = data.userInfo;
     this.globalData.isOnline = true;

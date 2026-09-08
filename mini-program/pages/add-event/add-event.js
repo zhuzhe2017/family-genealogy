@@ -1,8 +1,8 @@
 const app = getApp();
 const { content, familyMember } = require('../../utils/api');
 const { normalizeEvent, normalizeMember, resolveImageUrls } = require('../../utils/format');
-const { API_BASE_URL, USE_MOCK } = require('../../utils/config');
-const { getToken } = require('../../utils/request');
+const { USE_MOCK } = require('../../utils/config');
+const { getToken, upload } = require('../../utils/request');
 
 /** 事件类型选项（value 与数据库 type 对应） */
 const TYPE_OPTIONS = [
@@ -288,29 +288,7 @@ Page({
 
   /** 上传图片到后端,返回可访问的相对 URL */
   uploadImage(filePath) {
-    return new Promise((resolve, reject) => {
-      wx.uploadFile({
-        url: API_BASE_URL + '/common/upload',
-        filePath: filePath,
-        name: 'file',
-        header: { Authorization: 'Bearer ' + getToken() },
-        success(res) {
-          try {
-            const data = JSON.parse(res.data);
-            if (data.code === '0000') {
-              resolve(data.data.url);
-            } else {
-              reject(new Error(data.msg || '上传失败'));
-            }
-          } catch (e) {
-            reject(new Error('上传响应解析失败'));
-          }
-        },
-        fail(err) {
-          reject(new Error((err && err.errMsg) || '上传失败'));
-        }
-      });
-    });
+    return upload({ url: '/common/upload', filePath }).then(data => data.url);
   },
 
   submitForm() {
