@@ -2,7 +2,7 @@ import { Controller, Get, Post, Put, Delete, Body, Param, Query, Req, UseGuards,
 import { Public } from '../common/decorators/public.decorator';
 import { UserJwtAuthGuard } from '../user/user.guard';
 import { EntitlementGuard } from '../membership/guards/entitlement.guard';
-import { Entitlement } from '../membership/decorators/entitlement.decorator';
+import { Entitlement, Writable } from '../membership/decorators/entitlement.decorator';
 import { Capability } from '../membership/types/membership.types';
 import { type AuthenticatedRequest } from '../common/types/common';
 import { PortalService } from './portal.service';
@@ -17,9 +17,10 @@ import { type CategoryType } from './portal.service';
  * - @Public 跳过全局管理员 JwtAuthGuard
  * - @UseGuards(UserJwtAuthGuard) 校验用户令牌（type=user）
  * - @UseGuards(EntitlementGuard) 能力点校验：标注了 @Entitlement(capability) 的接口
- *   按当前家族订阅套餐拦截（未解锁 → 4001）；未标注接口直接放行。
- *   现有接口均为免费基础能力，付费能力点（backup/export/permission/reminder/digest 等）
- *   对应业务接口随 M2 实现，届时在接口上追加 @Entitlement 即可生效。
+ *   按当前家族订阅套餐拦截（未解锁 → 4001）；标注了 @Writable() 的接口仅校验订阅状态
+ *   （过期 → 4004）；未标注接口直接放行。
+ *   付费能力点（backup 等）随业务实现逐步追加 @Entitlement；家族级写操作统一追加
+ *   @Writable() 保证订阅过期后全家族数据只读。
  * 路由前缀 /api/user，与既有 /user/wx-login、/user/profile 保持一致
  */
 @Public()
@@ -129,6 +130,7 @@ export class PortalController {
     return this.portalService.getFatherSpouses(familyId, fatherId || '');
   }
 
+  @Writable()
   @Post('family/create')
   createFamily(@Body() body: FamilyCreateData, @Req() req: AuthenticatedRequest) {
     // 创建者ID以服务端令牌为准，防止客户端伪造
@@ -136,6 +138,7 @@ export class PortalController {
     return this.portalService.createFamily(body);
   }
 
+  @Writable({ familyFrom: 'body:familyId' })
   @Post('family/:familyId/members')
   createMember(
     @Param('familyId', ParseIntPipe) familyId: number,
@@ -145,6 +148,7 @@ export class PortalController {
     return this.portalService.createMember(familyId, body, String(req.user.id));
   }
 
+  @Writable()
   @Put('family/:familyId/members/:id')
   updateMember(
     @Param('familyId', ParseIntPipe) familyId: number,
@@ -183,6 +187,7 @@ export class PortalController {
     return this.portalService.getContentDetail(type as ContentType, id, req?.user ? String(req.user.id) : undefined);
   }
 
+  @Writable({ familyFrom: 'body:familyId' })
   @Post('content/:type/create')
   createContent(
     @Param('type') type: string,
@@ -203,6 +208,7 @@ export class PortalController {
   }
 
   /** 更新内容（目前支持 event；仅家族创建者/管理员可操作） */
+  @Writable({ familyFrom: 'body:familyId' })
   @Put('content/:type/:id')
   updateContent(
     @Param('type') type: string,
@@ -214,6 +220,7 @@ export class PortalController {
   }
 
   /** 删除内容（软删除，目前支持 event；仅家族创建者/管理员可操作） */
+  @Writable({ familyFrom: 'query:familyId' })
   @Delete('content/:type/:id')
   deleteContent(
     @Param('type') type: string,
@@ -262,6 +269,7 @@ export class PortalController {
   }
 
   /** 创建分类（仅家族创建者/管理员；data: { familyId, name, icon? }） */
+  @Writable({ familyFrom: 'body:familyId' })
   @Post('category/:type/create')
   createCategory(
     @Param('type') type: string,
@@ -278,6 +286,7 @@ export class PortalController {
   }
 
   /** 更新分类（仅家族创建者/管理员；data: { familyId, name?, icon?, sortOrder? }） */
+  @Writable({ familyFrom: 'body:familyId' })
   @Put('category/:type/:id')
   updateCategory(
     @Param('type') type: string,
@@ -295,6 +304,7 @@ export class PortalController {
   }
 
   /** 删除分类（仅家族创建者/管理员；分类下有文件时拒绝） */
+  @Writable({ familyFrom: 'query:familyId' })
   @Delete('category/:type/:id')
   deleteCategory(
     @Param('type') type: string,

@@ -48,8 +48,12 @@ describe('GenerationTableService', () => {
       expect(() => service.validateFields({ ...validData, surname: '欧阳' })).not.toThrow();
     });
 
-    it('姓氏 5 个汉字抛 BAD_REQUEST', () => {
-      expect(() => service.validateFields({ ...validData, surname: '一二三四五' })).toThrowError(/姓氏/);
+    it('姓氏超过 20 字符抛 BAD_REQUEST', () => {
+      expect(() => service.validateFields({ ...validData, surname: 'a'.repeat(21) })).toThrowError(/姓氏/);
+    });
+
+    it('姓氏含空白字符抛 BAD_REQUEST', () => {
+      expect(() => service.validateFields({ ...validData, surname: '王 氏' })).toThrowError(/姓氏/);
     });
 
     it('始祖 0 字抛 BAD_REQUEST', () => {
@@ -252,7 +256,7 @@ describe('GenerationTableService', () => {
     });
 
     it('收集非法行错误而不中断后续导入', async () => {
-      const badItem: GenerationTableData = { ...validData, surname: '王' }; // 姓氏1字非法
+      const badItem: GenerationTableData = { ...validData, founder: '' }; // 始祖为空非法
       queryMock
         .mockResolvedValueOnce([]) // 第二条：重复检查通过
         .mockResolvedValueOnce(undefined); // 第二条：INSERT

@@ -304,7 +304,7 @@ describe('FamilyMemberService', () => {
 
     it('无字段时抛出 BAD_REQUEST', async () => {
       mockTableExists();
-      queryMock.mockResolvedValueOnce([{ id: 'x' }]);
+      queryMock.mockResolvedValueOnce([{ id: 'x', status: 1, generation: 1 }]);
       await expect(service.update(1, 'x', {})).rejects.toMatchObject({
         status: HttpStatus.BAD_REQUEST
       });
@@ -340,7 +340,7 @@ describe('FamilyMemberService', () => {
     it('状态 1→0 时 member_count 原子 -1', async () => {
       mockTableExists();
       queryMock
-        .mockResolvedValueOnce([{ id: 'x', status: 1 }]) // 查找成员
+        .mockResolvedValueOnce([{ id: 'x', status: 1, generation: 1 }]) // 查找成员
         .mockResolvedValueOnce({ affectedRows: 1 }) // UPDATE
         .mockResolvedValueOnce({ affectedRows: 1 }); // member_count -1
 
@@ -362,7 +362,7 @@ describe('FamilyMemberService', () => {
 
     it('父/母指向自己时抛出 BAD_REQUEST', async () => {
       mockTableExists();
-      queryMock.mockResolvedValueOnce([{ id: 'x' }]); // 查找成员
+      queryMock.mockResolvedValueOnce([{ id: 'x', status: 1, generation: 1 }]); // 查找成员
       await expect(service.update(1, 'x', { fatherId: 'x' })).rejects.toMatchObject({
         status: HttpStatus.BAD_REQUEST
       });
@@ -383,17 +383,17 @@ describe('FamilyMemberService', () => {
     it('关系字段有效时更新成功', async () => {
       mockTableExists();
       queryMock
-        .mockResolvedValueOnce([{ id: 'x' }]) // 查找成员
-        .mockResolvedValueOnce([{ id: 'f1', gender: 'male', generation: 1 }]) // 关系校验：f1 存在且有效（motherId 为配偶下标，不校验成员身份）
-        .mockResolvedValueOnce([{ id: 'f1', father_id: '', mother_id: '' }]) // 追溯 f1 祖先，无循环
+        .mockResolvedValueOnce([{ id: 'x', status: 1, generation: 1 }]) // 查找成员
+        .mockResolvedValueOnce([{ id: 'f1', gender: 'male', generation: 1, spouse_info: JSON.stringify([{ name: 'm1' }]) }]) // 关系校验：父存在且为上一代男性，含 1 位配偶
+        .mockResolvedValueOnce([{ father_id: '', mother_id: '' }]) // 追溯 f1 祖先，无循环
         .mockResolvedValueOnce({ affectedRows: 1 }); // UPDATE
 
-      await service.update(1, 'x', { motherId: 'm1', generation: 2, fatherId: 'f1' });
+      await service.update(1, 'x', { motherId: '0', generation: 2, fatherId: 'f1' });
 
       const sql = queryMock.mock.calls[4][0];
       expect(sql).toContain('UPDATE `family_members_1`');
       expect(sql).toContain('`mother_id` = ?');
-      expect(queryMock.mock.calls[4][1]).toContain('m1');
+      expect(queryMock.mock.calls[4][1]).toContain('0');
     });
 
     it('修改为同父同名时抛出 BAD_REQUEST（排除自身）', async () => {

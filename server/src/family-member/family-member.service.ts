@@ -725,7 +725,7 @@ export class FamilyMemberService {
     const fatherId = data.fatherId?.trim() || '';
     const motherId = data.motherId?.trim() || '';
     // 目标代数：优先取本次提交的代数，未提交时沿用库中当前代数
-    const targetGeneration = data.generation ?? exists.generation ?? (await this.getGeneration(familyId, memberId));
+    const targetGeneration = data.generation ?? exists.generation;
 
     if (targetGeneration === 1 && fatherId) {
       throw new HttpException('第1代成员不能有父亲', HttpStatus.BAD_REQUEST);
@@ -893,16 +893,6 @@ export class FamilyMemberService {
     } catch {
       return false;
     }
-  }
-
-  /** 获取当前代数 */
-  private async getGeneration(familyId: number, memberId: string): Promise<number> {
-    const tableName = getSafeMemberTableName(familyId);
-    const [row] = await this.dataSource.query<Pick<FamilyMemberRow, 'generation'>[]>(
-      `SELECT \`generation\` FROM \`${tableName}\` WHERE \`id\` = ? AND \`status\` = ?`,
-      [memberId, 1]
-    );
-    return row?.generation ?? 1;
   }
 
   /**
