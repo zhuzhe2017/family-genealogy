@@ -25,7 +25,7 @@ export class ContentController {
     return this.contentService.getList(type, {
       page: Number(page),
       pageSize: Number(pageSize),
-      familyId,
+      familyId: familyId !== undefined && familyId !== '' ? Number(familyId) : undefined,
       auditStatus: auditStatus !== undefined && auditStatus !== '' ? Number(auditStatus) : undefined,
       keyword
     });

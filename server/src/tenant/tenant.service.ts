@@ -170,7 +170,7 @@ export class TenantService {
     return this.contentService.getList(type, {
       page: query.page,
       pageSize: query.pageSize,
-      familyId: String(familyId),
+      familyId,
       keyword: query.keyword,
       auditStatus: undefined
     });

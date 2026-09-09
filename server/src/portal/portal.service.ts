@@ -244,13 +244,16 @@ export class PortalService {
     throw new HttpException('请先加入该家族后再添加成员', HttpStatus.FORBIDDEN);
   }
 
-  /** 内容列表（仅审核通过） */
-  getContentList(
+  /** 内容列表（仅审核通过；指定 familyId 时校验家族归属） */
+  async getContentList(
     type: ContentType,
-    params: { familyId?: string; page?: number; pageSize?: number; keyword?: string },
+    params: { familyId?: number; page?: number; pageSize?: number; keyword?: string },
     userId?: string
   ) {
     this.assertContentType(type);
+    if (params.familyId) {
+      await this.assertFamilyMemberByUserId(params.familyId, userId);
+    }
     return this.contentService.getList(type, {
       page: params.page || 1,
       pageSize: params.pageSize || 20,
@@ -260,12 +263,14 @@ export class PortalService {
     }, userId);
   }
 
-  /** 内容详情（仅审核通过；dynamic 附带图片与当前用户点赞状态；event 附带当前用户 canEdit 标识） */
+  /** 内容详情（仅审核通过；校验家族归属；dynamic 附带图片与当前用户点赞状态；event 附带当前用户 canEdit 标识） */
   async getContentDetail(type: ContentType, id: string, userId?: string) {
     this.assertContentType(type);
     const detail = await this.contentService.getById(type, id, userId);
+    // 家族归属校验：仅该家族成员可查看内容详情，防止跨家族越权
+    const familyId = Number((detail as { family_id?: unknown }).family_id) || 0;
+    await this.assertFamilyMemberByUserId(familyId, userId);
     if (type === 'event' && userId) {
-      const familyId = Number((detail as { family_id?: unknown }).family_id);
       (detail as { canEdit?: boolean }).canEdit = familyId
         ? await this.isFamilyAdmin(familyId, String(userId))
         : false;
@@ -355,13 +360,17 @@ export class PortalService {
     }
   }
 
-  /** 动态点赞/取消点赞 */
-  toggleLike(dynamicId: string, userId: string) {
+  /** 动态点赞/取消点赞（仅该动态所属家族成员） */
+  async toggleLike(dynamicId: string, userId: string) {
+    const familyId = await this.getContentFamilyId('dynamic', dynamicId);
+    await this.assertFamilyMemberByUserId(familyId, userId);
     return this.contentService.toggleLike(dynamicId, userId);
   }
 
-  /** 动态评论列表（分页） */
-  getComments(dynamicId: string, page?: number, pageSize?: number) {
+  /** 动态评论列表（分页；仅该动态所属家族成员） */
+  async getComments(dynamicId: string, userId?: string, page?: number, pageSize?: number) {
+    const familyId = await this.getContentFamilyId('dynamic', dynamicId);
+    await this.assertFamilyMemberByUserId(familyId, userId);
     return this.contentService.getComments(dynamicId, page, pageSize);
   }
 
@@ -609,7 +618,13 @@ export class PortalService {
     return data;
   }
 
-  /** 校验用户属于该家族（family_permission 启用记录或家族创建者），否则 403 */
+  /**
+   * 校验用户属于该家族，否则 403。
+   * 归属途径（三者满足其一）：
+   * - family_permission 启用记录
+   * - user.family_id 已关联该家族（joinFamily/接受邀请的实际归属途径）
+   * - 家族创建者
+   */
   private async assertFamilyMemberByUserId(familyId: number, userId?: string): Promise<void> {
     if (!userId) {
       throw new HttpException('请先登录', HttpStatus.UNAUTHORIZED);
@@ -619,13 +634,17 @@ export class PortalService {
       [familyId, userId]
     );
     if (perm) return;
+    const [binding] = await this.dataSource.query<{ family_id: number | null }[]>(
+      'SELECT `family_id` FROM `user` WHERE `id` = ? AND `status` = 1 LIMIT 1',
+      [userId]
+    );
+    if (binding && Number(binding.family_id) === Number(familyId)) return;
     const [family] = await this.dataSource.query<{ creator_user_id: string | null }[]>(
-      'SELECT `creator_user_id` FROM `family` WHERE `id` = ?',
+      'SELECT `creator_user_id` FROM `family` WHERE `id` = ? AND `status` = 1',
       [familyId]
     );
-    if (!family || family.creator_user_id !== userId) {
-      throw new HttpException('您不属于该家族，无权操作', HttpStatus.FORBIDDEN);
-    }
+    if (family && String(family.creator_user_id || '') === String(userId)) return;
+    throw new HttpException('您不属于该家族，无权操作', HttpStatus.FORBIDDEN);
   }
 
   /** 时间戳：yyyyMMdd_HHmmss */

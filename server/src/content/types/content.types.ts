@@ -12,7 +12,7 @@ export interface ContentConfig {
 /** 内容记录 */
 export interface ContentRow extends DataRow {
   id: string;
-  family_id: string;
+  family_id: number;
   audit_status: number;
   status: number;
   create_time: string;
@@ -23,7 +23,7 @@ export interface ContentRow extends DataRow {
 export interface ContentQueryParams {
   page: number;
   pageSize: number;
-  familyId?: string;
+  familyId?: number;
   auditStatus?: number;
   keyword?: string;
 }

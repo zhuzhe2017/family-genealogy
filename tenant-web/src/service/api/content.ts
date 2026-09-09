@@ -8,7 +8,7 @@ export type AuditStatus = 0 | 1 | 2;
 
 export interface ContentListItem {
   id: string;
-  family_id: string;
+  family_id: number;
   status: number;
   audit_status: number;
   create_time: string;
@@ -42,7 +42,7 @@ export interface ContentListItem {
 export interface ContentListParams {
   page?: number;
   pageSize?: number;
-  familyId?: string;
+  familyId?: number;
   auditStatus?: number;
   keyword?: string;
 }

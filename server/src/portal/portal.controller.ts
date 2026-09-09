@@ -171,7 +171,7 @@ export class PortalController {
     @Req() req?: AuthenticatedRequest
   ) {
     return this.portalService.getContentList(type as ContentType, {
-      familyId,
+      familyId: familyId !== undefined && familyId !== '' ? Number(familyId) : undefined,
       page: Number(page) || 1,
       pageSize: Number(pageSize) || 20,
       keyword
@@ -236,14 +236,20 @@ export class PortalController {
     return this.portalService.toggleLike(id, String(req.user.id));
   }
 
-  /** 动态评论列表（分页） */
+  /** 动态评论列表（分页；仅该动态所属家族成员） */
   @Get('content/dynamic/:id/comments')
   getComments(
     @Param('id') id: string,
     @Query('page') page?: string,
-    @Query('pageSize') pageSize?: string
+    @Query('pageSize') pageSize?: string,
+    @Req() req?: AuthenticatedRequest
   ) {
-    return this.portalService.getComments(id, Number(page) || 1, Number(pageSize) || 20);
+    return this.portalService.getComments(
+      id,
+      req?.user ? String(req.user.id) : undefined,
+      Number(page) || 1,
+      Number(pageSize) || 20
+    );
   }
 
   /** 发表评论（评论者信息以服务端令牌为准，防止伪造） */
