@@ -131,6 +131,31 @@ export class UserController {
    */
   @Public()
   @UseGuards(UserJwtAuthGuard)
+  @Get('me/family')
+  async getMyFamily(@Req() req: AuthenticatedRequest) {
+    return this.userService.getMyFamily(String(req.user.id));
+  }
+
+  /**
+   * 绑定家族成员（绑定后获得编辑该成员权限）
+   */
+  @Public()
+  @UseGuards(UserJwtAuthGuard)
+  @Put('family/bind-member')
+  async bindMember(
+    @Req() req: AuthenticatedRequest,
+    @Body() body: { memberId: string }
+  ) {
+    return this.userService.bindMember(String(req.user.id), body.memberId);
+  }
+
+  /**
+   * 加入家族支系（仅允许通过有效的分享码加入）
+   * shareCode: 家族种子分享码或会员分享码
+   * memberId: 可选，加入时同步绑定指定家族成员
+   */
+  @Public()
+  @UseGuards(UserJwtAuthGuard)
   @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @Post('family/join')
   async joinFamily(
