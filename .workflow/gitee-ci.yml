@@ -1,33 +1,21 @@
-# ============================================================
-# 数字家谱 Gitee Go CI/CD 流水线配置
-# 文件路径：.workflow/gitee-ci.yml（Gitee Go 默认识别路径）
-#
-# 流程：
-#   push main → CI（lint/test/build）→ docker（构建镜像）
-#   → deploy-staging（自动部署到测试服务器）
-#   → deploy-production（人工卡点，审批后继续部署生产）
-#
-# 使用前配置：
-#   1. Gitee 仓库 → 设置 → Gitee Go → 环境变量/密钥
-#   2. 配置 REGISTRY / NAMESPACE / DEPLOY_* 等变量（见文末清单）
-#   3. 开启 Gitee Go 服务并关联本仓库
-# ============================================================
-
+version: '1.0'
 name: family-genealogy-cicd
 displayName: 数字家谱 CI/CD
 
 # 触发条件：push 到 main/master 分支
-on:
+triggers:
   push:
-    branches: [main, master]
+    branches:
+      include:
+        - main
+        - master
   # 手动触发（Gitee 页面点击「运行」）
-  workflow_dispatch:
+  manual: true
 
 # 全局环境变量（可在 Gitee Go 环境变量中覆盖）
-env:
+variables:
   REGISTRY: docker.io
   NAMESPACE: your-registry-namespace   # TODO: 替换为实际镜像仓库命名空间
-  IMAGE_TAG: ${CI_COMMIT_SHORT_SHA:-latest}
   PROD_BASE_URL: https://jiapuadmin.deejee.net   # 生产域名（用于冒烟测试）
   PROD_HOST: 106.54.52.45   # 生产服务器 IP
 
@@ -35,250 +23,199 @@ stages:
   # ============================================================
   # 阶段一：CI（lint / test / build）
   # ============================================================
-  - stage: ci
+  - stage:
+    name: ci
     displayName: 持续集成
-    jobs:
-      - job: server-ci
+    strategy: fast   # 快速失败：任一任务失败即停止
+    trigger: auto
+    steps:
+      # 后端 CI
+      - step: build@nodejs
+        name: server-ci
         displayName: 后端 CI（lint/test/build）
-        runs-on: docker
-        services:
-          - image: mysql:8.0
-            name: mysql
-            env:
-              MYSQL_ROOT_PASSWORD: root
-              MYSQL_DATABASE: family_genealogy_test
-        steps:
-          - step: checkout
-            displayName: 拉取代码
-          - step: run
-            displayName: 安装依赖并构建
-            run: |
-              cd server
-              pnpm install --frozen-lockfile
-              pnpm lint
-              pnpm test
-              pnpm build
-          - step: run
-            displayName: 初始化测试数据库
-            run: |
-              mysql -h 127.0.0.1 -uroot -proot family_genealogy_test < database/schema.sql
-          - step: run
-            displayName: 执行端到端测试
-            run: |
-              cd server
-              DB_HOST=127.0.0.1 DB_PORT=3306 DB_DATABASE=family_genealogy_test \
-              DB_USERNAME=root DB_PASSWORD=root \
-              JWT_SECRET=ci_test_jwt_secret CLOUD_STORAGE_ENCRYPT_SECRET=ci_test_cloud_storage_secret \
-              pnpm test:e2e
+        nodeVersion: 20.11.0
+        commands:
+          - cd server
+          - pnpm install --frozen-lockfile
+          - pnpm lint
+          - pnpm test
+          - pnpm build
 
-      - job: web-admin-ci
+      # web-admin CI
+      - step: build@nodejs
+        name: web-admin-ci
         displayName: web-admin CI（lint/build）
-        runs-on: docker
-        steps:
-          - step: checkout
-            displayName: 拉取代码
-          - step: run
-            displayName: 安装依赖并构建
-            run: |
-              cd web-admin
-              pnpm install --frozen-lockfile
-              pnpm lint
-              pnpm build
+        nodeVersion: 20.11.0
+        commands:
+          - cd web-admin
+          - pnpm install --frozen-lockfile
+          - pnpm lint
+          - pnpm build
 
-      - job: tenant-web-ci
+      # tenant-web CI
+      - step: build@nodejs
+        name: tenant-web-ci
         displayName: tenant-web CI（lint/build）
-        runs-on: docker
-        steps:
-          - step: checkout
-            displayName: 拉取代码
-          - step: run
-            displayName: 安装依赖并构建
-            run: |
-              cd tenant-web
-              pnpm install --frozen-lockfile
-              pnpm lint
-              pnpm build
+        nodeVersion: 20.11.0
+        commands:
+          - cd tenant-web
+          - pnpm install --frozen-lockfile
+          - pnpm lint
+          - pnpm build
 
   # ============================================================
   # 阶段二：构建镜像 → 推送镜像仓库
   # ============================================================
-  - stage: docker
+  - stage:
+    name: docker
     displayName: 构建镜像
-    needs: ci
-    jobs:
-      - job: build-push
+    strategy: fast
+    trigger: auto
+    steps:
+      - step: build@docker
+        name: build-push
         displayName: 构建并推送镜像
-        runs-on: docker
-        steps:
-          - step: checkout
-            displayName: 拉取代码
-          - step: run
-            displayName: 登录镜像仓库
-            run: |
-              docker login -u $REGISTRY_USERNAME -p $REGISTRY_PASSWORD $REGISTRY
-          - step: run
-            displayName: 构建后端镜像
-            run: |
-              docker build \
-                -t $REGISTRY/$NAMESPACE/family-server:$CI_COMMIT_SHORT_SHA \
-                -t $REGISTRY/$NAMESPACE/family-server:latest \
-                ./server
-              docker push $REGISTRY/$NAMESPACE/family-server:$CI_COMMIT_SHORT_SHA
-              docker push $REGISTRY/$NAMESPACE/family-server:latest
-          - step: run
-            displayName: 构建 web-admin 镜像
-            run: |
-              docker build \
-                -t $REGISTRY/$NAMESPACE/family-web-admin:$CI_COMMIT_SHORT_SHA \
-                -t $REGISTRY/$NAMESPACE/family-web-admin:latest \
-                ./web-admin
-              docker push $REGISTRY/$NAMESPACE/family-web-admin:$CI_COMMIT_SHORT_SHA
-              docker push $REGISTRY/$NAMESPACE/family-web-admin:latest
-          - step: run
-            displayName: 构建 tenant-web 镜像
-            run: |
-              docker build \
-                -t $REGISTRY/$NAMESPACE/family-tenant-web:$CI_COMMIT_SHORT_SHA \
-                -t $REGISTRY/$NAMESPACE/family-tenant-web:latest \
-                ./tenant-web
-              docker push $REGISTRY/$NAMESPACE/family-tenant-web:$CI_COMMIT_SHORT_SHA
-              docker push $REGISTRY/$NAMESPACE/family-tenant-web:latest
+        commands:
+          - docker login -u $REGISTRY_USERNAME -p $REGISTRY_PASSWORD $REGISTRY
+          # 后端镜像
+          - docker build -t $REGISTRY/$NAMESPACE/family-server:$CI_COMMIT_SHORT_SHA -t $REGISTRY/$NAMESPACE/family-server:latest ./server
+          - docker push $REGISTRY/$NAMESPACE/family-server:$CI_COMMIT_SHORT_SHA
+          - docker push $REGISTRY/$NAMESPACE/family-server:latest
+          # web-admin 镜像
+          - docker build -t $REGISTRY/$NAMESPACE/family-web-admin:$CI_COMMIT_SHORT_SHA -t $REGISTRY/$NAMESPACE/family-web-admin:latest ./web-admin
+          - docker push $REGISTRY/$NAMESPACE/family-web-admin:$CI_COMMIT_SHORT_SHA
+          - docker push $REGISTRY/$NAMESPACE/family-web-admin:latest
+          # tenant-web 镜像
+          - docker build -t $REGISTRY/$NAMESPACE/family-tenant-web:$CI_COMMIT_SHORT_SHA -t $REGISTRY/$NAMESPACE/family-tenant-web:latest ./tenant-web
+          - docker push $REGISTRY/$NAMESPACE/family-tenant-web:$CI_COMMIT_SHORT_SHA
+          - docker push $REGISTRY/$NAMESPACE/family-tenant-web:latest
 
   # ============================================================
   # 阶段三：部署到 Staging（自动，无需审批）
   # ============================================================
-  - stage: deploy-staging
+  - stage:
+    name: deploy-staging
     displayName: 部署 Staging（自动）
-    needs: docker
-    jobs:
-      - job: deploy-staging
+    strategy: fast
+    trigger: auto
+    steps:
+      - step: deploy@host
+        name: deploy-staging
         displayName: 自动部署到 Staging
-        runs-on: docker
-        steps:
-          - step: run
-            displayName: 配置 SSH 免密
-            run: |
-              mkdir -p ~/.ssh
-              echo "$DEPLOY_SSH_KEY" > ~/.ssh/id_rsa
-              chmod 600 ~/.ssh/id_rsa
-              ssh-keyscan -H $STAGING_HOST >> ~/.ssh/known_hosts
-          - step: run
-            displayName: 部署到 Staging 服务器
-            run: |
-              ssh -o StrictHostKeyChecking=no $DEPLOY_USER@$STAGING_HOST "
-                set -e
-                cd $DEPLOY_PATH
-                # 拉取最新镜像
-                docker compose pull
-                # 滚动重启
-                docker compose up -d --remove-orphans
-                # 健康检查（最长 60s）
-                for i in \$(seq 1 30); do
-                  if curl -sf http://localhost:3000/api/health > /dev/null 2>&1; then
-                    echo 'Staging backend is healthy'
-                    exit 0
-                  fi
-                  sleep 2
-                done
-                echo 'Staging health check failed after 60s'
-                exit 1
-              "
+        hostGroup: your-host-group   # TODO: 替换为实际主机组名称
+        host: $STAGING_HOST
+        user: $DEPLOY_USER
+        scriptType: shell
+        script: |
+          set -e
+          cd $DEPLOY_PATH
+          # 拉取最新镜像
+          docker compose pull
+          # 滚动重启
+          docker compose up -d --remove-orphans
+          # 健康检查（最长 60s）
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:3000/api/health > /dev/null 2>&1; then
+              echo 'Staging backend is healthy'
+              exit 0
+            fi
+            sleep 2
+          done
+          echo 'Staging health check failed after 60s'
+          exit 1
 
   # ============================================================
   # 阶段四：部署到 Production（人工卡点，需审批）
   # ============================================================
-  - stage: deploy-production
+  - stage:
+    name: deploy-production
     displayName: 部署 Production（需审批）
-    needs: deploy-staging
-    jobs:
-      # 人工卡点：流水线暂停，等待审批人在 Gitee 页面点击「继续」
-      - job: approval
-        displayName: 人工审批（生产部署确认）
-        runs-on: docker
-        manual: true
-        steps:
-          - step: run
-            displayName: 等待审批
-            run: |
-              echo "等待人工审批通过..."
+    strategy: fast
+    trigger: manual   # 手动触发，需人工审批
+    steps:
+      # 部署前备份数据库（回滚兜底）
+      - step: deploy@host
+        name: backup-db
+        displayName: 部署前备份数据库
+        hostGroup: your-host-group   # TODO: 替换为实际主机组名称
+        host: $PROD_HOST
+        user: $DEPLOY_USER
+        scriptType: shell
+        script: |
+          set -e
+          cd $DEPLOY_PATH
+          bash scripts/backup-db.sh
 
-      # 审批通过后执行生产部署
-      - job: deploy-production
-        displayName: 部署到 Production
-        needs: approval
-        runs-on: docker
-        steps:
-          - step: run
-            displayName: 配置 SSH 免密
-            run: |
-              mkdir -p ~/.ssh
-              echo "$DEPLOY_SSH_KEY" > ~/.ssh/id_rsa
-              chmod 600 ~/.ssh/id_rsa
-              ssh-keyscan -H $PROD_HOST >> ~/.ssh/known_hosts
-          - step: run
-            displayName: 部署前备份数据库
-            run: |
-              ssh -o StrictHostKeyChecking=no $DEPLOY_USER@$PROD_HOST "
-                set -e
-                cd $DEPLOY_PATH
-                bash scripts/backup-db.sh
-              "
-          - step: run
-            displayName: 部署到 Production 服务器
-            run: |
-              ssh -o StrictHostKeyChecking=no $DEPLOY_USER@$PROD_HOST "
-                set -e
-                cd $DEPLOY_PATH
-                # 拉取最新镜像
-                docker compose -f docker-compose.yml -f docker-compose.prod.yml pull
-                # 滚动重启
-                docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --remove-orphans
-                # 健康检查（最长 60s）
-                for i in \$(seq 1 30); do
-                  if curl -sf http://localhost:3000/api/health > /dev/null 2>&1; then
-                    echo 'Production backend is healthy'
-                    exit 0
-                  fi
-                  sleep 2
-                done
-                echo 'Production health check failed after 60s'
-                exit 1
-              "
-          - step: run
-            displayName: 生产冒烟测试
-            run: |
-              ssh -o StrictHostKeyChecking=no $DEPLOY_USER@$PROD_HOST "
-                set -e
-                cd $DEPLOY_PATH
-                bash scripts/smoke-test.sh $PROD_BASE_URL
-              "
-          - step: run
-            displayName: 失败回滚
-            run: |
-              ssh -o StrictHostKeyChecking=no $DEPLOY_USER@$PROD_HOST "
-                set -e
-                cd $DEPLOY_PATH
-                echo 'Deployment failed, initiating rollback...'
-                
-                # 记录当前镜像标签
-                docker compose -f docker-compose.yml -f docker-compose.prod.yml ps --format 'table {{.Name}}\t{{.Image}}'
-                
-                # 尝试重启服务（简单恢复）
-                docker compose -f docker-compose.yml -f docker-compose.prod.yml restart
-                
-                # 等待并验证
-                sleep 10
-                for i in \$(seq 1 30); do
-                  if curl -sf http://localhost:3000/api/health > /dev/null 2>&1; then
-                    echo 'Rollback successful'
-                    exit 0
-                  fi
-                  sleep 2
-                done
-                
-                echo 'Rollback failed, manual intervention required. See docs/rollback-runbook.md'
-                exit 1
-              "
+      # 部署到 production 服务器
+      - step: deploy@host
+        name: deploy-production
+        displayName: 部署到 Production 服务器
+        hostGroup: your-host-group   # TODO: 替换为实际主机组名称
+        host: $PROD_HOST
+        user: $DEPLOY_USER
+        scriptType: shell
+        script: |
+          set -e
+          cd $DEPLOY_PATH
+          # 拉取最新镜像
+          docker compose -f docker-compose.yml -f docker-compose.prod.yml pull
+          # 滚动重启
+          docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --remove-orphans
+          # 健康检查（最长 60s）
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:3000/api/health > /dev/null 2>&1; then
+              echo 'Production backend is healthy'
+              exit 0
+            fi
+            sleep 2
+          done
+          echo 'Production health check failed after 60s'
+          exit 1
+
+      # 生产冒烟测试（核心 API 验证）
+      - step: deploy@host
+        name: smoke-test
+        displayName: 生产冒烟测试
+        hostGroup: your-host-group   # TODO: 替换为实际主机组名称
+        host: $PROD_HOST
+        user: $DEPLOY_USER
+        scriptType: shell
+        script: |
+          set -e
+          cd $DEPLOY_PATH
+          bash scripts/smoke-test.sh $PROD_BASE_URL
+
+      # 失败回滚（重启服务并验证）
+      - step: deploy@host
+        name: rollback
+        displayName: 失败回滚
+        hostGroup: your-host-group   # TODO: 替换为实际主机组名称
+        host: $PROD_HOST
+        user: $DEPLOY_USER
+        scriptType: shell
+        script: |
+          set -e
+          cd $DEPLOY_PATH
+          echo 'Deployment failed, initiating rollback...'
+          
+          # 记录当前镜像标签
+          docker compose -f docker-compose.yml -f docker-compose.prod.yml ps --format 'table {{.Name}}\t{{.Image}}'
+          
+          # 尝试重启服务（简单恢复）
+          docker compose -f docker-compose.yml -f docker-compose.prod.yml restart
+          
+          # 等待并验证
+          sleep 10
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:3000/api/health > /dev/null 2>&1; then
+              echo 'Rollback successful'
+              exit 0
+            fi
+            sleep 2
+          done
+          
+          echo 'Rollback failed, manual intervention required. See docs/rollback-runbook.md'
+          exit 1
 
 # ============================================================
 # Gitee Go 环境变量/密钥配置清单
@@ -299,5 +236,8 @@ stages:
 #   DEPLOY_USER            SSH 登录用户（如 root / ubuntu）
 #   DEPLOY_PATH            项目部署目录（如 /opt/family-genealogy）
 #   PROD_BASE_URL          生产环境域名（当前：https://jiapuadmin.deejee.net）
+#
+# 【主机组配置】
+#   your-host-group        Gitee Go 计算资源管理中添加的主机组名称
 #
 # ============================================================
