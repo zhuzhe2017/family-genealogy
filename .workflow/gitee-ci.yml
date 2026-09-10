@@ -14,6 +14,7 @@
 # ============================================================
 
 name: family-genealogy-cicd
+displayName: 数字家谱 CI/CD
 
 # 触发条件：push 到 main/master 分支
 on:
@@ -35,10 +36,10 @@ stages:
   # 阶段一：CI（lint / test / build）
   # ============================================================
   - stage: ci
-    name: 持续集成
+    displayName: 持续集成
     jobs:
       - job: server-ci
-        name: 后端 CI（lint/test/build）
+        displayName: 后端 CI（lint/test/build）
         runs-on: docker
         services:
           - image: mysql:8.0
@@ -66,7 +67,7 @@ stages:
               pnpm test:e2e
 
       - job: web-admin-ci
-        name: web-admin CI（lint/build）
+        displayName: web-admin CI（lint/build）
         runs-on: docker
         steps:
           - checkout
@@ -77,7 +78,7 @@ stages:
               pnpm build
 
       - job: tenant-web-ci
-        name: tenant-web CI（lint/build）
+        displayName: tenant-web CI（lint/build）
         runs-on: docker
         steps:
           - checkout
@@ -91,11 +92,11 @@ stages:
   # 阶段二：构建镜像 → 推送镜像仓库
   # ============================================================
   - stage: docker
-    name: 构建镜像
+    displayName: 构建镜像
     needs: ci
     jobs:
       - job: build-push
-        name: 构建并推送镜像
+        displayName: 构建并推送镜像
         runs-on: docker
         steps:
           - checkout
@@ -131,11 +132,11 @@ stages:
   # 阶段三：部署到 Staging（自动，无需审批）
   # ============================================================
   - stage: deploy-staging
-    name: 部署 Staging（自动）
+    displayName: 部署 Staging（自动）
     needs: docker
     jobs:
       - job: deploy-staging
-        name: 自动部署到 Staging
+        displayName: 自动部署到 Staging
         runs-on: docker
         steps:
           # 配置 SSH 免密（使用 Gitee Go 密钥 DEPLOY_SSH_KEY）
@@ -169,18 +170,18 @@ stages:
   # 阶段四：部署到 Production（人工卡点，需审批）
   # ============================================================
   - stage: deploy-production
-    name: 部署 Production（需审批）
+    displayName: 部署 Production（需审批）
     needs: deploy-staging
     jobs:
       # 人工卡点：流水线暂停，等待审批人在 Gitee 页面点击「继续」
       - job: approval
-        name: 人工审批（生产部署确认）
+        displayName: 人工审批（生产部署确认）
         runs-on: docker
         manual: true
 
       # 审批通过后执行生产部署
       - job: deploy-production
-        name: 部署到 Production
+        displayName: 部署到 Production
         needs: approval
         runs-on: docker
         steps:
