@@ -25,6 +25,8 @@ on:
 env:
   REGISTRY: docker.io
   IMAGE_NAMESPACE: your-dockerhub-username   # TODO: 替换为实际镜像仓库命名空间
+  PROD_BASE_URL: https://admin.your-domain.com   # TODO: 替换为生产域名（用于冒烟测试）
+  HEALTHCHECK_PATH: /api/health
 
 jobs:
   # ============================================================
@@ -305,7 +307,7 @@ jobs:
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           script: |
             cd ${{ secrets.DEPLOY_PATH }}
-            bash scripts/smoke-test.sh https://admin.your-domain.com
+            bash scripts/smoke-test.sh ${{ env.PROD_BASE_URL }}
 
       - name: Rollback on failure
         if: failure()

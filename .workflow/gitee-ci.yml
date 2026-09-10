@@ -27,6 +27,8 @@ env:
   REGISTRY: docker.io
   NAMESPACE: your-registry-namespace   # TODO: 替换为实际镜像仓库命名空间
   IMAGE_TAG: ${CI_COMMIT_SHORT_SHA:-latest}
+  PROD_BASE_URL: https://jiapuadmin.deejee.net   # 生产域名（用于冒烟测试）
+  PROD_HOST: 106.54.52.45   # 生产服务器 IP
 
 stages:
   # ============================================================
@@ -215,6 +217,39 @@ stages:
                 echo 'Production health check failed after 60s'
                 exit 1
               "
+          # 生产冒烟测试（核心 API 验证）
+          - run: |
+              ssh -o StrictHostKeyChecking=no $DEPLOY_USER@$PROD_HOST "
+                set -e
+                cd $DEPLOY_PATH
+                bash scripts/smoke-test.sh $PROD_BASE_URL
+              "
+          # 失败回滚（重启服务并验证）
+          - run: |
+              ssh -o StrictHostKeyChecking=no $DEPLOY_USER@$PROD_HOST "
+                set -e
+                cd $DEPLOY_PATH
+                echo 'Deployment failed, initiating rollback...'
+                
+                # 记录当前镜像标签
+                docker compose -f docker-compose.yml -f docker-compose.prod.yml ps --format 'table {{.Name}}\t{{.Image}}'
+                
+                # 尝试重启服务（简单恢复）
+                docker compose -f docker-compose.yml -f docker-compose.prod.yml restart
+                
+                # 等待并验证
+                sleep 10
+                for i in \$(seq 1 30); do
+                  if curl -sf http://localhost:3000/api/health > /dev/null 2>&1; then
+                    echo 'Rollback successful'
+                    exit 0
+                  fi
+                  sleep 2
+                done
+                
+                echo 'Rollback failed, manual intervention required. See docs/rollback-runbook.md'
+                exit 1
+              "
 
 # ============================================================
 # Gitee Go 环境变量/密钥配置清单
@@ -230,9 +265,10 @@ stages:
 #   REGISTRY               镜像仓库地址（如 docker.io / registry.cn-hangzhou.aliyuncs.com）
 #   NAMESPACE              镜像仓库命名空间（如 your-username / your-org）
 #
-#   STAGING_HOST           Staging 服务器 IP/域名
-#   PROD_HOST              Production 服务器 IP/域名
+#   STAGING_HOST           Staging 服务器 IP/域名（如 106.54.52.45）
+#   PROD_HOST              Production 服务器 IP/域名（当前：106.54.52.45）
 #   DEPLOY_USER            SSH 登录用户（如 root / ubuntu）
 #   DEPLOY_PATH            项目部署目录（如 /opt/family-genealogy）
+#   PROD_BASE_URL          生产环境域名（当前：https://jiapuadmin.deejee.net）
 #
 # ============================================================
