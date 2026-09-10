@@ -16,8 +16,10 @@ set -euo pipefail
 
 # ---------- 可配置项 ----------
 DB_NAME="${DB_NAME:-family_genealogy}"
+# 备份使用 root（需 LOCK TABLES / PROCESS 等权限），业务账号权限不足
 DB_USER="${DB_USER:-root}"
-DB_PASSWORD="${DB_PASSWORD:?请在环境变量或 .env 中设置 DB_PASSWORD}"
+# 优先使用 DB_ROOT_PASSWORD（root 密码），回退到 DB_PASSWORD
+DB_PASSWORD="${DB_ROOT_PASSWORD:-${DB_PASSWORD:?请在环境变量或 .env 中设置 DB_ROOT_PASSWORD 或 DB_PASSWORD}}"
 BACKUP_DIR="${BACKUP_DIR:-./backups}"
 RETENTION_DAYS="${RETENTION_DAYS:-30}"
 # 通过 docker compose 执行 mysqldump；如直连数据库可改为 mysql 客户端命令

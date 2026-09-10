@@ -297,6 +297,16 @@ jobs:
             echo "Production health check failed after 60s"
             exit 1
 
+      - name: Production smoke test
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script: |
+            cd ${{ secrets.DEPLOY_PATH }}
+            bash scripts/smoke-test.sh https://admin.your-domain.com
+
       - name: Rollback on failure
         if: failure()
         uses: appleboy/ssh-action@v1
@@ -307,4 +317,22 @@ jobs:
           script: |
             cd ${{ secrets.DEPLOY_PATH }}
             echo "Deployment failed, initiating rollback..."
-            docker compose -f docker-compose.yml -f docker-compose.prod.yml ps -a
+            
+            # 记录当前镜像标签（用于回滚）
+            docker compose -f docker-compose.yml -f docker-compose.prod.yml ps --format "table {{.Name}}\t{{.Image}}"
+            
+            # 尝试重启服务（简单恢复）
+            docker compose -f docker-compose.yml -f docker-compose.prod.yml restart
+            
+            # 等待并验证
+            sleep 10
+            for i in $(seq 1 30); do
+              if curl -sf http://localhost:3000/api/health > /dev/null 2>&1; then
+                echo "Rollback successful"
+                exit 0
+              fi
+              sleep 2
+            done
+            
+            echo "Rollback failed, manual intervention required. See docs/rollback-runbook.md"
+            exit 1

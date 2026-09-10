@@ -88,7 +88,8 @@ services:
       mysql:
         condition: service_healthy
     environment:
-      MYSQL_PWD: ${DB_PASSWORD:?请先在 .env 中设置 DB_PASSWORD}
+      # 备份需 root 权限（--single-transaction 需 PROCESS，--routines 需 读取 mysql.proc）
+      MYSQL_PWD: ${DB_ROOT_PASSWORD:-${DB_PASSWORD:?请先在 .env 中设置 DB_ROOT_PASSWORD 或 DB_PASSWORD}}
       DB_DATABASE: ${DB_DATABASE:-family_genealogy}
       BACKUP_DIR: /backups
       RETENTION_DAYS: '30'
@@ -102,7 +103,7 @@ services:
         TS=$$(date +%Y%m%d_%H%M%S)
         OUT="$${BACKUP_DIR}/$${DB_DATABASE}_$${TS}.sql.gz"
         echo "[backup] dumping $${DB_DATABASE} -> $${OUT}"
-        mysqldump -h mysql -u root --single-transaction --quick --routines --triggers "$${DB_DATABASE}" | gzip > "$${OUT}"
+        mysqldump -h mysql -u root --single-transaction --quick --routines --triggers --default-character-set=utf8mb4 "$${DB_DATABASE}" | gzip > "$${OUT}" || { echo "[backup] ERROR: mysqldump failed"; exit 1; }
         echo "[backup] cleaning backups older than $${RETENTION_DAYS} days"
         find "$${BACKUP_DIR}" -name "$${DB_DATABASE}_*.sql.gz" -mtime +$${RETENTION_DAYS} -delete
         echo "[backup] done. current backups:"

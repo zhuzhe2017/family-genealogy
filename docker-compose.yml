@@ -20,14 +20,10 @@ services:
     image: mysql:8.0
     restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:?请先在 .env 中设置 DB_PASSWORD}
+      # root 仅供宿主机管理/备份使用，后端应用使用独立业务账号 DB_USERNAME
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-${DB_PASSWORD:?请先在 .env 中设置 DB_ROOT_PASSWORD 或 DB_PASSWORD}}
       MYSQL_DATABASE: ${DB_DATABASE:-family_genealogy}
       TZ: Asia/Shanghai
-    command:
-      - --character-set-server=utf8mb4
-      - --collation-server=utf8mb4_unicode_ci
-      - --default-authentication-plugin=mysql_native_password
-      - --binlog-expire-logs-seconds=604800
     volumes:
       - mysql_data:/var/lib/mysql
       - ./backups/mysql:/backups
@@ -37,6 +33,31 @@ services:
       timeout: 5s
       retries: 10
       start_period: 30s
+    # 首次启动自动创建业务账号（最小权限：仅目标库的 DML/DDL，无 SUPER/FILE 等管理权限）
+    # 注意：该入口仅在数据目录为空（首次初始化）时执行；已有数据请手动执行 grant-app-user.sql
+    entrypoint: ['/bin/sh', '-c']
+    command:
+      - |
+        set -e
+        /usr/local/bin/docker-entrypoint.sh mysqld \
+          --character-set-server=utf8mb4 \
+          --collation-server=utf8mb4_unicode_ci \
+          --default-authentication-plugin=mysql_native_password \
+          --binlog-expire-logs-seconds=604800 &
+        MYSQL_PID=$$!
+        for i in $$(seq 1 60); do
+          if mysqladmin ping -h 127.0.0.1 -uroot -p"$$MYSQL_ROOT_PASSWORD" --silent 2>/dev/null; then
+            break
+          fi
+          sleep 2
+        done
+        mysql -h 127.0.0.1 -uroot -p"$$MYSQL_ROOT_PASSWORD" <<SQL
+        CREATE USER IF NOT EXISTS '$${DB_USERNAME:-family_app}'@'%' IDENTIFIED BY '$${DB_PASSWORD:?请先在 .env 中设置 DB_PASSWORD}';
+        GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, ALTER, INDEX, REFERENCES ON $${DB_DATABASE:-family_genealogy}.* TO '$${DB_USERNAME:-family_app}'@'%';
+        FLUSH PRIVILEGES;
+        SQL
+        echo "[mysql-init] app user '$${DB_USERNAME:-family_app}' granted on $${DB_DATABASE:-family_genealogy}"
+        wait $$MYSQL_PID
     networks:
       - app
 
