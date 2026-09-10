@@ -48,18 +48,23 @@ stages:
               MYSQL_ROOT_PASSWORD: root
               MYSQL_DATABASE: family_genealogy_test
         steps:
-          - checkout
-          - run: |
+          - step: checkout
+            displayName: 拉取代码
+          - step: run
+            displayName: 安装依赖并构建
+            run: |
               cd server
               pnpm install --frozen-lockfile
               pnpm lint
               pnpm test
               pnpm build
-          # 初始化测试库 schema
-          - run: |
+          - step: run
+            displayName: 初始化测试数据库
+            run: |
               mysql -h 127.0.0.1 -uroot -proot family_genealogy_test < database/schema.sql
-          # 端到端测试
-          - run: |
+          - step: run
+            displayName: 执行端到端测试
+            run: |
               cd server
               DB_HOST=127.0.0.1 DB_PORT=3306 DB_DATABASE=family_genealogy_test \
               DB_USERNAME=root DB_PASSWORD=root \
@@ -70,8 +75,11 @@ stages:
         displayName: web-admin CI（lint/build）
         runs-on: docker
         steps:
-          - checkout
-          - run: |
+          - step: checkout
+            displayName: 拉取代码
+          - step: run
+            displayName: 安装依赖并构建
+            run: |
               cd web-admin
               pnpm install --frozen-lockfile
               pnpm lint
@@ -81,8 +89,11 @@ stages:
         displayName: tenant-web CI（lint/build）
         runs-on: docker
         steps:
-          - checkout
-          - run: |
+          - step: checkout
+            displayName: 拉取代码
+          - step: run
+            displayName: 安装依赖并构建
+            run: |
               cd tenant-web
               pnpm install --frozen-lockfile
               pnpm lint
@@ -99,28 +110,33 @@ stages:
         displayName: 构建并推送镜像
         runs-on: docker
         steps:
-          - checkout
-          # 登录镜像仓库（Docker Hub / 阿里云 ACR / 腾讯云 TCR）
-          - run: |
+          - step: checkout
+            displayName: 拉取代码
+          - step: run
+            displayName: 登录镜像仓库
+            run: |
               docker login -u $REGISTRY_USERNAME -p $REGISTRY_PASSWORD $REGISTRY
-          # 后端镜像（多阶段构建）
-          - run: |
+          - step: run
+            displayName: 构建后端镜像
+            run: |
               docker build \
                 -t $REGISTRY/$NAMESPACE/family-server:$CI_COMMIT_SHORT_SHA \
                 -t $REGISTRY/$NAMESPACE/family-server:latest \
                 ./server
               docker push $REGISTRY/$NAMESPACE/family-server:$CI_COMMIT_SHORT_SHA
               docker push $REGISTRY/$NAMESPACE/family-server:latest
-          # web-admin 镜像
-          - run: |
+          - step: run
+            displayName: 构建 web-admin 镜像
+            run: |
               docker build \
                 -t $REGISTRY/$NAMESPACE/family-web-admin:$CI_COMMIT_SHORT_SHA \
                 -t $REGISTRY/$NAMESPACE/family-web-admin:latest \
                 ./web-admin
               docker push $REGISTRY/$NAMESPACE/family-web-admin:$CI_COMMIT_SHORT_SHA
               docker push $REGISTRY/$NAMESPACE/family-web-admin:latest
-          # tenant-web 镜像
-          - run: |
+          - step: run
+            displayName: 构建 tenant-web 镜像
+            run: |
               docker build \
                 -t $REGISTRY/$NAMESPACE/family-tenant-web:$CI_COMMIT_SHORT_SHA \
                 -t $REGISTRY/$NAMESPACE/family-tenant-web:latest \
@@ -139,14 +155,16 @@ stages:
         displayName: 自动部署到 Staging
         runs-on: docker
         steps:
-          # 配置 SSH 免密（使用 Gitee Go 密钥 DEPLOY_SSH_KEY）
-          - run: |
+          - step: run
+            displayName: 配置 SSH 免密
+            run: |
               mkdir -p ~/.ssh
               echo "$DEPLOY_SSH_KEY" > ~/.ssh/id_rsa
               chmod 600 ~/.ssh/id_rsa
               ssh-keyscan -H $STAGING_HOST >> ~/.ssh/known_hosts
-          # 部署到 staging 服务器
-          - run: |
+          - step: run
+            displayName: 部署到 Staging 服务器
+            run: |
               ssh -o StrictHostKeyChecking=no $DEPLOY_USER@$STAGING_HOST "
                 set -e
                 cd $DEPLOY_PATH
@@ -178,6 +196,11 @@ stages:
         displayName: 人工审批（生产部署确认）
         runs-on: docker
         manual: true
+        steps:
+          - step: run
+            displayName: 等待审批
+            run: |
+              echo "等待人工审批通过..."
 
       # 审批通过后执行生产部署
       - job: deploy-production
@@ -185,21 +208,24 @@ stages:
         needs: approval
         runs-on: docker
         steps:
-          # 配置 SSH 免密
-          - run: |
+          - step: run
+            displayName: 配置 SSH 免密
+            run: |
               mkdir -p ~/.ssh
               echo "$DEPLOY_SSH_KEY" > ~/.ssh/id_rsa
               chmod 600 ~/.ssh/id_rsa
               ssh-keyscan -H $PROD_HOST >> ~/.ssh/known_hosts
-          # 部署前备份数据库（回滚兜底）
-          - run: |
+          - step: run
+            displayName: 部署前备份数据库
+            run: |
               ssh -o StrictHostKeyChecking=no $DEPLOY_USER@$PROD_HOST "
                 set -e
                 cd $DEPLOY_PATH
                 bash scripts/backup-db.sh
               "
-          # 部署到 production 服务器
-          - run: |
+          - step: run
+            displayName: 部署到 Production 服务器
+            run: |
               ssh -o StrictHostKeyChecking=no $DEPLOY_USER@$PROD_HOST "
                 set -e
                 cd $DEPLOY_PATH
@@ -218,15 +244,17 @@ stages:
                 echo 'Production health check failed after 60s'
                 exit 1
               "
-          # 生产冒烟测试（核心 API 验证）
-          - run: |
+          - step: run
+            displayName: 生产冒烟测试
+            run: |
               ssh -o StrictHostKeyChecking=no $DEPLOY_USER@$PROD_HOST "
                 set -e
                 cd $DEPLOY_PATH
                 bash scripts/smoke-test.sh $PROD_BASE_URL
               "
-          # 失败回滚（重启服务并验证）
-          - run: |
+          - step: run
+            displayName: 失败回滚
+            run: |
               ssh -o StrictHostKeyChecking=no $DEPLOY_USER@$PROD_HOST "
                 set -e
                 cd $DEPLOY_PATH
