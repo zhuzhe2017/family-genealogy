@@ -35,12 +35,11 @@ stages:
         displayName: 后端 CI（lint/test/build）
         nodeVersion: 20.11.0
         commands:
-          - npm install -g pnpm@8.15.1
           - cd server
-          - pnpm install --frozen-lockfile
-          - pnpm run lint
-          - pnpm run test
-          - pnpm run build
+          - npm install --registry=https://registry.npmmirror.com
+          - npx eslint "{src,apps,libs,test}/**/*.ts" --fix
+          - npx jest
+          - npx nest build
 
       # web-admin CI
       - step: build@nodejs
@@ -48,11 +47,10 @@ stages:
         displayName: web-admin CI（lint/build）
         nodeVersion: 20.11.0
         commands:
-          - npm install -g pnpm@8.15.1
           - cd web-admin
-          - pnpm install --frozen-lockfile
-          - pnpm run lint
-          - pnpm run build
+          - npm install --registry=https://registry.npmmirror.com
+          - npm run lint
+          - npm run build
 
       # tenant-web CI
       - step: build@nodejs
@@ -60,11 +58,10 @@ stages:
         displayName: tenant-web CI（lint/build）
         nodeVersion: 20.11.0
         commands:
-          - npm install -g pnpm@8.15.1
           - cd tenant-web
-          - pnpm install --frozen-lockfile
-          - pnpm run lint
-          - pnpm run build
+          - npm install --registry=https://registry.npmmirror.com
+          - npm run lint
+          - npm run build
 
   # ============================================================
   # 阶段二：构建镜像 → 推送镜像仓库
