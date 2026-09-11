@@ -30,12 +30,12 @@ stages:
     trigger: auto
     steps:
       # 后端 CI
-      - step: build@nodejs
+      - step: build@shell
         name: server-ci
         displayName: 后端 CI（lint/test/build）
-        nodeVersion: 20.11.0
         commands:
-          - export PATH=/usr/local/bin:$PATH
+          - curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+          - apt-get install -y nodejs
           - node -v && npm -v
           - cd server
           - npm install --registry=https://registry.npmmirror.com
@@ -44,12 +44,12 @@ stages:
           - npx nest build
 
       # web-admin CI
-      - step: build@nodejs
+      - step: build@shell
         name: web-admin-ci
         displayName: web-admin CI（lint/build）
-        nodeVersion: 20.11.0
         commands:
-          - export PATH=/usr/local/bin:$PATH
+          - curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+          - apt-get install -y nodejs
           - node -v && npm -v
           - cd web-admin
           - npm install --registry=https://registry.npmmirror.com
@@ -57,12 +57,12 @@ stages:
           - npm run build
 
       # tenant-web CI
-      - step: build@nodejs
+      - step: build@shell
         name: tenant-web-ci
         displayName: tenant-web CI（lint/build）
-        nodeVersion: 20.11.0
         commands:
-          - export PATH=/usr/local/bin:$PATH
+          - curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+          - apt-get install -y nodejs
           - node -v && npm -v
           - cd tenant-web
           - npm install --registry=https://registry.npmmirror.com
