@@ -35,6 +35,8 @@ stages:
         displayName: 后端 CI（lint/test/build）
         nodeVersion: 20.11.0
         commands:
+          - export PATH=/usr/local/bin:$PATH
+          - node -v && npm -v
           - cd server
           - npm install --registry=https://registry.npmmirror.com
           - npx eslint "{src,apps,libs,test}/**/*.ts" --fix
@@ -47,6 +49,8 @@ stages:
         displayName: web-admin CI（lint/build）
         nodeVersion: 20.11.0
         commands:
+          - export PATH=/usr/local/bin:$PATH
+          - node -v && npm -v
           - cd web-admin
           - npm install --registry=https://registry.npmmirror.com
           - npm run lint
@@ -58,6 +62,8 @@ stages:
         displayName: tenant-web CI（lint/build）
         nodeVersion: 20.11.0
         commands:
+          - export PATH=/usr/local/bin:$PATH
+          - node -v && npm -v
           - cd tenant-web
           - npm install --registry=https://registry.npmmirror.com
           - npm run lint
