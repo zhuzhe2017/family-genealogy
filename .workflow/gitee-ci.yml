@@ -30,44 +30,38 @@ stages:
     trigger: auto
     steps:
       # 后端 CI
-      - step: build@shell
+      - step: build@nodejs
         name: server-ci
         displayName: 后端 CI（lint/test/build）
+        nodeVersion: 20.11.0
         commands:
-          - curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
-          - apt-get install -y nodejs
-          - node -v && npm -v
           - cd server
           - npm install --registry=https://registry.npmmirror.com
-          - npx eslint "{src,apps,libs,test}/**/*.ts" --fix
-          - npx jest
-          - npx nest build
+          - ./node_modules/.bin/eslint "{src,apps,libs,test}/**/*.ts" --fix
+          - ./node_modules/.bin/jest
+          - ./node_modules/.bin/nest build
 
       # web-admin CI
-      - step: build@shell
+      - step: build@nodejs
         name: web-admin-ci
         displayName: web-admin CI（lint/build）
+        nodeVersion: 20.11.0
         commands:
-          - curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
-          - apt-get install -y nodejs
-          - node -v && npm -v
           - cd web-admin
           - npm install --registry=https://registry.npmmirror.com
-          - npm run lint
-          - npm run build
+          - ./node_modules/.bin/eslint . --fix
+          - ./node_modules/.bin/vite build
 
       # tenant-web CI
-      - step: build@shell
+      - step: build@nodejs
         name: tenant-web-ci
         displayName: tenant-web CI（lint/build）
+        nodeVersion: 20.11.0
         commands:
-          - curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
-          - apt-get install -y nodejs
-          - node -v && npm -v
           - cd tenant-web
           - npm install --registry=https://registry.npmmirror.com
-          - npm run lint
-          - npm run build
+          - ./node_modules/.bin/eslint . --fix
+          - ./node_modules/.bin/vite build
 
   # ============================================================
   # 阶段二：构建镜像 → 推送镜像仓库
