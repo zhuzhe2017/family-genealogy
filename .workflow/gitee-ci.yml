@@ -102,163 +102,166 @@ stages:
 
   # ============================================================
   # 阶段二：构建镜像 → 推送镜像仓库
+  # 【已临时禁用】待配置镜像仓库凭证（REGISTRY_USERNAME/PASSWORD）和 NAMESPACE 后启用
   # ============================================================
-  - stage:
-    name: docker
-    displayName: 构建镜像
-    strategy: fast
-    trigger: auto
-    steps:
-      - step: build@docker
-        name: build-push
-        displayName: 构建并推送镜像
-        commands:
-          - docker login -u $REGISTRY_USERNAME -p $REGISTRY_PASSWORD $REGISTRY
-          # 后端镜像
-          - docker build -t $REGISTRY/$NAMESPACE/family-server:$CI_COMMIT_SHORT_SHA -t $REGISTRY/$NAMESPACE/family-server:latest ./server
-          - docker push $REGISTRY/$NAMESPACE/family-server:$CI_COMMIT_SHORT_SHA
-          - docker push $REGISTRY/$NAMESPACE/family-server:latest
-          # web-admin 镜像
-          - docker build -t $REGISTRY/$NAMESPACE/family-web-admin:$CI_COMMIT_SHORT_SHA -t $REGISTRY/$NAMESPACE/family-web-admin:latest ./web-admin
-          - docker push $REGISTRY/$NAMESPACE/family-web-admin:$CI_COMMIT_SHORT_SHA
-          - docker push $REGISTRY/$NAMESPACE/family-web-admin:latest
-          # tenant-web 镜像
-          - docker build -t $REGISTRY/$NAMESPACE/family-tenant-web:$CI_COMMIT_SHORT_SHA -t $REGISTRY/$NAMESPACE/family-tenant-web:latest ./tenant-web
-          - docker push $REGISTRY/$NAMESPACE/family-tenant-web:$CI_COMMIT_SHORT_SHA
-          - docker push $REGISTRY/$NAMESPACE/family-tenant-web:latest
+  # - stage:
+  #   name: docker
+  #   displayName: 构建镜像
+  #   strategy: fast
+  #   trigger: auto
+  #   steps:
+  #     - step: build@docker
+  #       name: build-push
+  #       displayName: 构建并推送镜像
+  #       commands:
+  #         - docker login -u $REGISTRY_USERNAME -p $REGISTRY_PASSWORD $REGISTRY
+  #         # 后端镜像
+  #         - docker build -t $REGISTRY/$NAMESPACE/family-server:$CI_COMMIT_SHORT_SHA -t $REGISTRY/$NAMESPACE/family-server:latest ./server
+  #         - docker push $REGISTRY/$NAMESPACE/family-server:$CI_COMMIT_SHORT_SHA
+  #         - docker push $REGISTRY/$NAMESPACE/family-server:latest
+  #         # web-admin 镜像
+  #         - docker build -t $REGISTRY/$NAMESPACE/family-web-admin:$CI_COMMIT_SHORT_SHA -t $REGISTRY/$NAMESPACE/family-web-admin:latest ./web-admin
+  #         - docker push $REGISTRY/$NAMESPACE/family-web-admin:$CI_COMMIT_SHORT_SHA
+  #         - docker push $REGISTRY/$NAMESPACE/family-web-admin:latest
+  #         # tenant-web 镜像
+  #         - docker build -t $REGISTRY/$NAMESPACE/family-tenant-web:$CI_COMMIT_SHORT_SHA -t $REGISTRY/$NAMESPACE/family-tenant-web:latest ./tenant-web
+  #         - docker push $REGISTRY/$NAMESPACE/family-tenant-web:$CI_COMMIT_SHORT_SHA
+  #         - docker push $REGISTRY/$NAMESPACE/family-tenant-web:latest
 
   # ============================================================
   # 阶段三：部署到 Staging（自动，无需审批）
+  # 【已临时禁用】待配置主机组 ID（your-host-group-id / your-host-id）后启用
   # ============================================================
-  - stage:
-    name: deploy-staging
-    displayName: 部署 Staging（自动）
-    strategy: fast
-    trigger: auto
-    steps:
-      - step: deploy@agent
-        name: deploy-staging
-        displayName: 自动部署到 Staging
-        # TODO: 替换为实际主机组 ID 和主机 ID（Gitee Go 计算资源管理中获取）
-        hostGroupID:
-          ID: your-host-group-id
-        hostID:
-          - your-host-id
-        script:
-          - |
-            set -e
-            cd /opt/family-genealogy
-            # 拉取最新镜像
-            docker compose pull
-            # 滚动重启
-            docker compose up -d --remove-orphans
-            # 健康检查（最长 60s）
-            for i in $(seq 1 30); do
-              if curl -sf http://localhost:3000/api/health > /dev/null 2>&1; then
-                echo 'Staging backend is healthy'
-                exit 0
-              fi
-              sleep 2
-            done
-            echo 'Staging health check failed after 60s'
-            exit 1
+  # - stage:
+  #   name: deploy-staging
+  #   displayName: 部署 Staging（自动）
+  #   strategy: fast
+  #   trigger: auto
+  #   steps:
+  #     - step: deploy@agent
+  #       name: deploy-staging
+  #       displayName: 自动部署到 Staging
+  #       # TODO: 替换为实际主机组 ID 和主机 ID（Gitee Go 计算资源管理中获取）
+  #       hostGroupID:
+  #         ID: your-host-group-id
+  #       hostID:
+  #         - your-host-id
+  #       script:
+  #         - |
+  #           set -e
+  #           cd /opt/family-genealogy
+  #           # 拉取最新镜像
+  #           docker compose pull
+  #           # 滚动重启
+  #           docker compose up -d --remove-orphans
+  #           # 健康检查（最长 60s）
+  #           for i in $(seq 1 30); do
+  #             if curl -sf http://localhost:3000/api/health > /dev/null 2>&1; then
+  #               echo 'Staging backend is healthy'
+  #               exit 0
+  #             fi
+  #             sleep 2
+  #           done
+  #           echo 'Staging health check failed after 60s'
+  #           exit 1
 
   # ============================================================
   # 阶段四：部署到 Production（人工卡点，需审批）
+  # 【已临时禁用】待配置主机组 ID 和镜像仓库凭证后启用
   # ============================================================
-  - stage:
-    name: deploy-production
-    displayName: 部署 Production（需审批）
-    strategy: fast
-    trigger: manual   # 手动触发，需人工审批
-    steps:
-      # 部署前备份数据库（回滚兜底）
-      - step: deploy@agent
-        name: backup-db
-        displayName: 部署前备份数据库
-        hostGroupID:
-          ID: your-host-group-id
-        hostID:
-          - your-host-id
-        script:
-          - |
-            set -e
-            cd /opt/family-genealogy
-            bash scripts/backup-db.sh
-
-      # 部署到 production 服务器
-      - step: deploy@agent
-        name: deploy-production
-        displayName: 部署到 Production 服务器
-        hostGroupID:
-          ID: your-host-group-id
-        hostID:
-          - your-host-id
-        script:
-          - |
-            set -e
-            cd /opt/family-genealogy
-            # 拉取最新镜像
-            docker compose -f docker-compose.yml -f docker-compose.prod.yml pull
-            # 滚动重启
-            docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --remove-orphans
-            # 健康检查（最长 60s）
-            for i in $(seq 1 30); do
-              if curl -sf http://localhost:3000/api/health > /dev/null 2>&1; then
-                echo 'Production backend is healthy'
-                exit 0
-              fi
-              sleep 2
-            done
-            echo 'Production health check failed after 60s'
-            exit 1
-
-      # 生产冒烟测试（核心 API 验证）
-      - step: deploy@agent
-        name: smoke-test
-        displayName: 生产冒烟测试
-        hostGroupID:
-          ID: your-host-group-id
-        hostID:
-          - your-host-id
-        script:
-          - |
-            set -e
-            cd /opt/family-genealogy
-            bash scripts/smoke-test.sh $PROD_BASE_URL
-
-      # 失败回滚（重启服务并验证）
-      - step: deploy@agent
-        name: rollback
-        displayName: 失败回滚
-        hostGroupID:
-          ID: your-host-group-id
-        hostID:
-          - your-host-id
-        script:
-          - |
-            set -e
-            cd /opt/family-genealogy
-            echo 'Deployment failed, initiating rollback...'
-            
-            # 记录当前镜像标签
-            docker compose -f docker-compose.yml -f docker-compose.prod.yml ps --format 'table {{.Name}}\t{{.Image}}'
-            
-            # 尝试重启服务（简单恢复）
-            docker compose -f docker-compose.yml -f docker-compose.prod.yml restart
-            
-            # 等待并验证
-            sleep 10
-            for i in $(seq 1 30); do
-              if curl -sf http://localhost:3000/api/health > /dev/null 2>&1; then
-                echo 'Rollback successful'
-                exit 0
-              fi
-              sleep 2
-            done
-            
-            echo 'Rollback failed, manual intervention required. See docs/rollback-runbook.md'
-            exit 1
+  # - stage:
+  #   name: deploy-production
+  #   displayName: 部署 Production（需审批）
+  #   strategy: fast
+  #   trigger: manual   # 手动触发，需人工审批
+  #   steps:
+  #     # 部署前备份数据库（回滚兜底）
+  #     - step: deploy@agent
+  #       name: backup-db
+  #       displayName: 部署前备份数据库
+  #       hostGroupID:
+  #         ID: your-host-group-id
+  #       hostID:
+  #         - your-host-id
+  #       script:
+  #         - |
+  #           set -e
+  #           cd /opt/family-genealogy
+  #           bash scripts/backup-db.sh
+  #
+  #     # 部署到 production 服务器
+  #     - step: deploy@agent
+  #       name: deploy-production
+  #       displayName: 部署到 Production 服务器
+  #       hostGroupID:
+  #         ID: your-host-group-id
+  #       hostID:
+  #         - your-host-id
+  #       script:
+  #         - |
+  #           set -e
+  #           cd /opt/family-genealogy
+  #           # 拉取最新镜像
+  #           docker compose -f docker-compose.yml -f docker-compose.prod.yml pull
+  #           # 滚动重启
+  #           docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --remove-orphans
+  #           # 健康检查（最长 60s）
+  #           for i in $(seq 1 30); do
+  #             if curl -sf http://localhost:3000/api/health > /dev/null 2>&1; then
+  #               echo 'Production backend is healthy'
+  #               exit 0
+  #             fi
+  #             sleep 2
+  #           done
+  #           echo 'Production health check failed after 60s'
+  #           exit 1
+  #
+  #     # 生产冒烟测试（核心 API 验证）
+  #     - step: deploy@agent
+  #       name: smoke-test
+  #       displayName: 生产冒烟测试
+  #       hostGroupID:
+  #         ID: your-host-group-id
+  #       hostID:
+  #         - your-host-id
+  #       script:
+  #         - |
+  #           set -e
+  #           cd /opt/family-genealogy
+  #           bash scripts/smoke-test.sh $PROD_BASE_URL
+  #
+  #     # 失败回滚（重启服务并验证）
+  #     - step: deploy@agent
+  #       name: rollback
+  #       displayName: 失败回滚
+  #       hostGroupID:
+  #         ID: your-host-group-id
+  #       hostID:
+  #         - your-host-id
+  #       script:
+  #         - |
+  #           set -e
+  #           cd /opt/family-genealogy
+  #           echo 'Deployment failed, initiating rollback...'
+  #
+  #           # 记录当前镜像标签
+  #           docker compose -f docker-compose.yml -f docker-compose.prod.yml ps --format 'table {{.Name}}\t{{.Image}}'
+  #
+  #           # 尝试重启服务（简单恢复）
+  #           docker compose -f docker-compose.yml -f docker-compose.prod.yml restart
+  #
+  #           # 等待并验证
+  #           sleep 10
+  #           for i in $(seq 1 30); do
+  #             if curl -sf http://localhost:3000/api/health > /dev/null 2>&1; then
+  #               echo 'Rollback successful'
+  #               exit 0
+  #             fi
+  #             sleep 2
+  #           done
+  #
+  #           echo 'Rollback failed, manual intervention required. See docs/rollback-runbook.md'
+  #           exit 1
 
 # ============================================================
 # Gitee Go 环境变量/密钥配置清单
