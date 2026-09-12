@@ -15,7 +15,7 @@ triggers:
 # 全局环境变量（可在 Gitee Go 环境变量中覆盖）
 variables:
   REGISTRY: registry.gitee.com
-  NAMESPACE: myuser
+  NAMESPACE: zhuzhe
   PROD_BASE_URL: https://jiapuadmin.deejee.net   # 生产域名（用于冒烟测试）
   PROD_HOST: 106.54.52.45   # 生产服务器 IP
 
