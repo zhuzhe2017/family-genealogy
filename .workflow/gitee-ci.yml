@@ -101,32 +101,45 @@ stages:
           - pnpm build
 
   # ============================================================
-  # 阶段二：构建镜像 → 推送镜像仓库
-  # 【已临时禁用】待配置镜像仓库凭证（REGISTRY_USERNAME/PASSWORD）和 NAMESPACE 后启用
+  # 阶段二：构建镜像 → 推送镜像仓库（build@docker 插件）
+  # 前置：Gitee Go 中配置密钥 REGISTRY_USERNAME / REGISTRY_PASSWORD，
+  #       并将环境变量 NAMESPACE 替换为实际命名空间（当前为占位符）
   # ============================================================
-  # - stage:
-  #   name: docker
-  #   displayName: 构建镜像
-  #   strategy: fast
-  #   trigger: auto
-  #   steps:
-  #     - step: build@docker
-  #       name: build-push
-  #       displayName: 构建并推送镜像
-  #       commands:
-  #         - docker login -u $REGISTRY_USERNAME -p $REGISTRY_PASSWORD $REGISTRY
-  #         # 后端镜像
-  #         - docker build -t $REGISTRY/$NAMESPACE/family-server:$CI_COMMIT_SHORT_SHA -t $REGISTRY/$NAMESPACE/family-server:latest ./server
-  #         - docker push $REGISTRY/$NAMESPACE/family-server:$CI_COMMIT_SHORT_SHA
-  #         - docker push $REGISTRY/$NAMESPACE/family-server:latest
-  #         # web-admin 镜像
-  #         - docker build -t $REGISTRY/$NAMESPACE/family-web-admin:$CI_COMMIT_SHORT_SHA -t $REGISTRY/$NAMESPACE/family-web-admin:latest ./web-admin
-  #         - docker push $REGISTRY/$NAMESPACE/family-web-admin:$CI_COMMIT_SHORT_SHA
-  #         - docker push $REGISTRY/$NAMESPACE/family-web-admin:latest
-  #         # tenant-web 镜像
-  #         - docker build -t $REGISTRY/$NAMESPACE/family-tenant-web:$CI_COMMIT_SHORT_SHA -t $REGISTRY/$NAMESPACE/family-tenant-web:latest ./tenant-web
-  #         - docker push $REGISTRY/$NAMESPACE/family-tenant-web:$CI_COMMIT_SHORT_SHA
-  #         - docker push $REGISTRY/$NAMESPACE/family-tenant-web:latest
+  - stage:
+    name: docker
+    displayName: 构建镜像
+    strategy: fast
+    trigger: auto
+    steps:
+      - step: build@docker
+        name: build-server
+        displayName: 构建后端镜像
+        repository: ${REGISTRY}
+        username: ${REGISTRY_USERNAME}
+        password: ${REGISTRY_PASSWORD}
+        tag: ${NAMESPACE}/family-server:${GITEE_PIPELINE_BUILD_NUMBER}
+        dockerfile: ./server/Dockerfile
+        context: ./server
+
+      - step: build@docker
+        name: build-web-admin
+        displayName: 构建 web-admin 镜像
+        repository: ${REGISTRY}
+        username: ${REGISTRY_USERNAME}
+        password: ${REGISTRY_PASSWORD}
+        tag: ${NAMESPACE}/family-web-admin:${GITEE_PIPELINE_BUILD_NUMBER}
+        dockerfile: ./web-admin/Dockerfile
+        context: ./web-admin
+
+      - step: build@docker
+        name: build-tenant-web
+        displayName: 构建 tenant-web 镜像
+        repository: ${REGISTRY}
+        username: ${REGISTRY_USERNAME}
+        password: ${REGISTRY_PASSWORD}
+        tag: ${NAMESPACE}/family-tenant-web:${GITEE_PIPELINE_BUILD_NUMBER}
+        dockerfile: ./tenant-web/Dockerfile
+        context: ./tenant-web
 
   # ============================================================
   # 阶段三：部署到 Staging（自动，无需审批）
