@@ -42,11 +42,17 @@ stages:
               export PATH=/opt/node-v20.11.0-linux-x64/bin:$PATH
             fi
             node -v && npm -v
+          # 项目为 pnpm workspace（依赖使用 workspace:* 协议），必须用 pnpm 安装
+          - |
+            if ! command -v pnpm >/dev/null 2>&1; then
+              npm install -g pnpm@10 --registry=https://registry.npmmirror.com
+            fi
+            pnpm -v
           - cd server
-          - npm install --registry=https://registry.npmmirror.com
-          - ./node_modules/.bin/eslint "{src,apps,libs,test}/**/*.ts" --fix
-          - ./node_modules/.bin/jest
-          - ./node_modules/.bin/nest build
+          - pnpm install --no-frozen-lockfile --registry=https://registry.npmmirror.com
+          - pnpm lint
+          - pnpm test
+          - pnpm build
 
       # web-admin CI
       - step: build@nodejs
@@ -60,10 +66,16 @@ stages:
               export PATH=/opt/node-v20.11.0-linux-x64/bin:$PATH
             fi
             node -v && npm -v
+          # 项目为 pnpm workspace（依赖使用 workspace:* 协议），必须用 pnpm 安装
+          - |
+            if ! command -v pnpm >/dev/null 2>&1; then
+              npm install -g pnpm@10 --registry=https://registry.npmmirror.com
+            fi
+            pnpm -v
           - cd web-admin
-          - npm install --registry=https://registry.npmmirror.com
-          - ./node_modules/.bin/eslint . --fix
-          - ./node_modules/.bin/vite build
+          - pnpm install --no-frozen-lockfile --registry=https://registry.npmmirror.com
+          - pnpm lint
+          - pnpm build
 
       # tenant-web CI
       - step: build@nodejs
@@ -77,10 +89,16 @@ stages:
               export PATH=/opt/node-v20.11.0-linux-x64/bin:$PATH
             fi
             node -v && npm -v
+          # 项目为 pnpm workspace（依赖使用 workspace:* 协议），必须用 pnpm 安装
+          - |
+            if ! command -v pnpm >/dev/null 2>&1; then
+              npm install -g pnpm@10 --registry=https://registry.npmmirror.com
+            fi
+            pnpm -v
           - cd tenant-web
-          - npm install --registry=https://registry.npmmirror.com
-          - ./node_modules/.bin/eslint . --fix
-          - ./node_modules/.bin/vite build
+          - pnpm install --no-frozen-lockfile --registry=https://registry.npmmirror.com
+          - pnpm lint
+          - pnpm build
 
   # ============================================================
   # 阶段二：构建镜像 → 推送镜像仓库
