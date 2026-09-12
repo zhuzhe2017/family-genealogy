@@ -35,6 +35,13 @@ stages:
         displayName: 后端 CI（lint/test/build）
         nodeVersion: 20.11.0
         commands:
+          # 任务镜像（plugin-24）未预装 Node/npm，若插件初始化失败则手动下载注入
+          - |
+            if ! command -v npm >/dev/null 2>&1; then
+              curl -fsSL https://npmmirror.com/mirrors/node/v20.11.0/node-v20.11.0-linux-x64.tar.xz | tar -xJ -C /opt
+              export PATH=/opt/node-v20.11.0-linux-x64/bin:$PATH
+            fi
+            node -v && npm -v
           - cd server
           - npm install --registry=https://registry.npmmirror.com
           - ./node_modules/.bin/eslint "{src,apps,libs,test}/**/*.ts" --fix
@@ -47,6 +54,12 @@ stages:
         displayName: web-admin CI（lint/build）
         nodeVersion: 20.11.0
         commands:
+          - |
+            if ! command -v npm >/dev/null 2>&1; then
+              curl -fsSL https://npmmirror.com/mirrors/node/v20.11.0/node-v20.11.0-linux-x64.tar.xz | tar -xJ -C /opt
+              export PATH=/opt/node-v20.11.0-linux-x64/bin:$PATH
+            fi
+            node -v && npm -v
           - cd web-admin
           - npm install --registry=https://registry.npmmirror.com
           - ./node_modules/.bin/eslint . --fix
@@ -58,6 +71,12 @@ stages:
         displayName: tenant-web CI（lint/build）
         nodeVersion: 20.11.0
         commands:
+          - |
+            if ! command -v npm >/dev/null 2>&1; then
+              curl -fsSL https://npmmirror.com/mirrors/node/v20.11.0/node-v20.11.0-linux-x64.tar.xz | tar -xJ -C /opt
+              export PATH=/opt/node-v20.11.0-linux-x64/bin:$PATH
+            fi
+            node -v && npm -v
           - cd tenant-web
           - npm install --registry=https://registry.npmmirror.com
           - ./node_modules/.bin/eslint . --fix
