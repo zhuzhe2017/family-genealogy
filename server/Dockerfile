@@ -6,7 +6,7 @@
 # ============================================================
 
 # ---------- 阶段一：依赖安装 ----------
-FROM node:20-alpine AS deps
+FROM docker.m.daocloud.io/library/node:20-alpine AS deps
 WORKDIR /app
 
 # pnpm

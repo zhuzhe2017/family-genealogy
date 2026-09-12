@@ -14,8 +14,8 @@ triggers:
 
 # 全局环境变量（可在 Gitee Go 环境变量中覆盖）
 variables:
-  REGISTRY: docker.io
-  NAMESPACE: your-registry-namespace   # TODO: 替换为实际镜像仓库命名空间
+  REGISTRY: registry.gitee.com
+  NAMESPACE: myuser
   PROD_BASE_URL: https://jiapuadmin.deejee.net   # 生产域名（用于冒烟测试）
   PROD_HOST: 106.54.52.45   # 生产服务器 IP
 
@@ -101,9 +101,9 @@ stages:
           - pnpm build
 
   # ============================================================
-  # 阶段二：构建镜像 → 推送镜像仓库（build@docker 插件）
-  # 前置：Gitee Go 中配置密钥 REGISTRY_USERNAME / REGISTRY_PASSWORD，
-  #       并将环境变量 NAMESPACE 替换为实际命名空间（当前为占位符）
+  # 阶段二：构建镜像 → 推送镜像仓库（build@docker 插件，凭证认证）
+  # 前置：Gitee Go 凭证管理中已配置 Docker Registry 凭证 gitee-docker-registry
+  #       （仓库地址 registry.gitee.com / 用户名 myuser / 密码）
   # ============================================================
   - stage:
     name: docker
@@ -114,9 +114,7 @@ stages:
       - step: build@docker
         name: build-server
         displayName: 构建后端镜像
-        repository: ${REGISTRY}
-        username: ${REGISTRY_USERNAME}
-        password: ${REGISTRY_PASSWORD}
+        certificate: gitee-docker-registry
         tag: ${NAMESPACE}/family-server:${GITEE_PIPELINE_BUILD_NUMBER}
         dockerfile: ./server/Dockerfile
         context: ./server
@@ -124,9 +122,7 @@ stages:
       - step: build@docker
         name: build-web-admin
         displayName: 构建 web-admin 镜像
-        repository: ${REGISTRY}
-        username: ${REGISTRY_USERNAME}
-        password: ${REGISTRY_PASSWORD}
+        certificate: gitee-docker-registry
         tag: ${NAMESPACE}/family-web-admin:${GITEE_PIPELINE_BUILD_NUMBER}
         dockerfile: ./web-admin/Dockerfile
         context: ./web-admin
@@ -134,9 +130,7 @@ stages:
       - step: build@docker
         name: build-tenant-web
         displayName: 构建 tenant-web 镜像
-        repository: ${REGISTRY}
-        username: ${REGISTRY_USERNAME}
-        password: ${REGISTRY_PASSWORD}
+        certificate: gitee-docker-registry
         tag: ${NAMESPACE}/family-tenant-web:${GITEE_PIPELINE_BUILD_NUMBER}
         dockerfile: ./tenant-web/Dockerfile
         context: ./tenant-web

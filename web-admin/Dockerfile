@@ -4,7 +4,7 @@
 # ============================================================
 
 # ---------- 阶段一：构建 ----------
-FROM node:20-alpine AS build
+FROM docker.m.daocloud.io/library/node:20-alpine AS build
 WORKDIR /app
 RUN corepack enable
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
@@ -14,7 +14,7 @@ COPY . .
 RUN pnpm build
 
 # ---------- 阶段二：运行时 ----------
-FROM nginx:1.27-alpine AS runner
+FROM docker.m.daocloud.io/library/nginx:1.27-alpine AS runner
 
 # 移除默认配置，改用自定义站点配置
 RUN rm /etc/nginx/conf.d/default.conf
