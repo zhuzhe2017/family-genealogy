@@ -18,6 +18,12 @@ variables:
   NAMESPACE: zhuzhe
   PROD_BASE_URL: https://jiapuadmin.deejee.net   # 生产域名（用于冒烟测试）
   PROD_HOST: 106.54.52.45   # 生产服务器 IP
+  # ---- SSH 部署参数（个人版无「计算资源管理」，改用 SSH 方式部署）----
+  DEPLOY_HOST: 106.54.52.45          # 目标服务器 IP（staging 与 production 共用）
+  DEPLOY_USER: root                   # SSH 登录用户
+  DEPLOY_PORT: 22                     # SSH 端口
+  STAGING_DIR: /opt/family-genealogy-staging   # staging 部署目录（与生产隔离）
+  PROD_DIR: /opt/family-genealogy     # production 部署目录
 
 stages:
   # ============================================================
@@ -137,138 +143,132 @@ stages:
 
   # ============================================================
   # 阶段三：部署到 Staging（自动，无需审批）
-  # 【已临时禁用】待配置主机组 ID（your-host-group-id / your-host-id）后启用
+  # 个人版无「计算资源管理」，改用 SSH 方式部署
+  # 前置：
+  #   1. Gitee Go 密钥 DEPLOY_SSH_KEY_B64 = 服务器登录私钥（base64 编码）
+  #   2. 服务器 ${STAGING_DIR} 已存在（含 docker-compose.yml 与 .env）
   # ============================================================
-  # - stage:
-  #   name: deploy-staging
-  #   displayName: 部署 Staging（自动）
-  #   strategy: fast
-  #   trigger: auto
-  #   steps:
-  #     - step: deploy@agent
-  #       name: deploy-staging
-  #       displayName: 自动部署到 Staging
-  #       # TODO: 替换为实际主机组 ID 和主机 ID（Gitee Go 计算资源管理中获取）
-  #       hostGroupID:
-  #         ID: your-host-group-id
-  #       hostID:
-  #         - your-host-id
-  #       script:
-  #         - |
-  #           set -e
-  #           cd /opt/family-genealogy
-  #           # 拉取最新镜像
-  #           docker compose pull
-  #           # 滚动重启
-  #           docker compose up -d --remove-orphans
-  #           # 健康检查（最长 60s）
-  #           for i in $(seq 1 30); do
-  #             if curl -sf http://localhost:3000/api/health > /dev/null 2>&1; then
-  #               echo 'Staging backend is healthy'
-  #               exit 0
-  #             fi
-  #             sleep 2
-  #           done
-  #           echo 'Staging health check failed after 60s'
-  #           exit 1
+  - stage:
+    name: deploy-staging
+    displayName: 部署 Staging（自动）
+    strategy: fast
+    trigger: auto
+    steps:
+      - step: build@nodejs
+        name: deploy-staging
+        displayName: SSH 自动部署到 Staging
+        nodeVersion: 20.19.6
+        commands:
+          # 确保 SSH 客户端可用（任务镜像可能未预装）
+          - |
+            if ! command -v ssh >/dev/null 2>&1; then
+              (apt-get update -qq && apt-get install -y -qq openssh-client) 2>/dev/null || apk add --no-cache openssh-client
+            fi
+            mkdir -p ~/.ssh && chmod 700 ~/.ssh
+            echo "${DEPLOY_SSH_KEY_B64}" | base64 -d > ~/.ssh/id_deploy
+            chmod 600 ~/.ssh/id_deploy
+            ssh -i ~/.ssh/id_deploy -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+              -p ${DEPLOY_PORT} ${DEPLOY_USER}@${DEPLOY_HOST} \
+              "DEPLOY_ENV=staging STAGING_DIR=${STAGING_DIR} PROD_DIR=${PROD_DIR} bash -s" < scripts/remote-deploy.sh
 
   # ============================================================
   # 阶段四：部署到 Production（人工卡点，需审批）
-  # 【已临时禁用】待配置主机组 ID 和镜像仓库凭证后启用
   # ============================================================
-  # - stage:
-  #   name: deploy-production
-  #   displayName: 部署 Production（需审批）
-  #   strategy: fast
-  #   trigger: manual   # 手动触发，需人工审批
-  #   steps:
-  #     # 部署前备份数据库（回滚兜底）
-  #     - step: deploy@agent
-  #       name: backup-db
-  #       displayName: 部署前备份数据库
-  #       hostGroupID:
-  #         ID: your-host-group-id
-  #       hostID:
-  #         - your-host-id
-  #       script:
-  #         - |
-  #           set -e
-  #           cd /opt/family-genealogy
-  #           bash scripts/backup-db.sh
-  #
-  #     # 部署到 production 服务器
-  #     - step: deploy@agent
-  #       name: deploy-production
-  #       displayName: 部署到 Production 服务器
-  #       hostGroupID:
-  #         ID: your-host-group-id
-  #       hostID:
-  #         - your-host-id
-  #       script:
-  #         - |
-  #           set -e
-  #           cd /opt/family-genealogy
-  #           # 拉取最新镜像
-  #           docker compose -f docker-compose.yml -f docker-compose.prod.yml pull
-  #           # 滚动重启
-  #           docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --remove-orphans
-  #           # 健康检查（最长 60s）
-  #           for i in $(seq 1 30); do
-  #             if curl -sf http://localhost:3000/api/health > /dev/null 2>&1; then
-  #               echo 'Production backend is healthy'
-  #               exit 0
-  #             fi
-  #             sleep 2
-  #           done
-  #           echo 'Production health check failed after 60s'
-  #           exit 1
-  #
-  #     # 生产冒烟测试（核心 API 验证）
-  #     - step: deploy@agent
-  #       name: smoke-test
-  #       displayName: 生产冒烟测试
-  #       hostGroupID:
-  #         ID: your-host-group-id
-  #       hostID:
-  #         - your-host-id
-  #       script:
-  #         - |
-  #           set -e
-  #           cd /opt/family-genealogy
-  #           bash scripts/smoke-test.sh $PROD_BASE_URL
-  #
-  #     # 失败回滚（重启服务并验证）
-  #     - step: deploy@agent
-  #       name: rollback
-  #       displayName: 失败回滚
-  #       hostGroupID:
-  #         ID: your-host-group-id
-  #       hostID:
-  #         - your-host-id
-  #       script:
-  #         - |
-  #           set -e
-  #           cd /opt/family-genealogy
-  #           echo 'Deployment failed, initiating rollback...'
-  #
-  #           # 记录当前镜像标签
-  #           docker compose -f docker-compose.yml -f docker-compose.prod.yml ps --format 'table {{.Name}}\t{{.Image}}'
-  #
-  #           # 尝试重启服务（简单恢复）
-  #           docker compose -f docker-compose.yml -f docker-compose.prod.yml restart
-  #
-  #           # 等待并验证
-  #           sleep 10
-  #           for i in $(seq 1 30); do
-  #             if curl -sf http://localhost:3000/api/health > /dev/null 2>&1; then
-  #               echo 'Rollback successful'
-  #               exit 0
-  #             fi
-  #             sleep 2
-  #           done
-  #
-  #           echo 'Rollback failed, manual intervention required. See docs/rollback-runbook.md'
-  #           exit 1
+  - stage:
+    name: deploy-production
+    displayName: 部署 Production（需审批）
+    strategy: fast
+    trigger: manual   # 手动触发，需人工审批
+    steps:
+      # 部署前备份数据库（回滚兜底）
+      - step: build@nodejs
+        name: backup-db
+        displayName: 部署前备份数据库
+        nodeVersion: 20.19.6
+        commands:
+          - |
+            if ! command -v ssh >/dev/null 2>&1; then
+              (apt-get update -qq && apt-get install -y -qq openssh-client) 2>/dev/null || apk add --no-cache openssh-client
+            fi
+            mkdir -p ~/.ssh && chmod 700 ~/.ssh
+            echo "${DEPLOY_SSH_KEY_B64}" | base64 -d > ~/.ssh/id_deploy
+            chmod 600 ~/.ssh/id_deploy
+            ssh -i ~/.ssh/id_deploy -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+              -p ${DEPLOY_PORT} ${DEPLOY_USER}@${DEPLOY_HOST} \
+              "cd ${PROD_DIR} && bash -s" < scripts/backup-db.sh
+
+      # 部署到 production 服务器
+      - step: build@nodejs
+        name: deploy-production
+        displayName: 部署到 Production 服务器
+        nodeVersion: 20.19.6
+        commands:
+          - |
+            if ! command -v ssh >/dev/null 2>&1; then
+              (apt-get update -qq && apt-get install -y -qq openssh-client) 2>/dev/null || apk add --no-cache openssh-client
+            fi
+            mkdir -p ~/.ssh && chmod 700 ~/.ssh
+            echo "${DEPLOY_SSH_KEY_B64}" | base64 -d > ~/.ssh/id_deploy
+            chmod 600 ~/.ssh/id_deploy
+            ssh -i ~/.ssh/id_deploy -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+              -p ${DEPLOY_PORT} ${DEPLOY_USER}@${DEPLOY_HOST} \
+              "DEPLOY_ENV=production STAGING_DIR=${STAGING_DIR} PROD_DIR=${PROD_DIR} PROD_BASE_URL=${PROD_BASE_URL} bash -s" < scripts/remote-deploy.sh
+
+      # 生产冒烟测试（核心 API 验证）
+      - step: build@nodejs
+        name: smoke-test
+        displayName: 生产冒烟测试
+        nodeVersion: 20.19.6
+        commands:
+          - |
+            if ! command -v ssh >/dev/null 2>&1; then
+              (apt-get update -qq && apt-get install -y -qq openssh-client) 2>/dev/null || apk add --no-cache openssh-client
+            fi
+            mkdir -p ~/.ssh && chmod 700 ~/.ssh
+            echo "${DEPLOY_SSH_KEY_B64}" | base64 -d > ~/.ssh/id_deploy
+            chmod 600 ~/.ssh/id_deploy
+            ssh -i ~/.ssh/id_deploy -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+              -p ${DEPLOY_PORT} ${DEPLOY_USER}@${DEPLOY_HOST} \
+              "SMOKE_BASE_URL=${PROD_BASE_URL} bash -s" < scripts/smoke-test.sh
+
+      # 失败回滚（重启服务并验证）
+      - step: build@nodejs
+        name: rollback
+        displayName: 失败回滚
+        nodeVersion: 20.19.6
+        commands:
+          - |
+            if ! command -v ssh >/dev/null 2>&1; then
+              (apt-get update -qq && apt-get install -y -qq openssh-client) 2>/dev/null || apk add --no-cache openssh-client
+            fi
+            mkdir -p ~/.ssh && chmod 700 ~/.ssh
+            echo "${DEPLOY_SSH_KEY_B64}" | base64 -d > ~/.ssh/id_deploy
+            chmod 600 ~/.ssh/id_deploy
+            ssh -i ~/.ssh/id_deploy -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+              -p ${DEPLOY_PORT} ${DEPLOY_USER}@${DEPLOY_HOST} "
+              set -e
+              cd ${PROD_DIR}
+              echo 'Deployment failed, initiating rollback...'
+
+              # 记录当前镜像标签
+              docker compose -f docker-compose.yml -f docker-compose.prod.yml ps --format 'table {{.Name}}\t{{.Image}}'
+
+              # 尝试重启服务（简单恢复）
+              docker compose -f docker-compose.yml -f docker-compose.prod.yml restart
+
+              # 等待并验证
+              sleep 10
+              for i in \$(seq 1 30); do
+                if curl -sfk https://localhost/api/health > /dev/null 2>&1; then
+                  echo 'Rollback successful'
+                  exit 0
+                fi
+                sleep 2
+              done
+
+              echo 'Rollback failed, manual intervention required. See docs/rollback-runbook.md'
+              exit 1
+            "
 
 # ============================================================
 # Gitee Go 环境变量/密钥配置清单
@@ -276,20 +276,28 @@ stages:
 # ============================================================
 #
 # 【密钥 Secrets】
-#   REGISTRY_USERNAME      镜像仓库账号（Docker Hub / 阿里云 ACR / 腾讯云 TCR）
+#   REGISTRY_USERNAME      镜像仓库账号（registry.gitee.com 的登录账号）
 #   REGISTRY_PASSWORD      镜像仓库密码
+#   DEPLOY_SSH_KEY_B64     服务器登录私钥（base64 编码，root 用户）
+#                          生成：cat ~/.ssh/id_rsa | base64 -w0
+#                          服务器需将对应公钥加入 authorized_keys
 #
-# 【环境变量 Variables】
-#   REGISTRY               镜像仓库地址（如 docker.io / registry.cn-hangzhou.aliyuncs.com）
-#   NAMESPACE              镜像仓库命名空间（如 your-username / your-org）
-#
+# 【环境变量 Variables】（已内置于文件顶部 variables，可覆盖）
+#   REGISTRY               镜像仓库地址
+#   NAMESPACE              镜像仓库命名空间（当前：zhuzhe）
 #   PROD_BASE_URL          生产环境域名（当前：https://jiapuadmin.deejee.net）
+#   DEPLOY_HOST            部署服务器 IP（当前：106.54.52.45）
+#   DEPLOY_USER            SSH 登录用户（当前：root）
+#   DEPLOY_PORT            SSH 端口（当前：22）
+#   STAGING_DIR            staging 部署目录（当前：/opt/family-genealogy-staging）
+#   PROD_DIR               production 部署目录（当前：/opt/family-genealogy）
 #
-# 【主机组配置】
-#   your-host-group-id     Gitee Go 计算资源管理中添加的主机组 ID
-#   your-host-id           Gitee Go 计算资源管理中添加的主机 ID
+# 【服务器前置条件】
+#   1. 已安装 Docker 与 Docker Compose v2
+#   2. ${STAGING_DIR} / ${PROD_DIR} 目录已就绪，含 docker-compose 编排文件与 .env
+#   3. 服务器已放行 CI 出口 IP 的 22 端口（SSH）
 #
-# 注意：deploy@agent 插件通过 Gitee Agent 执行，无需 SSH 密钥
-#      需先在 Gitee Go 计算资源管理中添加主机并关联仓库
+# 注意：个人版 Gitee Go 无「计算资源管理」，故部署采用 SSH + stdin 脚本方式
+#      远程脚本：scripts/remote-deploy.sh / scripts/backup-db.sh / scripts/smoke-test.sh
 #
 # ============================================================

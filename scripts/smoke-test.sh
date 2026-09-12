@@ -1,14 +1,15 @@
 # ============================================================
 # 数字家谱 - 生产环境冒烟测试脚本
 # 用途：部署后自动验证核心 API 可用性
-# 用法：bash scripts/smoke-test.sh [base_url]
+# 用法：SMOKE_BASE_URL=https://example.com bash scripts/smoke-test.sh
+#       或 bash scripts/smoke-test.sh [base_url]
 # 示例：bash scripts/smoke-test.sh https://jiapuadmin.deejee.net
 # ============================================================
 
 #!/usr/bin/env bash
 set -euo pipefail
 
-BASE_URL="${1:-http://localhost:3000}"
+BASE_URL="${1:-${SMOKE_BASE_URL:-http://localhost:3000}}"
 API_PREFIX="/api"
 
 echo "[smoke] testing: $BASE_URL$API_PREFIX"
