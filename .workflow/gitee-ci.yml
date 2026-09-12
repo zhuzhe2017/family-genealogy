@@ -33,13 +33,13 @@ stages:
       - step: build@nodejs
         name: server-ci
         displayName: 后端 CI（lint/test/build）
-        nodeVersion: 20.11.0
+        nodeVersion: 20.19.6
         commands:
           # 任务镜像（plugin-24）未预装 Node/npm，若插件初始化失败则手动下载注入
           - |
             if ! command -v npm >/dev/null 2>&1; then
-              curl -fsSL https://npmmirror.com/mirrors/node/v20.11.0/node-v20.11.0-linux-x64.tar.xz | tar -xJ -C /opt
-              export PATH=/opt/node-v20.11.0-linux-x64/bin:$PATH
+              curl -fsSL https://npmmirror.com/mirrors/node/v20.19.6/node-v20.19.6-linux-x64.tar.xz | tar -xJ -C /opt
+              export PATH=/opt/node-v20.19.6-linux-x64/bin:$PATH
             fi
             node -v && npm -v
           # 项目为 pnpm workspace（依赖使用 workspace:* 协议），必须用 pnpm 安装
@@ -58,12 +58,12 @@ stages:
       - step: build@nodejs
         name: web-admin-ci
         displayName: web-admin CI（lint/build）
-        nodeVersion: 20.11.0
+        nodeVersion: 20.19.6
         commands:
           - |
             if ! command -v npm >/dev/null 2>&1; then
-              curl -fsSL https://npmmirror.com/mirrors/node/v20.11.0/node-v20.11.0-linux-x64.tar.xz | tar -xJ -C /opt
-              export PATH=/opt/node-v20.11.0-linux-x64/bin:$PATH
+              curl -fsSL https://npmmirror.com/mirrors/node/v20.19.6/node-v20.19.6-linux-x64.tar.xz | tar -xJ -C /opt
+              export PATH=/opt/node-v20.19.6-linux-x64/bin:$PATH
             fi
             node -v && npm -v
           # 项目为 pnpm workspace（依赖使用 workspace:* 协议），必须用 pnpm 安装
@@ -81,12 +81,12 @@ stages:
       - step: build@nodejs
         name: tenant-web-ci
         displayName: tenant-web CI（lint/build）
-        nodeVersion: 20.11.0
+        nodeVersion: 20.19.6
         commands:
           - |
             if ! command -v npm >/dev/null 2>&1; then
-              curl -fsSL https://npmmirror.com/mirrors/node/v20.11.0/node-v20.11.0-linux-x64.tar.xz | tar -xJ -C /opt
-              export PATH=/opt/node-v20.11.0-linux-x64/bin:$PATH
+              curl -fsSL https://npmmirror.com/mirrors/node/v20.19.6/node-v20.19.6-linux-x64.tar.xz | tar -xJ -C /opt
+              export PATH=/opt/node-v20.19.6-linux-x64/bin:$PATH
             fi
             node -v && npm -v
           # 项目为 pnpm workspace（依赖使用 workspace:* 协议），必须用 pnpm 安装
