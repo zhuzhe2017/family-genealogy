@@ -130,7 +130,6 @@ export class PortalController {
     return this.portalService.getFatherSpouses(familyId, fatherId || '');
   }
 
-  @Writable()
   @Post('family/create')
   createFamily(@Body() body: FamilyCreateData, @Req() req: AuthenticatedRequest) {
     // 创建者ID以服务端令牌为准，防止客户端伪造

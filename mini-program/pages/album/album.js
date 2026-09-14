@@ -394,7 +394,9 @@ Page({
   },
 
   uploadImage(filePath) {
-    return upload({ url: '/common/upload', filePath }).then(data => data.url);
+    const familyId = (app.globalData.currentFamily || {}).id;
+    const formData = familyId ? { familyId: String(familyId), bizType: 'photo' } : {};
+    return upload({ url: '/common/upload', filePath, formData }).then(data => data.url);
   },
 
   /** Mock 相册数据(开发期) */

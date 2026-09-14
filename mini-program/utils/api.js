@@ -261,7 +261,7 @@ const worship = {
   },
   /** 删除纪念对象（仅创建者或家族创建者） */
   deleteMemorial: function (familyId, id) {
-    return request({ url: '/user/worship/memorials/' + id, method: 'DELETE', data: { familyId: familyId } });
+    return request({ url: '/user/worship/memorials/' + id + '?familyId=' + familyId, method: 'DELETE' });
   }
 };
 
@@ -341,31 +341,31 @@ const gathering = {
   },
   /** 创建聚会 */
   create: function (familyId, data) {
-    return request({ url: '/user/gathering', method: 'POST', data: data || {} });
+    return request({ url: '/user/gathering?familyId=' + familyId, method: 'POST', data: data || {} });
   },
   /** 编辑聚会（组织者） */
   update: function (familyId, id, data) {
-    return request({ url: '/user/gathering/' + id, method: 'PUT', data: data || {} });
+    return request({ url: '/user/gathering/' + id + '?familyId=' + familyId, method: 'PUT', data: data || {} });
   },
   /** 状态流转（组织者）：0-草稿 1-已发布 2-进行中 3-已结束 4-已归档 */
   updateStatus: function (familyId, id, status) {
-    return request({ url: '/user/gathering/' + id + '/status', method: 'PUT', data: { status: status } });
+    return request({ url: '/user/gathering/' + id + '/status?familyId=' + familyId, method: 'PUT', data: { status: status } });
   },
   /** 删除聚会（组织者） */
   remove: function (familyId, id) {
-    return request({ url: '/user/gathering/' + id, method: 'DELETE' });
+    return request({ url: '/user/gathering/' + id + '?familyId=' + familyId, method: 'DELETE' });
   },
   /** 报名（data: { sessionId?, name, phone?, dietType?, dietNote?, specialNeed?, guestCount? }） */
   register: function (familyId, id, data) {
-    return request({ url: '/user/gathering/' + id + '/register', method: 'POST', data: data || {} });
+    return request({ url: '/user/gathering/' + id + '/register?familyId=' + familyId, method: 'POST', data: data || {} });
   },
   /** 我的报名记录 */
   getMyRegistration: function (familyId, id) {
     return request({ url: '/user/gathering/' + id + '/registration/mine', data: { familyId: familyId } });
   },
   /** 取消报名 */
-  cancelRegistration: function (registrationId) {
-    return request({ url: '/user/gathering/registration/' + registrationId + '/cancel', method: 'PUT' });
+  cancelRegistration: function (registrationId, familyId) {
+    return request({ url: '/user/gathering/registration/' + registrationId + '/cancel?familyId=' + familyId, method: 'PUT' });
   },
   /** 我的签到信息（6位签到码 + 二维码） */
   getCheckinCode: function (familyId, id) {
@@ -373,7 +373,7 @@ const gathering = {
   },
   /** 现场签到（data: { code, method? }，双通道：手动输入/扫码核销） */
   checkin: function (familyId, id, data) {
-    return request({ url: '/user/gathering/' + id + '/checkin', method: 'POST', data: data || {} });
+    return request({ url: '/user/gathering/' + id + '/checkin?familyId=' + familyId, method: 'POST', data: data || {} });
   },
   /** 报名名单（组织者） */
   getRegistrations: function (familyId, id, params) {
@@ -385,11 +385,11 @@ const gathering = {
   },
   /** 新增归档资料（组织者） */
   createArchive: function (familyId, id, data) {
-    return request({ url: '/user/gathering/' + id + '/archive', method: 'POST', data: data || {} });
+    return request({ url: '/user/gathering/' + id + '/archive?familyId=' + familyId, method: 'POST', data: data || {} });
   },
   /** 删除归档资料（组织者） */
   deleteArchive: function (familyId, id, archiveId) {
-    return request({ url: '/user/gathering/' + id + '/archive/' + archiveId, method: 'DELETE' });
+    return request({ url: '/user/gathering/' + id + '/archive/' + archiveId + '?familyId=' + familyId, method: 'DELETE' });
   }
 };
 

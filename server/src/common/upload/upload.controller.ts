@@ -115,7 +115,7 @@ export class UploadController {
     return { url, filename, size: file.size };
   }
 
-  /** 用户是否属于该家族（family_permission 记录或家族创建者），与订阅服务校验逻辑一致 */
+  /** 用户是否属于该家族；归属途径三者满足其一：family_permission 记录 / user.family_id 绑定 / 家族创建者（与 portal 校验逻辑一致） */
   private async assertFamilyMember(userId: string, familyId: number): Promise<void> {
     const [perm] = await this.dataSource.query<{ id: number }[]>(
       'SELECT `id` FROM `family_permission` WHERE `family_id` = ? AND `user_id` = ? AND `status` = 1',
@@ -123,12 +123,18 @@ export class UploadController {
     );
     if (perm) return;
 
+    const [binding] = await this.dataSource.query<{ family_id: number | null }[]>(
+      'SELECT `family_id` FROM `user` WHERE `id` = ? AND `status` = 1 LIMIT 1',
+      [userId]
+    );
+    if (binding && Number(binding.family_id) === Number(familyId)) return;
+
     const [family] = await this.dataSource.query<{ creator_user_id: string | null }[]>(
       'SELECT `creator_user_id` FROM `family` WHERE `id` = ? AND `status` = 1',
       [familyId]
     );
-    if (!family || family.creator_user_id !== userId) {
-      throw new HttpException('您不属于该家族，无权操作', HttpStatus.FORBIDDEN);
-    }
+    if (family && String(family.creator_user_id || '') === String(userId)) return;
+
+    throw new HttpException('您不属于该家族，无权操作', HttpStatus.FORBIDDEN);
   }
 }

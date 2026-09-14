@@ -57,7 +57,9 @@ Page({
 
   /** 上传单张图片到后端,返回可访问的相对 URL */
   uploadImage(filePath) {
-    return upload({ url: '/common/upload', filePath }).then(data => data.url);
+    const familyId = (app.globalData.currentFamily || {}).id;
+    const formData = familyId ? { familyId: String(familyId), bizType: 'dynamic' } : {};
+    return upload({ url: '/common/upload', filePath, formData }).then(data => data.url);
   },
 
   submit() {

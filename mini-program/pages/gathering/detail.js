@@ -107,7 +107,7 @@ Page({
       success: (res) => {
         if (!res.confirm) return;
         wx.showLoading({ title: '处理中' });
-        gathering.cancelRegistration(reg.id)
+        gathering.cancelRegistration(reg.id, this.data.familyId)
           .then(() => {
             wx.hideLoading();
             wx.showToast({ title: '已取消报名', icon: 'success' });
