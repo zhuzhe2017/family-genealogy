@@ -26,8 +26,10 @@ export class UserJwtStrategy extends PassportStrategy(Strategy, 'user-jwt') {
   }
 
   async validate(payload: { sub: string; type?: string }) {
+    // 类型不匹配返回 null(视为该策略认证失败)而非抛异常,
+    // 让 AuthGuard(['jwt','user-jwt']) 多策略数组可 fall through,与 jwt 策略保持一致
     if (payload.type !== 'user') {
-      throw new UnauthorizedException('非用户令牌');
+      return null;
     }
     const [user] = await this.dataSource.query<UserRow[]>(
       'SELECT `id`, `nickname`, `avatar_url`, `gender`, `status` FROM `user` WHERE `id` = ? AND `status` = 1',

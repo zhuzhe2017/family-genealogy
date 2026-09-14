@@ -154,8 +154,6 @@ function request(options) {
             reject(new Error(data.msg || '请求失败'));
           }
         } else if (res.statusCode === 401) {
-          // [临时调试] 打印触发 401 时使用的 token 前缀，定位本地缓存凭证是否过期
-          console.log('[request] 收到401, 当前token前缀=', token ? token.slice(0, 20) : '无token', 'refresh前缀=', getRefreshToken() ? getRefreshToken().slice(0, 20) : '无refresh');
           // token 过期/无效：先尝试刷新并重试，刷新失败才重新登录
           if (options._retried) {
             // 已重试过仍 401，说明 refreshToken 也失效，触发重新登录

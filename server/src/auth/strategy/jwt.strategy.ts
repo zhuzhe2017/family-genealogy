@@ -31,8 +31,10 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   async validate(payload: JwtPayload) {
     // 严格校验令牌类型:user 令牌的 sub 是 user 表(VARCHAR)主键,
     // 若不拦截,MySQL 隐式类型转换可能使数字开头的 user.id 撞上同号 sys_admin,造成越权
+    // 返回 null 而非抛异常:让 AuthGuard(['jwt','user-jwt']) 多策略数组能尝试完 jwt 后退避到 user-jwt,
+    // 否则 passport 把抛异常视为 error,立即终止整个多策略链,用户令牌会被误判为 401 拒绝。
     if (payload.type !== 'admin') {
-      throw new UnauthorizedException('非管理员令牌');
+      return null;
     }
 
     const [admin] = await this.dataSource.query<AdminRow[]>(
