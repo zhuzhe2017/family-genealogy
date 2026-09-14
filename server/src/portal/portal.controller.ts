@@ -138,7 +138,7 @@ export class PortalController {
     return this.portalService.createFamily(body);
   }
 
-  @Writable({ familyFrom: 'body:familyId' })
+  @Writable({ familyFrom: 'param:familyId' })
   @Post('family/:familyId/members')
   createMember(
     @Param('familyId', ParseIntPipe) familyId: number,
@@ -203,6 +203,8 @@ export class PortalController {
     } else if (type === 'photo') {
       body.uploaderId = body.uploaderId || String(user.id);
       body.uploaderName = body.uploaderName || user.nickname || '';
+    } else if (type === 'event') {
+      body.creatorId = body.creatorId || String(user.id);
     }
     return this.portalService.createContent(type as ContentType, body, String(req.user.id));
   }

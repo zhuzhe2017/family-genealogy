@@ -298,13 +298,15 @@ CREATE TABLE `family_event` (
   `description`   TEXT          COMMENT '事件描述',
   `type`          VARCHAR(20)   NOT NULL DEFAULT 'other' COMMENT '事件类型 birth-出生 marriage-婚嫁 death-逝世 other-其他',
   `type_name`     VARCHAR(20)   DEFAULT '' COMMENT '类型名称',
+  `creator_id`    INT UNSIGNED  DEFAULT NULL COMMENT '发布者用户ID',
   `status`        TINYINT(1)    DEFAULT 1 COMMENT '状态 1-正常 0-已删除',
   `create_time`   DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   `update_time`   DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
   PRIMARY KEY (`id`),
   INDEX `idx_family` (`family_id`),
   INDEX `idx_year` (`family_id`, `year`),
-  INDEX `idx_type` (`family_id`, `type`)
+  INDEX `idx_type` (`family_id`, `type`),
+  INDEX `idx_creator` (`creator_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='家族事件表';
 
 -- ------------------------------------------------------------

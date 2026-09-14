@@ -125,7 +125,8 @@ Page({
           return;
         }
         wx.showLoading({ title: '删除中' });
-        content.remove('event', event.id)
+        const familyId = (app.globalData.currentFamily || {}).id;
+        content.remove('event', event.id, familyId)
           .then(() => {
             wx.hideLoading();
             wx.showToast({ title: '删除成功', icon: 'success' });

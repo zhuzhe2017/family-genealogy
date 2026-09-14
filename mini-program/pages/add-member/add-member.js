@@ -286,10 +286,10 @@ Page({
         const total = Number((res && res.total) || 0);
         this._parentLoaded = append ? (this._parentLoaded || 0) + items.length : items.length;
         const candidates = items.map(r => {
-          // 副标题优先显示"爷爷姓名之子"（父子链锚点）；爷爷未知时回退字辈/代数
+          // 副标题优先显示"父亲：爷爷姓名"（父子链锚点）；爷爷未知时回退字辈/代数
           const subParts = [];
           if (r.father_name) {
-            subParts.push(r.father_name + '之子');
+            subParts.push('父亲：' + r.father_name);
           } else {
             if (r.generation_name) subParts.push(r.generation_name + '字辈');
             subParts.push(r.generation + '代');

@@ -53,8 +53,8 @@
       </view>
 
       <view class="form-group">
-        <text class="form-label">出生地</text>
-        <input class="form-input" placeholder="请输入出生地" value="{{form.birthPlace}}" bindinput="inputChange" data-field="birthPlace" maxlength="200"/>
+        <text class="form-label">居住地</text>
+        <input class="form-input" placeholder="请输入居住地" value="{{form.birthPlace}}" bindinput="inputChange" data-field="birthPlace" maxlength="200"/>
       </view>
 
       <view class="form-group">

@@ -80,6 +80,8 @@ export interface ContentCreateData {
   day?: number;
   type?: string;
   typeName?: string;
+  /** event 专用：发布者用户ID */
+  creatorId?: string;
   /** event 关联数据（detail/member/photo） */
   details?: EventDetailData[];
   relatedMembers?: EventMemberData[];

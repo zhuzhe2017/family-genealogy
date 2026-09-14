@@ -271,8 +271,9 @@ export class PortalService {
     const familyId = Number((detail as { family_id?: unknown }).family_id) || 0;
     await this.assertFamilyMemberByUserId(familyId, userId);
     if (type === 'event' && userId) {
+      const creatorId = String((detail as { creator_id?: unknown }).creator_id ?? '');
       (detail as { canEdit?: boolean }).canEdit = familyId
-        ? await this.isFamilyAdmin(familyId, String(userId))
+        ? await this.isContentOwnerOrAdmin(familyId, creatorId, String(userId))
         : false;
     }
     return detail;
@@ -292,27 +293,33 @@ export class PortalService {
     return this.contentService.create(type, data);
   }
 
-  /** 更新内容（目前支持 event；仅家族创建者/管理员可操作，家族以库内记录为准） */
+  /** 更新内容（事件；发布者本人或家族创建者/管理员可操作，家族以库内记录为准） */
   async updateContent(type: ContentType, id: string, data: ContentCreateData, userId?: string) {
     this.assertContentType(type);
     if (!userId) {
       throw new HttpException('请先登录', HttpStatus.UNAUTHORIZED);
     }
     const familyId = await this.getContentFamilyId(type, id);
-    await this.assertFamilyAdmin(familyId, String(userId));
+    const creatorId = await this.getContentCreatorId(type, id);
+    if (!(await this.isContentOwnerOrAdmin(familyId, creatorId, userId))) {
+      throw new HttpException('仅发布者本人或家族创建者/管理员可编辑该内容', HttpStatus.FORBIDDEN);
+    }
     // 以库内真实 family_id 为准，防止请求体伪造归属
     data = { ...data, familyId };
     return this.contentService.update(type, id, data);
   }
 
-  /** 删除内容（软删除；仅家族创建者/管理员可操作，家族以库内记录为准） */
+  /** 删除内容（软删除；发布者本人或家族创建者/管理员可操作，家族以库内记录为准） */
   async deleteContent(type: ContentType, id: string, userId?: string) {
     this.assertContentType(type);
     if (!userId) {
       throw new HttpException('请先登录', HttpStatus.UNAUTHORIZED);
     }
     const familyId = await this.getContentFamilyId(type, id);
-    await this.assertFamilyAdmin(familyId, String(userId));
+    const creatorId = await this.getContentCreatorId(type, id);
+    if (!(await this.isContentOwnerOrAdmin(familyId, creatorId, userId))) {
+      throw new HttpException('仅发布者本人或家族创建者/管理员可删除该内容', HttpStatus.FORBIDDEN);
+    }
     return this.contentService.delete(type, id);
   }
 
@@ -342,6 +349,42 @@ export class PortalService {
     return Number(row.family_id);
   }
 
+  /** 内容发布者字段名（与 content.service 的 CONTENT_CONFIG 保持一致的发布者标识列） */
+  private contentCreatorColumnOf(type: ContentType): string {
+    switch (type) {
+      case 'dynamic':
+        return 'user_id';
+      case 'photo':
+      case 'document':
+        return 'uploader_id';
+      case 'event':
+        return 'creator_id';
+      default:
+        return '';
+    }
+  }
+
+  /** 内容发布者用户ID（仅启用中；不存在抛 404） */
+  private async getContentCreatorId(type: ContentType, id: string): Promise<string> {
+    const column = this.contentCreatorColumnOf(type);
+    const [row] = column
+      ? await this.dataSource.query<Record<string, unknown>[]>(
+          `SELECT \`${column}\` AS \`creator\` FROM \`${this.contentTableOf(type)}\` WHERE \`id\` = ? AND \`status\` = 1`,
+          [id]
+        )
+      : [undefined];
+    if (!row) {
+      throw new HttpException('内容不存在或已删除', HttpStatus.NOT_FOUND);
+    }
+    return String(row.creator ?? '');
+  }
+
+  /** 内容写权限：发布者本人 或 家族创建者/管理员 */
+  private async isContentOwnerOrAdmin(familyId: number, creatorId: string, userId: string): Promise<boolean> {
+    if (userId && creatorId && String(creatorId) === String(userId)) return true;
+    return this.isFamilyAdmin(familyId, userId);
+  }
+
   /** 家族写权限判断：家族创建者 或 family_permission role=admin */
   private async isFamilyAdmin(familyId: number, userId: string): Promise<boolean> {
     const creatorId = await this.familyService.getCreatorUserId(familyId);
@@ -351,13 +394,6 @@ export class PortalService {
       [familyId, userId]
     );
     return !!perm;
-  }
-
-  /** 家族写权限断言：无权限抛 403 */
-  private async assertFamilyAdmin(familyId: number, userId: string): Promise<void> {
-    if (!(await this.isFamilyAdmin(familyId, userId))) {
-      throw new HttpException('仅家族创建者或管理员可操作事件', HttpStatus.FORBIDDEN);
-    }
   }
 
   /** 动态点赞/取消点赞（仅该动态所属家族成员） */

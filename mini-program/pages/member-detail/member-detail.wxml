@@ -46,7 +46,7 @@
         <text class="row-value">{{member.deathDate}}</text>
       </view>
       <view class="info-row">
-        <text class="row-label">出生地</text>
+        <text class="row-label">居住地</text>
         <text class="row-value">{{member.birthPlace || '未知'}}</text>
       </view>
     </view>

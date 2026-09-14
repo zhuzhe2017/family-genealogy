@@ -23,7 +23,7 @@ const CONTENT_CONFIG: Record<ContentType, ContentConfig> = {
   },
   event: {
     table: 'family_event',
-    fields: ['id', 'family_id', 'year', 'month', 'day', 'title', 'description', 'type', 'type_name', 'status', 'audit_status', 'create_time', 'update_time'],
+    fields: ['id', 'family_id', 'year', 'month', 'day', 'title', 'description', 'type', 'type_name', 'creator_id', 'status', 'audit_status', 'create_time', 'update_time'],
     searchFields: ['title', 'description']
   }
 };
@@ -628,9 +628,9 @@ export class ContentService {
       } else {
         await queryRunner.query(
           `INSERT INTO \`family_event\`
-           (\`id\`, \`family_id\`, \`year\`, \`month\`, \`day\`, \`title\`, \`description\`, \`type\`, \`type_name\`, \`audit_status\`)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`,
-          [id, familyId, t.year, t.month, t.day, t.title, t.description, t.type, t.typeName]
+           (\`id\`, \`family_id\`, \`year\`, \`month\`, \`day\`, \`title\`, \`description\`, \`type\`, \`type_name\`, \`creator_id\`, \`audit_status\`)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`,
+          [id, familyId, t.year, t.month, t.day, t.title, t.description, t.type, t.typeName, data.creatorId || null]
         );
       }
 

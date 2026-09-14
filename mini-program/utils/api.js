@@ -143,8 +143,9 @@ const content = {
     return request({ url: '/user/content/' + type + '/' + id, method: 'PUT', data: data || {} });
   },
   /** 删除内容（软删除，事件） */
-  remove: function (type, id) {
-    return request({ url: '/user/content/' + type + '/' + id, method: 'DELETE' });
+  remove: function (type, id, familyId) {
+    const query = familyId ? '?familyId=' + familyId : '';
+    return request({ url: '/user/content/' + type + '/' + id + query, method: 'DELETE' });
   },
   /** 动态点赞/取消点赞(toggle) */
   toggleLike: function (id) {
