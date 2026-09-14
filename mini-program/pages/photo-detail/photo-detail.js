@@ -65,14 +65,26 @@ Page({
   },
 
   deletePhoto() {
+    const familyId = (app.globalData.currentFamily || {}).id;
+    const id = this.data.photo.id;
+    if (!familyId || !id) return;
     wx.showModal({
       title: '确认删除',
       content: '确定要删除这张照片吗？',
+      confirmColor: '#8B1A1A',
       success: (res) => {
-        if (res.confirm) {
-          wx.showToast({ title: '已删除', icon: 'success' });
-          setTimeout(() => wx.navigateBack(), 1500);
-        }
+        if (!res.confirm) return;
+        wx.showLoading({ title: '删除中' });
+        contentApi.remove('photo', id, familyId)
+          .then(() => {
+            wx.hideLoading();
+            wx.showToast({ title: '已删除', icon: 'success' });
+            setTimeout(() => wx.navigateBack(), 1500);
+          })
+          .catch((err) => {
+            wx.hideLoading();
+            wx.showToast({ title: (err && err.message) || '删除失败', icon: 'none' });
+          });
       }
     });
   }
