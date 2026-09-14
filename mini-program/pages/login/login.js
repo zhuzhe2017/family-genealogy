@@ -176,6 +176,13 @@ Page({
     if (data && data.token) {
       setToken(data.token);
     }
+    if (data && data.refreshToken) {
+      try {
+        wx.setStorageSync('refreshToken', data.refreshToken);
+      } catch (e) {
+        console.error('refreshToken 保存失败', e);
+      }
+    }
     app.globalData.userInfo = data.userInfo || {};
     app.globalData.isOnline = true;
     app.initFamilyData();
