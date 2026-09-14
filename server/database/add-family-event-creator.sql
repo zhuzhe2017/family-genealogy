@@ -1,5 +1,6 @@
--- 为存量库 family_event 表新增发布者字段 creator_id（配合"发布者本人或管理员"权限控制）
--- 幂等：遗留无该列的库执行 ADD COLUMN；已含该列的库直接跳过
+-- 为存量库 family_event 表新增/修正发布者字段 creator_id（配合"发布者本人或管理员"权限控制）
+-- 类型为 VARCHAR(32)（存小程序用户32位hex id），与 family.creator_user_id / user.id 保持一致。
+-- 幂等：无列则 ADD COLUMN；已存在则 MODIFY 为正确类型。
 SET @col_exists = (
   SELECT COUNT(*)
   FROM INFORMATION_SCHEMA.COLUMNS
@@ -10,8 +11,8 @@ SET @col_exists = (
 
 SET @ddl = IF(
   @col_exists = 0,
-  'ALTER TABLE `family_event` ADD COLUMN `creator_id` INT UNSIGNED DEFAULT NULL COMMENT ''发布者用户ID'' AFTER `type_name`',
-  'SELECT 1'
+  'ALTER TABLE `family_event` ADD COLUMN `creator_id` VARCHAR(32) DEFAULT NULL COMMENT ''发布者用户ID'' AFTER `type_name`',
+  'ALTER TABLE `family_event` MODIFY COLUMN `creator_id` VARCHAR(32) DEFAULT NULL COMMENT ''发布者用户ID'''
 );
 
 SET @idx_exists = (
