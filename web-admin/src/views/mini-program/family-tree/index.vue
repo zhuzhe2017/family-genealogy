@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, nextTick, onMounted, onBeforeUnmount } from 'vue';
-import { NCard, NSelect, NEmpty, NSpin, NTag, NSpace, NText, NButton, NDescriptions, NDescriptionsItem } from 'naive-ui';
+import { NCard, NSelect, NEmpty, NSpin, NTag, NSpace, NText, NButton, NAlert, NDescriptions, NDescriptionsItem } from 'naive-ui';
 // treeweave 是 UMD 模块，Vite 打包后 default 导出可能是包装对象，需解包取真正的构造类
 import TreeWeaveModule from 'treeweave';
 import type { TreeNode } from 'treeweave';
@@ -9,6 +9,10 @@ import { fetchAllFamilies } from '@/service/api/family';
 import { fetchAllMembers, type FamilyMemberItem } from '@/service/api/family-member';
 
 const loading = ref(false);
+/** 成员拉取/渲染错误信息 */
+const loadError = ref('');
+/** 渲染结果说明（可见节点数、是否折叠等） */
+const renderInfo = ref('');
 const families = ref<Array<{ label: string; value: number }>>([]);
 const selectedFamilyId = ref<number | null>(null);
 const members = ref<FamilyMemberItem[]>([]);
@@ -44,6 +48,8 @@ async function loadFamilies() {
 async function loadFamilyTree() {
   if (!selectedFamilyId.value) return;
   loading.value = true;
+  loadError.value = '';
+  renderInfo.value = '';
   members.value = [];
   selectedMember.value = null;
   try {
@@ -52,7 +58,11 @@ async function loadFamilyTree() {
       members.value = res.data;
       await nextTick();
       renderTree();
+    } else {
+      loadError.value = '未获取到成员数据，请稍后重试';
     }
+  } catch (e: any) {
+    loadError.value = e?.message || '加载家族成员失败，请检查网络后重试';
   } finally {
     loading.value = false;
   }
@@ -110,6 +120,7 @@ function renderTree() {
   // 清空容器再重建（避免残留旧实例 DOM）
   container.innerHTML = '';
   weave = null;
+  renderInfo.value = '';
 
   if (members.value.length === 0) return;
 
@@ -118,40 +129,54 @@ function renderTree() {
   // 无成员时仍走 nextTick 后的空态展示
   if (data.children.length === 0) return;
 
-  weave = new TreeWeaveCtor({
-    data,
-    options: {
-      nodeWidth: 170,
-      nodeHeight: 110,
-      levelGap: 110,
-      siblingGap: 36,
-      connectors: 'line',
-      enableCollapse: true,
-      collapseOnNodeClick: false,
-      enableZoom: true,
-      showPhoto: true,
-      showDOB: false,
-      showGender: false,
-      showTitle: true,
-      onNodeClick: node => {
-        // 虚拟总根无 member，点击忽略
-        const m = node.meta && node.meta.member;
-        if (m) {
-          selectedMember.value = m as FamilyMemberItem;
-        }
-      }
-    }
-  });
-
   // 成员较多时，首屏默认只展开顶层成员、折叠其子孙，避免一次性渲染上万节点导致页面卡死；
   // 用户可点击节点下方的展开按钮逐级查看
-  if (members.value.length > 300) {
-    (data.children || []).forEach(child => {
-      (weave as any)._collapsedNodes.add(String(child.id));
-    });
-  }
+  const collapsedFirstGen = members.value.length > 300;
 
-  container.appendChild(weave.render() as SVGSVGElement);
+  try {
+    weave = new TreeWeaveCtor({
+      data,
+      options: {
+        nodeWidth: 170,
+        nodeHeight: 110,
+        levelGap: 110,
+        siblingGap: 36,
+        connectors: 'line',
+        enableCollapse: true,
+        collapseOnNodeClick: false,
+        enableZoom: true,
+        showPhoto: true,
+        showDOB: false,
+        showGender: false,
+        showTitle: true,
+        onNodeClick: node => {
+          // 虚拟总根无 member，点击忽略
+          const m = node.meta && node.meta.member;
+          if (m) {
+            selectedMember.value = m as FamilyMemberItem;
+          }
+        }
+      }
+    });
+
+    if (collapsedFirstGen) {
+      (data.children || []).forEach(child => {
+        (weave as any)._collapsedNodes.add(String(child.id));
+      });
+    }
+
+    container.appendChild(weave.render() as SVGSVGElement);
+
+    // 渲染结果反馈，便于判断当前状态
+    const visibleCount = (weave as any).getNodes().length as number;
+    if (collapsedFirstGen) {
+      renderInfo.value = `已加载 ${members.value} 位成员。因人数较多，首屏仅展示 ${data.children.length} 位顶层成员，点击下方节点展开按钮逐级查看。`;
+    } else {
+      renderInfo.value = `已渲染全部 ${visibleCount} 位成员。`;
+    }
+  } catch (e: any) {
+    loadError.value = e?.message || '家族树渲染失败，请刷新重试';
+  }
 }
 
 /** 跳转成员编辑页（复用成员管理页） */
@@ -190,13 +215,28 @@ onBeforeUnmount(() => {
         <NText depth="3" class="text-sm">共 {{ members.length }} 位成员</NText>
       </NSpace>
 
-      <!-- 树形展示 -->
-      <div v-if="loading" class="flex justify-center py-12">
+      <!-- 异常提示 -->
+      <NAlert v-if="loadError" type="error" :bordered="false">
+        {{ loadError }}
+      </NAlert>
+
+      <!-- 加载中：拉取成员 + 渲染阶段 -->
+      <div v-if="loading" class="flex flex-col items-center justify-center gap-3 py-16">
         <NSpin size="large" />
+        <NText depth="3" class="text-sm">正在加载并生成家族树，成员较多时请稍候…</NText>
       </div>
       <div v-else class="flex gap-4">
         <!-- TreeWeave 家族树 -->
         <NCard :bordered="true" class="flex-1" title="家族树">
+          <!-- 渲染结果说明，便于判断当前状态 -->
+          <NAlert
+            v-if="renderInfo"
+            type="info"
+            :bordered="false"
+            class="mb-3"
+          >
+            {{ renderInfo }}
+          </NAlert>
           <NEmpty
             v-if="members.length === 0"
             description="暂无成员数据，请先在成员管理中录入"
