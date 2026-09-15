@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { ref, computed, nextTick, onMounted, onBeforeUnmount } from 'vue';
 import { NCard, NSelect, NEmpty, NSpin, NTag, NSpace, NText, NButton, NDescriptions, NDescriptionsItem } from 'naive-ui';
-import TreeWeave from 'treeweave';
+// treeweave 是 UMD 模块，Vite 打包后 default 导出可能是包装对象，需解包取真正的构造类
+import TreeWeaveModule from 'treeweave';
 import type { TreeNode } from 'treeweave';
 import 'treeweave/css';
 import { fetchAllFamilies } from '@/service/api/family';
@@ -16,8 +17,13 @@ const treeContainer = ref<HTMLElement | null>(null);
 
 const familyOptions = computed(() => families.value);
 
+// UMD 打包经 Vite 后 default 可能是 { default: TreeWeaveClass }，这里统一解包出真正的构造类
+const TreeWeaveCtor = (TreeWeaveModule as any).default ?? TreeWeaveModule;
+
+type TreeWeaveInstance = InstanceType<typeof TreeWeaveCtor>;
+
 /** 当前 TreeWeave 实例 */
-let weave: TreeWeave | null = null;
+let weave: TreeWeaveInstance | null = null;
 
 /** 加载家族下拉 */
 async function loadFamilies() {
@@ -112,7 +118,7 @@ function renderTree() {
   // 无成员时仍走 nextTick 后的空态展示
   if (data.children.length === 0) return;
 
-  weave = new TreeWeave({
+  weave = new TreeWeaveCtor({
     data,
     options: {
       nodeWidth: 170,
