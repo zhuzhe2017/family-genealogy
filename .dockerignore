@@ -1,0 +1,51 @@
+# ============================================================
+# 全局 .dockerignore —— 所有服务的镜像构建统一忽略
+# 注意：web-admin / server / tenant-web 各自的构建上下文均在项目根目录
+#        （docker-compose.yml 的 build.context 均为项目根或子目录），
+#        但 Dockerfile 里的 COPY 也是基于项目根的构建上下文，
+#        故此文件放在根目录对所有服务生效。
+# ============================================================
+
+# 版本控制
+.git
+.gitignore
+.gitattributes
+
+# 依赖与构建产物（Dockerfile 内部自行 pnpm install / pnpm build）
+node_modules
+**/node_modules
+**/dist
+**/build
+
+# 运行时产物 / 本地环境
+.env
+.env.*
+**/.env
+**/.env.*
+
+# 数据库与日志（避免把本地库/备份带入镜像）
+*.db
+*.sqlite
+*.log
+**/logs
+backups
+server/database/backups
+
+# 测试与临时
+test
+coverage
+**/.nyc_output
+/tmp
+*.tmp
+
+# 编辑器 / OS
+.idea
+.vscode
+.DS_Store
+Thumbs.db
+
+# 文档与部署脚本（不进生产镜像）
+docs
+scripts
+*.md
+!README.md
