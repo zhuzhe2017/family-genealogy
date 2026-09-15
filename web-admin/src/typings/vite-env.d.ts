@@ -100,3 +100,6 @@ declare namespace Env {
 interface ImportMeta {
   readonly env: Env.ImportMeta;
 }
+
+/** TreeWeave 默认样式（side-effect import） */
+declare module 'treeweave/css';

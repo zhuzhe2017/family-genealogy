@@ -1,25 +1,23 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
-import { NCard, NSelect, NTree, NEmpty, NSpin, NTag, NSpace, NText, NButton, NDescriptions, NDescriptionsItem } from 'naive-ui';
-import type { TreeOption } from 'naive-ui';
+import { ref, computed, nextTick, onMounted, onBeforeUnmount } from 'vue';
+import { NCard, NSelect, NEmpty, NSpin, NTag, NSpace, NText, NButton, NDescriptions, NDescriptionsItem } from 'naive-ui';
+import TreeWeave from 'treeweave';
+import type { TreeNode } from 'treeweave';
+import 'treeweave/css';
 import { fetchAllFamilies } from '@/service/api/family';
 import { fetchAllMembers, type FamilyMemberItem } from '@/service/api/family-member';
-
-interface TreeNodeData extends TreeOption {
-  member?: FamilyMemberItem;
-  generation?: number;
-  isRoot?: boolean;
-}
 
 const loading = ref(false);
 const families = ref<Array<{ label: string; value: number }>>([]);
 const selectedFamilyId = ref<number | null>(null);
 const members = ref<FamilyMemberItem[]>([]);
-const treeData = ref<TreeNodeData[]>([]);
-const expandedKeys = ref<string[]>([]);
 const selectedMember = ref<FamilyMemberItem | null>(null);
+const treeContainer = ref<HTMLElement | null>(null);
 
 const familyOptions = computed(() => families.value);
+
+/** 当前 TreeWeave 实例 */
+let weave: TreeWeave | null = null;
 
 /** 加载家族下拉 */
 async function loadFamilies() {
@@ -41,92 +39,105 @@ async function loadFamilyTree() {
   if (!selectedFamilyId.value) return;
   loading.value = true;
   members.value = [];
-  treeData.value = [];
   selectedMember.value = null;
   try {
     const res = await fetchAllMembers(selectedFamilyId.value, { status: 1 });
     if (res.data) {
       members.value = res.data;
-      buildTree();
+      await nextTick();
+      renderTree();
     }
   } finally {
     loading.value = false;
   }
 }
 
-/** 根据 father_id 构建树形结构 */
-function buildTree() {
-  const map = new Map<string, TreeNodeData>();
-  const roots: TreeNodeData[] = [];
+/** 将成员列表构建为 TreeWeave 数据（包一个虚拟总根以支持多根/孤立成员） */
+function buildTreeData() {
+  const map = new Map<string, FamilyMemberItem>();
+  const roots: FamilyMemberItem[] = [];
 
-  // 第一遍：创建所有节点
+  members.value.forEach(m => map.set(m.id, m));
   members.value.forEach(m => {
-    map.set(m.id, {
-      key: m.id,
-      label: m.name,
-      member: m,
-      generation: m.generation,
-      isLeaf: false
-    });
+    if (m.father_id && map.has(m.father_id)) return;
+    roots.push(m);
   });
 
-  // 第二遍：建立父子关系
-  members.value.forEach(m => {
-    const node = map.get(m.id)!;
-    if (m.father_id && map.has(m.father_id)) {
-      const parent = map.get(m.father_id)!;
-      if (!parent.children) parent.children = [];
-      parent.children.push(node);
-    } else {
-      // 无父亲或父亲不在列表中，作为根节点（通常是始祖）
-      roots.push(node);
+  // 排序：世代 + sort_order
+  const byOrder = (a: FamilyMemberItem, b: FamilyMemberItem) => {
+    const gdiff = (a.generation || 0) - (b.generation || 0);
+    if (gdiff !== 0) return gdiff;
+    return (a.sort_order || 0) - (b.sort_order || 0);
+  };
+
+  const toNode = (m: FamilyMemberItem): TreeNode => {
+    const children = members.value.filter(c => c.father_id && c.father_id === m.id).sort(byOrder);
+    return {
+      id: m.id,
+      label: m.name,
+      meta: {
+        gender: m.gender === 'female' ? 'female' : 'male',
+        photo: m.avatar_url || '',
+        title: m.generation_name || `第${m.generation}代`,
+        member: m
+      },
+      children: children.map(toNode)
+    };
+  };
+
+  roots.sort(byOrder);
+
+  const family = families.value.find(f => f.value === selectedFamilyId.value);
+  return {
+    id: '__root__',
+    label: family ? family.label : '家族',
+    meta: { gender: 'default' },
+    children: roots.map(toNode)
+  };
+}
+
+/** 渲染 / 重绘家族树 */
+function renderTree() {
+  const container = treeContainer.value;
+  if (!container) return;
+
+  // 清空容器再重建（避免残留旧实例 DOM）
+  container.innerHTML = '';
+  weave = null;
+
+  if (members.value.length === 0) return;
+
+  const data = buildTreeData();
+
+  // 无成员时仍走 nextTick 后的空态展示
+  if (data.children.length === 0) return;
+
+  weave = new TreeWeave({
+    data,
+    options: {
+      nodeWidth: 170,
+      nodeHeight: 110,
+      levelGap: 110,
+      siblingGap: 36,
+      connectors: 'line',
+      enableCollapse: true,
+      collapseOnNodeClick: false,
+      enableZoom: true,
+      showPhoto: true,
+      showDOB: false,
+      showGender: false,
+      showTitle: true,
+      onNodeClick: node => {
+        // 虚拟总根无 member，点击忽略
+        const m = node.meta && node.meta.member;
+        if (m) {
+          selectedMember.value = m as FamilyMemberItem;
+        }
+      }
     }
   });
 
-  // 按世代和 sort_order 排序
-  const sortTree = (nodes: TreeNodeData[]) => {
-    nodes.sort((a, b) => {
-      const ga = a.generation || 0;
-      const gb = b.generation || 0;
-      if (ga !== gb) return ga - gb;
-      const sa = a.member?.sort_order || 0;
-      const sb = b.member?.sort_order || 0;
-      return sa - sb;
-    });
-    nodes.forEach(n => {
-      if (n.children) sortTree(n.children as TreeNodeData[]);
-    });
-  };
-  sortTree(roots);
-
-  treeData.value = roots;
-  expandedKeys.value = roots.map(r => String(r.key));
-
-  // 自动选中第一个节点
-  if (roots.length > 0) {
-    selectedMember.value = roots[0].member || null;
-  }
-}
-
-/** 树节点渲染标签 */
-function renderLabel({ option }: { option: TreeNodeData }) {
-  const m = option.member;
-  if (!m) return option.label as string;
-  const gen = m.generation_name || `第${m.generation}代`;
-  const alive = m.is_alive ? '' : '（已故）';
-  return `${m.name} ${gen}${alive}`;
-}
-
-/** 点击节点 */
-function handleSelect(keys: Array<string | number>, option: TreeNodeData[]) {
-  if (option.length > 0 && option[0].member) {
-    selectedMember.value = option[0].member;
-  }
-}
-
-/** 切换在世状态显示 */
-function aliveTag(isAlive: number) {
-  return isAlive ? { type: 'success', text: '在世' } : { type: 'default', text: '已故' };
+  container.appendChild(weave.render() as SVGSVGElement);
 }
 
 /** 跳转成员编辑页（复用成员管理页） */
@@ -135,14 +146,17 @@ function editMember() {
   window.open(`/mini-program/members?familyId=${selectedFamilyId.value}&memberId=${selectedMember.value.id}`, '_blank');
 }
 
-/** 跳转世系图详情（小程序端页面） */
-function viewInTree() {
-  if (!selectedMember.value || !selectedFamilyId.value) return;
-  window.open(`/mini-program/family-tree-detail?familyId=${selectedFamilyId.value}&memberId=${selectedMember.value.id}`, '_blank');
-}
-
 onMounted(() => {
   loadFamilies();
+});
+
+onBeforeUnmount(() => {
+  // 卸载时清空容器，释放引用
+  const container = treeContainer.value;
+  if (container) {
+    container.innerHTML = '';
+  }
+  weave = null;
 });
 </script>
 
@@ -166,18 +180,18 @@ onMounted(() => {
       <div v-if="loading" class="flex justify-center py-12">
         <NSpin size="large" />
       </div>
-      <NEmpty v-else-if="treeData.length === 0" description="暂无成员数据，请先在成员管理中录入" />
       <div v-else class="flex gap-4">
-        <!-- 树 -->
+        <!-- TreeWeave 家族树 -->
         <NCard :bordered="true" class="flex-1" title="家族树">
-          <NTree
-            :data="treeData"
-            :render-label="renderLabel"
-            :expanded-keys="expandedKeys"
-            :default-expand-all="true"
-            :selectable="true"
-            @update:selected-keys="handleSelect"
+          <NEmpty
+            v-if="members.length === 0"
+            description="暂无成员数据，请先在成员管理中录入"
           />
+          <div
+            v-else
+            ref="treeContainer"
+            class="family-tree-container"
+          ></div>
         </NCard>
 
         <!-- 成员详情 -->
@@ -188,8 +202,8 @@ onMounted(() => {
             <NDescriptionsItem label="世代">第 {{ selectedMember.generation }} 代</NDescriptionsItem>
             <NDescriptionsItem v-if="selectedMember.generation_name" label="字辈">{{ selectedMember.generation_name }}</NDescriptionsItem>
             <NDescriptionsItem label="状态">
-              <NTag :type="aliveTag(selectedMember.is_alive).type" size="small">
-                {{ aliveTag(selectedMember.is_alive).text }}
+              <NTag :type="selectedMember.is_alive ? 'success' : 'default'" size="small">
+                {{ selectedMember.is_alive ? '在世' : '已故' }}
               </NTag>
             </NDescriptionsItem>
             <NDescriptionsItem v-if="selectedMember.birth_date" label="出生">{{ selectedMember.birth_date }}</NDescriptionsItem>
@@ -199,10 +213,21 @@ onMounted(() => {
           </NDescriptions>
           <div class="mt-3 flex gap-2">
             <NButton size="small" type="primary" @click="editMember">编辑成员</NButton>
-            <NButton size="small" @click="viewInTree">在世系图中查看</NButton>
           </div>
         </NCard>
       </div>
     </NSpace>
   </NCard>
 </template>
+
+<style scoped>
+.family-tree-container {
+  width: 100%;
+  overflow: auto;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  min-height: 520px;
+  max-height: 76vh;
+  background: #fff;
+}
+</style>
