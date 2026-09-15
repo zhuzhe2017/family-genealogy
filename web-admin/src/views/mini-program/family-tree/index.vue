@@ -1,8 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, nextTick, onMounted, onBeforeUnmount } from 'vue';
 import { NCard, NSelect, NEmpty, NSpin, NTag, NSpace, NText, NButton, NAlert, NDescriptions, NDescriptionsItem } from 'naive-ui';
-import { useScriptTag } from '@vueuse/core';
-import type { TreeNode } from 'treeweave';
+import * as d3 from 'd3';
 import { fetchAllFamilies } from '@/service/api/family';
 import { fetchAllMembers, type FamilyMemberItem } from '@/service/api/family-member';
 
@@ -19,26 +18,18 @@ const treeContainer = ref<HTMLElement | null>(null);
 
 const familyOptions = computed(() => families.value);
 
-// 通过 <script> 标签全局加载 TreeWeave UMD，避免 Vite 模块系统对 UMD 的处理触发 CSP eval 限制；
-// 加载完成后 TreeWeave 挂载到 window.TreeWeave
-const { load: loadTreeWeaveScript } = useScriptTag('/treeweave/treeweave.js', undefined, { manual: true });
+/** 当前 D3 svg 实例 */
+let svg: d3.Selection<SVGSVGElement, unknown, null, undefined> | null = null;
+let zoomBehavior: d3.ZoomBehavior<SVGSVGElement, unknown> | null = null;
 
-type TreeWeaveCtorType = new (config: { data: TreeNode; options?: Record<string, any> }) => {
-  render: () => SVGSVGElement;
-  getNodes: () => Array<{ id: string | number }>;
-  _collapsedNodes: Set<string>;
-  [key: string]: any;
-};
-
-/** 从 window 读取 TreeWeave 构造类（script 标签加载后注入） */
-function getTreeWeaveCtor(): TreeWeaveCtorType | null {
-  const w = window as any;
-  const ctor = w.TreeWeave?.default ?? w.TreeWeave;
-  return typeof ctor === 'function' ? (ctor as TreeWeaveCtorType) : null;
+interface TreeNodeDatum {
+  id: string;
+  name: string;
+  gender: string;
+  generation: number;
+  member: FamilyMemberItem | null;
+  children?: TreeNodeDatum[];
 }
-
-/** 当前 TreeWeave 实例 */
-let weave: InstanceType<TreeWeaveCtorType> | null = null;
 
 /** 加载家族下拉 */
 async function loadFamilies() {
@@ -79,8 +70,8 @@ async function loadFamilyTree() {
   }
 }
 
-/** 将成员列表构建为 TreeWeave 数据（包一个虚拟总根以支持多根/孤立成员） */
-function buildTreeData() {
+/** 将成员列表构建为 D3 层级数据 */
+function buildTreeData(): TreeNodeDatum {
   const map = new Map<string, FamilyMemberItem>();
   const roots: FamilyMemberItem[] = [];
 
@@ -97,17 +88,14 @@ function buildTreeData() {
     return (a.sort_order || 0) - (b.sort_order || 0);
   };
 
-  const toNode = (m: FamilyMemberItem): TreeNode => {
+  const toNode = (m: FamilyMemberItem): TreeNodeDatum => {
     const children = members.value.filter(c => c.father_id && c.father_id === m.id).sort(byOrder);
     return {
       id: m.id,
-      label: m.name,
-      meta: {
-        gender: m.gender === 'female' ? 'female' : 'male',
-        photo: m.avatar_url || '',
-        title: m.generation_name || `第${m.generation}代`,
-        member: m
-      },
+      name: m.name,
+      gender: m.gender === 'female' ? 'female' : 'male',
+      generation: m.generation || 0,
+      member: m,
       children: children.map(toNode)
     };
   };
@@ -117,8 +105,10 @@ function buildTreeData() {
   const family = families.value.find(f => f.value === selectedFamilyId.value);
   return {
     id: '__root__',
-    label: family ? family.label : '家族',
-    meta: { gender: 'default' },
+    name: family ? family.label : '家族',
+    gender: 'default',
+    generation: 0,
+    member: null,
     children: roots.map(toNode)
   };
 }
@@ -128,76 +118,258 @@ async function renderTree() {
   const container = treeContainer.value;
   if (!container) return;
 
-  // 清空容器再重建（避免残留旧实例 DOM）
+  // 清空容器再重建
   container.innerHTML = '';
-  weave = null;
+  svg = null;
+  zoomBehavior = null;
   renderInfo.value = '';
 
   if (members.value.length === 0) return;
 
   const data = buildTreeData();
+  if (!data.children || data.children.length === 0) return;
 
-  // 无成员时仍走 nextTick 后的空态展示
-  if (data.children.length === 0) return;
-
-  // 首次渲染前确保 TreeWeave script 已全局加载
-  if (!getTreeWeaveCtor()) {
-    try {
-      await loadTreeWeaveScript();
-    } catch (e: any) {
-      loadError.value = '家族树组件加载失败，请刷新重试';
-      return;
-    }
-  }
-
-  const TreeWeaveCtor = getTreeWeaveCtor();
-  if (!TreeWeaveCtor) {
-    loadError.value = '家族树组件初始化失败，请刷新重试';
-    return;
-  }
-
-  // 成员较多时，首屏默认只展开顶层成员、折叠其子孙，避免一次性渲染上万节点导致页面卡死；
-  // 用户可点击节点下方的展开按钮逐级查看
-  const collapsedFirstGen = members.value.length > 300;
+  const isLargeTree = members.value.length > 300;
 
   try {
-    weave = new TreeWeaveCtor({
-      data,
-      options: {
-        nodeWidth: 170,
-        nodeHeight: 110,
-        levelGap: 110,
-        siblingGap: 36,
-        connectors: 'line',
-        enableCollapse: true,
-        collapseOnNodeClick: false,
-        enableZoom: true,
-        showPhoto: true,
-        showDOB: false,
-        showGender: false,
-        showTitle: true,
-        onNodeClick: node => {
-          // 虚拟总根无 member，点击忽略
-          const m = node.meta && node.meta.member;
-          if (m) {
-            selectedMember.value = m as FamilyMemberItem;
-          }
-        }
-      }
-    });
+    const width = container.clientWidth || 800;
+    const height = container.clientHeight || 600;
 
-    if (collapsedFirstGen) {
-      (data.children || []).forEach(child => {
-        (weave as any)._collapsedNodes.add(String(child.id));
+    // 创建 SVG
+    svg = d3
+      .select(container)
+      .append('svg')
+      .attr('width', '100%')
+      .attr('height', '100%')
+      .attr('viewBox', [0, 0, width, height]);
+
+    // 创建缩放行为
+    zoomBehavior = d3
+      .zoom<SVGSVGElement, unknown>()
+      .scaleExtent([0.1, 3])
+      .on('zoom', event => {
+        g.attr('transform', event.transform);
+      });
+
+    svg.call(zoomBehavior);
+
+    // 主容器
+    const g = svg.append('g');
+
+    // 创建层级布局
+    const root = d3.hierarchy(data);
+    
+    // 大数据量时首屏折叠
+    if (isLargeTree && root.children) {
+      root.children.forEach(child => {
+        if (child.children) {
+          child._children = child.children;
+          child.children = undefined;
+        }
       });
     }
 
-    container.appendChild(weave.render() as SVGSVGElement);
+    // 树布局
+    const treeLayout = d3.tree<TreeNodeDatum>().nodeSize([140, 200]);
+    treeLayout(root as d3.HierarchyPointNode<TreeNodeDatum>);
 
-    // 渲染结果反馈，便于判断当前状态
-    const visibleCount = (weave as any).getNodes().length as number;
-    if (collapsedFirstGen) {
-      renderInfo.value = `已加载 ${members.value.length} 位成员。因人数较多，首屏仅展示 ${data.children.length} 位顶层成员，点击下方节点展开按钮逐级查看。`;
+    // 绘制连线
+    const link = g
+      .selectAll('.link')
+      .data(root.links())
+      .enter()
+      .append('path')
+      .attr('class', 'link')
+      .attr('d', d3.linkVertical<any, d3.HierarchyPointNode<TreeNodeDatum>>()
+        .x(d => d.x)
+        .y(d => d.y)
+      )
+      .attr('fill', 'none')
+      .attr('stroke', '#d4d4d4')
+      .attr('stroke-width', 1.5);
+
+    // 绘制节点
+    const node = g
+      .selectAll('.node')
+      .data(root.descendants())
+      .enter()
+      .append('g')
+      .attr('class', 'node')
+      .attr('transform', d => `translate(${d.x},${d.y})`)
+      .style('cursor', 'pointer')
+      .on('click', (event, d) => {
+        event.stopPropagation();
+        // 点击切换折叠/展开
+        if (d.children) {
+          d._children = d.children;
+          d.children = undefined;
+          update(root);
+        } else if (d._children) {
+          d.children = d._children;
+          d._children = undefined;
+          update(root);
+        }
+        // 点击成员节点显示详情
+        if (d.data.member) {
+          selectedMember.value = d.data.member;
+        }
+      });
+
+    // 节点圆形背景
+    node
+      .append('circle')
+      .attr('r', 28)
+      .attr('fill', d => {
+        if (d.data.gender === 'female') return '#fce4ec';
+        if (d.data.gender === 'male') return '#e3f2fd';
+        return '#f5f5f5';
+      })
+      .attr('stroke', d => {
+        if (d.data.gender === 'female') return '#f48fb1';
+        if (d.data.gender === 'male') return '#64b5f6';
+        return '#bdbdbd';
+      })
+      .attr('stroke-width', 2);
+
+    // 节点文字
+    node
+      .append('text')
+      .attr('dy', '.35em')
+      .attr('text-anchor', 'middle')
+      .style('font-size', '12px')
+      .style('fill', '#333')
+      .text(d => d.data.name);
+
+    // 世代标签
+    node
+      .append('text')
+      .attr('dy', '3.5em')
+      .attr('text-anchor', 'middle')
+      .style('font-size', '10px')
+      .style('fill', '#999')
+      .text(d => {
+        if (!d.data.member) return '';
+        return d.data.member.generation_name || `第${d.data.generation}代`;
+      });
+
+    // 更新函数（用于折叠/展开）
+    function update(source: d3.HierarchyPointNode<TreeNodeDatum>) {
+      if (!svg) return;
+
+      // 重新计算布局
+      treeLayout(root as d3.HierarchyPointNode<TreeNodeDatum>);
+
+      // 更新连线
+      const linkUpdate = g
+        .selectAll('.link')
+        .data(root.links(), (d: any) => d.target.data.id);
+
+      linkUpdate
+        .transition()
+        .duration(300)
+        .attr('d', d3.linkVertical<any, d3.HierarchyPointNode<TreeNodeDatum>>()
+          .x(d => d.x)
+          .y(d => d.y)
+        );
+
+      // 更新节点
+      const nodeUpdate = g
+        .selectAll('.node')
+        .data(root.descendants(), (d: any) => d.data.id);
+
+      nodeUpdate
+        .transition()
+        .duration(300)
+        .attr('transform', d => `translate(${d.x},${d.y})`);
+
+      // 新节点
+      const nodeEnter = nodeUpdate
+        .enter()
+        .append('g')
+        .attr('class', 'node')
+        .attr('transform', d => `translate(${d.x},${d.y})`)
+        .style('cursor', 'pointer')
+        .on('click', (event, d) => {
+          event.stopPropagation();
+          if (d.children) {
+            d._children = d.children;
+            d.children = undefined;
+            update(root);
+          } else if (d._children) {
+            d.children = d._children;
+            d._children = undefined;
+            update(root);
+          }
+          if (d.data.member) {
+            selectedMember.value = d.data.member;
+          }
+        });
+
+      nodeEnter
+        .append('circle')
+        .attr('r', 0)
+        .attr('fill', d => {
+          if (d.data.gender === 'female') return '#fce4ec';
+          if (d.data.gender === 'male') return '#e3f2fd';
+          return '#f5f5f5';
+        })
+        .attr('stroke', d => {
+          if (d.data.gender === 'female') return '#f48fb1';
+          if (d.data.gender === 'male') return '#64b5f6';
+          return '#bdbdbd';
+        })
+        .attr('stroke-width', 2)
+        .transition()
+        .duration(300)
+        .attr('r', 28);
+
+      nodeEnter
+        .append('text')
+        .attr('dy', '.35em')
+        .attr('text-anchor', 'middle')
+        .style('font-size', '12px')
+        .style('fill', '#333')
+        .text(d => d.data.name);
+
+      nodeEnter
+        .append('text')
+        .attr('dy', '3.5em')
+        .attr('text-anchor', 'middle')
+        .style('font-size', '10px')
+        .style('fill', '#999')
+        .text(d => {
+          if (!d.data.member) return '';
+          return d.data.member.generation_name || `第${d.data.generation}代`;
+        });
+
+      // 移除退出节点
+      nodeUpdate.exit().remove();
+      linkUpdate.exit().remove();
+    }
+
+    // 初始适配缩放
+    if (zoomBehavior && svg) {
+      const bounds = g.node()?.getBBox();
+      if (bounds) {
+        const fullWidth = width;
+        const fullHeight = height;
+        const widthScale = fullWidth / bounds.width;
+        const heightScale = fullHeight / bounds.height;
+        const scale = Math.min(widthScale, heightScale, 1) * 0.9;
+        const translateX = (fullWidth - bounds.width * scale) / 2 - bounds.x * scale;
+        const translateY = (fullHeight - bounds.height * scale) / 2 - bounds.y * scale;
+        
+        svg.call(
+          zoomBehavior.transform,
+          d3.zoomIdentity.translate(translateX, translateY).scale(scale)
+        );
+      }
+    }
+
+    // 渲染结果反馈
+    const visibleCount = root.descendants().length;
+    if (isLargeTree) {
+      renderInfo.value = `已加载 ${members.value.length} 位成员。因人数较多，首屏仅展示 ${data.children.length} 位顶层成员，点击节点展开/折叠。`;
     } else {
       renderInfo.value = `已渲染全部 ${visibleCount} 位成员。`;
     }
@@ -213,13 +385,6 @@ function editMember() {
 }
 
 onMounted(() => {
-  // 加载 TreeWeave 样式（走 <link> 标签，避免 Vite 对 CSS 的模块处理）
-  if (!document.querySelector('link[href="/treeweave/treeweave.css"]')) {
-    const link = document.createElement('link');
-    link.rel = 'stylesheet';
-    link.href = '/treeweave/treeweave.css';
-    document.head.appendChild(link);
-  }
   loadFamilies();
 });
 
@@ -229,7 +394,8 @@ onBeforeUnmount(() => {
   if (container) {
     container.innerHTML = '';
   }
-  weave = null;
+  svg = null;
+  zoomBehavior = null;
 });
 </script>
 
@@ -260,7 +426,7 @@ onBeforeUnmount(() => {
         <NText depth="3" class="text-sm">正在加载并生成家族树，成员较多时请稍候…</NText>
       </div>
       <div v-else class="flex gap-4">
-        <!-- TreeWeave 家族树 -->
+        <!-- D3 家族树 -->
         <NCard :bordered="true" class="flex-1" title="家族树">
           <!-- 渲染结果说明，便于判断当前状态 -->
           <NAlert
