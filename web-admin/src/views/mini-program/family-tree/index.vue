@@ -143,6 +143,14 @@ function renderTree() {
     }
   });
 
+  // 成员较多时，首屏默认只展开顶层成员、折叠其子孙，避免一次性渲染上万节点导致页面卡死；
+  // 用户可点击节点下方的展开按钮逐级查看
+  if (members.value.length > 300) {
+    (data.children || []).forEach(child => {
+      (weave as any)._collapsedNodes.add(String(child.id));
+    });
+  }
+
   container.appendChild(weave.render() as SVGSVGElement);
 }
 
