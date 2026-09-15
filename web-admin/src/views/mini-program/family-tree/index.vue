@@ -1,10 +1,8 @@
 <script setup lang="ts">
 import { ref, computed, nextTick, onMounted, onBeforeUnmount } from 'vue';
 import { NCard, NSelect, NEmpty, NSpin, NTag, NSpace, NText, NButton, NAlert, NDescriptions, NDescriptionsItem } from 'naive-ui';
-// treeweave 是 UMD 模块，Vite 打包后 default 导出可能是包装对象，需解包取真正的构造类
-import TreeWeaveModule from 'treeweave';
+import { useScriptTag } from '@vueuse/core';
 import type { TreeNode } from 'treeweave';
-import 'treeweave/css';
 import { fetchAllFamilies } from '@/service/api/family';
 import { fetchAllMembers, type FamilyMemberItem } from '@/service/api/family-member';
 
@@ -21,13 +19,26 @@ const treeContainer = ref<HTMLElement | null>(null);
 
 const familyOptions = computed(() => families.value);
 
-// UMD 打包经 Vite 后 default 可能是 { default: TreeWeaveClass }，这里统一解包出真正的构造类
-const TreeWeaveCtor = (TreeWeaveModule as any).default ?? TreeWeaveModule;
+// 通过 <script> 标签全局加载 TreeWeave UMD，避免 Vite 模块系统对 UMD 的处理触发 CSP eval 限制；
+// 加载完成后 TreeWeave 挂载到 window.TreeWeave
+const { load: loadTreeWeaveScript } = useScriptTag('/treeweave/treeweave.js', undefined, { manual: true });
 
-type TreeWeaveInstance = InstanceType<typeof TreeWeaveCtor>;
+type TreeWeaveCtorType = new (config: { data: TreeNode; options?: Record<string, any> }) => {
+  render: () => SVGSVGElement;
+  getNodes: () => Array<{ id: string | number }>;
+  _collapsedNodes: Set<string>;
+  [key: string]: any;
+};
+
+/** 从 window 读取 TreeWeave 构造类（script 标签加载后注入） */
+function getTreeWeaveCtor(): TreeWeaveCtorType | null {
+  const w = window as any;
+  const ctor = w.TreeWeave?.default ?? w.TreeWeave;
+  return typeof ctor === 'function' ? (ctor as TreeWeaveCtorType) : null;
+}
 
 /** 当前 TreeWeave 实例 */
-let weave: TreeWeaveInstance | null = null;
+let weave: InstanceType<TreeWeaveCtorType> | null = null;
 
 /** 加载家族下拉 */
 async function loadFamilies() {
@@ -57,7 +68,7 @@ async function loadFamilyTree() {
     if (res.data) {
       members.value = res.data;
       await nextTick();
-      renderTree();
+      await renderTree();
     } else {
       loadError.value = '未获取到成员数据，请稍后重试';
     }
@@ -113,7 +124,7 @@ function buildTreeData() {
 }
 
 /** 渲染 / 重绘家族树 */
-function renderTree() {
+async function renderTree() {
   const container = treeContainer.value;
   if (!container) return;
 
@@ -128,6 +139,22 @@ function renderTree() {
 
   // 无成员时仍走 nextTick 后的空态展示
   if (data.children.length === 0) return;
+
+  // 首次渲染前确保 TreeWeave script 已全局加载
+  if (!getTreeWeaveCtor()) {
+    try {
+      await loadTreeWeaveScript();
+    } catch (e: any) {
+      loadError.value = '家族树组件加载失败，请刷新重试';
+      return;
+    }
+  }
+
+  const TreeWeaveCtor = getTreeWeaveCtor();
+  if (!TreeWeaveCtor) {
+    loadError.value = '家族树组件初始化失败，请刷新重试';
+    return;
+  }
 
   // 成员较多时，首屏默认只展开顶层成员、折叠其子孙，避免一次性渲染上万节点导致页面卡死；
   // 用户可点击节点下方的展开按钮逐级查看
@@ -170,7 +197,7 @@ function renderTree() {
     // 渲染结果反馈，便于判断当前状态
     const visibleCount = (weave as any).getNodes().length as number;
     if (collapsedFirstGen) {
-      renderInfo.value = `已加载 ${members.value} 位成员。因人数较多，首屏仅展示 ${data.children.length} 位顶层成员，点击下方节点展开按钮逐级查看。`;
+      renderInfo.value = `已加载 ${members.value.length} 位成员。因人数较多，首屏仅展示 ${data.children.length} 位顶层成员，点击下方节点展开按钮逐级查看。`;
     } else {
       renderInfo.value = `已渲染全部 ${visibleCount} 位成员。`;
     }
@@ -186,6 +213,13 @@ function editMember() {
 }
 
 onMounted(() => {
+  // 加载 TreeWeave 样式（走 <link> 标签，避免 Vite 对 CSS 的模块处理）
+  if (!document.querySelector('link[href="/treeweave/treeweave.css"]')) {
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = '/treeweave/treeweave.css';
+    document.head.appendChild(link);
+  }
   loadFamilies();
 });
 

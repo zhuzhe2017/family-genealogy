@@ -1,0 +1,368 @@
+/**
+ * TreeWeave Default Styles
+ * Free & Open Source
+ * Customize as needed for your project
+ */
+
+/* SVG Container */
+.treeweave-svg {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* Node Groups */
+.tw-node-group {
+  cursor: pointer;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+/* Node Rectangles */
+.tw-node {
+  transition: all 0.2s ease;
+  filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.1));
+}
+
+.tw-node-group:hover .tw-node {
+  filter: drop-shadow(0 8px 12px rgba(0, 0, 0, 0.15));
+}
+
+/* Root node styling */
+.tw-node-group[data-level="0"] .tw-node {
+  stroke-width: 4;
+  filter: drop-shadow(0 6px 10px rgba(0, 0, 0, 0.15));
+}
+
+/* Text Elements */
+.tw-text {
+  pointer-events: none;
+}
+
+.tw-name {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.tw-title {
+  font-size: 11px;
+  fill: #9ca3af;
+  font-weight: 400;
+}
+
+.tw-info {
+  font-size: 11px;
+  fill: #6b7280;
+}
+
+.tw-gender {
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  pointer-events: all;
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  transition: opacity 0.2s ease;
+}
+
+.tw-gender:hover {
+  opacity: 0.7;
+}
+
+/* Photo Elements */
+.tw-photo {
+  pointer-events: none;
+}
+
+/* Avatar Container */
+.tw-avatar-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+/* Circular Avatar Images */
+.tw-avatar {
+  border-radius: 50%;
+  border: 2px solid #90caf9;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+  object-fit: cover;
+}
+
+/* No Avatar Placeholder */
+.tw-no-avatar {
+  border-radius: 50%;
+  background: #e3f2fd;
+  border: 2px solid #90caf9;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  color: #333;
+  font-weight: 600;
+}
+
+/* Connectors */
+.tw-connector {
+  transition: stroke 0.2s ease;
+}
+
+.tw-node-group:hover ~ .tw-connector,
+.tw-connector:hover {
+  stroke: #6366f1;
+  stroke-width: 3;
+}
+
+/* Collapse/Expand Button */
+.tw-collapse-button {
+  pointer-events: all;
+}
+
+.tw-collapse-circle {
+  transition: all 0.2s ease;
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));
+}
+
+.tw-collapse-button:hover .tw-collapse-circle {
+  fill: #f9fafb;
+  stroke: #9ca3af;
+  filter: drop-shadow(0 3px 6px rgba(0,0,0,0.15));
+}
+
+.tw-collapse-icon {
+  pointer-events: none;
+  user-select: none;
+}
+
+/* Menu Icon (Three Dots) */
+.tw-menu-icon {
+  pointer-events: all;
+  transition: opacity 0.2s ease;
+  opacity: 0.6;
+}
+
+.tw-menu-icon:hover {
+  opacity: 1;
+}
+
+.tw-menu-dot {
+  transition: fill 0.2s ease;
+}
+
+.tw-menu-icon:hover .tw-menu-dot {
+  fill: #4b5563;
+}
+
+/* Search Highlight */
+.tw-search-highlight .tw-node {
+  stroke: #f59e0b !important;
+  stroke-width: 5 !important;
+  filter: drop-shadow(0 0 10px rgba(245, 158, 11, 0.6));
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+/* Collapsed Node Indicator */
+.tw-node-group.collapsed {
+  opacity: 1;
+}
+
+/* Zoom Group */
+.tw-zoom-group {
+  transition: transform 0.2s ease;
+}
+
+/* Gender-specific styles */
+.tw-node-group[data-gender="male"] .tw-node {
+  stroke: #3b82f6;
+}
+
+.tw-node-group[data-gender="female"] .tw-node {
+  stroke: #ec4899;
+}
+
+/* Level-based node colors */
+.tw-node-group[data-level="0"] .tw-node {
+  fill: #e3f2fd;
+  stroke: #90caf9;
+  stroke-width: 3;
+}
+
+.tw-node-group[data-level="1"] .tw-node {
+  fill: #f3e5f5;
+  stroke: #ce93d8;
+  stroke-width: 2;
+}
+
+.tw-node-group[data-level="2"] .tw-node {
+  fill: #e8f5e9;
+  stroke: #a5d6a7;
+  stroke-width: 2;
+}
+
+.tw-node-group[data-level="3"] .tw-node {
+  fill: #fff3e0;
+  stroke: #ffcc80;
+  stroke-width: 2;
+}
+
+.tw-node-group[data-level="4"] .tw-node {
+  fill: #fce4ec;
+  stroke: #f48fb1;
+  stroke-width: 2;
+}
+
+/* Animation on load */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.tw-node-group {
+  animation: fadeIn 0.4s ease forwards;
+}
+
+.tw-node-group[data-level="0"] {
+  animation-delay: 0s;
+}
+
+.tw-node-group[data-level="1"] {
+  animation-delay: 0.1s;
+}
+
+.tw-node-group[data-level="2"] {
+  animation-delay: 0.2s;
+}
+
+.tw-node-group[data-level="3"] {
+  animation-delay: 0.3s;
+}
+
+/* Dark Theme (Professional Org Chart Style) */
+.tree-dark {
+  background-color: #1a1a1a;
+}
+
+.tree-dark .tw-node {
+  fill: #374151;
+  stroke: #4b5563;
+  stroke-width: 1;
+}
+
+.tree-dark .tw-name {
+  fill: #f9fafb;
+}
+
+.tree-dark .tw-title,
+.tree-dark .tw-info {
+  fill: #9ca3af;
+}
+
+.tree-dark .tw-connector {
+  stroke: #4b5563;
+  stroke-width: 1.5;
+}
+
+.tree-dark .tw-collapse-circle {
+  fill: #ffffff;
+  stroke: #6b7280;
+}
+
+.tree-dark .tw-collapse-button:hover .tw-collapse-circle {
+  fill: #f3f4f6;
+  stroke: #9ca3af;
+}
+
+.tree-dark .tw-menu-dot {
+  fill: #9ca3af;
+}
+
+.tree-dark .tw-menu-icon:hover .tw-menu-dot {
+  fill: #d1d5db;
+}
+
+.tree-dark .tw-no-avatar {
+  background: #4b5563;
+}
+
+.tree-dark .tw-initials {
+  fill: #d1d5db;
+}
+
+/* Responsive adjustments for tablets */
+@media (max-width: 768px) {
+  .tw-name {
+    font-size: 12px;
+  }
+
+  .tw-info,
+  .tw-gender {
+    font-size: 10px;
+  }
+
+  .tw-avatar {
+    width: 60px;
+    height: 60px;
+  }
+
+  .tw-no-avatar {
+    width: 60px;
+    height: 60px;
+    font-size: 18px;
+  }
+}
+
+/* Mobile adjustments */
+@media (max-width: 480px) {
+  .tw-name {
+    font-size: 11px;
+  }
+
+  .tw-info,
+  .tw-gender {
+    font-size: 9px;
+  }
+
+  .tw-avatar {
+    width: 50px;
+    height: 50px;
+  }
+
+  .tw-no-avatar {
+    width: 50px;
+    height: 50px;
+    font-size: 16px;
+  }
+
+  .tw-node {
+    rx: 4;
+  }
+}
+
+/* Print styles */
+@media print {
+  .treeweave-svg {
+    max-width: 100%;
+    height: auto;
+  }
+
+  .tw-node {
+    filter: none;
+  }
+
+  .tw-node-group:hover {
+    transform: none;
+  }
+}
