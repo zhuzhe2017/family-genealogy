@@ -264,6 +264,19 @@ async function renderTree() {
         .selectAll('.link')
         .data(root.links(), (d: any) => d.target.data.id);
 
+      // 新连线（展开折叠节点时补齐父子连线，否则连线会永久丢失）
+      linkUpdate
+        .enter()
+        .append('path')
+        .attr('class', 'link')
+        .attr('fill', 'none')
+        .attr('stroke', '#d4d4d4')
+        .attr('stroke-width', 1.5)
+        .attr('d', d3.linkVertical<any, d3.HierarchyPointNode<TreeNodeDatum>>()
+          .x(d => d.x)
+          .y(d => d.y)
+        );
+
       linkUpdate
         .transition()
         .duration(300)
