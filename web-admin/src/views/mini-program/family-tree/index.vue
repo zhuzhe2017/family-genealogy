@@ -56,17 +56,17 @@ async function loadFamilyTree() {
   selectedMember.value = null;
   try {
     const res = await fetchAllMembers(selectedFamilyId.value, { status: 1 });
-    if (res.data) {
-      members.value = res.data;
-      await nextTick();
-      await renderTree();
-    } else {
-      loadError.value = '未获取到成员数据，请稍后重试';
-    }
+    members.value = res.data || [];
   } catch (e: any) {
     loadError.value = e?.message || '加载家族成员失败，请检查网络后重试';
   } finally {
+    // 先结束 loading，让 v-else 中的树容器挂载，否则 renderTree 拿不到容器会静默跳过
     loading.value = false;
+  }
+  // 容器挂载后再渲染
+  if (members.value.length > 0) {
+    await nextTick();
+    await renderTree();
   }
 }
 
