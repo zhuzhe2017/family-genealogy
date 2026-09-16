@@ -81,6 +81,15 @@ function buildTreeData(): TreeNodeDatum {
     roots.push(m);
   });
 
+  // 兜底：所有成员的 father_id 都指向集合内成员（闭环/缺始祖）时 roots 为空，
+  // 此时取世代最小的成员作为根，避免静默渲染不出树
+  if (roots.length === 0 && members.value.length > 0) {
+    const minGeneration = Math.min(...members.value.map(m => m.generation || 0));
+    members.value.forEach(m => {
+      if ((m.generation || 0) === minGeneration) roots.push(m);
+    });
+  }
+
   // 排序：世代 + sort_order
   const byOrder = (a: FamilyMemberItem, b: FamilyMemberItem) => {
     const gdiff = (a.generation || 0) - (b.generation || 0);
@@ -127,7 +136,10 @@ async function renderTree() {
   if (members.value.length === 0) return;
 
   const data = buildTreeData();
-  if (!data.children || data.children.length === 0) return;
+  if (!data.children || data.children.length === 0) {
+    loadError.value = '未找到家族根节点（所有成员的父级均指向其他成员，可能缺少始祖数据），无法绘制家族树';
+    return;
+  }
 
   const isLargeTree = members.value.length > 300;
 
@@ -158,7 +170,7 @@ async function renderTree() {
 
     // 创建层级布局
     const root = d3.hierarchy(data);
-    
+
     // 大数据量时首屏折叠
     if (isLargeTree && root.children) {
       root.children.forEach(child => {
@@ -371,7 +383,7 @@ async function renderTree() {
         const scale = Math.min(widthScale, heightScale, 1) * 0.9;
         const translateX = (fullWidth - bounds.width * scale) / 2 - bounds.x * scale;
         const translateY = (fullHeight - bounds.height * scale) / 2 - bounds.y * scale;
-        
+
         svg.call(
           zoomBehavior.transform,
           d3.zoomIdentity.translate(translateX, translateY).scale(scale)
