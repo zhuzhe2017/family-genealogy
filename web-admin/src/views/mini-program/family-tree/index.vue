@@ -70,14 +70,24 @@ async function loadFamilyTree() {
   }
 }
 
-/** 将成员列表构建为 D3 层级数据 */
+/** 将成员列表构建为 D3 层级数据（O(n)：先建 children 索引，再递归） */
 function buildTreeData(): TreeNodeDatum {
-  const map = new Map<string, FamilyMemberItem>();
-  const roots: FamilyMemberItem[] = [];
-
-  members.value.forEach(m => map.set(m.id, m));
+  // 先建索引：father_id → 子女列表，避免递归中对全量成员反复 filter
+  const childrenMap = new Map<string, FamilyMemberItem[]>();
+  const idSet = new Set<string>();
   members.value.forEach(m => {
-    if (m.father_id && map.has(m.father_id)) return;
+    idSet.add(m.id);
+    if (m.father_id) {
+      const arr = childrenMap.get(m.father_id) || [];
+      arr.push(m);
+      childrenMap.set(m.father_id, arr);
+    }
+  });
+
+  // roots：无 father_id 或父亲不在成员列表中
+  const roots: FamilyMemberItem[] = [];
+  members.value.forEach(m => {
+    if (m.father_id && idSet.has(m.father_id)) return;
     roots.push(m);
   });
 
@@ -98,7 +108,7 @@ function buildTreeData(): TreeNodeDatum {
   };
 
   const toNode = (m: FamilyMemberItem): TreeNodeDatum => {
-    const children = members.value.filter(c => c.father_id && c.father_id === m.id).sort(byOrder);
+    const children = (childrenMap.get(m.id) || []).sort(byOrder);
     return {
       id: m.id,
       name: m.name,
