@@ -1,5 +1,13 @@
 <wxs src="../../utils/filters.wxs" module="f" />
 <view class="page-container">
+  <!-- 加载中 -->
+  <view class="loading-state" wx:if="{{loading}}">加载中...</view>
+  <!-- 加载失败 -->
+  <view class="error-state" wx:elif="{{loadFailed}}">
+    <text>加载失败，请返回重试</text>
+  </view>
+  <!-- 正常内容 -->
+  <block wx:else>
   <!-- 头部背景 -->
   <view class="detail-header">
     <view class="header-bg">
@@ -190,4 +198,5 @@
       <text>分享</text>
     </view>
   </view>
+  </block>
 </view>

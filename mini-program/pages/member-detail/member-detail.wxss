@@ -4,6 +4,14 @@
   min-height: 100vh;
 }
 
+.loading-state,
+.error-state {
+  text-align: center;
+  padding: 200rpx 0;
+  font-size: 28rpx;
+  color: #999;
+}
+
 /* 头部 */
 .detail-header {
   position: relative;

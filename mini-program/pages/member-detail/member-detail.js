@@ -6,7 +6,9 @@ const { getToken } = require('../../utils/request');
 
 Page({
   data: {
-    member: {}
+    member: {},
+    loading: true,
+    loadFailed: false
   },
 
   onLoad(options) {
@@ -17,6 +19,7 @@ Page({
   loadMemberDetail(id) {
     const familyId = (app.globalData.currentFamily || {}).id;
     if (!USE_MOCK && getToken() && familyId) {
+      this.setData({ loading: true, loadFailed: false });
       // 并行请求成员详情 + 子女列表,避免全量拉取家族成员
       Promise.all([
         familyMember.getById(familyId, id),
@@ -33,14 +36,16 @@ Page({
             const father = me.fatherId ? (parents.find(p => p && p.id === me.fatherId) || null) : null;
             const mother = me.motherId ? (parents.find(p => p && p.id === me.motherId) || null) : null;
             this.assembleMemberDetail(me, children, father, mother);
+            this.setData({ loading: false });
           });
         })
         .catch((err) => {
-          console.error('成员详情加载失败,使用 mock', err);
-          this.setData({ member: this.getMockMember(id) });
+          console.error('成员详情加载失败', err);
+          this.setData({ loading: false, loadFailed: true });
         });
     } else {
-      this.setData({ member: this.getMockMember(id) });
+      // 离线/未登录场景使用演示数据,避免页面空白
+      this.setData({ member: this.getMockMember(id), loading: false });
     }
   },
 

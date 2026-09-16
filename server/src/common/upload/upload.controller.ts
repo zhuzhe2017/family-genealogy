@@ -21,6 +21,7 @@ import { EntitlementService } from '../../membership/membership.service';
 import { CloudStorageUploadService } from '../../cloud-storage-config/cloud-storage-upload.service';
 import { type AuthenticatedRequest } from '../types/common';
 import {
+  ALLOWED_DOC_TYPES,
   ALLOWED_IMAGE_TYPES,
   buildDateScope,
   buildStoredFileName,
@@ -56,10 +57,13 @@ export class UploadController {
       storage: memoryStorage(),
       limits: { fileSize: MAX_FILE_SIZE },
       fileFilter: (_req, file, cb) => {
-        if (!ALLOWED_IMAGE_TYPES[file.mimetype]) {
+        // 图片沿用既有白名单；文档场景放开 PDF（族谱/文档资料常见格式）
+        const isImage = !!ALLOWED_IMAGE_TYPES[file.mimetype];
+        const isDoc = !!ALLOWED_DOC_TYPES[file.mimetype];
+        if (!isImage && !isDoc) {
           return cb(
             new BadRequestException(
-              '仅支持上传 png/jpg/jpeg/gif/webp 格式的图片',
+              '仅支持上传 png/jpg/jpeg/gif/webp 图片或 pdf 文档',
               '400'
             ),
             false

@@ -82,6 +82,10 @@
           <text>交易明细 / 对账</text>
           <text class="menu-arrow">›</text>
         </view>
+        <view class="menu-item" bindtap="goRank">
+          <text>慈善榜单</text>
+          <text class="menu-arrow">›</text>
+        </view>
         <view class="menu-item" wx:if="{{hasPerm('manage_member')}}" bindtap="goMembers">
           <text>成员与权限管理</text>
           <text class="menu-arrow">›</text>

@@ -1,0 +1,252 @@
+.page {
+  min-height: 100vh;
+  background: #F5F1EA;
+  padding: 24rpx;
+  box-sizing: border-box;
+}
+
+.loading,
+.empty {
+  text-align: center;
+  color: #999;
+  padding: 100rpx 0;
+  font-size: 28rpx;
+}
+
+/* 统计卡 */
+.stats-card {
+  background: #FFF;
+  border-radius: 20rpx;
+  padding: 28rpx 24rpx;
+  margin-bottom: 20rpx;
+  box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.05);
+}
+
+.stats-row {
+  display: flex;
+  justify-content: space-around;
+  margin-bottom: 24rpx;
+}
+
+.stats-item {
+  text-align: center;
+}
+
+.stats-num {
+  display: block;
+  font-size: 44rpx;
+  font-weight: 700;
+  color: #8B1A1A;
+}
+
+.stats-label {
+  font-size: 24rpx;
+  color: #999;
+}
+
+.stats-section {
+  border-top: 1rpx solid #F0EDE6;
+  padding-top: 20rpx;
+}
+
+.stats-section-title {
+  font-size: 26rpx;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 16rpx;
+}
+
+/* 场次条形图 */
+.session-bar {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  margin-bottom: 12rpx;
+}
+
+.session-name {
+  font-size: 24rpx;
+  color: #666;
+  width: 140rpx;
+  flex-shrink: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.session-bar-bg {
+  flex: 1;
+  height: 16rpx;
+  background: #F0EDE6;
+  border-radius: 8rpx;
+  overflow: hidden;
+}
+
+.session-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #8B1A1A, #C9A227);
+  border-radius: 8rpx;
+  transition: width 0.3s;
+}
+
+.session-count {
+  font-size: 24rpx;
+  color: #999;
+  width: 100rpx;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+/* 饮食标签 */
+.diet-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12rpx;
+}
+
+.diet-tag {
+  font-size: 24rpx;
+  color: #8B1A1A;
+  background: #FDF3E0;
+  padding: 8rpx 20rpx;
+  border-radius: 8rpx;
+}
+
+/* 筛选栏 */
+.filter-bar {
+  display: flex;
+  gap: 16rpx;
+  margin-bottom: 20rpx;
+}
+
+.filter-input {
+  flex: 1;
+  background: #FFF;
+  border-radius: 12rpx;
+  padding: 16rpx 20rpx;
+  font-size: 28rpx;
+  color: #333;
+}
+
+.filter-picker {
+  background: #FFF;
+  border-radius: 12rpx;
+  padding: 0 24rpx;
+  display: flex;
+  align-items: center;
+}
+
+.filter-picker-text {
+  font-size: 28rpx;
+  color: #8B1A1A;
+}
+
+/* 名单列表 */
+.reg-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16rpx;
+}
+
+.reg-item {
+  background: #FFF;
+  border-radius: 16rpx;
+  padding: 24rpx;
+  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.04);
+}
+
+.reg-main {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 12rpx;
+}
+
+.reg-info {
+  flex: 1;
+}
+
+.reg-name {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #333;
+  display: block;
+}
+
+.reg-phone {
+  font-size: 24rpx;
+  color: #999;
+  margin-top: 4rpx;
+  display: block;
+}
+
+.reg-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8rpx;
+  flex-shrink: 0;
+}
+
+.tag {
+  font-size: 22rpx;
+  padding: 6rpx 16rpx;
+  border-radius: 6rpx;
+}
+
+.tag-1 {
+  background: #E3F2FD;
+  color: #1565C0;
+}
+
+.tag-2 {
+  background: #F5F5F5;
+  color: #999;
+}
+
+.tag-3 {
+  background: #E8F5E9;
+  color: #2E7D32;
+}
+
+.tag-diet {
+  background: #FDF3E0;
+  color: #C9A227;
+}
+
+.tag-guest {
+  background: #F3E5F5;
+  color: #7B1FA2;
+}
+
+.reg-detail {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16rpx;
+  margin-bottom: 8rpx;
+}
+
+.reg-session,
+.reg-time,
+.reg-code {
+  font-size: 24rpx;
+  color: #666;
+}
+
+.reg-code {
+  color: #8B1A1A;
+}
+
+.reg-note {
+  font-size: 24rpx;
+  color: #999;
+  margin-top: 8rpx;
+  padding-top: 8rpx;
+  border-top: 1rpx dashed #F0EDE6;
+}
+
+.load-more {
+  text-align: center;
+  color: #8B1A1A;
+  padding: 24rpx;
+  font-size: 28rpx;
+}

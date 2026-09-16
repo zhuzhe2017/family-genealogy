@@ -202,6 +202,9 @@ export class PortalController {
     } else if (type === 'photo') {
       body.uploaderId = body.uploaderId || String(user.id);
       body.uploaderName = body.uploaderName || user.nickname || '';
+    } else if (type === 'document') {
+      body.uploaderId = body.uploaderId || String(user.id);
+      body.uploaderName = body.uploaderName || user.nickname || '';
     } else if (type === 'event') {
       body.creatorId = body.creatorId || String(user.id);
     }

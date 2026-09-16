@@ -1,0 +1,80 @@
+<view class="page">
+  <!-- 统计概览 -->
+  <view class="stats-card" wx:if="{{stats}}">
+    <view class="stats-row">
+      <view class="stats-item">
+        <text class="stats-num">{{stats.total}}</text>
+        <text class="stats-label">总报名</text>
+      </view>
+      <view class="stats-item">
+        <text class="stats-num">{{stats.checkedIn}}</text>
+        <text class="stats-label">已签到</text>
+      </view>
+      <view class="stats-item">
+        <text class="stats-num">{{stats.totalGuest}}</text>
+        <text class="stats-label">随行人数</text>
+      </view>
+      <view class="stats-item">
+        <text class="stats-num">{{stats.cancelled}}</text>
+        <text class="stats-label">已取消</text>
+      </view>
+    </view>
+    <!-- 场次分布 -->
+    <view class="stats-section" wx:if="{{stats.sessions.length > 0}}">
+      <view class="stats-section-title">场次分布</view>
+      <view class="session-bar" wx:for="{{stats.sessions}}" wx:key="name">
+        <text class="session-name">{{item.name}}</text>
+        <view class="session-bar-bg">
+          <view class="session-bar-fill" style="width: {{item.count > 0 ? (item.checkedIn / item.count * 100) : 0}}%"></view>
+        </view>
+        <text class="session-count">{{item.checkedIn}}/{{item.count}}</text>
+      </view>
+    </view>
+    <!-- 饮食偏好 -->
+    <view class="stats-section" wx:if="{{stats.diets.length > 0}}">
+      <view class="stats-section-title">饮食偏好</view>
+      <view class="diet-tags">
+        <view class="diet-tag" wx:for="{{stats.diets}}" wx:key="type">
+          {{item.label}} × {{item.count}}
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 筛选栏 -->
+  <view class="filter-bar">
+    <input class="filter-input" value="{{keyword}}" bindinput="onKeywordInput" placeholder="搜索姓名/手机号" bindconfirm="search" />
+    <picker class="filter-picker" range="{{['全部状态', '已报名', '已取消', '已签到']}}" value="{{statusFilter}}" bindchange="onStatusChange">
+      <view class="filter-picker-text">{{statusFilter === 0 ? '全部' : statusFilter === 1 ? '已报名' : statusFilter === 2 ? '已取消' : '已签到'}} ▾</view>
+    </picker>
+  </view>
+
+  <!-- 名单列表 -->
+  <view class="loading" wx:if="{{loading}}">加载中...</view>
+  <view class="empty" wx:elif="{{!registrations.length}}">暂无报名记录</view>
+
+  <view class="reg-list" wx:else>
+    <view class="reg-item" wx:for="{{registrations}}" wx:key="id">
+      <view class="reg-main">
+        <view class="reg-info">
+          <text class="reg-name">{{item.name}}</text>
+          <text class="reg-phone" wx:if="{{item.phone}}">{{item.phone}}</text>
+        </view>
+        <view class="reg-tags">
+          <text class="tag tag-{{item.status}}">{{item.statusLabel}}</text>
+          <text class="tag tag-diet" wx:if="{{item.dietLabel && item.dietLabel !== '无要求'}}">{{item.dietLabel}}</text>
+          <text class="tag tag-guest" wx:if="{{item.guestCount > 0}}">+{{item.guestCount}}人</text>
+        </view>
+      </view>
+      <view class="reg-detail">
+        <text class="reg-session" wx:if="{{item.sessionName}}">场次：{{item.sessionName}}</text>
+        <text class="reg-time" wx:if="{{item.checkinTime}}">签到：{{item.checkinTime}}</text>
+        <text class="reg-code" wx:if="{{item.checkinCode}}" bindtap="copyCode" data-code="{{item.checkinCode}}">码：{{item.checkinCode}} 📋</text>
+      </view>
+      <view class="reg-note" wx:if="{{item.specialNeed}}">特殊需求：{{item.specialNeed}}</view>
+      <view class="reg-note" wx:if="{{item.dietNote}}">饮食备注：{{item.dietNote}}</view>
+    </view>
+  </view>
+
+  <view class="load-more" wx:if="{{!loading && hasMore && registrations.length > 0}}" bindtap="loadRegistrations" data-reset="{{false}}">加载更多</view>
+</view>

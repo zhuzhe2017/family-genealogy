@@ -1,0 +1,176 @@
+.container {
+  padding: 24rpx 24rpx 160rpx;
+  background: #F5F5F5;
+  min-height: 100vh;
+}
+
+.form {
+  background: #FFFFFF;
+  border-radius: 16rpx;
+  padding: 8rpx 24rpx 24rpx;
+}
+
+.section {
+  margin-top: 24rpx;
+}
+
+.label {
+  display: block;
+  font-size: 26rpx;
+  color: #666666;
+  margin-bottom: 12rpx;
+}
+
+/* 文件选择 */
+.file-picker {
+  background: #FAFAFA;
+  border: 2rpx dashed #DDD;
+  border-radius: 12rpx;
+  padding: 28rpx;
+}
+
+.picker-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12rpx;
+}
+
+.picker-icon {
+  font-size: 40rpx;
+  color: #999999;
+}
+
+.picker-text {
+  font-size: 28rpx;
+  color: #999999;
+}
+
+.file-chip {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+}
+
+.file-icon {
+  font-size: 44rpx;
+}
+
+.file-meta {
+  flex: 1;
+  overflow: hidden;
+}
+
+.file-name {
+  display: block;
+  font-size: 28rpx;
+  color: #333333;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.file-size {
+  display: block;
+  font-size: 24rpx;
+  color: #999999;
+  margin-top: 4rpx;
+}
+
+.file-remove {
+  width: 48rpx;
+  height: 48rpx;
+  line-height: 44rpx;
+  text-align: center;
+  background: rgba(0, 0, 0, 0.08);
+  color: #666666;
+  font-size: 36rpx;
+  border-radius: 50%;
+}
+
+.hint {
+  display: block;
+  font-size: 22rpx;
+  color: #AAAAAA;
+  margin-top: 8rpx;
+}
+
+/* 输入框 */
+.input {
+  width: 100%;
+  height: 80rpx;
+  background: #FAFAFA;
+  border-radius: 12rpx;
+  padding: 0 24rpx;
+  font-size: 28rpx;
+  box-sizing: border-box;
+}
+
+.textarea {
+  width: 100%;
+  min-height: 160rpx;
+  background: #FAFAFA;
+  border-radius: 12rpx;
+  padding: 20rpx 24rpx;
+  font-size: 28rpx;
+  line-height: 1.6;
+  box-sizing: border-box;
+}
+
+/* 分类选择 */
+.category-select {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 80rpx;
+  background: #FAFAFA;
+  border-radius: 12rpx;
+  padding: 0 24rpx;
+  box-sizing: border-box;
+}
+
+.category-text {
+  font-size: 28rpx;
+  color: #333333;
+}
+
+.category-placeholder {
+  font-size: 28rpx;
+  color: #999999;
+}
+
+.arrow {
+  color: #CCCCCC;
+  font-size: 32rpx;
+  transform: rotate(90deg);
+}
+
+/* 底部固定发布栏（与全局表单页统一） */
+.submit-bar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 16rpx 24rpx;
+  background: #FFFFFF;
+  box-shadow: 0 -2rpx 12rpx rgba(0, 0, 0, 0.05);
+}
+
+.submit-btn {
+  height: 88rpx;
+  line-height: 88rpx;
+  background: linear-gradient(135deg, #8B1A1A, #B22222);
+  color: #FFFFFF;
+  font-size: 30rpx;
+  border-radius: 44rpx;
+  margin: 0;
+  padding: 0;
+}
+
+.submit-btn::after {
+  border: none;
+}
+
+.submit-btn.disabled {
+  background: #D8B9B9;
+}

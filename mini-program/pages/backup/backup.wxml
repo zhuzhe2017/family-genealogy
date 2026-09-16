@@ -6,7 +6,13 @@
     <text class="backup-desc" wx:if="{{familyName}}">备份「{{familyName}}」数据到云端，防止数据丢失</text>
     <text class="backup-desc" wx:else>备份家族数据到云端，防止数据丢失</text>
     <button class="backup-btn" bindtap="backupData" disabled="{{backingUp}}">立即备份</button>
-    <button class="restore-btn" bindtap="restoreData">恢复数据</button>
+    <!-- 恢复数据：功能即将上线 -->
+    <view class="restore-btn" bindtap="restoreData">
+      <text>恢复数据</text>
+    </view>
+    <view class="restore-tip">
+      <text>数据恢复功能即将上线，敬请期待</text>
+    </view>
   </view>
 
   <!-- 离线提示 -->

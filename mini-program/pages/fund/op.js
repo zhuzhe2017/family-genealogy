@@ -79,7 +79,8 @@ Page({
   loadMembers() {
     fund.getMembers(this.data.familyId)
       .then((res) => {
-        const list = (res.list || []).filter((m) => m.userId !== app.globalData.userInfo.id);
+        const myId = ((app.globalData || {}).userInfo || {}).id;
+        const list = (res.list || []).filter((m) => m.userId !== myId);
         this.setData({ members: list });
       })
       .catch(() => {});

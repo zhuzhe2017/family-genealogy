@@ -121,24 +121,14 @@ Page({
           });
         })
         .catch((err) => {
-          console.error('编辑数据加载失败,使用 mock', err);
-          this.setMockEditData();
+          console.error('编辑数据加载失败', err);
+          this.setData({ editLoadFailed: true });
+          wx.showToast({ title: '编辑数据加载失败', icon: 'none' });
         });
     } else {
-      this.setMockEditData();
+      this.setData({ editLoadFailed: true });
+      wx.showToast({ title: '请登录后编辑', icon: 'none' });
     }
-  },
-
-  setMockEditData() {
-    this.setData({
-      'form.name': '朱太公',
-      'form.gender': 'male',
-      'form.birthDate': '1880-03-15',
-      'form.birthPlace': '山东省济南市',
-      'form.isAlive': false,
-      'form.deathDate': '1955-08-20',
-      'form.generationName': ''
-    });
   },
 
   inputChange(e) {

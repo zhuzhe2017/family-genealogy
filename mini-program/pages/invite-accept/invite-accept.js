@@ -1,7 +1,7 @@
 const app = getApp();
 const { invitation } = require('../../utils/api');
 const { getToken } = require('../../utils/request');
-const { resolveImageUrl } = require('../../utils/format');
+const { resolveImageUrl, normalizeFamily } = require('../../utils/format');
 
 Page({
   data: {
@@ -113,8 +113,12 @@ Page({
   refreshUserFamily() {
     const api = require('../../utils/api').auth;
     api.getMyFamily().then((data) => {
-      app.globalData.currentFamily = data.family || {};
-      app.globalData.userInfo = Object.assign(app.globalData.userInfo || {}, data.userInfo || {});
+      // data.family 是 FamilyBrief（缺 generationSequence 等字段），需 normalize 后使用
+      app.globalData.currentFamily = data.family ? normalizeFamily(data.family) : {};
+      // getMyFamily 返回的成员字段是 member（非 userInfo），仅在存在时合并
+      if (data.member) {
+        app.globalData.userInfo = Object.assign(app.globalData.userInfo || {}, data.member || {});
+      }
     }).catch(() => {});
   }
 });

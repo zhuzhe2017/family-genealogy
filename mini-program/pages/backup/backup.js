@@ -113,15 +113,9 @@ Page({
   restoreData() {
     wx.showModal({
       title: '恢复数据',
-      content: '确定要恢复到最近一次备份吗？当前数据将被覆盖。',
-      success: (res) => {
-        if (res.confirm) {
-          wx.showToast({
-            title: '恢复成功',
-            icon: 'success'
-          });
-        }
-      }
+      content: '数据恢复功能即将上线，敬请期待。',
+      showCancel: false,
+      confirmText: '我知道了'
     });
   },
 

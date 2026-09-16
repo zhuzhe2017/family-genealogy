@@ -100,6 +100,11 @@ Page({
     wx.navigateTo({ url: '/pages/fund/settings?familyId=' + this.data.familyId });
   },
 
+  /** 慈善榜单 */
+  goRank() {
+    wx.navigateTo({ url: '/pages/fund/rank?familyId=' + this.data.familyId });
+  },
+
   toggleHelp() {
     this.setData({ showHelp: !this.data.showHelp });
   }

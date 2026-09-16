@@ -6,7 +6,9 @@ const { getToken } = require('../../utils/request');
 
 Page({
   data: {
-    event: {}
+    event: {},
+    loading: true,
+    loadFailed: false
   },
 
   onLoad(options) {
@@ -14,21 +16,23 @@ Page({
     this.loadEvent(eventId);
   },
 
-  /** 加载事件详情:优先走后端 API,失败回退 mock */
+  /** 加载事件详情:优先走后端 API;失败仅提示,不回退 mock 数据,避免真假混杂 */
   loadEvent(id) {
     const familyId = (app.globalData.currentFamily || {}).id;
     if (!USE_MOCK && getToken() && familyId) {
+      this.setData({ loading: true, loadFailed: false });
       content.getById('event', id)
         .then((row) => {
           const base = normalizeEvent(row);
-          this.setData({ event: this.assembleEvent(base, row) });
+          this.setData({ event: this.assembleEvent(base, row), loading: false });
         })
         .catch((err) => {
-          console.error('事件详情加载失败,使用 mock', err);
-          this.setData({ event: this.getMockEvent(id) });
+          console.error('事件详情加载失败', err);
+          this.setData({ loading: false, loadFailed: true });
         });
     } else {
-      this.setData({ event: this.getMockEvent(id) });
+      // 离线/未登录场景使用演示数据,避免页面空白
+      this.setData({ event: this.getMockEvent(id), loading: false });
     }
   },
 

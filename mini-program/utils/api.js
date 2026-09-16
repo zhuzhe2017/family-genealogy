@@ -58,6 +58,10 @@ const auth = {
   getConsents: function () {
     return request({ url: '/user/consent' });
   },
+  /** 设置/修改登录密码（需登录，至少 6 位） */
+  setPassword: function (password) {
+    return request({ url: '/user/set-password', method: 'POST', data: { password: password } });
+  },
   /** 记录微信订阅消息授权（wx.requestSubscribeMessage 成功后调用） */
   recordSubscribeAuth: function (tmplId, scene) {
     return request({ url: '/user/subscribe-message/record', method: 'POST', data: { tmplId: tmplId, scene: scene || 'renewal_reminder' } });

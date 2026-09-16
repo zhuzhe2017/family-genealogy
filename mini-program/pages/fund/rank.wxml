@@ -1,0 +1,53 @@
+<view class="page">
+  <!-- 前三名 podium -->
+  <view class="podium" wx:if="{{rankList.length >= 3}}">
+    <view class="podium-item second">
+      <view class="podium-avatar">
+        <text>{{rankList[1].donorName[0]}}</text>
+      </view>
+      <text class="podium-name">{{rankList[1].donorName}}</text>
+      <text class="podium-amount">¥{{rankList[1].totalAmountText}}</text>
+      <view class="podium-badge badge-2">2</view>
+    </view>
+    <view class="podium-item first">
+      <view class="podium-avatar">
+        <text>{{rankList[0].donorName[0]}}</text>
+      </view>
+      <text class="podium-name">{{rankList[0].donorName}}</text>
+      <text class="podium-amount">¥{{rankList[0].totalAmountText}}</text>
+      <view class="podium-badge badge-1">1</view>
+    </view>
+    <view class="podium-item third">
+      <view class="podium-avatar">
+        <text>{{rankList[2].donorName[0]}}</text>
+      </view>
+      <text class="podium-name">{{rankList[2].donorName}}</text>
+      <text class="podium-amount">¥{{rankList[2].totalAmountText}}</text>
+      <view class="podium-badge badge-3">3</view>
+    </view>
+  </view>
+
+  <!-- 我的排名 -->
+  <view class="my-rank" wx:if="{{myRank}}">
+    <text>我的排名：第 {{myRank.rank}} 名，累计捐赠 ¥{{myRank.totalAmountText}}</text>
+  </view>
+
+  <!-- 完整榜单 -->
+  <view class="rank-section">
+    <view class="rank-title">慈善榜单</view>
+    <view class="loading" wx:if="{{loading}}">加载中...</view>
+    <view class="empty" wx:elif="{{!rankList.length}}">暂无捐赠记录</view>
+
+    <view class="rank-item" wx:for="{{rankList}}" wx:key="userId">
+      <view class="rank-num {{item.rankClass}}">{{item.rank}}</view>
+      <view class="rank-avatar">
+        <text>{{item.donorName[0]}}</text>
+      </view>
+      <view class="rank-info">
+        <text class="rank-name">{{item.donorName}}</text>
+        <text class="rank-count">{{item.donationCount}} 次捐赠</text>
+      </view>
+      <text class="rank-amount">¥{{item.totalAmountText}}</text>
+    </view>
+  </view>
+</view>

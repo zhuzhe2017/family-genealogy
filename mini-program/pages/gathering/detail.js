@@ -130,6 +130,11 @@ Page({
     wx.navigateTo({ url: '/pages/gathering/checkin?id=' + this.data.id + '&org=1' });
   },
 
+  /** 组织者：报名名单与参会统计 */
+  goRegistrations() {
+    wx.navigateTo({ url: '/pages/gathering/manage?id=' + this.data.id });
+  },
+
   runStatusAction() {
     const action = this.data.statusAction;
     const d = this.data.detail;
@@ -183,5 +188,73 @@ Page({
     const url = e.currentTarget.dataset.url;
     if (!url) return;
     wx.previewImage({ current: url, urls: [url] });
+  },
+
+  // ============ 归档管理（组织者） ============
+  addArchive() {
+    const that = this;
+    wx.chooseMedia({
+      count: 9,
+      mediaType: ['image'],
+      sizeType: ['compressed'],
+      sourceType: ['album', 'camera'],
+      success(res) {
+        const files = (res.tempFiles || []).map(f => f.tempFilePath);
+        if (!files.length) return;
+        wx.showLoading({ title: '上传中' });
+        const uploadTasks = files.map(f => that.uploadArchiveFile(f));
+        Promise.all(uploadTasks)
+          .then((results) => {
+            wx.hideLoading();
+            wx.showToast({ title: '上传成功', icon: 'success' });
+            that.loadDetail();
+          })
+          .catch((err) => {
+            wx.hideLoading();
+            wx.showToast({ title: (err && err.message) || '上传失败', icon: 'none' });
+          });
+      }
+    });
+  },
+
+  uploadArchiveFile(filePath) {
+    const { upload } = require('../../utils/request');
+    const familyId = this.data.familyId;
+    return upload({
+      url: '/common/upload',
+      filePath,
+      formData: { familyId: String(familyId), bizType: 'gathering_archive' }
+    }).then(data => {
+      return gathering.createArchive(familyId, this.data.id, {
+        title: (data.filename || '聚会照片').replace(/\.[^.]+$/, ''),
+        fileUrl: data.url,
+        fileType: 'image',
+        description: ''
+      });
+    });
+  },
+
+  deleteArchive(e) {
+    const archiveId = e.currentTarget.dataset.id;
+    const that = this;
+    wx.showModal({
+      title: '删除归档',
+      content: '确定删除该归档资料吗？',
+      confirmColor: '#E64340',
+      success(res) {
+        if (!res.confirm) return;
+        wx.showLoading({ title: '删除中' });
+        gathering.deleteArchive(that.data.familyId, that.data.id, archiveId)
+          .then(() => {
+            wx.hideLoading();
+            wx.showToast({ title: '已删除', icon: 'success' });
+            that.loadDetail();
+          })
+          .catch((err) => {
+            wx.hideLoading();
+            wx.showToast({ title: (err && err.message) || '删除失败', icon: 'none' });
+          });
+      }
+    });
   }
 });

@@ -104,7 +104,8 @@ Page({
       wx.onWindowResize(this._resizeHandler);
     }
     // 先加载分类(懒初始化),再拉取照片,保证分类列表可用
-    this.loadCategories().finally(() => this.fetchAndRender(true));
+    this._categoriesLoading = this.loadCategories();
+    this._categoriesLoading.finally(() => this.fetchAndRender(true));
   },
 
   onUnload() {
@@ -171,6 +172,29 @@ Page({
     this.setData({
       categories: [{ id: 'all', name: '全部', icon: '📷', count: photos.length }].concat(list)
     });
+  },
+
+  /**
+   * 从后端加载照片分类(懒初始化),失败时回退到兜底字典
+   * 加载结果缓存到 this._categories,供 addPhoto 的分类选择池使用
+   */
+  async loadCategories() {
+    const familyId = (app.globalData.currentFamily || {}).id;
+    if (USE_MOCK || !getToken() || !familyId) {
+      this._categories = PHOTO_CATEGORIES;
+      return;
+    }
+    try {
+      const categoryApi = require('../../utils/api').category;
+      const res = await categoryApi.getList('album', familyId);
+      const list = (res && (res.list || res)) || [];
+      // 后端返回的分类含 name/icon;仅保留有效项,避免空分类污染选择池
+      const valid = list.filter(c => c && c.id && c.name);
+      this._categories = valid.length ? valid : PHOTO_CATEGORIES;
+    } catch (err) {
+      console.warn('分类加载失败,回退默认分类', err);
+      this._categories = PHOTO_CATEGORIES;
+    }
   },
 
   /** 拉取数据并渲染 */
@@ -340,27 +364,39 @@ Page({
     this.renderMasonry(viewPhotos, false);
   },
 
-  addPhoto() {
+  /** 添加照片:选图 → 确认分类 → 压缩上传 → 记录元数据 */
+  async addPhoto() {
     wx.chooseMedia({
       count: 9,
       mediaType: ['image'],
       sizeType: ['compressed'],
       sourceType: ['album', 'camera'],
       success: (res) => {
-        const files = (res.tempFiles || []).map(f => f.tempFilePath);
-        if (!files.length) return;
-        // 先选照片分类,保证分类切换有真实数据可切(分类池:动态分类优先,兜底字典次之)
-        const pool = (this._categories && this._categories.length) ? this._categories : PHOTO_CATEGORIES;
-        const itemList = pool.map(c => c.name).concat(['未分类']);
-        wx.showActionSheet({
-          itemList,
-          success: (pick) => {
-            const categoryId = pick.tapIndex < pool.length ? pool[pick.tapIndex].id : '';
-            this.uploadPhotos(files, categoryId);
-          }
+        // 确保分类已加载完成(await 兜底字典/后端分类)
+        this.ensureCategories().then(() => {
+          const files = (res.tempFiles || []).map(f => f.tempFilePath);
+          if (!files.length) return;
+          // 先选照片分类,保证分类切换有真实数据可切(分类池:动态分类优先,兜底字典次之)
+          const pool = (this._categories && this._categories.length) ? this._categories : PHOTO_CATEGORIES;
+          const itemList = pool.map(c => c.name).concat(['未分类']);
+          wx.showActionSheet({
+            itemList,
+            success: (pick) => {
+              const categoryId = pick.tapIndex < pool.length ? pool[pick.tapIndex].id : '';
+              this.uploadPhotos(files, categoryId);
+            }
+          });
         });
       }
     });
+  },
+
+  /** 保证分类已就绪:若仍在加载则等待,避免 addPhoto 读到 undefined */
+  ensureCategories() {
+    if (this._categories) return Promise.resolve();
+    if (this._categoriesLoading) return this._categoriesLoading;
+    this._categoriesLoading = this.loadCategories();
+    return this._categoriesLoading;
   },
 
   /** 逐张上传并创建照片记录,全部成功后统一刷新 */

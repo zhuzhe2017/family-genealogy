@@ -13,12 +13,17 @@ export const ALLOWED_IMAGE_TYPES: Record<string, string> = {
   'image/webp': '.webp'
 };
 
+/** 允许上传的文档类型（MIME 类型 → 扩展名） */
+export const ALLOWED_DOC_TYPES: Record<string, string> = {
+  'application/pdf': '.pdf'
+};
+
 /** 单文件最大体积（5MB） */
 export const MAX_FILE_SIZE = 5 * 1024 * 1024;
 
 /** 根据 MIME 类型生成带扩展名的文件名（随机十六进制，避免重名/路径注入） */
 export function buildStoredFileName(mimetype: string): string {
-  const ext = ALLOWED_IMAGE_TYPES[mimetype] || '';
+  const ext = ALLOWED_IMAGE_TYPES[mimetype] || ALLOWED_DOC_TYPES[mimetype] || '';
   return `${Date.now()}-${Math.random().toString(36).slice(2, 10)}${ext}`;
 }
 

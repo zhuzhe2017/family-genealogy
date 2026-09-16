@@ -16,6 +16,12 @@
 
   <!-- 资料列表 -->
   <view class="docs-list">
+    <!-- 加载中 -->
+    <view class="doc-loading" wx:if="{{loading}}">加载中...</view>
+    <!-- 加载失败 -->
+    <view class="doc-error" wx:elif="{{loadFailed}}">加载失败，请下拉重试</view>
+    <!-- 空态 -->
+    <view class="doc-empty" wx:elif="{{!documents.length}}">暂无文档资料</view>
     <view class="doc-card" wx:for="{{documents}}" wx:key="id" bindtap="viewDoc" data-id="{{item.id}}">
       <view class="doc-cover">
         <view class="doc-cover-inner">

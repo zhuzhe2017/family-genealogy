@@ -1,6 +1,7 @@
 const app = getApp();
 const { invitation, family } = require('../../utils/api');
 const { getToken } = require('../../utils/request');
+const { normalizeFamily } = require('../../utils/format');
 
 const STATUS_TEXT = { 0: '已失效', 1: '待接受', 2: '已接受', 3: '已拒绝', 4: '已过期' };
 const ROLE_TEXT = { member: '普通会员', admin: '家族管理员' };
@@ -330,8 +331,12 @@ Page({
   refreshUserFamily() {
     const api = require('../../utils/api').auth;
     api.getMyFamily().then((data) => {
-      app.globalData.currentFamily = data.family || {};
-      app.globalData.userInfo = Object.assign(app.globalData.userInfo || {}, data.userInfo || {});
+      // data.family 是 FamilyBrief（缺 generationSequence 等字段），需 normalize 后使用
+      app.globalData.currentFamily = data.family ? normalizeFamily(data.family) : {};
+      // getMyFamily 返回的成员字段是 member（非 userInfo），仅在存在时合并
+      if (data.member) {
+        app.globalData.userInfo = Object.assign(app.globalData.userInfo || {}, data.member || {});
+      }
       this.setData({ familyInfo: app.globalData.currentFamily, userInfo: app.globalData.userInfo });
     }).catch(() => {});
   },

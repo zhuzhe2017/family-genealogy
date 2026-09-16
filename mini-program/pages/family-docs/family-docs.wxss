@@ -38,6 +38,15 @@
   gap: 20rpx;
 }
 
+.doc-loading,
+.doc-error,
+.doc-empty {
+  text-align: center;
+  padding: 80rpx 0;
+  font-size: 28rpx;
+  color: #999;
+}
+
 .doc-card {
   display: flex;
   background: #FFFFFF;

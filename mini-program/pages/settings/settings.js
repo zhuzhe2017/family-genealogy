@@ -1,4 +1,5 @@
 const { auth } = require('../../utils/api');
+const { getToken } = require('../../utils/request');
 
 Page({
   data: {
@@ -37,7 +38,7 @@ Page({
 
   /** 加载隐私同意状态 */
   loadConsents() {
-    if (!getApp().globalData.token) return;
+    if (!getToken()) return;
     auth.getConsents()
       .then(res => {
         this.setData({ privacyConsents: res || [] });
@@ -64,8 +65,10 @@ Page({
         if (res.confirm) {
           try {
             wx.clearStorageSync();
-            getApp().globalData.token = null;
             getApp().globalData.userInfo = null;
+            getApp().globalData.myFamily = null;
+            getApp().globalData.currentFamily = null;
+            getApp().globalData.isOnline = false;
             this.setData({
               cacheSize: '0KB',
               privacyConsents: []
@@ -88,7 +91,7 @@ Page({
 
   /** 隐私设置：展示已同意的协议版本 */
   setPrivacy() {
-    if (!getApp().globalData.token) {
+    if (!getToken()) {
       wx.navigateTo({ url: '/pages/login/login' });
       return;
     }
@@ -112,7 +115,7 @@ Page({
 
   /** 修改密码：输入新密码并确认 */
   setPassword() {
-    if (!getApp().globalData.token) {
+    if (!getToken()) {
       wx.navigateTo({ url: '/pages/login/login' });
       return;
     }

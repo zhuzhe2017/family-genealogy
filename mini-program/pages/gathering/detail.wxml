@@ -82,7 +82,7 @@
   </view>
 
   <!-- 归档资料 -->
-  <view class="card" wx:if="{{archives.length > 0}}">
+  <view class="card" wx:if="{{archives.length > 0 || detail.isOrganizer}}">
     <view class="section-title">聚会资料归档</view>
     <view class="archive-item" wx:for="{{archives}}" wx:key="id">
       <image wx:if="{{item.fileType === 'image' && item.fileUrl}}" class="archive-img" src="{{item.fileUrl}}" mode="aspectFill" bindtap="previewArchive" data-url="{{item.fileUrl}}" />
@@ -90,14 +90,19 @@
         <text class="archive-title">{{item.title}}</text>
         <text class="archive-desc" wx:if="{{item.description}}">{{item.description}}</text>
       </view>
+      <view class="archive-delete" wx:if="{{detail.isOrganizer}}" bindtap="deleteArchive" data-id="{{item.id}}">×</view>
     </view>
+    <button class="btn-ghost btn-full" wx:if="{{detail.isOrganizer}}" bindtap="addArchive">＋ 上传归档照片</button>
   </view>
 
   <!-- 组织者管理 -->
   <view class="card" wx:if="{{detail.isOrganizer}}">
     <view class="section-title">组织者管理</view>
     <view class="btn-group">
-      <button class="btn-primary" bindtap="goManage">报名名单 / 签到核销</button>
+      <button class="btn-primary" bindtap="goManage">签到核销</button>
+      <button class="btn-ghost" bindtap="goRegistrations">报名名单 / 统计</button>
+    </view>
+    <view class="btn-group">
       <button class="btn-ghost" bindtap="goEdit">编辑聚会</button>
     </view>
     <view class="btn-group" wx:if="{{statusAction}}">

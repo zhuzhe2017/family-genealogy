@@ -2246,7 +2246,8 @@ computeFitScale(contentW, contentH) {
 
   showNodeDetail(e) {
     const id = e.currentTarget.dataset.id;
-    const node = this.data.memberList.find(m => m.id === id);
+    // dataset 取值为字符串，成员 id 为数字，统一转字符串比较避免严格相等不命中
+    const node = this.data.memberList.find(m => String(m.id) === String(id));
     if (node) {
       this.openModal(node);
     }

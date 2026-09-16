@@ -238,6 +238,20 @@
   color: #999;
 }
 
+.archive-delete {
+  width: 48rpx;
+  height: 48rpx;
+  border-radius: 50%;
+  background: #F5F5F5;
+  color: #999;
+  font-size: 32rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  align-self: flex-start;
+}
+
 .empty {
   padding: 200rpx 0;
   text-align: center;

@@ -1,5 +1,13 @@
 <wxs src="../../utils/filters.wxs" module="f" />
 <view class="page-container">
+  <!-- 加载中 -->
+  <view class="state-block" wx:if="{{loading}}">加载中...</view>
+  <!-- 加载失败 -->
+  <view class="state-block" wx:elif="{{loadFailed}}">
+    <text>加载失败，请返回重试</text>
+  </view>
+  <!-- 正常内容 -->
+  <block wx:else>
   <!-- 事件头部 -->
   <view class="event-header-section">
     <view class="event-date-badge">
@@ -61,4 +69,5 @@
       <text>分享</text>
     </button>
   </view>
+  </block>
 </view>
