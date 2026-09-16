@@ -142,6 +142,8 @@ async function renderTree() {
   }
 
   const isLargeTree = members.value.length > 300;
+// 初次加载只展示前 INITIAL_GENERATIONS 代，其余折叠，点击节点展开
+const INITIAL_GENERATIONS = 5;
 
   try {
     const width = container.clientWidth || 800;
@@ -171,31 +173,26 @@ async function renderTree() {
     // 创建层级布局
     const root = d3.hierarchy(data);
 
-    // 大数据量时首屏折叠
-    if (isLargeTree && root.children) {
-      root.children.forEach(child => {
-        if (child.children) {
-          child._children = child.children;
-          child.children = undefined;
-        }
-      });
-    }
+    // 初次加载只展示前 INITIAL_GENERATIONS 代，其余折叠，点击节点展开
+    root.descendants().forEach(d => {
+      if (d.depth >= INITIAL_GENERATIONS && d.children) {
+        d._children = d.children;
+        d.children = undefined;
+      }
+    });
 
     // 树布局
     const treeLayout = d3.tree<TreeNodeDatum>().nodeSize([140, 200]);
     treeLayout(root as d3.HierarchyPointNode<TreeNodeDatum>);
 
-    // 绘制连线
+    // 绘制连线（折线：父节点垂直向下，再水平连接到子节点）
     const link = g
       .selectAll('.link')
       .data(root.links())
       .enter()
       .append('path')
       .attr('class', 'link')
-      .attr('d', d3.linkVertical<any, d3.HierarchyPointNode<TreeNodeDatum>>()
-        .x(d => d.x)
-        .y(d => d.y)
-      )
+      .attr('d', elbowLink)
       .attr('fill', 'none')
       .attr('stroke', '#d4d4d4')
       .attr('stroke-width', 1.5);
@@ -264,6 +261,14 @@ async function renderTree() {
         return d.data.member.generation_name || `第${d.data.generation}代`;
       });
 
+    // 折线路径生成器：父节点垂直向下，再水平连接到子节点
+    function elbowLink(d: d3.HierarchyLink<TreeNodeDatum>) {
+      const s = d.source as d3.HierarchyPointNode<TreeNodeDatum>;
+      const t = d.target as d3.HierarchyPointNode<TreeNodeDatum>;
+      const midY = (s.y + t.y) / 2;
+      return `M${s.x},${s.y}V${midY}H${t.x}V${t.y}`;
+    }
+
     // 更新函数（用于折叠/展开）
     function update(source: d3.HierarchyPointNode<TreeNodeDatum>) {
       if (!svg) return;
@@ -284,18 +289,12 @@ async function renderTree() {
         .attr('fill', 'none')
         .attr('stroke', '#d4d4d4')
         .attr('stroke-width', 1.5)
-        .attr('d', d3.linkVertical<any, d3.HierarchyPointNode<TreeNodeDatum>>()
-          .x(d => d.x)
-          .y(d => d.y)
-        );
+        .attr('d', elbowLink);
 
       linkUpdate
         .transition()
         .duration(300)
-        .attr('d', d3.linkVertical<any, d3.HierarchyPointNode<TreeNodeDatum>>()
-          .x(d => d.x)
-          .y(d => d.y)
-        );
+        .attr('d', elbowLink);
 
       // 更新节点
       const nodeUpdate = g
@@ -393,11 +392,7 @@ async function renderTree() {
 
     // 渲染结果反馈
     const visibleCount = root.descendants().length;
-    if (isLargeTree) {
-      renderInfo.value = `已加载 ${members.value.length} 位成员。因人数较多，首屏仅展示 ${data.children.length} 位顶层成员，点击节点展开/折叠。`;
-    } else {
-      renderInfo.value = `已渲染全部 ${visibleCount} 位成员。`;
-    }
+    renderInfo.value = `已加载 ${members.value.length} 位成员，当前显示前 ${INITIAL_GENERATIONS} 代共 ${visibleCount} 人，点击节点展开/折叠。`;
   } catch (e: any) {
     loadError.value = e?.message || '家族树渲染失败，请刷新重试';
   }
