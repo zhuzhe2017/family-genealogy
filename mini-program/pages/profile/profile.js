@@ -96,8 +96,10 @@ Page({
         memberName: memberName,
         memberId: memberId,
         shareCode: shareCode,
-        // 已关联家族（family 存在即视为已绑定支系）
-        bound: !!(my.familyId || info.familyId) && !!familyName
+        // 已加入家族（family 存在即视为已绑定支系）
+        bound: !!(my.familyId || info.familyId) && !!familyName,
+        // 已绑定家族成员ID（仅看 memberId，与是否加入家族无关）
+        memberBound: !!memberId
       }
     });
   },
@@ -133,7 +135,7 @@ Page({
   submitBindId() {
     if (this.data.bindForm.submitting) return;
     // 唯一性校验：已绑定则不允许再次绑定
-    if (this.data.familyInfo.memberId) {
+    if (this.data.familyInfo.memberBound) {
       this.setData({ bindError: '每个账号仅可绑定一个家族成员ID' });
       return;
     }

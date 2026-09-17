@@ -62,11 +62,11 @@
   <view class="bind-card" wx:if="{{isOnline}}">
     <view class="bind-card-header">
       <text class="bind-card-title">绑定家族成员ID</text>
-      <text class="bind-card-status {{familyInfo.bound ? 'bind-card-status-on' : ''}}">{{familyInfo.memberName ? '已绑定：' + familyInfo.memberName : '未绑定'}}</text>
+      <text class="bind-card-status {{familyInfo.memberBound ? 'bind-card-status-on' : ''}}">{{familyInfo.memberBound ? '已绑定' : '未绑定'}}</text>
     </view>
 
     <!-- 已绑定：仅展示，入口禁用 -->
-    <view class="bind-card-body" wx:if="{{familyInfo.bound}}">
+    <view class="bind-card-body" wx:if="{{familyInfo.memberBound}}">
       <view class="bind-card-row">
         <text class="bind-card-label">已绑定成员</text>
         <text class="bind-card-value">{{familyInfo.memberName || familyInfo.memberId}}</text>
