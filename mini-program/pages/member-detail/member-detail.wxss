@@ -161,6 +161,46 @@
   font-weight: 500;
 }
 
+/* 成员ID等宽展示 */
+.row-value-mono {
+  font-family: 'Courier New', 'SF Mono', Consolas, monospace;
+  letter-spacing: 0.5rpx;
+}
+
+/* 值+操作按钮容器 */
+.row-value-with-action {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+}
+
+/* 复制按钮 */
+.copy-btn {
+  padding: 8rpx 24rpx;
+  border-radius: 24rpx;
+  background: rgba(139, 26, 26, 0.08);
+  border: 1rpx solid rgba(139, 26, 26, 0.2);
+  min-width: 96rpx;
+  text-align: center;
+}
+
+.copy-btn-text {
+  font-size: 24rpx;
+  color: #8B1A1A;
+  font-weight: 500;
+}
+
+/* 小屏适配：ID 过长时允许换行，避免溢出 */
+@media (max-width: 400px) {
+  .row-value-with-action {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+  .row-value-mono {
+    font-size: 26rpx;
+  }
+}
+
 /* 配偶信息块（多位配偶循环展示） */
 .spouse-block {
   padding: 8rpx 0 16rpx;

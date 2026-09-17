@@ -33,6 +33,15 @@
   <view class="info-card">
     <view class="card-title">基本信息</view>
     <view class="info-rows">
+      <view class="info-row" wx:if="{{member.id}}">
+        <text class="row-label">成员ID</text>
+        <view class="row-value-with-action">
+          <text class="row-value row-value-mono">{{member.id}}</text>
+          <view class="copy-btn" bindtap="copyMemberId" data-id="{{member.id}}" role="button" aria-label="复制成员ID">
+            <text class="copy-btn-text">{{copied ? '已复制' : '复制'}}</text>
+          </view>
+        </view>
+      </view>
       <view class="info-row">
         <text class="row-label">姓名</text>
         <text class="row-value">{{member.name}}</text>

@@ -8,7 +8,25 @@ Page({
   data: {
     member: {},
     loading: true,
-    loadFailed: false
+    loadFailed: false,
+    copied: false
+  },
+
+  /** 复制成员ID到剪贴板，按钮短暂切换为"已复制"反馈 */
+  copyMemberId(e) {
+    const id = e.currentTarget.dataset.id;
+    if (!id) return;
+    wx.setClipboardData({
+      data: String(id),
+      success: () => {
+        this.setData({ copied: true });
+        if (this._copyTimer) clearTimeout(this._copyTimer);
+        this._copyTimer = setTimeout(() => this.setData({ copied: false }), 1500);
+      },
+      fail: () => {
+        wx.showToast({ title: '复制失败', icon: 'none' });
+      }
+    });
   },
 
   onLoad(options) {
