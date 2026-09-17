@@ -102,6 +102,8 @@ export interface FatherCandidate {
 
 /** 父亲配偶（候选母亲）。数组下标即配偶序号（从0开始），用作母亲ID */
 export interface FatherSpouse {
+  /** 配偶在父亲 spouse_info 数组中的下标（母亲ID存此序号，从0开始） */
+  rank: number;
   name: string;
   birthDate?: string;
   deathDate?: string;

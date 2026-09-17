@@ -515,7 +515,9 @@ export class FamilyMemberService {
       const parsed: unknown = typeof raw === 'string' ? JSON.parse(raw) : raw;
       const list = Array.isArray(parsed) ? parsed : [parsed];
       return list
-        .map((s: any) => ({
+        // rank 即数组下标（母亲ID存序号），前端候选列表用它作 id
+        .map((s: any, idx: number) => ({
+          rank: idx,
           name: s.name || '',
           birthDate: s.birthDate || s.birth_date || '',
           deathDate: s.deathDate || s.death_date || '',

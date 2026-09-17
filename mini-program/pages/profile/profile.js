@@ -126,9 +126,9 @@ Page({
     });
   },
 
-  /** 校验ID格式：纯数字，长度1-10位 */
+  /** 校验ID格式：32位十六进制（成员ID为 randomBytes(16).toString('hex')） */
   validateBindId(id) {
-    return /^\d{1,10}$/.test(String(id || '').trim());
+    return /^[0-9a-fA-F]{32}$/.test(String(id || '').trim());
   },
 
   /** 提交绑定：校验 → 确认 → 调用后端 */
@@ -145,7 +145,7 @@ Page({
       return;
     }
     if (!this.validateBindId(id)) {
-      this.setData({ bindError: 'ID格式不正确，应为1-10位数字' });
+      this.setData({ bindError: 'ID格式不正确，应为32位十六进制字符（0-9、a-f）' });
       return;
     }
     // 绑定前确认环节

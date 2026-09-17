@@ -77,7 +77,7 @@
     <!-- 未绑定：输入 + 绑定 -->
     <view class="bind-card-body" wx:else>
       <view class="bind-input-row">
-        <input class="bind-input" type="text" value="{{bindForm.memberId}}" bindinput="onBindIdInput" placeholder="粘贴或输入成员ID" maxlength="20" />
+        <input class="bind-input" type="text" value="{{bindForm.memberId}}" bindinput="onBindIdInput" placeholder="粘贴或输入成员ID" maxlength="32" />
         <view class="bind-paste-btn" bindtap="pasteBindId" role="button" aria-label="粘贴">粘贴</view>
       </view>
       <text class="bind-error" wx:if="{{bindError}}">{{bindError}}</text>
