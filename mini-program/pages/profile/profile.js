@@ -9,8 +9,11 @@ Page({
     userInfo: {},
     editVisible: false,
     isOnline: false,
-    // 我的家族关联:{ familyId, familyName, memberName, shareCode, bound }
-    familyInfo: { familyId: '', familyName: '', memberName: '', shareCode: '', bound: false },
+    // 我的家族关联:{ familyId, familyName, memberName, memberId, shareCode, bound }
+    familyInfo: { familyId: '', familyName: '', memberName: '', memberId: '', shareCode: '', bound: false },
+    // 绑定家族成员ID表单
+    bindForm: { memberId: '', submitting: false },
+    bindError: '',
     editForm: {
       nickName: '',
       gender: 0,
@@ -84,17 +87,100 @@ Page({
     const info = app.globalData.userInfo || {};
     const familyName = (my.family && my.family.name) || '';
     const memberName = (my.member && my.member.name) || '';
+    const memberId = my.memberId || info.memberId || '';
     const shareCode = my.shareCode || info.shareCode || '';
     this.setData({
       familyInfo: {
         familyId: my.familyId || info.familyId || '',
         familyName: familyName,
         memberName: memberName,
+        memberId: memberId,
         shareCode: shareCode,
         // 已关联家族（family 存在即视为已绑定支系）
         bound: !!(my.familyId || info.familyId) && !!familyName
       }
     });
+  },
+
+  /** 输入绑定ID */
+  onBindIdInput(e) {
+    this.setData({ 'bindForm.memberId': e.detail.value, bindError: '' });
+  },
+
+  /** 从剪贴板粘贴ID */
+  pasteBindId() {
+    wx.getClipboardData({
+      success: (res) => {
+        const text = (res.data || '').trim();
+        if (text) {
+          this.setData({ 'bindForm.memberId': text, bindError: '' });
+        } else {
+          wx.showToast({ title: '剪贴板为空', icon: 'none' });
+        }
+      },
+      fail: () => {
+        wx.showToast({ title: '读取剪贴板失败', icon: 'none' });
+      }
+    });
+  },
+
+  /** 校验ID格式：纯数字，长度1-10位 */
+  validateBindId(id) {
+    return /^\d{1,10}$/.test(String(id || '').trim());
+  },
+
+  /** 提交绑定：校验 → 确认 → 调用后端 */
+  submitBindId() {
+    if (this.data.bindForm.submitting) return;
+    // 唯一性校验：已绑定则不允许再次绑定
+    if (this.data.familyInfo.memberId) {
+      this.setData({ bindError: '每个账号仅可绑定一个家族成员ID' });
+      return;
+    }
+    const id = String(this.data.bindForm.memberId || '').trim();
+    if (!id) {
+      this.setData({ bindError: '请输入成员ID' });
+      return;
+    }
+    if (!this.validateBindId(id)) {
+      this.setData({ bindError: 'ID格式不正确，应为1-10位数字' });
+      return;
+    }
+    // 绑定前确认环节
+    wx.showModal({
+      title: '确认绑定',
+      content: `请核实：将把成员ID「${id}」绑定为您的家族成员。每个账号仅可绑定一个，绑定后可编辑该成员资料。确认绑定？`,
+      confirmText: '确认绑定',
+      cancelText: '再想想',
+      success: (res) => {
+        if (!res.confirm) return;
+        this.doBindMember(id);
+      }
+    });
+  },
+
+  /** 调用后端绑定 */
+  doBindMember(id) {
+    this.setData({ 'bindForm.submitting': true });
+    auth.bindMember(id)
+      .then((userInfo) => {
+        // 回写全局绑定态并刷新家族关联
+        app.globalData.userInfo = Object.assign(app.globalData.userInfo || {}, userInfo || {});
+        if (app.loadMyFamily) app.loadMyFamily();
+        this.setData({
+          'bindForm.memberId': '',
+          'bindForm.submitting': false,
+          bindError: ''
+        });
+        this.loadFamilyInfo();
+        wx.showToast({ title: '绑定成功', icon: 'success' });
+      })
+      .catch((err) => {
+        this.setData({
+          'bindForm.submitting': false,
+          bindError: (err && err.message) || '绑定失败，请稍后重试'
+        });
+      });
   },
 
   /** 加入家族支系入口:输入分享码 */

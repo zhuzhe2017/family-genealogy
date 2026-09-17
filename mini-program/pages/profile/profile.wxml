@@ -58,6 +58,38 @@
     </view>
   </view>
 
+  <!-- 绑定家族成员ID（登录后展示，每账号仅可绑定一个） -->
+  <view class="bind-card" wx:if="{{isOnline}}">
+    <view class="bind-card-header">
+      <text class="bind-card-title">绑定家族成员ID</text>
+      <text class="bind-card-status {{familyInfo.bound ? 'bind-card-status-on' : ''}}">{{familyInfo.memberName ? '已绑定：' + familyInfo.memberName : '未绑定'}}</text>
+    </view>
+
+    <!-- 已绑定：仅展示，入口禁用 -->
+    <view class="bind-card-body" wx:if="{{familyInfo.bound}}">
+      <view class="bind-card-row">
+        <text class="bind-card-label">已绑定成员</text>
+        <text class="bind-card-value">{{familyInfo.memberName || familyInfo.memberId}}</text>
+      </view>
+      <text class="bind-card-tip">每个账号仅可绑定一个家族成员ID，如需变更请联系族长。</text>
+    </view>
+
+    <!-- 未绑定：输入 + 绑定 -->
+    <view class="bind-card-body" wx:else>
+      <view class="bind-input-row">
+        <input class="bind-input" type="text" value="{{bindForm.memberId}}" bindinput="onBindIdInput" placeholder="粘贴或输入成员ID" maxlength="20" />
+        <view class="bind-paste-btn" bindtap="pasteBindId" role="button" aria-label="粘贴">粘贴</view>
+      </view>
+      <text class="bind-error" wx:if="{{bindError}}">{{bindError}}</text>
+      <view class="bind-card-actions">
+        <view class="bind-submit-btn {{bindForm.submitting ? 'bind-submit-btn-disabled' : ''}}" bindtap="submitBindId" role="button" aria-label="绑定">
+          <text class="bind-submit-text">{{bindForm.submitting ? '绑定中...' : '立即绑定'}}</text>
+        </view>
+      </view>
+      <text class="bind-card-tip">每个账号仅可绑定一个家族成员ID，绑定后可编辑该成员资料，不受 VIP 限制。</text>
+    </view>
+  </view>
+
   <!-- 功能菜单 -->
   <view class="menu-section">
     <view class="menu-group">

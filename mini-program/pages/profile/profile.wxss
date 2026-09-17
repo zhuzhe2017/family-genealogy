@@ -493,3 +493,126 @@
   font-size: 26rpx;
   border-radius: 999rpx;
 }
+
+/* 绑定家族成员ID卡片 */
+.bind-card {
+  margin: 0 24rpx 24rpx;
+  background: #FFFFFF;
+  border-radius: 24rpx;
+  padding: 28rpx 24rpx;
+  box-shadow: 0 2rpx 12rpx rgba(0,0,0,0.04);
+}
+
+.bind-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20rpx;
+}
+
+.bind-card-title {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #333;
+}
+
+.bind-card-status {
+  font-size: 22rpx;
+  color: #999;
+  padding: 4rpx 16rpx;
+  border-radius: 999rpx;
+  background: #F5F5F5;
+}
+
+.bind-card-status-on {
+  color: #2E7D32;
+  background: rgba(46, 125, 50, 0.08);
+}
+
+.bind-card-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8rpx 0;
+}
+
+.bind-card-label {
+  font-size: 26rpx;
+  color: #666;
+}
+
+.bind-card-value {
+  font-family: 'Courier New', 'SF Mono', Consolas, monospace;
+  font-size: 26rpx;
+  color: #333;
+  font-weight: 500;
+}
+
+.bind-input-row {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  margin-bottom: 16rpx;
+}
+
+.bind-input {
+  flex: 1;
+  height: 72rpx;
+  padding: 0 24rpx;
+  background: #F8F8F8;
+  border: 1rpx solid #EEE;
+  border-radius: 16rpx;
+  font-size: 28rpx;
+  font-family: 'Courier New', 'SF Mono', Consolas, monospace;
+  color: #333;
+}
+
+.bind-paste-btn {
+  padding: 0 28rpx;
+  height: 72rpx;
+  line-height: 72rpx;
+  border: 1rpx solid #F0C8C8;
+  border-radius: 16rpx;
+  color: #8B1A1A;
+  font-size: 26rpx;
+  flex-shrink: 0;
+}
+
+.bind-error {
+  display: block;
+  font-size: 24rpx;
+  color: #C62828;
+  margin-bottom: 16rpx;
+}
+
+.bind-card-actions {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 16rpx;
+}
+
+.bind-submit-btn {
+  width: 100%;
+  padding: 16rpx 0;
+  background: #8B1A1A;
+  border-radius: 999rpx;
+  text-align: center;
+}
+
+.bind-submit-btn-disabled {
+  opacity: 0.6;
+}
+
+.bind-submit-text {
+  font-size: 28rpx;
+  color: #FFFFFF;
+  font-weight: 500;
+}
+
+.bind-card-tip {
+  display: block;
+  font-size: 22rpx;
+  color: #999;
+  line-height: 1.5;
+  text-align: center;
+}

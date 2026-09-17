@@ -161,17 +161,27 @@
   font-weight: 500;
 }
 
-/* 成员ID等宽展示 */
-.row-value-mono {
-  font-family: 'Courier New', 'SF Mono', Consolas, monospace;
-  letter-spacing: 0.5rpx;
+/* 成员ID卡片（底部独立展示，纵向居中） */
+.id-card {
+  background: #FAF8F5;
+  border: 1rpx solid rgba(139, 26, 26, 0.1);
 }
 
-/* 值+操作按钮容器 */
-.row-value-with-action {
+.id-card-inner {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 16rpx;
+  gap: 24rpx;
+}
+
+.id-card-value {
+  font-family: 'Courier New', 'SF Mono', Consolas, monospace;
+  font-size: 36rpx;
+  color: #333;
+  font-weight: 600;
+  letter-spacing: 1rpx;
+  word-break: break-all;
+  text-align: center;
 }
 
 /* 复制按钮 */
@@ -190,14 +200,10 @@
   font-weight: 500;
 }
 
-/* 小屏适配：ID 过长时允许换行，避免溢出 */
+/* 小屏适配：ID字号微调 */
 @media (max-width: 400px) {
-  .row-value-with-action {
-    flex-wrap: wrap;
-    justify-content: flex-end;
-  }
-  .row-value-mono {
-    font-size: 26rpx;
+  .id-card-value {
+    font-size: 30rpx;
   }
 }
 
