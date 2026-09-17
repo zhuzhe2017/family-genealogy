@@ -9,7 +9,7 @@
   <view class="tool-card" wx:if="{{tools.length > 0}}">
     <view class="tool-item" wx:for="{{tools}}" wx:key="id" bindtap="openTool" data-item="{{item}}">
       <view class="tool-icon tool-icon-plugin">
-        <image wx:if="{{item.iconImage}}" class="tool-icon-img" src="{{item.icon}}" mode="aspectFill" />
+        <image wx:if="{{item.iconImage}}" class="tool-icon-img" src="{{item.iconSrc}}" mode="aspectFill" />
         <text wx:else class="tool-icon-text">{{item.icon}}</text>
       </view>
       <view class="tool-info">

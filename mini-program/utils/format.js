@@ -183,7 +183,9 @@ function normalizeDocument(row) {
     name: row.name || '',
     volume: row.volume || '',
     description: row.description || '',
-    updateTime: row.create_time || '',
+    // 保留文件 URL 供详情页阅读器跳转（normalize 后透传）
+    fileUrl: row.file_url || '',
+    updateTime: row.update_time || row.create_time || '',
     pages: row.page_count || 0,
     category: row.category_id || ''
   };

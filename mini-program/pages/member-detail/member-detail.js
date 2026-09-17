@@ -13,11 +13,13 @@ Page({
 
   onLoad(options) {
     const memberId = options.id;
+    // 优先使用 URL 传入的 familyId，避免切换家族后 globalData 串家族（globalData 仅作兜底）
+    this._familyId = Number(options.familyId) || (app.globalData.currentFamily || {}).id || 0;
     this.loadMemberDetail(memberId);
   },
 
   loadMemberDetail(id) {
-    const familyId = (app.globalData.currentFamily || {}).id;
+    const familyId = this._familyId || (app.globalData.currentFamily || {}).id;
     if (!USE_MOCK && getToken() && familyId) {
       this.setData({ loading: true, loadFailed: false });
       // 并行请求成员详情 + 子女列表,避免全量拉取家族成员

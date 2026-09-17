@@ -1,5 +1,6 @@
 /** 工具管理:对应用中心插件工具进行购买、授权及相关管理操作(数据源与应用中心一致,来自 app_plugin) */
 const { plugin } = require('../../utils/api');
+const { resolveImageUrl } = require('../../utils/format');
 const TAB_BAR_PAGES = ['/pages/home/home', '/pages/family-tree/family-tree', '/pages/dynamic/dynamic', '/pages/profile/profile'];
 
 Page({
@@ -26,7 +27,9 @@ Page({
             description: item.description || '',
             entryType: item.entryType || 'page',
             entryValue: item.entryValue || '',
-            iconImage: /^https?:\/\//.test(item.icon || '')
+            // 与 app-center 保持一致：图片(上传的 /uploads/ 相对路径或 http 地址)以 image 展示，否则 emoji
+            iconImage: /^https?:\/\//.test(item.icon || '') || (item.icon || '').indexOf('/uploads/') === 0,
+            iconSrc: resolveImageUrl(item.icon)
           })),
           loading: false
         });

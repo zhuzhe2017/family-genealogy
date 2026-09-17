@@ -169,6 +169,17 @@ Page({
           fileUrl,
           categoryId: this.data.selectedCategory
         }))
+        .then((res) => {
+          // 后端 create 不落 volume/pageCount/categoryId，需补一次 update 保留这三项
+          const docId = res && (res.id || res.data && res.data.id);
+          const extra = {};
+          if (this.data.volume.trim()) extra.volume = this.data.volume.trim();
+          if (Number(this.data.pageCount) > 0) extra.pageCount = Number(this.data.pageCount);
+          if (this.data.selectedCategory) extra.categoryId = this.data.selectedCategory;
+          if (docId && Object.keys(extra).length) {
+            return contentApi.update('document', docId, Object.assign({ familyId }, extra));
+          }
+        })
         .then(() => {
           wx.hideLoading();
           wx.showToast({ title: '上传成功', icon: 'success' });

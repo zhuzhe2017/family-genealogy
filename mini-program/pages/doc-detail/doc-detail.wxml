@@ -1,4 +1,12 @@
 <view class="page-container">
+  <!-- 加载中 -->
+  <view class="state-block" wx:if="{{loading}}">加载中...</view>
+  <!-- 加载失败 -->
+  <view class="state-block" wx:elif="{{loadFailed}}">
+    <text>加载失败，请返回重试</text>
+  </view>
+  <!-- 正常内容 -->
+  <block wx:else>
   <!-- 文档封面 -->
   <view class="doc-cover-section">
     <view class="doc-cover-large">
@@ -53,4 +61,5 @@
       <text>阅读文档</text>
     </view>
   </view>
+  </block>
 </view>

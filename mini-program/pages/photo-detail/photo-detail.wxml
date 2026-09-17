@@ -1,4 +1,12 @@
 <view class="page-container">
+  <!-- 加载中 -->
+  <view class="state-block" wx:if="{{loading}}">加载中...</view>
+  <!-- 加载失败 -->
+  <view class="state-block" wx:elif="{{loadFailed}}">
+    <text>加载失败，请返回重试</text>
+  </view>
+  <!-- 正常内容 -->
+  <block wx:else>
   <!-- 大图展示 -->
   <view class="photo-viewer">
     <image class="photo-large" src="{{photo.url}}" mode="aspectFit"/>
@@ -12,7 +20,7 @@
     </view>
     <text class="photo-desc">{{photo.description}}</text>
     <view class="photo-meta">
-      <view class="meta-item">
+      <view class="meta-item" wx:if="{{photo.categoryName}}">
         <text class="meta-icon">📷</text>
         <text>{{photo.categoryName}}</text>
       </view>
@@ -28,7 +36,7 @@
   </view>
 
   <!-- 相关照片 -->
-  <view class="related-section">
+  <view class="related-section" wx:if="{{relatedPhotos.length > 0}}">
     <text class="section-title">相关照片</text>
     <scroll-view class="related-scroll" scroll-x show-scrollbar="{{false}}">
       <view class="related-list">
@@ -55,4 +63,5 @@
       <text>删除</text>
     </view>
   </view>
+  </block>
 </view>

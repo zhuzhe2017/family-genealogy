@@ -151,7 +151,9 @@ function request(options) {
             }
             reject(err);
           } else {
-            reject(new Error(data.msg || '请求失败'));
+            const err = new Error(data.msg || '请求失败');
+            err.statusCode = res.statusCode;
+            reject(err);
           }
         } else if (res.statusCode === 401) {
           // token 过期/无效：先尝试刷新并重试，刷新失败才重新登录
@@ -174,7 +176,9 @@ function request(options) {
         } else if (res.statusCode === 429) {
           reject(new Error('请求过于频繁,请稍后再试'));
         } else {
-          reject(new Error((res.data && res.data.msg) || 'HTTP ' + res.statusCode));
+          const err = new Error((res.data && res.data.msg) || 'HTTP ' + res.statusCode);
+          err.statusCode = res.statusCode;
+          reject(err);
         }
       },
       fail(err) {

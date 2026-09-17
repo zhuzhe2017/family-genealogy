@@ -276,8 +276,9 @@ Page({
 
   viewMember(e) {
     const id = e.currentTarget.dataset.id;
+    const familyId = this.data.familyId || (getApp().globalData.currentFamily || {}).id || '';
     wx.navigateTo({
-      url: `/pages/member-detail/member-detail?id=${id}`
+      url: `/pages/member-detail/member-detail?id=${id}&familyId=${familyId}`
     });
   },
 

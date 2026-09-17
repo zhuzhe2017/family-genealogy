@@ -6,17 +6,25 @@ const { normalizeDocument } = require('../../utils/format');
 
 Page({
   data: {
-    document: {}
+    document: {},
+    loading: true,
+    loadFailed: false
   },
 
   onLoad(options) {
     const docId = options.id;
+    if (!docId) {
+      this.setData({ loading: false, loadFailed: true });
+      return;
+    }
     this.loadDocument(docId);
   },
 
+  /** 加载文档详情:优先走后端 API;失败仅提示,不回退 mock 数据,避免真假混杂 */
   loadDocument(id) {
     const familyId = (app.globalData.currentFamily || {}).id;
     if (!USE_MOCK && getToken() && familyId) {
+      this.setData({ loading: true, loadFailed: false });
       contentApi.getById('document', id)
         .then((row) => {
           const d = normalizeDocument(row);
@@ -31,15 +39,17 @@ Page({
                 startPage: c.startPage || 0,
                 endPage: c.endPage || 0
               }))
-            })
+            }),
+            loading: false
           });
         })
         .catch((err) => {
-          console.error('文档详情加载失败,使用 mock', err);
-          this.setData({ document: this.getMockDocument(id) });
+          console.error('文档详情加载失败', err);
+          this.setData({ loading: false, loadFailed: true });
         });
     } else {
-      this.setData({ document: this.getMockDocument(id) });
+      // 离线/未登录场景使用演示数据,避免页面空白
+      this.setData({ document: this.getMockDocument(id), loading: false });
     }
   },
 
@@ -90,5 +100,14 @@ Page({
     } else {
       wx.showToast({ title: '文档文件未上传', icon: 'none' });
     }
+  },
+
+  /** 分享给好友：携带文档 id，接收方打开可定位到本文档 */
+  onShareAppMessage() {
+    const doc = this.data.document || {};
+    return {
+      title: doc.name || '家族文档',
+      path: '/pages/doc-detail/doc-detail?id=' + (doc.id || '')
+    };
   }
 });

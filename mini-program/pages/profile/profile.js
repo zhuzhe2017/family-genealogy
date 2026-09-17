@@ -56,6 +56,8 @@ Page({
     if (!USE_MOCK && app.globalData.isOnline && getToken()) {
       auth.getProfile()
         .then((data) => {
+          // 回写全局，保持 globalData.userInfo 与最新资料一致
+          app.globalData.userInfo = Object.assign(app.globalData.userInfo || {}, data || {});
           this.setData({ userInfo: this.attachAvatarFull(data) });
         })
         .catch((err) => {
@@ -216,9 +218,9 @@ Page({
     this.setData({ 'editForm.gender': Number(e.currentTarget.dataset.gender) });
   },
 
-  /** 上传头像到后端,返回可访问的 URL */
+  /** 上传头像到后端,返回可访问的 URL(归 member_avatar 分类) */
   uploadAvatar(filePath) {
-    return upload({ url: '/common/upload', filePath }).then(data => data.url);
+    return upload({ url: '/common/upload', filePath, formData: { bizType: 'member_avatar' } }).then(data => data.url);
   },
 
   /** 保存资料:头像为新选择的临时路径时先上传,再调用更新接口 */

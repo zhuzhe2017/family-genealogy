@@ -137,6 +137,10 @@ Page({
       .then((data) => {
         wx.hideLoading();
         if (this.data.mode === 'bind') {
+          // 后端 bindPhone 返回最新 UserInfo，需写回全局，避免上一页（profile）仍显示旧绑定状态
+          if (data) {
+            app.globalData.userInfo = Object.assign(app.globalData.userInfo || {}, data);
+          }
           wx.showToast({ title: '绑定成功', icon: 'success' });
           setTimeout(() => this.navigateBack(), 1200);
         } else {

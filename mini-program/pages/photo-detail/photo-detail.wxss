@@ -4,6 +4,13 @@
   min-height: 100vh;
 }
 
+.state-block {
+  text-align: center;
+  padding: 200rpx 0;
+  font-size: 28rpx;
+  color: #999;
+}
+
 /* 照片查看器 */
 .photo-viewer {
   width: 100%;

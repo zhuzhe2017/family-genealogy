@@ -66,7 +66,23 @@ Page({
       wx.showToast({ title: '堂号过长或包含不允许的特殊字符', icon: 'none' });
       return;
     }
+    if (form.generationNames && form.generationNames.trim()) {
+      // 后端 create 暂不接收字辈字段，填写会被静默丢弃，创建后需在家族详情另行录入
+      wx.showModal({
+        title: '字辈暂不随创建保存',
+        content: '当前创建家族不会保存字辈序列，可在创建成功后进入家族详情另行录入。是否继续创建？',
+        confirmText: '继续创建',
+        cancelText: '返回修改',
+        success: (res) => {
+          if (res.confirm) this.doCreateFamily(form);
+        }
+      });
+      return;
+    }
+    this.doCreateFamily(form);
+  },
 
+  doCreateFamily(form) {
     const onSuccess = () => {
       wx.showToast({
         title: '创建成功',
