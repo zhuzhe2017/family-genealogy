@@ -389,14 +389,16 @@ async function handleSavePay() {
     alipay: { ...payModel.alipay }
   };
 
-  // 掩码值置空表示不修改，由服务端保留原值
+  // 掩码值置空表示不修改，由服务端保留原值；可选 URL 空串转 undefined，避免 IsUrl 拒绝空串
   for (const p of Object.keys(paySensitiveFields) as PayProvider[]) {
+    const cfg = payload[p] as unknown as Record<string, string | undefined>;
     for (const key of paySensitiveFields[p]) {
-      const value = String((payload[p] as unknown as Record<string, string>)[key] || '');
+      const value = String(cfg[key] || '');
       if (isMasked(value)) {
-        (payload[p] as unknown as Record<string, string>)[key] = '';
+        cfg[key] = '';
       }
     }
+    if (!cfg.statusNotifyUrl?.trim()) cfg.statusNotifyUrl = undefined;
   }
 
   paySaving.value = true;
