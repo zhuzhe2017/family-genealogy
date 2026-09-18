@@ -9,7 +9,9 @@ import { UPLOAD_DIR } from './common/upload/upload.service';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
-    logger: ['error', 'warn', 'log', 'debug', 'verbose']
+    logger: ['error', 'warn', 'log', 'debug', 'verbose'],
+    // 保留原始请求体到 req.rawBody，供微信支付回调验签使用
+    rawBody: true
   });
   const logger = new Logger('Bootstrap');
 

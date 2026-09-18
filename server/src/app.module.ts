@@ -23,6 +23,8 @@ import { SystemConfigModule } from './system-config/system-config.module';
 import { SystemLogModule } from './system-log/system-log.module';
 import { SystemSecurityModule } from './system-security/system-security.module';
 import { CloudStorageConfigModule } from './cloud-storage-config/cloud-storage-config.module';
+import { PayConfigModule } from './pay-config/pay-config.module';
+import { ConfigCryptoModule } from './common/crypto/config-crypto.module';
 import { MembershipModule } from './membership/membership.module';
 import { SubscriptionModule } from './subscription/subscription.module';
 import { WorshipModule } from './worship/worship.module';
@@ -54,6 +56,7 @@ import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
       }
     ]),
     DatabaseModule,
+    ConfigCryptoModule,
     AuthModule,
     AdminModule,
     MenuModule,
@@ -70,6 +73,7 @@ import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
     SystemLogModule,
     SystemSecurityModule,
     CloudStorageConfigModule,
+    PayConfigModule,
     MembershipModule,
     SubscriptionModule,
     WorshipModule,

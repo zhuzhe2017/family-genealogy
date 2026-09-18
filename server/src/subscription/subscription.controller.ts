@@ -1,5 +1,5 @@
 import { Body, Controller, Get, HttpStatus, Post, Query, Req, Res, UseGuards } from '@nestjs/common';
-import type { Response } from 'express';
+import type { Response, Request } from 'express';
 import { Public } from '../common/decorators/public.decorator';
 import { UserJwtAuthGuard } from '../user/user.guard';
 import { EntitlementService } from '../membership/membership.service';
@@ -56,8 +56,10 @@ export class WxNotifyController {
   constructor(private readonly subscriptionService: SubscriptionService) {}
 
   @Post('pay/notify')
-  async notify(@Body() body: WechatNotifyBody, @Res() res: Response) {
-    const result = await this.subscriptionService.handleNotify(body);
+  async notify(@Body() body: WechatNotifyBody, @Req() req: Request, @Res() res: Response) {
+    // 验签需用微信回调的原始请求体（express rawBody，由 body-parser raw 中间件提供）
+    const rawBody = (req as { rawBody?: string }).rawBody || JSON.stringify(body);
+    const result = await this.subscriptionService.handleNotify(body, req.headers, rawBody);
     res.status(HttpStatus.OK).json(result);
   }
 }

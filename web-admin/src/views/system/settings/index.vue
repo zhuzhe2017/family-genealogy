@@ -18,10 +18,15 @@ import {
   fetchDeleteSystemLog,
   fetchCloudStorageConfig,
   fetchSaveCloudStorageConfig,
+  fetchPayConfig,
+  fetchSavePayConfig,
+  fetchTestPayConnection,
   type SystemConfigGroups,
   type SystemLogItem,
   type CloudStorageFullConfig,
-  type CloudStorageProvider
+  type CloudStorageProvider,
+  type PayFullConfig,
+  type PayProvider
 } from '@/service/api';
 
 defineOptions({ name: 'SystemSettings' });
@@ -74,6 +79,8 @@ const canExportLog = computed(() => hasAuth('system:settings:log:export'));
 const canVerify = computed(() => hasAuth('system:settings:verify'));
 const canViewCloudStorage = computed(() => hasAuth('system:settings:cloud:list'));
 const canUpdateCloudStorage = computed(() => hasAuth('system:settings:cloud:update'));
+const canViewPay = computed(() => hasAuth('system:settings:pay:list'));
+const canUpdatePay = computed(() => hasAuth('system:settings:pay:update'));
 
 // ==================== 配置数据 ====================
 const activeTab = ref('basic');
@@ -246,6 +253,178 @@ function jsonToText(value: unknown): string {
 }
 function textToJson(text: string): string {
   return JSON.stringify(text.split('\n').map(s => s.trim()).filter(Boolean));
+}
+
+// ==================== 支付配置 ====================
+const payLoading = ref(false);
+const paySaving = ref(false);
+const payTesting = ref(false);
+const payConfig = ref<PayFullConfig>({
+  provider: 'wxpay',
+  wxpay: { enabled: false, appId: '', mchId: '', mchSerialNo: '', privateKey: '', apiV3Key: '', notifyUrl: '', platformPublicKey: '', statusNotifyUrl: '' },
+  alipay: { enabled: false, appId: '', privateKey: '', alipayPublicKey: '', notifyUrl: '', statusNotifyUrl: '' }
+});
+
+const payModel = reactive<PayFullConfig>({
+  provider: 'wxpay',
+  wxpay: { enabled: false, appId: '', mchId: '', mchSerialNo: '', privateKey: '', apiV3Key: '', notifyUrl: '', platformPublicKey: '', statusNotifyUrl: '' },
+  alipay: { enabled: false, appId: '', privateKey: '', alipayPublicKey: '', notifyUrl: '', statusNotifyUrl: '' }
+});
+
+const payProviderOptions = computed(() => [
+  { label: $t('page.systemSettings.payProviderWxpay'), value: 'wxpay' },
+  { label: $t('page.systemSettings.payProviderAlipay'), value: 'alipay' }
+]);
+
+const payProviderNames: Record<PayProvider, string> = {
+  wxpay: $t('page.systemSettings.payProviderWxpay'),
+  alipay: $t('page.systemSettings.payProviderAlipay')
+};
+
+interface PayField {
+  key: string;
+  label: App.I18n.I18nKey;
+  required?: boolean;
+  type?: 'password' | 'textarea';
+}
+
+const payFields: Record<PayProvider, PayField[]> = {
+  wxpay: [
+    { key: 'appId', label: 'page.systemSettings.payAppId', required: true },
+    { key: 'mchId', label: 'page.systemSettings.payMchId', required: true },
+    { key: 'mchSerialNo', label: 'page.systemSettings.payMchSerialNo', required: true },
+    { key: 'privateKey', label: 'page.systemSettings.payPrivateKey', required: true, type: 'textarea' },
+    { key: 'apiV3Key', label: 'page.systemSettings.payApiV3Key', required: true, type: 'password' },
+    { key: 'notifyUrl', label: 'page.systemSettings.payNotifyUrl', required: true },
+    { key: 'platformPublicKey', label: 'page.systemSettings.payPlatformPublicKey', type: 'textarea' },
+    { key: 'statusNotifyUrl', label: 'page.systemSettings.payStatusNotifyUrl' }
+  ],
+  alipay: [
+    { key: 'appId', label: 'page.systemSettings.payAppId', required: true },
+    { key: 'privateKey', label: 'page.systemSettings.payPrivateKey', required: true, type: 'textarea' },
+    { key: 'alipayPublicKey', label: 'page.systemSettings.payAlipayPublicKey', required: true, type: 'textarea' },
+    { key: 'notifyUrl', label: 'page.systemSettings.payNotifyUrl', required: true },
+    { key: 'statusNotifyUrl', label: 'page.systemSettings.payStatusNotifyUrl' }
+  ]
+};
+
+const paySensitiveFields: Record<PayProvider, string[]> = {
+  wxpay: ['privateKey', 'apiV3Key', 'platformPublicKey'],
+  alipay: ['privateKey', 'alipayPublicKey']
+};
+
+function payFieldValue(provider: PayProvider, key: string): string {
+  return String((payModel[provider] as unknown as Record<string, string>)[key] ?? '');
+}
+
+function updatePayField(provider: PayProvider, key: string, value: string) {
+  (payModel[provider] as unknown as Record<string, string>)[key] = value;
+}
+
+function handlePayFieldFocus(provider: PayProvider, key: string) {
+  if (isMasked(payFieldValue(provider, key))) {
+    updatePayField(provider, key, '');
+  }
+}
+
+async function loadPayConfig() {
+  if (!canViewPay.value) return;
+  payLoading.value = true;
+  try {
+    const { data } = await fetchPayConfig();
+    if (!data) return;
+    payConfig.value = data;
+    resetPayModel();
+  } finally {
+    payLoading.value = false;
+  }
+}
+
+function resetPayModel() {
+  const cfg = payConfig.value;
+  payModel.provider = cfg.provider;
+  for (const p of Object.keys(payFields) as PayProvider[]) {
+    const target = cfg[p];
+    const src = payModel[p];
+    for (const field of payFields[p]) {
+      const value = (target as unknown as Record<string, unknown>)[field.key];
+      (src as unknown as Record<string, string>)[field.key] = String(value ?? '');
+    }
+    src.enabled = target.enabled;
+  }
+}
+
+function isValidUrl(value: string): boolean {
+  return /^https?:\/\/.+/.test(value);
+}
+
+function validatePayConfig(): boolean {
+  const providers: PayProvider[] = ['wxpay', 'alipay'];
+  for (const p of providers) {
+    const model = payModel[p];
+    for (const field of payFields[p]) {
+      const value = String((model as unknown as Record<string, string>)[field.key] || '').trim();
+      if (field.required && model.enabled && (value === '' || isMasked(value))) {
+        message.error(`${payProviderNames[p]} - ${$t(field.label)} ${$t('page.systemSettings.payRequired')}`);
+        return false;
+      }
+      if (value && (field.key === 'notifyUrl' || field.key === 'statusNotifyUrl') && !isValidUrl(value)) {
+        message.error(`${payProviderNames[p]} - ${$t(field.label)} URL 格式不正确（需 http/https 开头）`);
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
+async function handleSavePay() {
+  if (!canUpdatePay.value) return;
+  if (!(await ensureVerified())) return;
+  if (!validatePayConfig()) return;
+
+  const payload: PayFullConfig = {
+    provider: payModel.provider,
+    wxpay: { ...payModel.wxpay },
+    alipay: { ...payModel.alipay }
+  };
+
+  // 掩码值置空表示不修改，由服务端保留原值
+  for (const p of Object.keys(paySensitiveFields) as PayProvider[]) {
+    for (const key of paySensitiveFields[p]) {
+      const value = String((payload[p] as unknown as Record<string, string>)[key] || '');
+      if (isMasked(value)) {
+        (payload[p] as unknown as Record<string, string>)[key] = '';
+      }
+    }
+  }
+
+  paySaving.value = true;
+  try {
+    const { error } = await fetchSavePayConfig(payload);
+    if (!error) {
+      message.success($t('page.systemSettings.paySaveSuccess'));
+      await loadPayConfig();
+    }
+  } finally {
+    paySaving.value = false;
+  }
+}
+
+async function handleTestPay(provider: PayProvider) {
+  if (!canUpdatePay.value) return;
+  payTesting.value = true;
+  try {
+    const { data, error } = await fetchTestPayConnection(provider);
+    if (!error && data) {
+      if (data.success) {
+        message.success(`${payProviderNames[provider]}：${data.message || $t('page.systemSettings.payTestSuccess')}`);
+      } else {
+        message.error(`${payProviderNames[provider]}：${data.message || $t('page.systemSettings.payTestFailed')}`);
+      }
+    }
+  } finally {
+    payTesting.value = false;
+  }
 }
 
 async function loadConfigs() {
@@ -585,12 +764,16 @@ watch(activeTab, tab => {
   if (tab === 'cloud' && canViewCloudStorage.value) {
     loadCloudStorageConfig();
   }
+  if (tab === 'pay' && canViewPay.value) {
+    loadPayConfig();
+  }
 });
 
 onMounted(() => {
   loadConfigs();
   loadSensitiveConfig();
   loadCloudStorageConfig();
+  loadPayConfig();
 });
 </script>
 
@@ -609,6 +792,7 @@ onMounted(() => {
       />
       <NTabPane name="security" :tab="$t('page.systemSettings.security')" />
       <NTabPane name="cloud" :tab="$t('page.systemSettings.cloudStorage')" />
+      <NTabPane name="pay" :tab="$t('page.systemSettings.payConfig')" />
     </NTabs>
 
     <div v-if="loading && activeTab !== 'log'" class="mt-24px">
@@ -937,6 +1121,110 @@ onMounted(() => {
                 @click="handleSaveCloudStorage"
               >
                 {{ $t('page.systemSettings.cloudStorageSave') }}
+              </NButton>
+            </div>
+          </template>
+        </NCard>
+
+        <NCard v-else :bordered="false" class="shadow-sm">
+          <NResult
+            status="403"
+            :title="$t('page.systemSettings.noPermission')"
+            :description="$t('page.systemSettings.noPermissionTip')"
+          />
+        </NCard>
+      </NSpin>
+    </div>
+
+    <!-- 支付配置面板 -->
+    <div v-else-if="activeTab === 'pay'" class="mt-16px">
+      <NSpin :show="payLoading">
+        <NCard v-if="canViewPay" :bordered="false" class="shadow-sm mb-16px">
+          <template #header>{{ $t('page.systemSettings.payConfig') }}</template>
+          <template #header-extra>
+            <NTag type="info" size="small">{{ $t('page.systemSettings.payConfigTip') }}</NTag>
+          </template>
+
+          <div class="mb-24px">
+            <NForm label-placement="left" label-width="140px" :show-feedback="false">
+              <NFormItem :label="$t('page.systemSettings.payProvider')">
+                <NSelect
+                  v-model:value="payModel.provider"
+                  class="w-240px"
+                  :disabled="!canUpdatePay"
+                  :options="payProviderOptions"
+                />
+              </NFormItem>
+            </NForm>
+            <NAlert type="warning" :show-icon="true">{{ $t('page.systemSettings.payMaskTip') }}</NAlert>
+          </div>
+
+          <div class="grid grid-cols-1 xl:grid-cols-2 gap-16px">
+            <NCard
+              v-for="provider in (['wxpay', 'alipay'] as PayProvider[])"
+              :key="provider"
+              :bordered="true"
+              class="shadow-sm"
+            >
+              <template #header>
+                <div class="flex items-center justify-between">
+                  <span>{{ payProviderNames[provider] }}</span>
+                  <NSwitch
+                    v-model:value="payModel[provider].enabled"
+                    :disabled="!canUpdatePay"
+                  >
+                    <template #checked>
+                      {{ provider === 'wxpay' ? $t('page.systemSettings.payWxEnabled') : $t('page.systemSettings.payAlipayEnabled') }}
+                    </template>
+                    <template #unchecked>
+                      {{ provider === 'wxpay' ? $t('page.systemSettings.payWxEnabled') : $t('page.systemSettings.payAlipayEnabled') }}
+                    </template>
+                  </NSwitch>
+                </div>
+              </template>
+
+              <NForm label-placement="left" label-width="130px" :show-feedback="false">
+                <NFormItem
+                  v-for="field in payFields[provider]"
+                  :key="field.key"
+                  :label="$t(field.label)"
+                >
+                  <NInput
+                    v-model:value="(payModel[provider] as unknown as Record<string, string>)[field.key]"
+                    :type="field.type === 'password' ? 'password' : field.type === 'textarea' ? 'textarea' : 'text'"
+                    :placeholder="field.required ? $t('page.systemSettings.payRequired') : ''"
+                    :disabled="!canUpdatePay || !payModel[provider].enabled"
+                    :show-password-on="field.type === 'password' ? 'click' : undefined"
+                    clearable
+                    @focus="handlePayFieldFocus(provider, field.key)"
+                  />
+                </NFormItem>
+              </NForm>
+
+              <template #footer>
+                <div class="flex justify-end">
+                  <NButton
+                    v-if="canUpdatePay"
+                    size="small"
+                    :loading="payTesting"
+                    @click="handleTestPay(provider)"
+                  >
+                    {{ $t('page.systemSettings.payTest') }}
+                  </NButton>
+                </div>
+              </template>
+            </NCard>
+          </div>
+
+          <template #footer>
+            <div class="flex justify-end gap-12px">
+              <NButton
+                v-if="canUpdatePay"
+                type="primary"
+                :loading="paySaving"
+                @click="handleSavePay"
+              >
+                {{ $t('page.systemSettings.paySave') }}
               </NButton>
             </div>
           </template>

@@ -31,6 +31,11 @@ interface TreeNodeDatum {
   children?: TreeNodeDatum[];
 }
 
+/** 带坐标与折叠态的 D3 节点（_children 为 d3 折叠约定字段，非类型原生） */
+interface TreeHierarchyNode extends d3.HierarchyPointNode<TreeNodeDatum> {
+  _children?: this[];
+}
+
 /** 加载家族下拉 */
 async function loadFamilies() {
   const res = await fetchAllFamilies({ status: 1 });
@@ -181,19 +186,19 @@ const INITIAL_GENERATIONS = 5;
     const g = svg.append('g');
 
     // 创建层级布局
-    const root = d3.hierarchy(data);
+    const root = d3.hierarchy(data) as TreeHierarchyNode;
 
     // 初次加载只展示前 INITIAL_GENERATIONS 代，其余折叠，点击节点展开
-    root.descendants().forEach(d => {
+    root.descendants().forEach((d: TreeHierarchyNode) => {
       if (d.depth >= INITIAL_GENERATIONS && d.children) {
-        d._children = d.children;
+        d._children = d.children as TreeHierarchyNode[];
         d.children = undefined;
       }
     });
 
     // 树布局
     const treeLayout = d3.tree<TreeNodeDatum>().nodeSize([140, 200]);
-    treeLayout(root as d3.HierarchyPointNode<TreeNodeDatum>);
+    treeLayout(root);
 
     // 绘制连线（折线：父节点垂直向下，再水平连接到子节点）
     const link = g
@@ -216,11 +221,11 @@ const INITIAL_GENERATIONS = 5;
       .attr('class', 'node')
       .attr('transform', d => `translate(${d.x},${d.y})`)
       .style('cursor', 'pointer')
-      .on('click', (event, d) => {
+      .on('click', (event, d: TreeHierarchyNode) => {
         event.stopPropagation();
         // 点击切换折叠/展开
         if (d.children) {
-          d._children = d.children;
+          d._children = d.children as TreeHierarchyNode[];
           d.children = undefined;
           update(root);
         } else if (d._children) {
@@ -273,18 +278,18 @@ const INITIAL_GENERATIONS = 5;
 
     // 折线路径生成器：父节点垂直向下，再水平连接到子节点
     function elbowLink(d: d3.HierarchyLink<TreeNodeDatum>) {
-      const s = d.source as d3.HierarchyPointNode<TreeNodeDatum>;
-      const t = d.target as d3.HierarchyPointNode<TreeNodeDatum>;
+      const s = d.source as TreeHierarchyNode;
+      const t = d.target as TreeHierarchyNode;
       const midY = (s.y + t.y) / 2;
       return `M${s.x},${s.y}V${midY}H${t.x}V${t.y}`;
     }
 
     // 更新函数（用于折叠/展开）
-    function update(source: d3.HierarchyPointNode<TreeNodeDatum>) {
+    function update(source: TreeHierarchyNode) {
       if (!svg) return;
 
       // 重新计算布局
-      treeLayout(root as d3.HierarchyPointNode<TreeNodeDatum>);
+      treeLayout(root);
 
       // 更新连线
       const linkUpdate = g
@@ -323,10 +328,10 @@ const INITIAL_GENERATIONS = 5;
         .attr('class', 'node')
         .attr('transform', d => `translate(${d.x},${d.y})`)
         .style('cursor', 'pointer')
-        .on('click', (event, d) => {
+        .on('click', (event, d: TreeHierarchyNode) => {
           event.stopPropagation();
           if (d.children) {
-            d._children = d.children;
+            d._children = d.children as TreeHierarchyNode[];
             d.children = undefined;
             update(root);
           } else if (d._children) {

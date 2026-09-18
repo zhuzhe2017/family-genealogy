@@ -30,6 +30,17 @@ export class SubscriptionService {
   // ==================== 下单 ====================
 
   /**
+   * 是否允许模拟支付。
+   * 需同时满足：显式开启 MOCK_PAY=true 且非 production 环境。
+   * 生产环境即使误配 MOCK_PAY=true 也强制走真实支付，杜绝免费白嫖订阅。
+   */
+  private isMockPayEnabled(): boolean {
+    const enabled = (this.configService.get<string>('MOCK_PAY') || '').trim().toLowerCase() === 'true';
+    const isProd = (process.env.NODE_ENV || '').trim().toLowerCase() === 'production';
+    return enabled && !isProd;
+  }
+
+  /**
    * 订阅状态查询（小程序会员中心）：
    * 返回当前套餐视图 + 存储用量 + 各按次额度消耗。
    */
@@ -70,11 +81,15 @@ export class SubscriptionService {
       [tradeNo, tradeNo, dto.familyId, userId, plan.code, amountFen / 100, months, 'pending']
     );
 
-    // 模拟模式（未配置微信商户）：直接完成支付，便于本地联调
-    // 生产环境 NODE_ENV=production 时强制校验回调地址，避免误配导致真实支付链路断裂
-    if (!this.wxPayService.isConfigured()) {
+    // 模拟支付：仅在显式开启 MOCK_PAY=true 且非 production 时启用，便于本地联调
+    // 生产环境强制走真实微信支付（即使误配 MOCK_PAY 也不会生效）
+    if (!(await this.wxPayService.isConfigured())) {
       if (process.env.NODE_ENV === 'production') {
         this.logger.error('生产环境微信支付配置不完整（需 WX_MCH_ID/WX_MCH_SERIAL_NO/WX_MCH_PRIVATE_KEY/WX_PAY_API_V3_KEY/WX_PAY_NOTIFY_URL），拒绝模拟支付');
+        throw new HttpException('支付服务未正确配置，请联系管理员', HttpStatus.SERVICE_UNAVAILABLE);
+      }
+      if (!this.isMockPayEnabled()) {
+        this.logger.error('未配置微信支付商户，且未开启 MOCK_PAY=true（或非生产环境未显式允许），拒绝模拟支付');
         throw new HttpException('支付服务未正确配置，请联系管理员', HttpStatus.SERVICE_UNAVAILABLE);
       }
       await this.handlePaid(tradeNo, `MOCK_${tradeNo}`, new Date());
@@ -125,11 +140,17 @@ export class SubscriptionService {
    * - 校验 trade_state / 金额一致性
    * - 幂等激活订阅
    */
-  async handleNotify(body: WechatNotifyBody): Promise<NotifyResponse> {
+  async handleNotify(body: WechatNotifyBody, headers?: Record<string, string | string[] | undefined>, rawBody?: string): Promise<NotifyResponse> {
     try {
+      // 第一步：平台公钥验签（未配置公钥时跳过，仅依赖解密 GCM 认证）
+      if (headers && rawBody && !(await this.wxPayService.verifyNotifySignature(headers, rawBody))) {
+        return { code: 'FAIL', message: 'signature verification failed' };
+      }
       if (!body?.resource?.ciphertext) {
         return { code: 'FAIL', message: 'invalid notify body' };
       }
+      // 触发配置惰性加载（保证 decryptNotify 能拿到最新 apiV3Key）
+      await this.wxPayService.isConfigured();
       const resource = this.wxPayService.decryptNotify(body);
       if (body.event_type !== 'TRANSACTION.SUCCESS' || resource.trade_state !== 'SUCCESS') {
         return { code: 'FAIL', message: 'not a success transaction' };
@@ -255,7 +276,7 @@ export class SubscriptionService {
     const amountFen = Math.round(Number(order.amount) * 100);
     const refundNo = this.wxPayService.generateNo('R');
 
-    if (this.wxPayService.isConfigured()) {
+    if (await this.wxPayService.isConfigured()) {
       await this.wxPayService.refund({
         outTradeNo: order.out_trade_no,
         refundNo,
