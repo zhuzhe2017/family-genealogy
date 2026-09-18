@@ -442,6 +442,7 @@ const local: App.I18n.Schema = {
       noPermissionTip: '当前账号没有该功能的访问权限，请联系管理员分配权限。',
       logAccessEnabled: '记录访问日志',
       logRetentionDays: '日志保留天数',
+      bannerInterval: '轮播图切换间隔（毫秒）',
       logConfig: '日志配置',
       refresh: '刷新',
       empty: '暂无数据',

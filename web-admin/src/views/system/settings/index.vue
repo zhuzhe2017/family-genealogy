@@ -65,7 +65,8 @@ function fieldKeyOf(key: string): App.I18n.I18nKey {
     sensitive_op_verify_enabled: 'page.systemSettings.sensitiveVerifyEnabled',
     sensitive_op_verify_timeout: 'page.systemSettings.sensitiveVerifyTimeout',
     log_access_enabled: 'page.systemSettings.logAccessEnabled',
-    log_retention_days: 'page.systemSettings.logRetentionDays'
+    log_retention_days: 'page.systemSettings.logRetentionDays',
+    banner_interval: 'page.systemSettings.bannerInterval'
   };
   return map[key] ?? (`page.systemSettings.${key}` as App.I18n.I18nKey);
 }

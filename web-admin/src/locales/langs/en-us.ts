@@ -446,6 +446,7 @@ const local: App.I18n.Schema = {
       noPermissionTip: 'Your account has no access to this feature. Please contact the administrator.',
       logAccessEnabled: 'Enable Access Logs',
       logRetentionDays: 'Log Retention (days)',
+      bannerInterval: 'Banner Interval (ms)',
       logConfig: 'Log Config',
       refresh: 'Refresh',
       empty: 'No data',

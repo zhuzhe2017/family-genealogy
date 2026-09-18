@@ -674,6 +674,7 @@ declare namespace App {
           noPermissionTip: string;
           logAccessEnabled: string;
           logRetentionDays: string;
+          bannerInterval: string;
           logConfig: string;
           refresh: string;
           empty: string;
