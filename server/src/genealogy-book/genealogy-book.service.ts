@@ -619,6 +619,33 @@ export class GenealogyBookService {
     body { background: #fff; }
     .book-page { padding: 20px; }
     .book-cover { page-break-after: always; }
+
+    /* 序言、家族简介、家训、附录等纯文字章节独立成页 */
+    .preface,
+    .introduction,
+    .clan-rules,
+    .appendix { page-break-before: always; }
+
+    /* 字辈表、世系说明、成员关系、世代成员明细各起新页 */
+    .generation-table,
+    .lineage-desc,
+    .relation-desc,
+    .generation-members { page-break-before: always; }
+
+    /* 成员卡片、世系行避免跨页断裂 */
+    .member-card,
+    .lineage-row,
+    .gen-item { page-break-inside: avoid; }
+
+    /* 成员关系表格：表头在每页重复 */
+    .relation-table thead { display: table-header-group; }
+
+    /* 每个世代明细的标题避免留在页尾 */
+    .generation-members .section-title { page-break-after: avoid; }
+
+    /* 最后一节不强制分页，避免末尾空白页 */
+    .generation-members:last-of-type,
+    .appendix:last-of-type { page-break-before: auto; }
   }
 </style>
 </head>
