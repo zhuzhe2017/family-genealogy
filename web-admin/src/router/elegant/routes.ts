@@ -150,6 +150,15 @@ export const generatedRoutes: GeneratedRoute[] = [
         }
       },
       {
+        name: 'mini-program_genealogy-book',
+        path: '/mini-program/genealogy-book',
+        component: 'view.mini-program_genealogy-book',
+        meta: {
+          title: 'mini-program_genealogy-book',
+          i18nKey: 'route.mini-program_genealogy-book'
+        }
+      },
+      {
         name: 'mini-program_generation-table',
         path: '/mini-program/generation-table',
         component: 'view.mini-program_generation-table',

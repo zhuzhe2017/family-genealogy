@@ -20,3 +20,4 @@ export * from './plugin';
 export * from './invitation';
 export * from './gathering';
 export * from './member';
+export * from './genealogy-book';
