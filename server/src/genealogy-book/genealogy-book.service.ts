@@ -295,13 +295,19 @@ export class GenealogyBookService {
        ORDER BY \`generation\` ASC, \`sort_order\` ASC, \`create_time\` ASC`
     );
 
-    // 建立子女索引
+    // 建立子女索引（含父系和母系）
     const childrenMap = new Map<string, string[]>();
     rows.forEach(m => {
       if (m.father_id) {
         const arr = childrenMap.get(m.father_id) || [];
         arr.push(m.id);
         childrenMap.set(m.father_id, arr);
+      }
+      // 无 father_id 但有 mother_id 时，挂到母亲名下
+      if (!m.father_id && m.mother_id) {
+        const arr = childrenMap.get(m.mother_id) || [];
+        arr.push(m.id);
+        childrenMap.set(m.mother_id, arr);
       }
     });
 
@@ -334,7 +340,9 @@ export class GenealogyBookService {
       .sort((a, b) => a[0] - b[0])
       .map(([gen, members]) => ({
         generation: gen,
-        label: members[0]?.generationName ? `${members[0].generationName}字辈` : `第${gen}代`,
+        label: members[0]?.generationName
+          ? `${members[0].generationName}字辈（第${gen}代）`
+          : `第${gen}代`,
         members
       }));
 
@@ -384,12 +392,7 @@ export class GenealogyBookService {
       template,
       generationCount,
       memberCount,
-      generationLabels: generationLabels.map(g => ({
-        ...g,
-        label: g.members[0]?.generationName
-          ? `${g.members[0].generationName}字辈（第${g.generation}代）`
-          : `第${g.generation}代`
-      }))
+      generationLabels
     };
   }
 
