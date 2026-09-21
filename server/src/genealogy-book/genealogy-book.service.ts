@@ -618,34 +618,35 @@ export class GenealogyBookService {
   @media print {
     body { background: #fff; }
     .book-page { padding: 20px; }
-    .book-cover { page-break-after: always; }
+    .book-cover { page-break-after: always; break-after: page; }
 
     /* 序言、家族简介、家训、附录等纯文字章节独立成页 */
     .preface,
     .introduction,
     .clan-rules,
-    .appendix { page-break-before: always; }
+    .appendix { page-break-before: always; break-before: page; }
 
-    /* 字辈表、世系说明、成员关系、世代成员明细各起新页 */
+    /* 字辈表、世系说明、成员关系各起新页 */
     .generation-table,
     .lineage-desc,
-    .relation-desc,
-    .generation-members { page-break-before: always; }
+    .relation-desc { page-break-before: always; break-before: page; }
+
+    /* 世代成员明细不强制分页，让内容自然流动以节省纸张 */
+    .generation-members { page-break-before: auto; break-before: auto; }
 
     /* 成员卡片、世系行避免跨页断裂 */
     .member-card,
     .lineage-row,
-    .gen-item { page-break-inside: avoid; }
+    .gen-item { page-break-inside: avoid; break-inside: avoid; }
 
     /* 成员关系表格：表头在每页重复 */
     .relation-table thead { display: table-header-group; }
 
     /* 每个世代明细的标题避免留在页尾 */
-    .generation-members .section-title { page-break-after: avoid; }
+    .generation-members .section-title { page-break-after: avoid; break-after: avoid; }
 
-    /* 最后一节不强制分页，避免末尾空白页 */
-    .generation-members:last-of-type,
-    .appendix:last-of-type { page-break-before: auto; }
+    /* 若附录存在，它是最后一个元素，不强制分页 */
+    .appendix:last-child { page-break-before: auto; break-before: auto; }
   }
 </style>
 </head>

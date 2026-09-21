@@ -355,18 +355,18 @@ async function handleExport(row: GenealogyBookItem) {
 }
 
 // ===== 计算属性：预览模板样式 =====
-const previewTemplateStyle = computed(() => {
+const isVerticalTemplate = computed(() => {
   const t = previewData.value?.template;
-  if (t === 'su_style' || t === 'classical') {
+  return t === 'su_style' || t === 'classical';
+});
+
+const previewTemplateStyle = computed(() => {
+  if (isVerticalTemplate.value) {
     return {
-      direction: 'rtl' as const,
-      writingMode: 'vertical-rl' as const,
       fontFamily: '"SimSun", "Songti SC", serif'
     };
   }
   return {
-    direction: 'ltr' as const,
-    writingMode: 'horizontal-tb' as const,
     fontFamily: '"Microsoft YaHei", "PingFang SC", sans-serif'
   };
 });
@@ -493,7 +493,7 @@ onMounted(() => {
       <div v-if="previewLoading" class="flex justify-center py-8">
         <NSpin size="large" />
       </div>
-      <div v-else-if="previewData" class="book-preview" :style="previewTemplateStyle">
+      <div v-else-if="previewData" class="book-preview" :class="{ vertical: isVerticalTemplate }" :style="previewTemplateStyle">
         <div class="preview-header">
           <h2 class="preview-title">{{ previewData.bookTitle }}</h2>
           <p class="preview-meta">共 {{ previewData.generationCount }} 代 · {{ previewData.memberCount }} 人</p>
@@ -568,8 +568,28 @@ onMounted(() => {
 
 .member-list {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
   gap: 12px;
+  width: 100%;
+}
+
+/* 竖排模板：从右至左，卡片纵向排列 */
+.vertical .member-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.vertical .member-card {
+  writing-mode: vertical-rl;
+  direction: rtl;
+  height: 220px;
+  padding: 10px 8px;
+}
+
+.vertical .member-info {
+  flex-direction: column;
+  gap: 4px;
 }
 
 .member-card {
