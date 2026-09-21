@@ -198,9 +198,7 @@ describe('GenealogyBookController (e2e)', () => {
         .mockResolvedValueOnce([{ exists: 1 }]) // member table exists
         .mockResolvedValueOnce([]) // members query
         .mockResolvedValueOnce([]) // generation table
-        .mockResolvedValueOnce([{ name: '测试家族' }]) // family name (getFamilyName)
-        .mockResolvedValueOnce([{ id: 1 }]) // ensureFamilyExists (getById in controller)
-        .mockResolvedValueOnce([{ id: 1, family_id: 1, title: '测试', template: 'european', subtitle: '', preface: '', introduction: '', clan_rules: '', generation_poem: '', appendix: '', cover_style: 'default', font_family: 'serif', paper_size: 'A4', include_generation_table: 1, include_member_bio: 1, include_tree_chart: 1, include_index: 1 }]); // getById in controller
+        .mockResolvedValueOnce([{ name: '测试家族' }]); // family name (getFamilyName)
 
       const res = await request(app.getHttpServer()).get('/genealogy-book/1/export/1');
 

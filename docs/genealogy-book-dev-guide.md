@@ -351,8 +351,14 @@ create() 调用顺序：
 // [5] ensureFamilyExists（preview 内部再次调用）
 // [6] getById 内部 ensureFamilyExists
 
-// export 共 8 次 query 调用（在 preview 基础上多一次）：
-// 额外：[7] controller 再次调用 getById 获取文件名
+// export 共 7 次 query 调用（exportHtml 一次性返回 { html, book }，controller 不再重复 getById）：
+// [0] ensureFamilyExists
+// [1] getById 行数据
+// [2] ensureMemberTable (information_schema)
+// [3] members 查询
+// [4] getGenerationTable
+// [5] ensureFamilyExists（preview 内部再次调用）
+// [6] getFamilyName
 ```
 
 ### 5.5 运行测试

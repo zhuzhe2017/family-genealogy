@@ -185,8 +185,7 @@ export class GenealogyBookController {
     @Param('id', ParseIntPipe) id: number,
     @Res() res: Response
   ) {
-    const html = await this.bookService.exportHtml(familyId, id);
-    const book = await this.bookService.getById(familyId, id);
+    const { html, book } = await this.bookService.exportHtml(familyId, id);
     const filename = encodeURIComponent(`${book.title || 'genealogy-book'}.html`);
 
     res.setHeader('Content-Type', 'text/html; charset=utf-8');

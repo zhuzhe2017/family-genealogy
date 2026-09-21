@@ -394,7 +394,7 @@ export class GenealogyBookService {
   }
 
   /** 导出：生成 HTML 内容 */
-  async exportHtml(familyId: number, id: number): Promise<string> {
+  async exportHtml(familyId: number, id: number): Promise<{ html: string; book: GenealogyBookRow }> {
     const book = await this.getById(familyId, id);
     const { generationLabels, memberCount, generationCount } = await this.getMembersGrouped(familyId);
     const genTable = await this.getGenerationTable(familyId);
@@ -407,6 +407,11 @@ export class GenealogyBookService {
 
     // 封面
     sections.push(this.buildCoverHtml(bookTitle, book.subtitle, familyName, book));
+
+    // 索引目录（置于封面之后、正文之前）
+    if (book.include_index) {
+      sections.push(this.buildIndexHtml(book, generationLabels));
+    }
 
     // 序言
     if (book.preface) {
@@ -428,15 +433,15 @@ export class GenealogyBookService {
       sections.push(this.buildSectionHtml('家训', book.clan_rules, 'clan-rules'));
     }
 
-    // 世系说明
-    sections.push(this.buildLineageDescriptionHtml(generationLabels, memberCount, generationCount));
-
-    // 成员关系描述
-    sections.push(this.buildRelationDescriptionHtml(generationLabels));
+    // 世系说明（世系图开关同时控制世系说明与成员关系两章）
+    if (book.include_tree_chart) {
+      sections.push(this.buildLineageDescriptionHtml(generationLabels, memberCount, generationCount));
+      sections.push(this.buildRelationDescriptionHtml(generationLabels));
+    }
 
     // 世代成员明细
     generationLabels.forEach(gen => {
-      sections.push(this.buildGenerationMembersHtml(gen));
+      sections.push(this.buildGenerationMembersHtml(gen, book.include_member_bio));
     });
 
     // 附录
@@ -444,7 +449,7 @@ export class GenealogyBookService {
       sections.push(this.buildSectionHtml('附录', book.appendix, 'appendix'));
     }
 
-    return this.wrapHtmlDocument(bookTitle, book, sections.join('\n'));
+    return { html: this.wrapHtmlDocument(bookTitle, book, sections.join('\n')), book };
   }
 
   /** 获取家族名称 */
@@ -476,7 +481,7 @@ export class GenealogyBookService {
   /** 构建章节 HTML */
   private buildSectionHtml(title: string, content: string, className: string): string {
     return `
-    <div class="book-section ${className}">
+    <div class="book-section ${className}" id="section-${className}">
       <h2 class="section-title">${this.escapeHtml(title)}</h2>
       <div class="section-content">${this.escapeHtml(content).replace(/\n/g, '<br/>')}</div>
     </div>`;
@@ -488,7 +493,7 @@ export class GenealogyBookService {
       .map((gen, idx) => `<div class="gen-item"><span class="gen-num">${idx + 1}</span><span class="gen-char">${this.escapeHtml(gen)}</span></div>`)
       .join('');
     return `
-    <div class="book-section generation-table">
+    <div class="book-section generation-table" id="section-generation-table">
       <h2 class="section-title">字辈表</h2>
       <p class="section-desc">${this.escapeHtml(genTable.surname)}氏 · ${this.escapeHtml(genTable.founder)}支系</p>
       <div class="gen-list">${items}</div>
@@ -505,7 +510,7 @@ export class GenealogyBookService {
       .map(g => `<div class="lineage-row"><span class="lineage-gen">第${g.generation}代</span><span class="lineage-label">${this.escapeHtml(g.label)}</span><span class="lineage-count">${g.members.length}人</span></div>`)
       .join('');
     return `
-    <div class="book-section lineage-desc">
+    <div class="book-section lineage-desc" id="section-lineage-desc">
       <h2 class="section-title">世系说明</h2>
       <p class="section-desc">本家族共 ${generationCount} 代，收录成员 ${memberCount} 人。世代传承脉络如下：</p>
       <div class="lineage-list">${genLines}</div>
@@ -516,13 +521,19 @@ export class GenealogyBookService {
   private buildRelationDescriptionHtml(
     generationLabels: { generation: number; label: string; members: BookPreviewNode[] }[]
   ): string {
+    // 建立成员 id → 节点 的映射，避免 O(n²) 查找
+    const memberMap = new Map<string, BookPreviewNode>();
+    generationLabels.forEach(g => g.members.forEach(m => memberMap.set(m.id, m)));
+
     const relationRows = generationLabels.flatMap(g =>
       g.members.map(m => {
-        const father = m.fatherId
-          ? generationLabels.flatMap(x => x.members).find(x => x.id === m.fatherId)
-          : null;
-        const motherName = m.motherId ? `（母：第${Number(m.motherId) + 1}位配偶）` : '';
-        const fatherDesc = father ? `${this.escapeHtml(father.name)}${motherName}` : '始祖';
+        const father = m.fatherId ? memberMap.get(m.fatherId) : undefined;
+        const mother = m.motherId ? memberMap.get(m.motherId) : undefined;
+        const parentDesc = father
+          ? `${this.escapeHtml(father.name)}${mother ? `、${this.escapeHtml(mother.name)}` : ''}`
+          : mother
+            ? this.escapeHtml(mother.name)
+            : '始祖';
         const spouseDesc = m.spouseNames.length > 0
           ? m.spouseNames.map(n => this.escapeHtml(n)).join('、')
           : '—';
@@ -531,14 +542,14 @@ export class GenealogyBookService {
         <tr>
           <td>${this.escapeHtml(m.name)}</td>
           <td>第${m.generation}代</td>
-          <td>${fatherDesc}</td>
+          <td>${parentDesc}</td>
           <td>${spouseDesc}</td>
           <td>${childCount > 0 ? `${childCount}人` : '—'}</td>
         </tr>`;
       })
     );
     return `
-    <div class="book-section relation-desc">
+    <div class="book-section relation-desc" id="section-relation-desc">
       <h2 class="section-title">成员关系</h2>
       <table class="relation-table">
         <thead>
@@ -550,7 +561,10 @@ export class GenealogyBookService {
   }
 
   /** 构建世代成员明细 HTML */
-  private buildGenerationMembersHtml(gen: { generation: number; label: string; members: BookPreviewNode[] }): string {
+  private buildGenerationMembersHtml(
+    gen: { generation: number; label: string; members: BookPreviewNode[] },
+    includeBio = 1
+  ): string {
     const memberCards = gen.members.map(m => {
       const info: string[] = [];
       if (m.birthDate) info.push(`生于${this.escapeHtml(m.birthDate)}`);
@@ -561,7 +575,7 @@ export class GenealogyBookService {
       <div class="member-card">
         <div class="member-name">${this.escapeHtml(m.name)}</div>
         <div class="member-info">${info.join(' · ') || '—'}</div>
-        ${m.bio ? `<div class="member-bio">${this.escapeHtml(m.bio)}</div>` : ''}
+        ${includeBio && m.bio ? `<div class="member-bio">${this.escapeHtml(m.bio)}</div>` : ''}
       </div>`;
     });
     return `
@@ -571,13 +585,89 @@ export class GenealogyBookService {
     </div>`;
   }
 
+  /** 构建索引目录 HTML */
+  private buildIndexHtml(
+    book: GenealogyBookRow,
+    generationLabels: { generation: number; label: string; members: BookPreviewNode[] }[]
+  ): string {
+    const items: string[] = [];
+    if (book.preface) items.push('<li><a href="#section-preface">序言</a></li>');
+    if (book.introduction) items.push('<li><a href="#section-introduction">家族简介</a></li>');
+    if (book.include_generation_table) items.push('<li><a href="#section-generation-table">字辈表</a></li>');
+    if (book.clan_rules) items.push('<li><a href="#section-clan-rules">家训</a></li>');
+    if (book.include_tree_chart) {
+      items.push('<li><a href="#section-lineage-desc">世系说明</a></li>');
+      items.push('<li><a href="#section-relation-desc">成员关系</a></li>');
+    }
+    generationLabels.forEach(g => {
+      items.push(`<li><a href="#gen-${g.generation}">${this.escapeHtml(g.label)}</a></li>`);
+    });
+    if (book.appendix) items.push('<li><a href="#section-appendix">附录</a></li>');
+
+    return `
+    <div class="book-section book-index" id="book-index">
+      <h2 class="section-title">目录</h2>
+      <ul class="index-list">${items.join('')}</ul>
+    </div>`;
+  }
+
   /** 包装完整 HTML 文档 */
   private wrapHtmlDocument(title: string, book: GenealogyBookRow, bodyContent: string): string {
     const fontFamily = book.font_family === 'serif'
       ? '"SimSun", "Songti SC", serif'
       : book.font_family === 'sans'
         ? '"Microsoft YaHei", "PingFang SC", sans-serif'
-        : book.font_family;
+        : book.font_family === 'kai'
+          ? '"KaiTi", "STKaiti", "Kaiti SC", serif'
+          : book.font_family;
+
+    // 竖排模板：苏式 / 古典线装
+    const isVertical = book.template === 'su_style' || book.template === 'classical';
+    // 古典线装：更贴近传统的样式
+    const isClassical = book.template === 'classical';
+
+    // 纸张尺寸 → @page 尺寸
+    const paperSizeMap: Record<string, string> = {
+      A4: '210mm 297mm',
+      A3: '297mm 420mm',
+      '16K': '185mm 260mm'
+    };
+    const pageSize = paperSizeMap[book.paper_size] || paperSizeMap.A4;
+
+    // 竖排专属 CSS
+    const verticalCss = isVertical ? `
+  /* ===== 竖排模板：从右至左阅读 ===== */
+  .book-page { max-width: none; writing-mode: vertical-rl; direction: rtl; }
+  body { background: #f5f5f5; }
+  .section-title { border-bottom: none; border-right: 3px solid #8b0000; padding-bottom: 0; padding-right: 8px; }
+  .member-grid { display: flex; flex-wrap: wrap; gap: 12px; }
+  .member-card { writing-mode: vertical-rl; height: 240px; min-width: 120px; }
+  .gen-list { flex-direction: row; }
+  .gen-item { writing-mode: vertical-rl; }
+  .lineage-list { flex-direction: row; flex-wrap: wrap; }
+  .lineage-row { writing-mode: vertical-rl; }
+  .relation-table { writing-mode: horizontal-tb; direction: ltr; }
+  .index-list { list-style: none; display: flex; flex-wrap: wrap; gap: 8px 24px; }
+  .index-list li { writing-mode: vertical-rl; }
+  .index-list a { color: #333; text-decoration: none; }
+  .index-list a:hover { color: #8b0000; }` : '';
+
+    // 古典线装专属 CSS
+    const classicalCss = isClassical ? `
+  /* ===== 古典线装样式 ===== */
+  body { background: #f0e6d2; }
+  .book-page { background: #f5eeda; }
+  .cover-title { letter-spacing: 16px; font-family: "KaiTi", "STKaiti", serif; }
+  .book-cover { border-bottom-color: #5c3317; }
+  .section-title { color: #5c3317; border-right-color: #5c3317; }
+  .member-card { background: transparent; border: 1px solid #d4c5a3; }
+  .gen-item { background: transparent; border: 1px solid #d4c5a3; }
+  .gen-char { color: #5c3317; }
+  .lineage-row { background: transparent; border: 1px solid #e0d5b8; }
+  .lineage-gen { color: #5c3317; }
+  .relation-table th { background: #efe5cd; }
+  .relation-table th, .relation-table td { border-color: #d4c5a3; }
+  .member-bio { border-top-color: #d4c5a3; }` : '';
 
     return `<!DOCTYPE html>
 <html lang="zh-CN">
@@ -615,7 +705,14 @@ export class GenealogyBookService {
   .member-name { font-weight: bold; color: #333; margin-bottom: 4px; }
   .member-info { font-size: 12px; color: #666; }
   .member-bio { font-size: 12px; color: #888; margin-top: 6px; border-top: 1px dashed #eee; padding-top: 6px; }
+  .index-list { list-style: none; padding-left: 1em; }
+  .index-list li { margin-bottom: 6px; }
+  .index-list a { color: #333; text-decoration: none; }
+  .index-list a:hover { color: #8b0000; text-decoration: underline; }
+  ${verticalCss}
+  ${classicalCss}
   @media print {
+    @page { size: ${pageSize}; margin: 20mm; }
     body { background: #fff; }
     .book-page { padding: 20px; }
     .book-cover { page-break-after: always; break-after: page; }
@@ -626,7 +723,8 @@ export class GenealogyBookService {
     .clan-rules,
     .appendix { page-break-before: always; break-before: page; }
 
-    /* 字辈表、世系说明、成员关系各起新页 */
+    /* 目录、字辈表、世系说明、成员关系各起新页 */
+    .book-index,
     .generation-table,
     .lineage-desc,
     .relation-desc { page-break-before: always; break-before: page; }
