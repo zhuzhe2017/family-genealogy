@@ -37,18 +37,39 @@ describe('KinshipService', () => {
   });
 
   describe('validateFamilyAccess', () => {
-    it('用户属于该家族时不抛异常', async () => {
+    it('user.family_id 匹配时不抛异常', async () => {
+      // 途径1：family_permission 无记录
+      queryMock.mockResolvedValueOnce([]);
+      // 途径2：user.family_id 匹配
       queryMock.mockResolvedValueOnce([{ family_id: 1, status: 1 }]);
       await expect(service.validateFamilyAccess('u1', 1)).resolves.toBeUndefined();
     });
 
-    it('用户不属于该家族时抛 403', async () => {
+    it('family_permission 有记录时不抛异常（多家族权限）', async () => {
+      queryMock.mockResolvedValueOnce([{ id: 1 }]);
+      await expect(service.validateFamilyAccess('u1', 1)).resolves.toBeUndefined();
+    });
+
+    it('家族创建者不抛异常', async () => {
+      // 途径1：无 family_permission
+      queryMock.mockResolvedValueOnce([]);
+      // 途径2：user.family_id 不匹配
       queryMock.mockResolvedValueOnce([{ family_id: 2, status: 1 }]);
+      // 途径3：是家族创建者
+      queryMock.mockResolvedValueOnce([{ creator_user_id: 'u1' }]);
+      await expect(service.validateFamilyAccess('u1', 1)).resolves.toBeUndefined();
+    });
+
+    it('用户不属于该家族时抛 403', async () => {
+      queryMock.mockResolvedValueOnce([]); // family_permission
+      queryMock.mockResolvedValueOnce([{ family_id: 2, status: 1 }]); // user 不匹配
+      queryMock.mockResolvedValueOnce([{ creator_user_id: 'other' }]); // 非创建者
       await expect(service.validateFamilyAccess('u1', 1)).rejects.toThrow(HttpException);
     });
 
     it('用户被禁用时抛 403', async () => {
-      queryMock.mockResolvedValueOnce([{ family_id: 1, status: 0 }]);
+      queryMock.mockResolvedValueOnce([]); // family_permission
+      queryMock.mockResolvedValueOnce([{ family_id: null, status: 0 }]); // 被禁用
       await expect(service.validateFamilyAccess('u1', 1)).rejects.toThrow(HttpException);
     });
   });

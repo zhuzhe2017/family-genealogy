@@ -15,8 +15,16 @@ import {
 export class KinshipService {
   constructor(private readonly dataSource: DataSource) {}
 
-  /** 校验用户是否属于该家族 */
+  /** 校验用户是否属于该家族（支持 family_permission 多家族权限） */
   async validateFamilyAccess(userId: string, familyId: number): Promise<void> {
+    // 途径1：family_permission 表记录
+    const [perm] = await this.dataSource.query<{ id: number }[]>(
+      'SELECT `id` FROM `family_permission` WHERE `family_id` = ? AND `user_id` = ? AND `status` = 1',
+      [familyId, userId]
+    );
+    if (perm) return;
+
+    // 途径2：user.family_id 直接绑定
     const [user] = await this.dataSource.query<{ family_id: number | null; status: number }[]>(
       'SELECT `family_id`, `status` FROM `user` WHERE `id` = ? LIMIT 1',
       [userId]
@@ -24,9 +32,16 @@ export class KinshipService {
     if (!user || user.status !== 1) {
       throw new HttpException('用户不存在或已禁用', HttpStatus.FORBIDDEN);
     }
-    if (!user.family_id || Number(user.family_id) !== familyId) {
-      throw new HttpException('您不属于该家族', HttpStatus.FORBIDDEN);
-    }
+    if (user.family_id && Number(user.family_id) === familyId) return;
+
+    // 途径3：家族创建者
+    const [family] = await this.dataSource.query<{ creator_user_id: string | null }[]>(
+      'SELECT `creator_user_id` FROM `family` WHERE `id` = ? AND `status` = 1',
+      [familyId]
+    );
+    if (family && String(family.creator_user_id || '') === String(userId)) return;
+
+    throw new HttpException('您不属于该家族，无权访问', HttpStatus.FORBIDDEN);
   }
 
   /** 确保家族成员表存在 */
