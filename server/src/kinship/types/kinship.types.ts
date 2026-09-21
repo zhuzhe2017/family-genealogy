@@ -78,6 +78,8 @@ export interface CommonAncestorResult {
   memberA: AncestorPathNode;
   /** 成员B简要信息 */
   memberB: AncestorPathNode;
+  /** 无法确定共同祖先时的原因说明 */
+  noCommonReason?: string;
 }
 
 /** 同名成员候选项 */

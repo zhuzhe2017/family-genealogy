@@ -274,6 +274,21 @@
 .result-banner.success .result-text { color: #2E7D32; }
 .result-banner.fail .result-text { color: #E65100; }
 
+/* 无法确定原因说明 */
+.no-common-reason {
+  background: #FFF8E1;
+  border: 2rpx solid #FFE0B2;
+  border-radius: 16rpx;
+  padding: 24rpx;
+  margin-top: 16rpx;
+}
+
+.no-common-reason text {
+  font-size: 26rpx;
+  color: #E65100;
+  line-height: 1.6;
+}
+
 /* 共同祖先卡片 */
 .ancestor-card,
 .relation-card {

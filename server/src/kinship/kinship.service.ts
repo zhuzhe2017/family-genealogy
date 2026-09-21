@@ -309,19 +309,52 @@ export class KinshipService {
     };
 
     if (commonIdxA === -1) {
+      // 判断是否为单亲家庭（缺少父亲记录导致链条断裂）
+      const hasFatherA = chainA.length > 1;
+      const hasFatherB = chainB.length > 1;
+      let reason = '两人没有共同祖先记录';
+
+      if (!hasFatherA && !hasFatherB) {
+        reason = '两位成员的父亲信息均不完整，无法追溯共同祖先';
+      } else if (!hasFatherA) {
+        reason = `${memberA.name} 的父亲信息不完整，无法追溯其祖先链`;
+      } else if (!hasFatherB) {
+        reason = `${memberB.name} 的父亲信息不完整，无法追溯其祖先链`;
+      }
+
       return {
         hasCommonAncestor: false,
         commonAncestor: null,
         path: null,
         relationship: null,
         memberA: nodeA,
-        memberB: nodeB
+        memberB: nodeB,
+        noCommonReason: reason
       };
     }
 
     // 截取从共同祖先到各自的路径
     const pathToA = chainA.slice(0, commonIdxA + 1);
     const pathToB = chainB.slice(0, commonIdxB + 1);
+
+    // 检查路径深度是否超过称谓计算范围
+    const MAX_KINSHIP_DEPTH = 6;
+    if (pathToA.length > MAX_KINSHIP_DEPTH || pathToB.length > MAX_KINSHIP_DEPTH) {
+      const ca = chainA[commonIdxA];
+      return {
+        hasCommonAncestor: true,
+        commonAncestor: {
+          id: ca.id, name: ca.name, gender: ca.gender,
+          generation: ca.generation, generationName: ca.generationName,
+          birthDate: ca.birthDate, deathDate: ca.deathDate, isAlive: ca.isAlive
+        },
+        path: { pathToA, pathToB },
+        relationship: null,
+        memberA: nodeA,
+        memberB: nodeB,
+        noCommonReason: `血缘关系超过 ${MAX_KINSHIP_DEPTH} 代，无法计算具体称谓`
+      };
+    }
 
     const ca = chainA[commonIdxA];
     const commonAncestor: CommonAncestorInfo = {

@@ -117,6 +117,11 @@
       <text class="result-text">{{result.hasCommonAncestor ? '是同一祖宗' : '未找到共同祖先'}}</text>
     </view>
 
+    <!-- 无法确定原因说明 -->
+    <view class="no-common-reason" wx:if="{{result.noCommonReason}}">
+      <text>{{result.noCommonReason}}</text>
+    </view>
+
     <!-- 共同祖先信息 -->
     <view class="ancestor-card" wx:if="{{result.commonAncestor}}">
       <view class="card-title">共同祖先</view>

@@ -23,6 +23,15 @@ Page({
 
   onLoad() {
     this.loadFamilyId();
+    // 防抖定时器
+    this._debounceTimerA = null;
+    this._debounceTimerB = null;
+  },
+
+  onUnload() {
+    // 清理定时器
+    if (this._debounceTimerA) clearTimeout(this._debounceTimerA);
+    if (this._debounceTimerB) clearTimeout(this._debounceTimerB);
   },
 
   /** 获取当前用户家族ID */
@@ -39,13 +48,21 @@ Page({
     }
   },
 
-  /** 搜索成员A */
-  async onSearchA(e) {
+  /** 搜索成员A（300ms 防抖） */
+  onSearchA(e) {
     const name = (e.detail.value || '').trim();
     this.setData({ searchA: name, selectedA: null, showCandidatesA: false });
-    if (!name || name.length < 1) return;
-    if (!this.data.familyId) return;
 
+    if (this._debounceTimerA) clearTimeout(this._debounceTimerA);
+    if (!name || name.length < 1 || !this.data.familyId) return;
+
+    this._debounceTimerA = setTimeout(() => {
+      this._doSearchA(name);
+    }, 300);
+  },
+
+  /** 实际执行搜索A */
+  async _doSearchA(name) {
     try {
       const list = await kinship.searchMembers(this.data.familyId, name);
       this.setData({ candidatesA: list || [], showCandidatesA: true });
@@ -64,13 +81,21 @@ Page({
     });
   },
 
-  /** 搜索成员B */
-  async onSearchB(e) {
+  /** 搜索成员B（300ms 防抖） */
+  onSearchB(e) {
     const name = (e.detail.value || '').trim();
     this.setData({ searchB: name, selectedB: null, showCandidatesB: false });
-    if (!name || name.length < 1) return;
-    if (!this.data.familyId) return;
 
+    if (this._debounceTimerB) clearTimeout(this._debounceTimerB);
+    if (!name || name.length < 1 || !this.data.familyId) return;
+
+    this._debounceTimerB = setTimeout(() => {
+      this._doSearchB(name);
+    }, 300);
+  },
+
+  /** 实际执行搜索B */
+  async _doSearchB(name) {
     try {
       const list = await kinship.searchMembers(this.data.familyId, name);
       this.setData({ candidatesB: list || [], showCandidatesB: true });
