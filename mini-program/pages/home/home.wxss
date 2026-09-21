@@ -497,9 +497,10 @@ swiper-item {
 }
 
 .action-grid {
-  display: inline-flex;
-  flex-wrap: wrap;
-  width: 200%;
+  display: inline-grid;
+  grid-template-rows: repeat(2, auto);
+  grid-auto-flow: column;
+  grid-auto-columns: calc((100vw - 48rpx - 32rpx - 48rpx) / 4);
   gap: 16rpx;
   background: #FFFFFF;
   border-radius: 24rpx;
@@ -511,7 +512,6 @@ swiper-item {
   display: flex;
   flex-direction: column;
   align-items: center;
-  width: calc(25% - 12rpx);
   padding: 12rpx 0;
 }
 
