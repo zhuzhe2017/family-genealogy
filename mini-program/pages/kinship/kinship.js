@@ -41,7 +41,7 @@ Page({
 
   /** 搜索成员A */
   async onSearchA(e) {
-    const name = e.detail.value.trim();
+    const name = (e.detail.value || '').trim();
     this.setData({ searchA: name, selectedA: null, showCandidatesA: false });
     if (!name || name.length < 1) return;
     if (!this.data.familyId) return;
@@ -66,7 +66,7 @@ Page({
 
   /** 搜索成员B */
   async onSearchB(e) {
-    const name = e.detail.value.trim();
+    const name = (e.detail.value || '').trim();
     this.setData({ searchB: name, selectedB: null, showCandidatesB: false });
     if (!name || name.length < 1) return;
     if (!this.data.familyId) return;
@@ -89,16 +89,7 @@ Page({
     });
   },
 
-  /** 隐藏候选列表 */
-  onHideCandidatesA() {
-    this.setData({ showCandidatesA: false });
-  },
-
-  onHideCandidatesB() {
-    this.setData({ showCandidatesB: false });
-  },
-
-  /** 执行查询 */
+  /** 选择成员B */
   async onQuery() {
     const { familyId, selectedA, selectedB } = this.data;
     if (!familyId) {

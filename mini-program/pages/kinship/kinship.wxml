@@ -29,9 +29,8 @@
         placeholder="输入姓名搜索，如：张三"
         value="{{searchA}}"
         bindinput="onSearchA"
-        bindblur="onHideCandidatesA"
       />
-      <view class="search-clear" wx:if="{{searchA}}" bindtap="onReset">×</view>
+      <view class="search-clear" wx:if="{{searchA}}" catchtap="onReset">×</view>
     </view>
     <!-- 候选列表 -->
     <scroll-view class="candidate-list" scroll-y wx:if="{{showCandidatesA && candidatesA.length > 0}}">
@@ -40,7 +39,7 @@
         wx:for="{{candidatesA}}"
         wx:key="id"
         data-item="{{item}}"
-        bindtap="onSelectA"
+        catchtap="onSelectA"
       >
         <view class="candidate-info">
           <text class="candidate-name">{{item.name}}</text>
@@ -67,9 +66,8 @@
         placeholder="输入姓名搜索，如：李四"
         value="{{searchB}}"
         bindinput="onSearchB"
-        bindblur="onHideCandidatesB"
       />
-      <view class="search-clear" wx:if="{{searchB}}" bindtap="onReset">×</view>
+      <view class="search-clear" wx:if="{{searchB}}" catchtap="onReset">×</view>
     </view>
     <!-- 候选列表 -->
     <scroll-view class="candidate-list" scroll-y wx:if="{{showCandidatesB && candidatesB.length > 0}}">
@@ -78,7 +76,7 @@
         wx:for="{{candidatesB}}"
         wx:key="id"
         data-item="{{item}}"
-        bindtap="onSelectB"
+        catchtap="onSelectB"
       >
         <view class="candidate-info">
           <text class="candidate-name">{{item.name}}</text>
