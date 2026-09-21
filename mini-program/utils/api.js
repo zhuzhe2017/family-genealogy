@@ -469,4 +469,16 @@ const fund = {
   }
 };
 
-module.exports = { auth, family, familyMember, content, category, subscription, member, backup, worship, invitation, banner, plugin, gathering, fund };
+/** 亲缘关系查询接口 */
+const kinship = {
+  /** 按姓名搜索家族成员（共同祖先查询用） */
+  searchMembers: function (familyId, name) {
+    return request({ url: '/user/kinship/' + familyId + '/search', data: { name: name } });
+  },
+  /** 共同祖先查询 */
+  findCommonAncestor: function (familyId, memberAId, memberBId) {
+    return request({ url: '/user/kinship/' + familyId + '/common-ancestor', method: 'POST', data: { memberAId: memberAId, memberBId: memberBId } });
+  }
+};
+
+module.exports = { auth, family, familyMember, content, category, subscription, member, backup, worship, invitation, banner, plugin, gathering, fund, kinship };

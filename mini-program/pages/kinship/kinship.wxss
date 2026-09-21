@@ -1,0 +1,478 @@
+.page-container {
+  padding: 24rpx;
+  padding-bottom: 120rpx;
+  min-height: 100vh;
+  background: #F5F5F5;
+}
+
+/* 帮助栏 */
+.help-bar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 16rpx;
+}
+
+.help-link {
+  font-size: 24rpx;
+  color: #8B1A1A;
+  padding: 8rpx 16rpx;
+}
+
+/* 帮助弹窗 */
+.help-modal {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  z-index: 999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.help-mask {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.5);
+}
+
+.help-content {
+  position: relative;
+  background: #fff;
+  border-radius: 24rpx;
+  padding: 40rpx;
+  width: 80%;
+  max-width: 600rpx;
+}
+
+.help-title {
+  font-size: 32rpx;
+  font-weight: bold;
+  color: #333;
+  text-align: center;
+  margin-bottom: 32rpx;
+}
+
+.help-item {
+  font-size: 26rpx;
+  color: #666;
+  line-height: 1.8;
+  margin-bottom: 12rpx;
+}
+
+.help-close {
+  margin-top: 32rpx;
+  text-align: center;
+  font-size: 28rpx;
+  color: #8B1A1A;
+  padding: 16rpx;
+  border: 2rpx solid #8B1A1A;
+  border-radius: 12rpx;
+}
+
+/* 输入区域 */
+.input-section {
+  background: #fff;
+  border-radius: 24rpx;
+  padding: 32rpx;
+  margin-bottom: 24rpx;
+  box-shadow: 0 4rpx 16rpx rgba(0,0,0,0.06);
+}
+
+.section-title {
+  display: flex;
+  align-items: center;
+  margin-bottom: 24rpx;
+  font-size: 30rpx;
+  font-weight: bold;
+  color: #333;
+}
+
+.section-badge {
+  width: 48rpx;
+  height: 48rpx;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 26rpx;
+  font-weight: bold;
+  color: #fff;
+  margin-right: 16rpx;
+}
+
+.badge-a { background: linear-gradient(135deg, #8B1A1A, #B22222); }
+.badge-b { background: linear-gradient(135deg, #1A5276, #2E86C1); }
+
+/* 搜索框 */
+.search-wrap {
+  display: flex;
+  align-items: center;
+  background: #F8F8F8;
+  border-radius: 16rpx;
+  padding: 20rpx 24rpx;
+  border: 2rpx solid transparent;
+}
+
+.search-input {
+  flex: 1;
+  font-size: 28rpx;
+  color: #333;
+}
+
+.search-clear {
+  font-size: 36rpx;
+  color: #999;
+  padding: 0 8rpx;
+}
+
+/* 候选列表 */
+.candidate-list {
+  max-height: 400rpx;
+  margin-top: 16rpx;
+  background: #fff;
+  border-radius: 12rpx;
+  border: 2rpx solid #eee;
+  overflow: hidden;
+}
+
+.candidate-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 24rpx;
+  border-bottom: 2rpx solid #f5f5f5;
+}
+
+.candidate-item:last-child {
+  border-bottom: none;
+}
+
+.candidate-item.selected {
+  background: #FFF5F5;
+}
+
+.candidate-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.candidate-name {
+  font-size: 28rpx;
+  color: #333;
+  font-weight: 500;
+}
+
+.candidate-meta {
+  font-size: 22rpx;
+  color: #999;
+  margin-top: 4rpx;
+}
+
+.candidate-father {
+  font-size: 22rpx;
+  color: #8B1A1A;
+}
+
+/* 已选标签 */
+.selected-tag {
+  margin-top: 16rpx;
+  padding: 16rpx 20rpx;
+  background: #F0F8F0;
+  border-radius: 12rpx;
+  font-size: 24rpx;
+  color: #2E7D32;
+}
+
+/* 查询按钮 */
+.query-bar {
+  display: flex;
+  gap: 20rpx;
+  margin-bottom: 24rpx;
+}
+
+.query-btn {
+  flex: 1;
+  background: linear-gradient(135deg, #8B1A1A, #B22222);
+  color: #fff;
+  font-size: 30rpx;
+  font-weight: bold;
+  border-radius: 16rpx;
+  padding: 24rpx 0;
+  border: none;
+}
+
+.query-btn.loading {
+  opacity: 0.7;
+}
+
+.query-btn[disabled] {
+  background: #ccc;
+  color: #999;
+}
+
+.reset-btn {
+  width: 160rpx;
+  background: #fff;
+  color: #666;
+  font-size: 28rpx;
+  border-radius: 16rpx;
+  padding: 24rpx 0;
+  border: 2rpx solid #ddd;
+}
+
+/* 错误提示 */
+.error-box {
+  background: #FFF3F3;
+  border: 2rpx solid #FFCDD2;
+  border-radius: 16rpx;
+  padding: 24rpx;
+  margin-bottom: 24rpx;
+}
+
+.error-box text {
+  font-size: 26rpx;
+  color: #C62828;
+}
+
+/* 结果区域 */
+.result-section {
+  display: flex;
+  flex-direction: column;
+  gap: 24rpx;
+}
+
+/* 结果横幅 */
+.result-banner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32rpx;
+  border-radius: 24rpx;
+  gap: 16rpx;
+}
+
+.result-banner.success {
+  background: linear-gradient(135deg, #E8F5E9, #C8E6C9);
+}
+
+.result-banner.fail {
+  background: linear-gradient(135deg, #FFF3E0, #FFE0B2);
+}
+
+.result-icon {
+  font-size: 40rpx;
+  font-weight: bold;
+}
+
+.result-banner.success .result-icon { color: #2E7D32; }
+.result-banner.fail .result-icon { color: #E65100; }
+
+.result-text {
+  font-size: 32rpx;
+  font-weight: bold;
+}
+
+.result-banner.success .result-text { color: #2E7D32; }
+.result-banner.fail .result-text { color: #E65100; }
+
+/* 共同祖先卡片 */
+.ancestor-card,
+.relation-card {
+  background: #fff;
+  border-radius: 24rpx;
+  padding: 32rpx;
+  box-shadow: 0 4rpx 16rpx rgba(0,0,0,0.06);
+}
+
+.card-title {
+  font-size: 28rpx;
+  font-weight: bold;
+  color: #8B1A1A;
+  margin-bottom: 24rpx;
+  padding-bottom: 16rpx;
+  border-bottom: 2rpx solid #f0f0f0;
+}
+
+.ancestor-info {
+  display: flex;
+  flex-direction: column;
+  gap: 16rpx;
+}
+
+.info-row {
+  display: flex;
+  align-items: center;
+}
+
+.info-label {
+  width: 120rpx;
+  font-size: 26rpx;
+  color: #999;
+}
+
+.info-value {
+  font-size: 28rpx;
+  color: #333;
+  font-weight: 500;
+}
+
+/* 关系卡片 */
+.relation-label {
+  font-size: 40rpx;
+  font-weight: bold;
+  color: #333;
+  text-align: center;
+  margin-bottom: 16rpx;
+}
+
+.relation-closeness {
+  font-size: 26rpx;
+  color: #666;
+  text-align: center;
+  margin-bottom: 8rpx;
+}
+
+.relation-diff {
+  font-size: 24rpx;
+  color: #999;
+  text-align: center;
+}
+
+/* 路径区域 */
+.path-section {
+  background: #fff;
+  border-radius: 24rpx;
+  padding: 32rpx;
+  box-shadow: 0 4rpx 16rpx rgba(0,0,0,0.06);
+}
+
+.path-block {
+  margin-bottom: 32rpx;
+}
+
+.path-block:last-child {
+  margin-bottom: 0;
+}
+
+.path-block-title {
+  font-size: 26rpx;
+  color: #666;
+  margin-bottom: 20rpx;
+}
+
+.path-chain {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.path-node {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 20rpx 0;
+  position: relative;
+}
+
+.path-node.ca-node .node-name {
+  background: linear-gradient(135deg, #8B1A1A, #B22222);
+  color: #fff;
+}
+
+.path-node.end-node .node-name {
+  background: linear-gradient(135deg, #1A5276, #2E86C1);
+  color: #fff;
+}
+
+.node-name {
+  font-size: 28rpx;
+  font-weight: 500;
+  color: #333;
+  padding: 12rpx 32rpx;
+  background: #f5f5f5;
+  border-radius: 32rpx;
+}
+
+.node-gen {
+  font-size: 22rpx;
+  color: #999;
+  margin-top: 8rpx;
+}
+
+.node-arrow {
+  font-size: 32rpx;
+  color: #ccc;
+  margin-top: 8rpx;
+}
+
+/* 简易家族树 */
+.tree-section {
+  background: #fff;
+  border-radius: 24rpx;
+  padding: 32rpx;
+  box-shadow: 0 4rpx 16rpx rgba(0,0,0,0.06);
+}
+
+.mini-tree {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 20rpx 0;
+}
+
+.tree-ca {
+  font-size: 32rpx;
+  font-weight: bold;
+  color: #fff;
+  background: linear-gradient(135deg, #8B1A1A, #B22222);
+  padding: 16rpx 48rpx;
+  border-radius: 32rpx;
+  margin-bottom: 32rpx;
+}
+
+.tree-branches {
+  display: flex;
+  gap: 60rpx;
+}
+
+.tree-branch {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.tree-member {
+  font-size: 28rpx;
+  font-weight: 500;
+  padding: 12rpx 32rpx;
+  border-radius: 32rpx;
+}
+
+.a-member {
+  background: #FFF3F3;
+  color: #8B1A1A;
+  border: 2rpx solid #8B1A1A;
+}
+
+.b-member {
+  background: #F3F7FF;
+  color: #1A5276;
+  border: 2rpx solid #1A5276;
+}
+
+.tree-line-a,
+.tree-line-b {
+  font-size: 22rpx;
+  color: #999;
+  margin-top: 12rpx;
+}
+
+/* 分享按钮 */
+.share-btn {
+  background: #fff;
+  color: #8B1A1A;
+  font-size: 28rpx;
+  border-radius: 16rpx;
+  padding: 24rpx 0;
+  border: 2rpx solid #8B1A1A;
+  margin-top: 8rpx;
+}

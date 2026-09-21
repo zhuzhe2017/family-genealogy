@@ -48,7 +48,8 @@
     "pages/invite-accept/invite-accept",
     "pages/share-poster/share-poster",
     "pages/app-center/app-center",
-    "pages/webview/webview"
+    "pages/webview/webview",
+    "pages/kinship/kinship"
   ],
   "entryPagePath": "pages/index/index",
   "window": {

@@ -1,0 +1,219 @@
+<view class="page-container">
+  <!-- 帮助按钮 -->
+  <view class="help-bar">
+    <text class="help-link" bindtap="onToggleHelp">使用说明</text>
+  </view>
+
+  <!-- 帮助弹窗 -->
+  <view class="help-modal" wx:if="{{showHelp}}">
+    <view class="help-mask" bindtap="onToggleHelp"></view>
+    <view class="help-content">
+      <view class="help-title">使用说明</view>
+      <view class="help-item">1. 分别输入两位家族成员的姓名</view>
+      <view class="help-item">2. 从搜索结果中选择对应成员（同名时可查看字辈/父亲区分）</view>
+      <view class="help-item">3. 点击「查询共同祖先」按钮</view>
+      <view class="help-item">4. 查看共同祖先信息、亲缘路径及关系称谓</view>
+      <view class="help-close" bindtap="onToggleHelp">我知道了</view>
+    </view>
+  </view>
+
+  <!-- 成员A输入区 -->
+  <view class="input-section">
+    <view class="section-title">
+      <view class="section-badge badge-a">A</view>
+      <text>第一位成员</text>
+    </view>
+    <view class="search-wrap">
+      <input
+        class="search-input"
+        placeholder="输入姓名搜索，如：张三"
+        value="{{searchA}}"
+        bindinput="onSearchA"
+        bindblur="onHideCandidatesA"
+      />
+      <view class="search-clear" wx:if="{{searchA}}" bindtap="onReset">×</view>
+    </view>
+    <!-- 候选列表 -->
+    <scroll-view class="candidate-list" scroll-y wx:if="{{showCandidatesA && candidatesA.length > 0}}">
+      <view
+        class="candidate-item {{selectedA && selectedA.id === item.id ? 'selected' : ''}}"
+        wx:for="{{candidatesA}}"
+        wx:key="id"
+        data-item="{{item}}"
+        bindtap="onSelectA"
+      >
+        <view class="candidate-info">
+          <text class="candidate-name">{{item.name}}</text>
+          <text class="candidate-meta">{{item.generationName}}字辈 · 第{{item.generation}}代</text>
+        </view>
+        <text class="candidate-father" wx:if="{{item.fatherName}}">父：{{item.fatherName}}</text>
+      </view>
+    </scroll-view>
+    <!-- 已选择标签 -->
+    <view class="selected-tag" wx:if="{{selectedA}}">
+      <text>已选：{{selectedA.name}}（{{selectedA.generationName}}字辈，第{{selectedA.generation}}代）</text>
+    </view>
+  </view>
+
+  <!-- 成员B输入区 -->
+  <view class="input-section">
+    <view class="section-title">
+      <view class="section-badge badge-b">B</view>
+      <text>第二位成员</text>
+    </view>
+    <view class="search-wrap">
+      <input
+        class="search-input"
+        placeholder="输入姓名搜索，如：李四"
+        value="{{searchB}}"
+        bindinput="onSearchB"
+        bindblur="onHideCandidatesB"
+      />
+      <view class="search-clear" wx:if="{{searchB}}" bindtap="onReset">×</view>
+    </view>
+    <!-- 候选列表 -->
+    <scroll-view class="candidate-list" scroll-y wx:if="{{showCandidatesB && candidatesB.length > 0}}">
+      <view
+        class="candidate-item {{selectedB && selectedB.id === item.id ? 'selected' : ''}}"
+        wx:for="{{candidatesB}}"
+        wx:key="id"
+        data-item="{{item}}"
+        bindtap="onSelectB"
+      >
+        <view class="candidate-info">
+          <text class="candidate-name">{{item.name}}</text>
+          <text class="candidate-meta">{{item.generationName}}字辈 · 第{{item.generation}}代</text>
+        </view>
+        <text class="candidate-father" wx:if="{{item.fatherName}}">父：{{item.fatherName}}</text>
+      </view>
+    </scroll-view>
+    <!-- 已选择标签 -->
+    <view class="selected-tag" wx:if="{{selectedB}}">
+      <text>已选：{{selectedB.name}}（{{selectedB.generationName}}字辈，第{{selectedB.generation}}代）</text>
+    </view>
+  </view>
+
+  <!-- 查询按钮 -->
+  <view class="query-bar">
+    <button
+      class="query-btn {{loading ? 'loading' : ''}}"
+      disabled="{{loading || !selectedA || !selectedB}}"
+      loading="{{loading}}"
+      bindtap="onQuery"
+    >
+      {{loading ? '查询中...' : '查询共同祖先'}}
+    </button>
+    <button class="reset-btn" bindtap="onReset">重置</button>
+  </view>
+
+  <!-- 错误提示 -->
+  <view class="error-box" wx:if="{{errorMsg}}">
+    <text>{{errorMsg}}</text>
+  </view>
+
+  <!-- 查询结果 -->
+  <view class="result-section" wx:if="{{result}}">
+    <!-- 是否有共同祖先 -->
+    <view class="result-banner {{result.hasCommonAncestor ? 'success' : 'fail'}}">
+      <text class="result-icon">{{result.hasCommonAncestor ? '✓' : '✗'}}</text>
+      <text class="result-text">{{result.hasCommonAncestor ? '是同一祖宗' : '未找到共同祖先'}}</text>
+    </view>
+
+    <!-- 共同祖先信息 -->
+    <view class="ancestor-card" wx:if="{{result.commonAncestor}}">
+      <view class="card-title">共同祖先</view>
+      <view class="ancestor-info">
+        <view class="info-row">
+          <text class="info-label">姓名</text>
+          <text class="info-value">{{result.commonAncestor.name}}</text>
+        </view>
+        <view class="info-row">
+          <text class="info-label">字辈</text>
+          <text class="info-value">{{result.commonAncestor.generationName}}字辈</text>
+        </view>
+        <view class="info-row">
+          <text class="info-label">世代</text>
+          <text class="info-value">第{{result.commonAncestor.generation}}代</text>
+        </view>
+        <view class="info-row" wx:if="{{result.commonAncestor.birthDate}}">
+          <text class="info-label">生于</text>
+          <text class="info-value">{{result.commonAncestor.birthDate}}</text>
+        </view>
+        <view class="info-row" wx:if="{{!result.commonAncestor.isAlive && result.commonAncestor.deathDate}}">
+          <text class="info-label">卒于</text>
+          <text class="info-value">{{result.commonAncestor.deathDate}}</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 关系描述 -->
+    <view class="relation-card" wx:if="{{result.relationship}}">
+      <view class="card-title">关系说明</view>
+      <view class="relation-label">{{result.relationship.label}}</view>
+      <view class="relation-closeness">{{result.relationship.closeness}}</view>
+      <view class="relation-diff" wx:if="{{result.relationship.generationDiff !== 0}}">
+        {{result.relationship.generationDiff > 0 ? 'A 比 B 高 ' + result.relationship.generationDiff + ' 辈' : 'A 比 B 低 ' + (-result.relationship.generationDiff) + ' 辈'}}
+      </view>
+    </view>
+
+    <!-- 亲缘路径 -->
+    <view class="path-section" wx:if="{{result.path}}">
+      <view class="card-title">亲缘路径</view>
+
+      <!-- A 路径 -->
+      <view class="path-block">
+        <view class="path-block-title">A → 共同祖先</view>
+        <view class="path-chain">
+          <view
+            class="path-node {{index === 0 ? 'ca-node' : ''}} {{index === result.path.pathToA.length - 1 ? 'end-node' : ''}}"
+            wx:for="{{result.path.pathToA}}"
+            wx:key="id"
+            wx:for-index="index"
+          >
+            <view class="node-name">{{item.name}}</view>
+            <view class="node-gen">第{{item.generation}}代</view>
+            <view class="node-arrow" wx:if="{{index < result.path.pathToA.length - 1}}">↑</view>
+          </view>
+        </view>
+      </view>
+
+      <!-- B 路径 -->
+      <view class="path-block">
+        <view class="path-block-title">B → 共同祖先</view>
+        <view class="path-chain">
+          <view
+            class="path-node {{index === 0 ? 'ca-node' : ''}} {{index === result.path.pathToB.length - 1 ? 'end-node' : ''}}"
+            wx:for="{{result.path.pathToB}}"
+            wx:key="id"
+            wx:for-index="index"
+          >
+            <view class="node-name">{{item.name}}</view>
+            <view class="node-gen">第{{item.generation}}代</view>
+            <view class="node-arrow" wx:if="{{index < result.path.pathToB.length - 1}}">↑</view>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 简易家族树 -->
+    <view class="tree-section" wx:if="{{result.hasCommonAncestor}}">
+      <view class="card-title">简易家族树</view>
+      <view class="mini-tree">
+        <view class="tree-ca">{{result.commonAncestor.name}}</view>
+        <view class="tree-branches">
+          <view class="tree-branch">
+            <view class="tree-member a-member">{{result.memberA.name}}</view>
+            <view class="tree-line-a">{{result.path.pathToA.length - 1}} 代</view>
+          </view>
+          <view class="tree-branch">
+            <view class="tree-member b-member">{{result.memberB.name}}</view>
+            <view class="tree-line-b">{{result.path.pathToB.length - 1}} 代</view>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 分享按钮 -->
+    <button class="share-btn" open-type="share">分享查询结果</button>
+  </view>
+</view>

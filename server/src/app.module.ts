@@ -36,6 +36,7 @@ import { GatheringModule } from './gathering/gathering.module';
 import { FundModule } from './fund/fund.module';
 import { MemberModule } from './member/member.module';
 import { GenealogyBookModule } from './genealogy-book/genealogy-book.module';
+import { KinshipModule } from './kinship/kinship.module';
 import { TenantModule } from './tenant/tenant.module';
 import { JwtAuthGuard } from './auth/guard/jwt-auth.guard';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
@@ -86,6 +87,7 @@ import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
     FundModule,
     MemberModule,
     GenealogyBookModule,
+    KinshipModule,
     TenantModule
   ],
   controllers: [AppController],

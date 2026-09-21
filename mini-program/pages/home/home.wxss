@@ -494,7 +494,7 @@ swiper-item {
 
 .action-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   gap: 16rpx;
   background: #FFFFFF;
   border-radius: 24rpx;
@@ -510,9 +510,9 @@ swiper-item {
 }
 
 .action-icon {
-  width: 88rpx;
-  height: 88rpx;
-  border-radius: 24rpx;
+  width: 72rpx;
+  height: 72rpx;
+  border-radius: 20rpx;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -520,11 +520,11 @@ swiper-item {
 }
 
 .action-icon-text {
-  font-size: 40rpx;
+  font-size: 36rpx;
 }
 
 .action-name {
-  font-size: 24rpx;
+  font-size: 22rpx;
   color: #333;
 }
 
