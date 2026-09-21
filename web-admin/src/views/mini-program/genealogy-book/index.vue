@@ -92,6 +92,7 @@ async function loadFamilies() {
     if (families.value.length > 0 && !selectedFamilyId.value) {
       selectedFamilyId.value = families.value[0].value;
       await loadData();
+      await loadTemplates();
     }
   } catch {
     message.error('加载家族列表失败');
