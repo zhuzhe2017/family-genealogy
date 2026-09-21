@@ -90,16 +90,18 @@
   <!-- 开发模式模拟数据角标 -->
   <view class="mock-banner" wx:if="{{isMock}}">当前为模拟数据,连接后端后展示真实内容</view>
 
-  <!-- 快捷功能入口 -->
+  <!-- 快捷功能入口:左右滑动，每排4个 -->
   <view class="quick-actions">
-    <view class="action-grid">
-      <view class="action-item" wx:for="{{quickActions}}" wx:key="id" bindtap="navigateTo" data-url="{{item.url}}">
-        <view class="action-icon" style="background: {{item.bgColor}}">
-          <text class="action-icon-text">{{item.icon}}</text>
+    <scroll-view class="action-scroll" scroll-x enhanced show-scrollbar="{{false}}">
+      <view class="action-grid">
+        <view class="action-item" wx:for="{{quickActions}}" wx:key="id" bindtap="navigateTo" data-url="{{item.url}}">
+          <view class="action-icon" style="background: {{item.bgColor}}">
+            <text class="action-icon-text">{{item.icon}}</text>
+          </view>
+          <text class="action-name">{{item.name}}</text>
         </view>
-        <text class="action-name">{{item.name}}</text>
       </view>
-    </view>
+    </scroll-view>
   </view>
 
   <!-- 最近动态 -->

@@ -89,7 +89,7 @@ Page({
     });
   },
 
-  /** 选择成员B */
+  /** 执行共同祖先查询 */
   async onQuery() {
     const { familyId, selectedA, selectedB } = this.data;
     if (!familyId) {

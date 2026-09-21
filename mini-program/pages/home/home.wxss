@@ -485,16 +485,21 @@ swiper-item {
   background: rgba(255,255,255,0.2);
 }
 
-/* 快捷入口 */
+/* 快捷功能入口 */
 .quick-actions {
   margin: -30rpx 24rpx 24rpx;
   position: relative;
   z-index: 2;
 }
 
+.action-scroll {
+  white-space: nowrap;
+}
+
 .action-grid {
-  display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  display: inline-flex;
+  flex-wrap: wrap;
+  width: 200%;
   gap: 16rpx;
   background: #FFFFFF;
   border-radius: 24rpx;
@@ -506,13 +511,14 @@ swiper-item {
   display: flex;
   flex-direction: column;
   align-items: center;
+  width: calc(25% - 12rpx);
   padding: 12rpx 0;
 }
 
 .action-icon {
-  width: 72rpx;
-  height: 72rpx;
-  border-radius: 20rpx;
+  width: 88rpx;
+  height: 88rpx;
+  border-radius: 24rpx;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -520,11 +526,11 @@ swiper-item {
 }
 
 .action-icon-text {
-  font-size: 36rpx;
+  font-size: 40rpx;
 }
 
 .action-name {
-  font-size: 22rpx;
+  font-size: 24rpx;
   color: #333;
 }
 
