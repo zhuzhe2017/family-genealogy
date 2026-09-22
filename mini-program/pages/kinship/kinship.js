@@ -58,13 +58,17 @@ Page({
     });
   },
 
-  /** 搜索成员A（300ms 防抖） */
+  /** 搜索成员A（300ms 防抖，至少输入 2 个字） */
   onSearchA(e) {
     const name = (e.detail.value || '').trim();
     this.setData({ searchA: name, selectedA: null, showCandidatesA: false, searchEmptyA: false });
 
     if (this._debounceTimerA) clearTimeout(this._debounceTimerA);
-    if (!name || name.length < 1 || !this.data.familyId) return;
+    if (name.length < 2) {
+      this.setData({ searchingA: false, candidatesA: [] });
+      return;
+    }
+    if (!this.data.familyId) return;
 
     this.setData({ searchingA: true });
     this._debounceTimerA = setTimeout(() => {
@@ -105,13 +109,17 @@ Page({
     this.setData({ searchA: '', candidatesA: [], selectedA: null, showCandidatesA: false, searchEmptyA: false, searchingA: false });
   },
 
-  /** 搜索成员B（300ms 防抖） */
+  /** 搜索成员B（300ms 防抖，至少输入 2 个字） */
   onSearchB(e) {
     const name = (e.detail.value || '').trim();
     this.setData({ searchB: name, selectedB: null, showCandidatesB: false, searchEmptyB: false });
 
     if (this._debounceTimerB) clearTimeout(this._debounceTimerB);
-    if (!name || name.length < 1 || !this.data.familyId) return;
+    if (name.length < 2) {
+      this.setData({ searchingB: false, candidatesB: [] });
+      return;
+    }
+    if (!this.data.familyId) return;
 
     this.setData({ searchingB: true });
     this._debounceTimerB = setTimeout(() => {

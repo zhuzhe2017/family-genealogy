@@ -623,13 +623,14 @@ page {
 }
 
 .root-pill {
-  min-width: 240rpx;
+  min-width: 208rpx;
+  padding: 14rpx 24rpx;
   background: linear-gradient(135deg, #9C231D, #7A1717);
   box-shadow: 0 10rpx 24rpx rgba(139, 26, 26, 0.3);
 }
 
 .root-pill .pill-name {
-  font-size: 34rpx;
+  font-size: 32rpx;
   font-weight: 700;
   color: #FFFFFF;
 }
@@ -660,7 +661,7 @@ page {
   position: absolute;
   top: 28rpx;
   left: 50%;
-  width: 50%;
+  width: calc(50% + 10rpx);
   height: 4rpx;
   transform: translateX(-50%);
   background: #DCCFC2;
@@ -671,7 +672,7 @@ page {
   position: absolute;
   top: 32rpx;
   left: 50%;
-  width: 50%;
+  width: calc(50% + 10rpx);
   height: 28rpx;
   transform: translateX(-50%);
 }
@@ -697,6 +698,7 @@ page {
 .tree-branches {
   display: flex;
   align-items: flex-start;
+  gap: 20rpx;
 }
 
 .branch {
@@ -735,9 +737,10 @@ page {
 }
 
 .chain-pill {
-  width: 86%;
-  max-width: 280rpx;
-  margin-bottom: 26rpx;
+  width: 72%;
+  max-width: 200rpx;
+  padding: 12rpx 16rpx;
+  margin-bottom: 24rpx;
   animation: pop 0.35s ease both;
 }
 
@@ -772,7 +775,7 @@ page {
 }
 
 .chain-pill .pill-name {
-  font-size: 27rpx;
+  font-size: 25rpx;
   font-weight: 600;
   word-break: break-all;
   text-align: center;
@@ -780,13 +783,13 @@ page {
 
 .chain-pill .pill-gen {
   margin-top: 4rpx;
-  font-size: 21rpx;
+  font-size: 20rpx;
   color: #A39B91;
 }
 
 /* 末端（成员本人）节点 */
 .chain-pill.is-end {
-  padding: 18rpx 28rpx;
+  padding: 14rpx 16rpx;
   border: none;
 }
 

@@ -15,7 +15,7 @@
     <view class="help-sheet">
       <view class="handle"></view>
       <view class="help-title">使用说明</view>
-      <view class="help-item"><text class="help-num">1</text>分别输入两位家族成员的姓名</view>
+      <view class="help-item"><text class="help-num">1</text>分别输入两位家族成员的姓名（至少 2 个字自动搜索）</view>
       <view class="help-item"><text class="help-num">2</text>从候选中选择对应成员（同名可看字辈、父亲区分）</view>
       <view class="help-item"><text class="help-num">3</text>点击「查询共同祖先」</view>
       <view class="help-item"><text class="help-num">4</text>查看共同祖先、分叉世序图与关系称谓</view>
@@ -36,7 +36,7 @@
         <text class="search-icon">🔍</text>
         <input
           class="search-input"
-          placeholder="输入姓名，如：张三"
+          placeholder="至少输入2个字，如：张三"
           placeholder-class="search-placeholder"
           value="{{searchA}}"
           confirm-type="search"
@@ -94,7 +94,7 @@
         <text class="search-icon">🔍</text>
         <input
           class="search-input"
-          placeholder="输入姓名，如：李四"
+          placeholder="至少输入2个字，如：李四"
           placeholder-class="search-placeholder"
           value="{{searchB}}"
           confirm-type="search"
