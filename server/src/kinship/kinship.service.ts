@@ -2,14 +2,16 @@ import { Injectable, HttpException, HttpStatus } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { getSafeMemberTableName } from '../common/utils/family-member-table';
 import {
-  type MemberNode,
   type AncestorPathNode,
-  type CommonAncestorInfo,
-  type KinshipPath,
   type RelationshipInfo,
   type CommonAncestorResult,
   type MemberSearchResult
 } from './types/kinship.types';
+
+/** 称谓计算支持的最大路径深度 */
+const MAX_KINSHIP_DEPTH = 6;
+/** 祖先链递归 CTE 深度上限（防脏数据成环导致死循环） */
+const MAX_ANCESTOR_DEPTH = 100;
 
 @Injectable()
 export class KinshipService {
@@ -58,25 +60,15 @@ export class KinshipService {
     return tableName;
   }
 
-  /** 查询单个成员 */
-  private async getMember(familyId: number, memberId: string): Promise<MemberNode> {
-    const tableName = await this.ensureMemberTable(familyId);
-    const [row] = await this.dataSource.query<MemberNode[]>(
-      `SELECT \`id\`, \`name\`, \`gender\`, \`generation\`, \`generation_name\`,
-              \`birth_date\`, \`death_date\`, \`is_alive\`, \`father_id\`, \`sort_order\`
-       FROM \`${tableName}\`
-       WHERE \`id\` = ? AND \`status\` = 1 LIMIT 1`,
-      [memberId]
-    );
-    if (!row) {
-      throw new HttpException('成员不存在', HttpStatus.NOT_FOUND);
-    }
-    return row;
+  /** 转义 LIKE 通配符，防止用户输入 %/_ 被当作通配符 */
+  private escapeLike(name: string): string {
+    return name.replace(/[\\%_]/g, '\\$&');
   }
 
   /** 按姓名搜索成员（支持同名候选） */
   async searchMembers(familyId: number, name: string): Promise<MemberSearchResult[]> {
     const tableName = await this.ensureMemberTable(familyId);
+    const keyword = `%${this.escapeLike(name)}%`;
     const rows = await this.dataSource.query<{
       id: string; name: string; gender: string; generation: number;
       generation_name: string; birth_date: string; father_id: string;
@@ -87,7 +79,7 @@ export class KinshipService {
        WHERE \`name\` LIKE ? AND \`status\` = 1
        ORDER BY \`generation\` ASC, \`sort_order\` ASC
        LIMIT 50`,
-      [`%${name}%`]
+      [keyword]
     );
 
     // 补充父亲姓名用于候选区分
@@ -112,46 +104,48 @@ export class KinshipService {
     }));
   }
 
-  /** 向上遍历祖先链（含自身） */
+  /**
+   * 向上遍历父系祖先链（含自身，递归 CTE 一次查询）。
+   * 返回顺序：[成员本人, 父, 祖父, ..., 顶层祖先]
+   */
   private async buildAncestorChain(familyId: number, startId: string): Promise<AncestorPathNode[]> {
     const tableName = await this.ensureMemberTable(familyId);
-    const chain: AncestorPathNode[] = [];
-    let currentId = startId;
-    const visited = new Set<string>();
-
-    while (currentId && !visited.has(currentId)) {
-      visited.add(currentId);
-      const [row] = await this.dataSource.query<{
-        id: string; name: string; gender: string; generation: number;
-        generation_name: string; birth_date: string; death_date: string;
-        is_alive: number; father_id: string;
-      }[]>(
-        `SELECT \`id\`, \`name\`, \`gender\`, \`generation\`, \`generation_name\`,
-                \`birth_date\`, \`death_date\`, \`is_alive\`, \`father_id\`
+    const rows = await this.dataSource.query<{
+      id: string; name: string; gender: string; generation: number;
+      generation_name: string; birth_date: string; death_date: string; is_alive: number;
+    }[]>(
+      `WITH RECURSIVE \`ancestors\` AS (
+         SELECT \`id\`, \`name\`, \`gender\`, \`generation\`, \`generation_name\`,
+                \`birth_date\`, \`death_date\`, \`is_alive\`, \`father_id\`, 0 AS \`depth\`
          FROM \`${tableName}\`
-         WHERE \`id\` = ? AND \`status\` = 1 LIMIT 1`,
-        [currentId]
-      );
-      if (!row) break;
+         WHERE \`id\` = ? AND \`status\` = 1
+         UNION ALL
+         SELECT m.\`id\`, m.\`name\`, m.\`gender\`, m.\`generation\`, m.\`generation_name\`,
+                m.\`birth_date\`, m.\`death_date\`, m.\`is_alive\`, m.\`father_id\`, a.\`depth\` + 1
+         FROM \`${tableName}\` m
+         JOIN \`ancestors\` a ON m.\`id\` = a.\`father_id\`
+         WHERE m.\`status\` = 1 AND a.\`depth\` < ${MAX_ANCESTOR_DEPTH}
+       )
+       SELECT \`id\`, \`name\`, \`gender\`, \`generation\`, \`generation_name\`,
+              \`birth_date\`, \`death_date\`, \`is_alive\`
+       FROM \`ancestors\`
+       ORDER BY \`depth\` ASC`,
+      [startId]
+    );
 
-      chain.push({
-        id: row.id,
-        name: row.name,
-        gender: row.gender,
-        generation: row.generation,
-        generationName: row.generation_name || '',
-        birthDate: row.birth_date || '',
-        deathDate: row.death_date || '',
-        isAlive: row.is_alive
-      });
-
-      currentId = row.father_id || '';
-    }
-
-    return chain;
+    return rows.map(r => ({
+      id: r.id,
+      name: r.name,
+      gender: r.gender,
+      generation: r.generation,
+      generationName: r.generation_name || '',
+      birthDate: r.birth_date || '',
+      deathDate: r.death_date || '',
+      isAlive: r.is_alive
+    }));
   }
 
-  /** 计算两人世代差和关系 */
+  /** 计算两人世代差和关系（本系统世代号越小辈分越高） */
   private computeRelationship(
     memberA: AncestorPathNode,
     memberB: AncestorPathNode,
@@ -159,90 +153,88 @@ export class KinshipService {
     pathToB: AncestorPathNode[]
   ): RelationshipInfo {
     const genDiff = memberA.generation - memberB.generation;
+    const commonAncestor = pathToA[pathToA.length - 1];
 
-    // 共同祖先在各自路径中的深度
-    const caDepthA = pathToA.length - 1; // 从共同祖先到 A 的边数
+    // 共同祖先在各自路径中的深度（从本人到共同祖先的边数）
+    const caDepthA = pathToA.length - 1;
     const caDepthB = pathToB.length - 1;
 
     // 直系血亲判断：一人是另一人的直系祖先
     if (caDepthA === 0) {
-      // A 是共同祖先本人，即 A 是 B 的直系祖先
+      // A 是共同祖先本人，即 A 是 B 的直系长辈
       return {
-        label: this.getLinealLabel(memberA.gender, Math.abs(genDiff)),
-        closeness: `直系${memberA.gender === 'male' ? '父系' : '母系'}血亲，相差 ${Math.abs(genDiff)} 代`,
+        label: `${memberA.name} 是 ${memberB.name} 的${this.getLinealLabel(memberA.gender, caDepthB)}`,
+        closeness: `直系血亲（父系），相差 ${caDepthB} 代`,
         generationDiff: genDiff
       };
     }
     if (caDepthB === 0) {
+      // B 是共同祖先本人，即 B 是 A 的直系长辈
       return {
-        label: this.getLinealLabel(memberB.gender, Math.abs(genDiff)),
-        closeness: `直系${memberB.gender === 'male' ? '父系' : '母系'}血亲，相差 ${Math.abs(genDiff)} 代`,
+        label: `${memberB.name} 是 ${memberA.name} 的${this.getLinealLabel(memberB.gender, caDepthA)}`,
+        closeness: `直系血亲（父系），相差 ${caDepthA} 代`,
         generationDiff: genDiff
       };
     }
 
-    // 旁系血亲：通过共同祖先确定旁系关系
-    // 用 caDepth 和 caDepthB 确定旁系代数
+    // 旁系血亲：祖先链仅沿 father_id 追溯，共同祖先必然在父系线上
     const collateralDegree = Math.min(caDepthA, caDepthB);
     const genderA = memberA.gender;
 
     // 同辈
     if (genDiff === 0) {
       if (collateralDegree === 1) {
-        // 亲兄弟姐妹
+        // 同父亲的兄弟姐妹（同父异母无法区分母方，统一按同父描述）
         return {
           label: genderA === 'male' ? '兄弟' : '姐妹',
-          closeness: '直系亲属，同父母',
+          closeness: '旁系血亲（父系），同父亲',
           generationDiff: 0
         };
       }
       if (collateralDegree === 2) {
-        // 堂/表兄弟姐妹
-        const isPaternal = pathToA[1]?.gender === 'male' && pathToB[1]?.gender === 'male';
+        // 共享祖父（父系），为堂亲
         return {
-          label: isPaternal
-            ? (genderA === 'male' ? '堂兄弟' : '堂姐妹')
-            : (genderA === 'male' ? '表兄弟' : '表姐妹'),
-          closeness: `旁系血亲，共同祖先为第 ${pathToA[0]?.generation} 代`,
+          label: genderA === 'male' ? '堂兄弟' : '堂姐妹',
+          closeness: `旁系血亲（父系），共同祖先为第 ${commonAncestor.generation} 代`,
           generationDiff: 0
         };
       }
       return {
         label: `远房${genderA === 'male' ? '兄弟' : '姐妹'}`,
-        closeness: `旁系血亲，共同祖先为第 ${pathToA[0]?.generation} 代`,
+        closeness: `旁系血亲（父系），共同祖先为第 ${commonAncestor.generation} 代`,
         generationDiff: 0
       };
     }
 
-    // 不同辈：叔侄、舅甥等
-    const senior = genDiff > 0 ? memberA : memberB;
-    const junior = genDiff > 0 ? memberB : memberA;
+    // 不同辈：叔侄、姑侄等（世代号小者为长辈）
+    const senior = genDiff < 0 ? memberA : memberB;
+    const junior = genDiff < 0 ? memberB : memberA;
     const seniorGender = senior.gender;
 
     if (Math.abs(genDiff) === 1) {
-      // 差一代：叔/伯/姑/舅/姨 与 侄/甥
+      // 差一代：叔/伯（长辈为男）与 侄，姑（长辈为女）与 甥
       if (seniorGender === 'male') {
         return {
           label: `叔伯与侄${junior.gender === 'male' ? '子' : '女'}`,
-          closeness: `旁系血亲，相差 1 代`,
+          closeness: '旁系血亲（父系），相差 1 代',
           generationDiff: genDiff
         };
       }
       return {
-        label: `姑/姨与甥${junior.gender === 'male' ? '子' : '女'}`,
-        closeness: `旁系血亲，相差 1 代`,
+        label: `姑与侄${junior.gender === 'male' ? '子' : '女'}`,
+        closeness: '旁系血亲（父系），相差 1 代',
         generationDiff: genDiff
       };
     }
 
     return {
       label: `远房亲属（相差 ${Math.abs(genDiff)} 代）`,
-      closeness: `旁系血亲，共同祖先为第 ${pathToA[0]?.generation} 代`,
+      closeness: `旁系血亲（父系），共同祖先为第 ${commonAncestor.generation} 代`,
       generationDiff: genDiff
     };
   }
 
-  /** 直系血亲称谓 */
+  /** 直系血亲称谓（返回长辈一方相对于晚辈的称谓） */
   private getLinealLabel(gender: string, generations: number): string {
     const g = Math.abs(generations);
     if (gender === 'male') {
@@ -269,57 +261,48 @@ export class KinshipService {
       throw new HttpException('不能选择同一位成员', HttpStatus.BAD_REQUEST);
     }
 
-    const [memberA, memberB] = await Promise.all([
-      this.getMember(familyId, memberAId),
-      this.getMember(familyId, memberBId)
-    ]);
-
     const [chainA, chainB] = await Promise.all([
       this.buildAncestorChain(familyId, memberAId),
       this.buildAncestorChain(familyId, memberBId)
     ]);
 
+    if (chainA.length === 0 || chainB.length === 0) {
+      throw new HttpException('成员不存在', HttpStatus.NOT_FOUND);
+    }
+
+    // 链首即成员本人
+    const nodeA = chainA[0];
+    const nodeB = chainB[0];
+
     // 构建 B 的祖先 ID 集合
     const ancestorSetB = new Map<string, number>();
     chainB.forEach((node, idx) => ancestorSetB.set(node.id, idx));
 
-    // 找共同祖先（世代最小者 = 离两人最近）
+    // 找共同祖先：沿 A 的祖先链自下而上首个命中即为距两人最近的共同祖先
     let commonIdxA = -1;
     let commonIdxB = -1;
-    let commonGen = Infinity;
 
     for (let i = 0; i < chainA.length; i++) {
       const idxB = ancestorSetB.get(chainA[i].id);
-      if (idxB !== undefined && chainA[i].generation < commonGen) {
-        commonGen = chainA[i].generation;
+      if (idxB !== undefined) {
         commonIdxA = i;
         commonIdxB = idxB;
+        break;
       }
     }
-
-    const nodeA: AncestorPathNode = {
-      id: memberA.id, name: memberA.name, gender: memberA.gender,
-      generation: memberA.generation, generationName: memberA.generation_name,
-      birthDate: memberA.birth_date, deathDate: memberA.death_date, isAlive: memberA.is_alive
-    };
-    const nodeB: AncestorPathNode = {
-      id: memberB.id, name: memberB.name, gender: memberB.gender,
-      generation: memberB.generation, generationName: memberB.generation_name,
-      birthDate: memberB.birth_date, deathDate: memberB.death_date, isAlive: memberB.is_alive
-    };
 
     if (commonIdxA === -1) {
       // 判断是否为单亲家庭（缺少父亲记录导致链条断裂）
       const hasFatherA = chainA.length > 1;
       const hasFatherB = chainB.length > 1;
-      let reason = '两人没有共同祖先记录';
+      let reason = '两人没有共同的父系祖先记录（亲缘查询仅支持父系追溯）';
 
       if (!hasFatherA && !hasFatherB) {
-        reason = '两位成员的父亲信息均不完整，无法追溯共同祖先';
+        reason = '两位成员的父亲信息均不完整，无法追溯共同祖先（仅支持父系追溯）';
       } else if (!hasFatherA) {
-        reason = `${memberA.name} 的父亲信息不完整，无法追溯其祖先链`;
+        reason = `${nodeA.name} 的父亲信息不完整，无法追溯其祖先链（仅支持父系追溯）`;
       } else if (!hasFatherB) {
-        reason = `${memberB.name} 的父亲信息不完整，无法追溯其祖先链`;
+        reason = `${nodeB.name} 的父亲信息不完整，无法追溯其祖先链（仅支持父系追溯）`;
       }
 
       return {
@@ -333,21 +316,16 @@ export class KinshipService {
       };
     }
 
-    // 截取从共同祖先到各自的路径
+    // 截取从成员本人到共同祖先的路径（[本人, ..., 共同祖先]）
     const pathToA = chainA.slice(0, commonIdxA + 1);
     const pathToB = chainB.slice(0, commonIdxB + 1);
 
     // 检查路径深度是否超过称谓计算范围
-    const MAX_KINSHIP_DEPTH = 6;
     if (pathToA.length > MAX_KINSHIP_DEPTH || pathToB.length > MAX_KINSHIP_DEPTH) {
-      const ca = chainA[commonIdxA];
+      const ca = pathToA[pathToA.length - 1];
       return {
         hasCommonAncestor: true,
-        commonAncestor: {
-          id: ca.id, name: ca.name, gender: ca.gender,
-          generation: ca.generation, generationName: ca.generationName,
-          birthDate: ca.birthDate, deathDate: ca.deathDate, isAlive: ca.isAlive
-        },
+        commonAncestor: ca,
         path: { pathToA, pathToB },
         relationship: null,
         memberA: nodeA,
@@ -356,18 +334,11 @@ export class KinshipService {
       };
     }
 
-    const ca = chainA[commonIdxA];
-    const commonAncestor: CommonAncestorInfo = {
-      id: ca.id, name: ca.name, gender: ca.gender,
-      generation: ca.generation, generationName: ca.generationName,
-      birthDate: ca.birthDate, deathDate: ca.deathDate, isAlive: ca.isAlive
-    };
-
     const relationship = this.computeRelationship(nodeA, nodeB, pathToA, pathToB);
 
     return {
       hasCommonAncestor: true,
-      commonAncestor,
+      commonAncestor: pathToA[pathToA.length - 1],
       path: { pathToA, pathToB },
       relationship,
       memberA: nodeA,

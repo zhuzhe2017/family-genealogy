@@ -21,6 +21,19 @@ describe('KinshipService', () => {
     ...overrides
   });
 
+  /** 模拟成员表存在 + 递归 CTE 按成员 ID 返回祖先链 */
+  const mockChains = (chains: Record<string, any[]>) => {
+    queryMock.mockImplementation((sql: string, params: any[]) => {
+      if (sql.includes('information_schema')) {
+        return Promise.resolve([{ exists: 1 }]);
+      }
+      if (sql.includes('WITH RECURSIVE')) {
+        return Promise.resolve(chains[params[0]] || []);
+      }
+      return Promise.resolve([]);
+    });
+  };
+
   beforeEach(async () => {
     queryMock = jest.fn();
     const module = await Test.createTestingModule({
@@ -79,62 +92,120 @@ describe('KinshipService', () => {
       await expect(service.findCommonAncestor(1, 'm1', 'm1')).rejects.toThrow(HttpException);
     });
 
-    it('找到共同祖先（父子关系）', async () => {
-      // ensureMemberTable (getMember A + getMember B 并发，共2次)
-      queryMock
-        .mockResolvedValueOnce([{ exists: 1 }])
-        .mockResolvedValueOnce([{ exists: 1 }]);
-      // getMember A
-      queryMock.mockResolvedValueOnce([mockMember({ id: 'child', father_id: 'father', generation: 3 })]);
-      // getMember B
-      queryMock.mockResolvedValueOnce([mockMember({ id: 'father', father_id: '', generation: 2 })]);
+    it('成员不存在时抛 404', async () => {
+      mockChains({ child: [] });
+      await expect(service.findCommonAncestor(1, 'child', 'father')).rejects.toThrow(HttpException);
+    });
 
-      // buildAncestorChain A + B 并发，ensureMemberTable 各调1次
-      queryMock
-        .mockResolvedValueOnce([{ exists: 1 }])
-        .mockResolvedValueOnce([{ exists: 1 }]);
-
-      // chain A 循环：child → father → 结束
-      // chain B 循环：father → 结束
-      // 由于 Promise.all 并发，A 和 B 的查询可能交错
-      // 用 mockImplementation 根据 SQL 内容判断返回什么
-      queryMock.mockImplementation((sql: string) => {
-        if (sql.includes('child')) {
-          return Promise.resolve([mockMember({ id: 'child', father_id: 'father', generation: 3 })]);
-        }
-        if (sql.includes('father')) {
-          return Promise.resolve([mockMember({ id: 'father', father_id: '', generation: 2 })]);
-        }
-        return Promise.resolve([]);
+    it('找到共同祖先（父子关系），直系称谓含双方姓名', async () => {
+      mockChains({
+        child: [
+          mockMember({ id: 'child', name: '张小三', father_id: 'father', generation: 3 }),
+          mockMember({ id: 'father', name: '张大三', father_id: '', generation: 2 })
+        ],
+        father: [mockMember({ id: 'father', name: '张大三', father_id: '', generation: 2 })]
       });
 
       const result = await service.findCommonAncestor(1, 'child', 'father');
       expect(result.hasCommonAncestor).toBe(true);
       expect(result.commonAncestor?.id).toBe('father');
-      expect(result.relationship?.label).toContain('父亲');
+      expect(result.relationship?.label).toBe('张大三 是 张小三 的父亲');
+      expect(result.relationship?.closeness).toContain('父系');
     });
 
-    it('无共同祖先时返回 hasCommonAncestor=false', async () => {
-      // ensureMemberTable (getMember A + getMember B 并发，共2次)
-      queryMock
-        .mockResolvedValueOnce([{ exists: 1 }])
-        .mockResolvedValueOnce([{ exists: 1 }]);
-      // getMember A（无父亲）
-      queryMock.mockResolvedValueOnce([mockMember({ id: 'a', father_id: '' })]);
-      // getMember B（不同根，无父亲）
-      queryMock.mockResolvedValueOnce([mockMember({ id: 'b', father_id: '' })]);
-      // ensureMemberTable (buildAncestorChain A + B 并发，共2次)
-      queryMock
-        .mockResolvedValueOnce([{ exists: 1 }])
-        .mockResolvedValueOnce([{ exists: 1 }]);
-      // chain A: a（无父）
-      queryMock.mockResolvedValueOnce([mockMember({ id: 'a', father_id: '' })]);
-      // chain B: b（无父）
-      queryMock.mockResolvedValueOnce([mockMember({ id: 'b', father_id: '' })]);
+    it('同辈兄弟（共享父亲）为旁系血亲', async () => {
+      mockChains({
+        a: [
+          mockMember({ id: 'a', name: '张甲', father_id: 'f', generation: 3 }),
+          mockMember({ id: 'f', name: '张父', father_id: '', generation: 2 })
+        ],
+        b: [
+          mockMember({ id: 'b', name: '张乙', father_id: 'f', generation: 3 }),
+          mockMember({ id: 'f', name: '张父', father_id: '', generation: 2 })
+        ]
+      });
+
+      const result = await service.findCommonAncestor(1, 'a', 'b');
+      expect(result.hasCommonAncestor).toBe(true);
+      expect(result.relationship?.label).toBe('兄弟');
+      expect(result.relationship?.closeness).toContain('旁系血亲');
+      expect(result.relationship?.closeness).toContain('同父亲');
+    });
+
+    it('叔侄关系：世代号小者为长辈（验证辈分方向）', async () => {
+      // 叔叔第3代，侄子第4代（世代号越小辈分越高）
+      mockChains({
+        uncle: [
+          mockMember({ id: 'uncle', name: '张叔', gender: 'male', father_id: 'gf', generation: 3 }),
+          mockMember({ id: 'gf', name: '张祖', father_id: '', generation: 2 })
+        ],
+        nephew: [
+          mockMember({ id: 'nephew', name: '张侄', gender: 'male', father_id: 'f', generation: 4 }),
+          mockMember({ id: 'f', name: '张父', gender: 'male', father_id: 'gf', generation: 3 }),
+          mockMember({ id: 'gf', name: '张祖', father_id: '', generation: 2 })
+        ]
+      });
+
+      const result = await service.findCommonAncestor(1, 'uncle', 'nephew');
+      expect(result.hasCommonAncestor).toBe(true);
+      // 长辈是叔叔（男性），称谓应为"叔伯与侄子"而非"姑与侄"
+      expect(result.relationship?.label).toBe('叔伯与侄子');
+    });
+
+    it('堂兄弟（共享祖父）', async () => {
+      mockChains({
+        a: [
+          mockMember({ id: 'a', name: '张甲', father_id: 'f1', generation: 4 }),
+          mockMember({ id: 'f1', name: '张大伯', gender: 'male', father_id: 'gf', generation: 3 }),
+          mockMember({ id: 'gf', name: '张祖', father_id: '', generation: 2 })
+        ],
+        b: [
+          mockMember({ id: 'b', name: '张乙', father_id: 'f2', generation: 4 }),
+          mockMember({ id: 'f2', name: '张二伯', gender: 'male', father_id: 'gf', generation: 3 }),
+          mockMember({ id: 'gf', name: '张祖', father_id: '', generation: 2 })
+        ]
+      });
+
+      const result = await service.findCommonAncestor(1, 'a', 'b');
+      expect(result.relationship?.label).toBe('堂兄弟');
+      expect(result.relationship?.closeness).toContain('共同祖先为第 2 代');
+    });
+
+    it('无共同祖先时返回 hasCommonAncestor=false 并提示仅支持父系', async () => {
+      mockChains({
+        a: [mockMember({ id: 'a', name: '张甲', father_id: '' })],
+        b: [mockMember({ id: 'b', name: '张乙', father_id: '' })]
+      });
 
       const result = await service.findCommonAncestor(1, 'a', 'b');
       expect(result.hasCommonAncestor).toBe(false);
       expect(result.commonAncestor).toBeNull();
+      expect(result.noCommonReason).toContain('父系');
+    });
+
+    it('路径超过称谓计算深度时返回共同祖先但不计算称谓', async () => {
+      // 两条 8 代链仅共享顶层祖先 root：a8 → ... → a1(root)，b8 → ... → b1(root)
+      const chainOf = (prefix: string) => {
+        const chain = [];
+        for (let g = 8; g >= 1; g--) {
+          chain.push(
+            mockMember({
+              id: g === 1 ? 'root' : `${prefix}${g}`,
+              name: `成员${prefix}${g}`,
+              father_id: g > 2 ? `${prefix}${g - 1}` : g === 2 ? 'root' : '',
+              generation: g
+            })
+          );
+        }
+        return chain;
+      };
+      mockChains({ ax: chainOf('a'), bx: chainOf('b') });
+
+      const result = await service.findCommonAncestor(1, 'ax', 'bx');
+      expect(result.hasCommonAncestor).toBe(true);
+      expect(result.commonAncestor?.id).toBe('root');
+      expect(result.relationship).toBeNull();
+      expect(result.noCommonReason).toContain('超过');
     });
   });
 
@@ -162,6 +233,18 @@ describe('KinshipService', () => {
 
       const result = await service.searchMembers(1, '张三');
       expect(result[0].fatherName).toBe('');
+    });
+
+    it('LIKE 通配符被转义', async () => {
+      queryMock.mockResolvedValueOnce([{ exists: 1 }]);
+      queryMock.mockResolvedValueOnce([]);
+
+      await service.searchMembers(1, '张%_');
+
+      expect(queryMock).toHaveBeenCalledWith(
+        expect.stringContaining('LIKE'),
+        ['%张\\%\\_%']
+      );
     });
   });
 });

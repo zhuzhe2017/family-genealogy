@@ -13,6 +13,7 @@
       <view class="help-item">2. 从搜索结果中选择对应成员（同名时可查看字辈/父亲区分）</view>
       <view class="help-item">3. 点击「查询共同祖先」按钮</view>
       <view class="help-item">4. 查看共同祖先信息、亲缘路径及关系称谓</view>
+      <view class="help-item">注：仅支持父系追溯，母系亲属（如舅、姨）暂无法自动识别</view>
       <view class="help-close" bindtap="onToggleHelp">我知道了</view>
     </view>
   </view>
@@ -30,7 +31,7 @@
         value="{{searchA}}"
         bindinput="onSearchA"
       />
-      <view class="search-clear" wx:if="{{searchA}}" catchtap="onReset">×</view>
+      <view class="search-clear" wx:if="{{searchA}}" catchtap="onClearA">×</view>
     </view>
     <!-- 候选列表 -->
     <scroll-view class="candidate-list" scroll-y wx:if="{{showCandidatesA && candidatesA.length > 0}}">
@@ -67,7 +68,7 @@
         value="{{searchB}}"
         bindinput="onSearchB"
       />
-      <view class="search-clear" wx:if="{{searchB}}" catchtap="onReset">×</view>
+      <view class="search-clear" wx:if="{{searchB}}" catchtap="onClearB">×</view>
     </view>
     <!-- 候选列表 -->
     <scroll-view class="candidate-list" scroll-y wx:if="{{showCandidatesB && candidatesB.length > 0}}">
@@ -155,44 +156,44 @@
       <view class="relation-label">{{result.relationship.label}}</view>
       <view class="relation-closeness">{{result.relationship.closeness}}</view>
       <view class="relation-diff" wx:if="{{result.relationship.generationDiff !== 0}}">
-        {{result.relationship.generationDiff > 0 ? 'A 比 B 高 ' + result.relationship.generationDiff + ' 辈' : 'A 比 B 低 ' + (-result.relationship.generationDiff) + ' 辈'}}
+        {{result.relationship.generationDiff > 0 ? 'A 比 B 低 ' + result.relationship.generationDiff + ' 辈' : 'A 比 B 高 ' + (-result.relationship.generationDiff) + ' 辈'}}
       </view>
     </view>
 
-    <!-- 亲缘路径 -->
-    <view class="path-section" wx:if="{{result.path}}">
+    <!-- 亲缘路径（共同祖先 → 本人，自上而下） -->
+    <view class="path-section" wx:if="{{result.pathView}}">
       <view class="card-title">亲缘路径</view>
 
       <!-- A 路径 -->
       <view class="path-block">
-        <view class="path-block-title">A → 共同祖先</view>
+        <view class="path-block-title">共同祖先 → A</view>
         <view class="path-chain">
           <view
-            class="path-node {{index === 0 ? 'ca-node' : ''}} {{index === result.path.pathToA.length - 1 ? 'end-node' : ''}}"
-            wx:for="{{result.path.pathToA}}"
+            class="path-node {{index === 0 ? 'ca-node' : ''}} {{index === result.pathView.pathToA.length - 1 ? 'end-node' : ''}}"
+            wx:for="{{result.pathView.pathToA}}"
             wx:key="id"
             wx:for-index="index"
           >
             <view class="node-name">{{item.name}}</view>
             <view class="node-gen">第{{item.generation}}代</view>
-            <view class="node-arrow" wx:if="{{index < result.path.pathToA.length - 1}}">↑</view>
+            <view class="node-arrow" wx:if="{{index < result.pathView.pathToA.length - 1}}">↓</view>
           </view>
         </view>
       </view>
 
       <!-- B 路径 -->
       <view class="path-block">
-        <view class="path-block-title">B → 共同祖先</view>
+        <view class="path-block-title">共同祖先 → B</view>
         <view class="path-chain">
           <view
-            class="path-node {{index === 0 ? 'ca-node' : ''}} {{index === result.path.pathToB.length - 1 ? 'end-node' : ''}}"
-            wx:for="{{result.path.pathToB}}"
+            class="path-node {{index === 0 ? 'ca-node' : ''}} {{index === result.pathView.pathToB.length - 1 ? 'end-node' : ''}}"
+            wx:for="{{result.pathView.pathToB}}"
             wx:key="id"
             wx:for-index="index"
           >
             <view class="node-name">{{item.name}}</view>
             <view class="node-gen">第{{item.generation}}代</view>
-            <view class="node-arrow" wx:if="{{index < result.path.pathToB.length - 1}}">↑</view>
+            <view class="node-arrow" wx:if="{{index < result.pathView.pathToB.length - 1}}">↓</view>
           </view>
         </view>
       </view>
@@ -206,11 +207,11 @@
         <view class="tree-branches">
           <view class="tree-branch">
             <view class="tree-member a-member">{{result.memberA.name}}</view>
-            <view class="tree-line-a">{{result.path.pathToA.length - 1}} 代</view>
+            <view class="tree-line-a">{{result.pathView.pathToA.length - 1}} 代</view>
           </view>
           <view class="tree-branch">
             <view class="tree-member b-member">{{result.memberB.name}}</view>
-            <view class="tree-line-b">{{result.path.pathToB.length - 1}} 代</view>
+            <view class="tree-line-b">{{result.pathView.pathToB.length - 1}} 代</view>
           </view>
         </view>
       </view>

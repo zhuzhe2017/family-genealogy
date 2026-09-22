@@ -1,4 +1,4 @@
-const { kinship, auth } = require('../../utils/api');
+const { kinship } = require('../../utils/api');
 
 Page({
   data: {
@@ -22,10 +22,15 @@ Page({
   },
 
   onLoad() {
-    this.loadFamilyId();
     // 防抖定时器
     this._debounceTimerA = null;
     this._debounceTimerB = null;
+    this._lastFamilyId = null;
+  },
+
+  onShow() {
+    // 每次进入页面刷新全局当前家族（与其他页面约定一致）
+    this.loadFamilyId();
   },
 
   onUnload() {
@@ -34,18 +39,19 @@ Page({
     if (this._debounceTimerB) clearTimeout(this._debounceTimerB);
   },
 
-  /** 获取当前用户家族ID */
-  async loadFamilyId() {
-    try {
-      const data = await auth.getMyFamily();
-      if (data && data.familyId) {
-        this.setData({ familyId: Number(data.familyId) });
-      } else {
-        this.setData({ errorMsg: '您还未加入家族，请先加入家族后再使用亲缘查询' });
-      }
-    } catch (e) {
-      this.setData({ errorMsg: '获取家族信息失败，请稍后重试' });
-    }
+  /** 获取全局当前家族ID，切换家族后重置查询状态 */
+  loadFamilyId() {
+    const family = (getApp().globalData || {}).currentFamily || {};
+    const familyId = family.id ? Number(family.id) : null;
+    if (familyId === this._lastFamilyId) return;
+    this._lastFamilyId = familyId;
+    this.setData({
+      familyId,
+      searchA: '', candidatesA: [], selectedA: null, showCandidatesA: false,
+      searchB: '', candidatesB: [], selectedB: null, showCandidatesB: false,
+      result: null,
+      errorMsg: familyId ? '' : '您还未加入家族，请先加入家族后再使用亲缘查询'
+    });
   },
 
   /** 搜索成员A（300ms 防抖） */
@@ -81,6 +87,12 @@ Page({
     });
   },
 
+  /** 仅清除成员A输入 */
+  onClearA() {
+    if (this._debounceTimerA) clearTimeout(this._debounceTimerA);
+    this.setData({ searchA: '', candidatesA: [], selectedA: null, showCandidatesA: false });
+  },
+
   /** 搜索成员B（300ms 防抖） */
   onSearchB(e) {
     const name = (e.detail.value || '').trim();
@@ -114,6 +126,12 @@ Page({
     });
   },
 
+  /** 仅清除成员B输入 */
+  onClearB() {
+    if (this._debounceTimerB) clearTimeout(this._debounceTimerB);
+    this.setData({ searchB: '', candidatesB: [], selectedB: null, showCandidatesB: false });
+  },
+
   /** 执行共同祖先查询 */
   async onQuery() {
     const { familyId, selectedA, selectedB } = this.data;
@@ -134,7 +152,14 @@ Page({
 
     try {
       const res = await kinship.findCommonAncestor(familyId, selectedA.id, selectedB.id);
-      this.setData({ result: res, loading: false });
+      // 路径渲染顺序调整为：共同祖先 → 本人（自上而下展示）
+      const pathView = res.path
+        ? {
+            pathToA: [...res.path.pathToA].reverse(),
+            pathToB: [...res.path.pathToB].reverse()
+          }
+        : null;
+      this.setData({ result: { ...res, pathView }, loading: false });
     } catch (err) {
       this.setData({
         loading: false,
@@ -145,6 +170,8 @@ Page({
 
   /** 重置 */
   onReset() {
+    if (this._debounceTimerA) clearTimeout(this._debounceTimerA);
+    if (this._debounceTimerB) clearTimeout(this._debounceTimerB);
     this.setData({
       searchA: '',
       candidatesA: [],
