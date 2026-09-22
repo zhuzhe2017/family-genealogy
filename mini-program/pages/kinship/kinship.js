@@ -8,11 +8,15 @@ Page({
     candidatesA: [],
     selectedA: null,
     showCandidatesA: false,
+    searchEmptyA: false,
+    searchingA: false,
     // 成员B
     searchB: '',
     candidatesB: [],
     selectedB: null,
     showCandidatesB: false,
+    searchEmptyB: false,
+    searchingB: false,
     // 查询状态
     loading: false,
     result: null,
@@ -47,8 +51,8 @@ Page({
     this._lastFamilyId = familyId;
     this.setData({
       familyId,
-      searchA: '', candidatesA: [], selectedA: null, showCandidatesA: false,
-      searchB: '', candidatesB: [], selectedB: null, showCandidatesB: false,
+      searchA: '', candidatesA: [], selectedA: null, showCandidatesA: false, searchEmptyA: false, searchingA: false,
+      searchB: '', candidatesB: [], selectedB: null, showCandidatesB: false, searchEmptyB: false, searchingB: false,
       result: null,
       errorMsg: familyId ? '' : '您还未加入家族，请先加入家族后再使用亲缘查询'
     });
@@ -57,11 +61,12 @@ Page({
   /** 搜索成员A（300ms 防抖） */
   onSearchA(e) {
     const name = (e.detail.value || '').trim();
-    this.setData({ searchA: name, selectedA: null, showCandidatesA: false });
+    this.setData({ searchA: name, selectedA: null, showCandidatesA: false, searchEmptyA: false });
 
     if (this._debounceTimerA) clearTimeout(this._debounceTimerA);
     if (!name || name.length < 1 || !this.data.familyId) return;
 
+    this.setData({ searchingA: true });
     this._debounceTimerA = setTimeout(() => {
       this._doSearchA(name);
     }, 300);
@@ -71,36 +76,44 @@ Page({
   async _doSearchA(name) {
     try {
       const list = await kinship.searchMembers(this.data.familyId, name);
-      this.setData({ candidatesA: list || [], showCandidatesA: true });
+      // 响应回来时输入已变化则丢弃，避免旧结果覆盖新结果
+      if (this.data.searchA !== name) return;
+      this.setData({ candidatesA: list || [], showCandidatesA: true, searchEmptyA: !(list && list.length), searchingA: false });
     } catch (err) {
-      wx.showToast({ title: '搜索失败', icon: 'none' });
+      if (this.data.searchA !== name) return;
+      this.setData({ searchingA: false });
+      wx.showToast({ title: err.message || '搜索失败', icon: 'none' });
     }
   },
 
   /** 选择成员A */
   onSelectA(e) {
+    if (this._debounceTimerA) clearTimeout(this._debounceTimerA);
     const item = e.currentTarget.dataset.item;
     this.setData({
       selectedA: item,
       searchA: item.name,
-      showCandidatesA: false
+      showCandidatesA: false,
+      searchEmptyA: false,
+      searchingA: false
     });
   },
 
   /** 仅清除成员A输入 */
   onClearA() {
     if (this._debounceTimerA) clearTimeout(this._debounceTimerA);
-    this.setData({ searchA: '', candidatesA: [], selectedA: null, showCandidatesA: false });
+    this.setData({ searchA: '', candidatesA: [], selectedA: null, showCandidatesA: false, searchEmptyA: false, searchingA: false });
   },
 
   /** 搜索成员B（300ms 防抖） */
   onSearchB(e) {
     const name = (e.detail.value || '').trim();
-    this.setData({ searchB: name, selectedB: null, showCandidatesB: false });
+    this.setData({ searchB: name, selectedB: null, showCandidatesB: false, searchEmptyB: false });
 
     if (this._debounceTimerB) clearTimeout(this._debounceTimerB);
     if (!name || name.length < 1 || !this.data.familyId) return;
 
+    this.setData({ searchingB: true });
     this._debounceTimerB = setTimeout(() => {
       this._doSearchB(name);
     }, 300);
@@ -110,26 +123,32 @@ Page({
   async _doSearchB(name) {
     try {
       const list = await kinship.searchMembers(this.data.familyId, name);
-      this.setData({ candidatesB: list || [], showCandidatesB: true });
+      if (this.data.searchB !== name) return;
+      this.setData({ candidatesB: list || [], showCandidatesB: true, searchEmptyB: !(list && list.length), searchingB: false });
     } catch (err) {
-      wx.showToast({ title: '搜索失败', icon: 'none' });
+      if (this.data.searchB !== name) return;
+      this.setData({ searchingB: false });
+      wx.showToast({ title: err.message || '搜索失败', icon: 'none' });
     }
   },
 
   /** 选择成员B */
   onSelectB(e) {
+    if (this._debounceTimerB) clearTimeout(this._debounceTimerB);
     const item = e.currentTarget.dataset.item;
     this.setData({
       selectedB: item,
       searchB: item.name,
-      showCandidatesB: false
+      showCandidatesB: false,
+      searchEmptyB: false,
+      searchingB: false
     });
   },
 
   /** 仅清除成员B输入 */
   onClearB() {
     if (this._debounceTimerB) clearTimeout(this._debounceTimerB);
-    this.setData({ searchB: '', candidatesB: [], selectedB: null, showCandidatesB: false });
+    this.setData({ searchB: '', candidatesB: [], selectedB: null, showCandidatesB: false, searchEmptyB: false, searchingB: false });
   },
 
   /** 执行共同祖先查询 */
@@ -152,14 +171,20 @@ Page({
 
     try {
       const res = await kinship.findCommonAncestor(familyId, selectedA.id, selectedB.id);
-      // 路径渲染顺序调整为：共同祖先 → 本人（自上而下展示）
-      const pathView = res.path
-        ? {
-            pathToA: [...res.path.pathToA].reverse(),
-            pathToB: [...res.path.pathToB].reverse()
-          }
-        : null;
-      this.setData({ result: { ...res, pathView }, loading: false });
+      // 分叉树：共同祖先为根，向下分两路分别到成员A、成员B
+      let treeView = null;
+      if (res.path) {
+        const revA = [...res.path.pathToA].reverse(); // 共同祖先 → A
+        const revB = [...res.path.pathToB].reverse(); // 共同祖先 → B
+        treeView = {
+          root: revA[0],
+          branchA: revA.slice(1),
+          branchB: revB.slice(1),
+          depthA: revA.length - 1,
+          depthB: revB.length - 1
+        };
+      }
+      this.setData({ result: { ...res, commonAncestor: res.commonAncestor ? { ...res.commonAncestor, avatarChar: res.commonAncestor.name.slice(0, 1) } : null, treeView }, loading: false });
     } catch (err) {
       this.setData({
         loading: false,
@@ -177,10 +202,14 @@ Page({
       candidatesA: [],
       selectedA: null,
       showCandidatesA: false,
+      searchEmptyA: false,
+      searchingA: false,
       searchB: '',
       candidatesB: [],
       selectedB: null,
       showCandidatesB: false,
+      searchEmptyB: false,
+      searchingB: false,
       result: null,
       errorMsg: ''
     });
