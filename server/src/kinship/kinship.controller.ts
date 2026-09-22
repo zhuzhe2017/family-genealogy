@@ -1,8 +1,15 @@
 import { Controller, Get, Post, Body, Param, Query, UseGuards, Req, ParseIntPipe, HttpException, HttpStatus } from '@nestjs/common';
 import { KinshipService } from './kinship.service';
+import { Public } from '../common/decorators/public.decorator';
 import { UserJwtAuthGuard } from '../user/user.guard';
 import { type AuthenticatedRequest } from '../common/types/common';
 
+/**
+ * 小程序用户端亲缘查询接口
+ * @Public 跳过全局管理员 JwtAuthGuard，改用 UserJwtAuthGuard 校验用户令牌
+ * 家族归属在 Service 内校验（family_permission / user.family_id / 创建者）
+ */
+@Public()
 @UseGuards(UserJwtAuthGuard)
 @Controller('user/kinship/:familyId')
 export class KinshipController {
