@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import Clipboard from 'clipboard';
 import { useThemeStore } from '@/store/modules/theme';
 import { $t } from '@/locales';
@@ -11,11 +11,12 @@ defineOptions({
 const themeStore = useThemeStore();
 
 const domRef = ref<HTMLElement | null>(null);
+let clipboard: Clipboard | null = null;
 
 function initClipboard() {
   if (!domRef.value) return;
 
-  const clipboard = new Clipboard(domRef.value);
+  clipboard = new Clipboard(domRef.value);
 
   clipboard.on('success', () => {
     window.$message?.success($t('theme.configOperation.copySuccessMsg'));
@@ -42,6 +43,11 @@ const dataClipboardText = computed(() => getClipboardText());
 
 onMounted(() => {
   initClipboard();
+});
+
+onBeforeUnmount(() => {
+  clipboard?.destroy();
+  clipboard = null;
 });
 </script>
 

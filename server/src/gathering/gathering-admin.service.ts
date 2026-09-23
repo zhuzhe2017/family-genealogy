@@ -388,7 +388,7 @@ export class GatheringAdminService {
       'DELETE FROM `family_gathering_archive` WHERE `id` = ? AND `gathering_id` = ?',
       [archiveId, id]
     );
-    if (Number((result as any)?.affectedRows || 0) === 0) {
+    if (Number((result)?.affectedRows || 0) === 0) {
       throw new HttpException('归档资料不存在', HttpStatus.NOT_FOUND);
     }
     return { success: true };

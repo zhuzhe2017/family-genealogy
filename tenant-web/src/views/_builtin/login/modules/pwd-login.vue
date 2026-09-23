@@ -54,8 +54,8 @@ async function handleSubmit() {
     <NSpace vertical :size="24">
       <div class="flex-y-center justify-between">
         <NCheckbox>{{ $t('page.login.pwdLogin.rememberMe') }}</NCheckbox>
-        <NButton text type="primary" @click="toggleLoginModule('code-login')">
-          {{ $t('page.login.common.codeLogin') }}
+        <NButton quaternary @click="toggleLoginModule('reset-pwd')">
+          {{ $t('page.login.pwdLogin.forgetPassword') }}
         </NButton>
       </div>
       <NButton type="primary" size="large" round block :loading="authStore.loginLoading" @click="handleSubmit">

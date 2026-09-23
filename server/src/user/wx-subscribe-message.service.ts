@@ -3,6 +3,14 @@ import { ConfigService } from '@nestjs/config';
 import { DataSource } from 'typeorm';
 import { type QueryValues } from '../common/types/common';
 
+/** 将 unknown 值安全转换为字符串（null/undefined → ''，字符串原样返回，其余 JSON 序列化） */
+function toStr(value: unknown): string {
+  if (value === null || value === undefined) return '';
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number' || typeof value === 'boolean' || typeof value === 'bigint') return String(value);
+  return JSON.stringify(value) ?? '';
+}
+
 /** 订阅消息场景（与数据库 scene 字段对应） */
 export type SubscribeScene = 'renewal_reminder';
 
@@ -184,7 +192,7 @@ export class WxSubscribeMessageService {
   private buildTemplateData(data: Record<string, unknown>): Record<string, { value: string }> {
     const result: Record<string, { value: string }> = {};
     for (const [key, value] of Object.entries(data)) {
-      result[key] = { value: String(value ?? '') };
+      result[key] = { value: toStr(value) };
     }
     return result;
   }

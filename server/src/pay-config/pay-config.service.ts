@@ -12,6 +12,14 @@ import type {
 import { SystemLogService } from '../system-log/system-log.service';
 import { ConfigCryptoService } from '../common/crypto/config-crypto.service';
 
+/** 将 unknown 值安全转换为字符串（null/undefined → ''，字符串原样返回，其余 JSON 序列化） */
+function toStr(value: unknown): string {
+  if (value === null || value === undefined) return '';
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number' || typeof value === 'boolean' || typeof value === 'bigint') return String(value);
+  return JSON.stringify(value) ?? '';
+}
+
 /** 微信支付 API v3 基础地址 */
 const WXPAY_BASE = 'https://api.mch.weixin.qq.com';
 
@@ -88,10 +96,10 @@ export class PayConfigService {
         result[key] = defaults[key];
       } else if (sensitive.includes(key)) {
         try {
-          result[key] = this.configCrypto.decrypt(String(value));
+          result[key] = this.configCrypto.decrypt(toStr(value));
         } catch {
           // 兼容旧明文数据或异常数据，直接保留原字符串，避免完全丢失
-          result[key] = String(value);
+          result[key] = toStr(value);
         }
       } else {
         result[key] = value;
@@ -123,7 +131,7 @@ export class PayConfigService {
     const sensitive = SENSITIVE_FIELDS[provider];
     const masked: Record<string, unknown> = { ...config };
     for (const key of sensitive) {
-      const value = String(masked[key] || '');
+      const value = toStr(masked[key]);
       if (value.length === 0) {
         masked[key] = '';
       } else if (value.length <= 4) {
@@ -155,7 +163,7 @@ export class PayConfigService {
         try {
           const parsed = JSON.parse(raw) as Record<string, unknown>;
           const decrypted = this.decryptProviderConfig(p, parsed);
-          const masked = this.maskSensitive(p, decrypted) as Record<string, unknown>;
+          const masked = this.maskSensitive(p, decrypted);
           if (p === 'wxpay') {
             result.wxpay = masked as unknown as WxPayConfig;
           } else {
@@ -196,9 +204,9 @@ export class PayConfigService {
     for (const key of keys) {
       const oldVal = oldConfig[key];
       const newVal = newConfig[key];
-      if (String(oldVal || '') !== String(newVal || '')) {
+      if (toStr(oldVal) !== toStr(newVal)) {
         const maskValue = (value: unknown) => {
-          const str = String(value || '');
+          const str = toStr(value);
           if (!str || !sensitive.includes(key)) return str;
           if (str.length <= 4) return '*'.repeat(str.length);
           return `${str.slice(0, 2)}***${str.slice(-2)}`;
@@ -236,7 +244,7 @@ export class PayConfigService {
             oldDecrypted = this.decryptProviderConfig(
               p,
               JSON.parse(oldEncrypted) as Record<string, unknown>
-            ) as Record<string, unknown>;
+            );
           } catch {
             oldDecrypted = {};
           }
@@ -246,7 +254,7 @@ export class PayConfigService {
         const mergedConfig: Record<string, unknown> = { ...providerConfig };
         const sensitive = SENSITIVE_FIELDS[p];
         for (const key of sensitive) {
-          const value = String(mergedConfig[key] || '');
+          const value = toStr(mergedConfig[key]);
           if (this.isMasked(value)) {
             mergedConfig[key] = oldDecrypted[key] || '';
           }
@@ -488,7 +496,7 @@ export class PayConfigService {
 
     if (config.enabled === true) {
       for (const field of requiredFields[provider]) {
-        const value = String(config[field] || '').trim();
+        const value = toStr(config[field]).trim();
         if (value === '') {
           throw new HttpException(
             `${this.getProviderName(provider)} 启用时 ${field} 不能为空`,
@@ -497,7 +505,7 @@ export class PayConfigService {
         }
       }
       // 生产环境回调 URL 强制 https
-      const notifyUrl = String(config.notifyUrl || '');
+      const notifyUrl = toStr(config.notifyUrl);
       if (notifyUrl && !notifyUrl.startsWith('https://') && process.env.NODE_ENV === 'production') {
         throw new HttpException(
           `${this.getProviderName(provider)} 回调通知 URL 在生产环境必须使用 https`,
@@ -507,13 +515,13 @@ export class PayConfigService {
     }
 
     // 基础长度校验
-    if (config.appId && String(config.appId).length > 64) {
+    if (config.appId && toStr(config.appId).length > 64) {
       throw new HttpException(`${this.getProviderName(provider)} AppId 长度不能超过 64 字符`, HttpStatus.BAD_REQUEST);
     }
-    if (config.mchId && String(config.mchId).length > 32) {
+    if (config.mchId && toStr(config.mchId).length > 32) {
       throw new HttpException(`${this.getProviderName(provider)} 商户号长度不能超过 32 字符`, HttpStatus.BAD_REQUEST);
     }
-    if (config.notifyUrl && String(config.notifyUrl).length > 300) {
+    if (config.notifyUrl && toStr(config.notifyUrl).length > 300) {
       throw new HttpException(`${this.getProviderName(provider)} 回调通知 URL 长度不能超过 300 字符`, HttpStatus.BAD_REQUEST);
     }
   }

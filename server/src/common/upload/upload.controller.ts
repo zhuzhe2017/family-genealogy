@@ -11,6 +11,7 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
+import type { Express } from 'express';
 import { existsSync, mkdirSync } from 'fs';
 import { writeFile } from 'fs/promises';
 import { join } from 'path';
@@ -79,8 +80,8 @@ export class UploadController {
     }
 
     // 业务分类目录（photo/document/dynamic/album/member_avatar/event），未知类型归入 photo
-    const rawBizType = String((req?.body as Record<string, unknown>)?.bizType || 'photo');
-    const folder = BIZ_TYPES.includes(rawBizType) ? rawBizType : 'photo';
+    const rawBizType = (req?.body as Record<string, unknown>)?.bizType;
+    const folder = typeof rawBizType === 'string' && BIZ_TYPES.includes(rawBizType) ? rawBizType : 'photo';
     // 家族维度上传时按家族细分（{分类}/{familyId}/），管理员上传/无家族归属不加家族段
     const familyId = Number((req?.body as Record<string, unknown>)?.familyId || 0);
     const familyScope = familyId > 0 ? String(familyId) : '';

@@ -52,7 +52,7 @@ export class SystemSecurityController {
   /** 获取图形验证码（登录页使用，公开接口） */
   @Public()
   @Get('captcha')
-  async getCaptcha() {
+  getCaptcha() {
     return this.securityService.generateCaptcha();
   }
 }

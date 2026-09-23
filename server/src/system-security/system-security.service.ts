@@ -91,6 +91,7 @@ export class SystemSecurityService {
     if (!password || password.length < policy.minLength) {
       return `密码长度不能少于 ${policy.minLength} 位`;
     }
+    // eslint-disable-next-line no-control-regex
     if (/[\x00-\x1F\x7F]/.test(password)) {
       return '密码包含不允许的控制字符';
     }
@@ -205,7 +206,7 @@ export class SystemSecurityService {
   // ==================== 图形验证码 ====================
 
   /** 生成图形验证码（返回 token 与 SVG），token 在服务端缓存校验 */
-  async generateCaptcha(): Promise<{ token: string; svg: string }> {
+  generateCaptcha(): { token: string; svg: string } {
     const code = SystemSecurityService.randomCode(4);
     const token = randomBytes(16).toString('hex');
     this.captchaStore.set(token, { code, expires: Date.now() + CAPTCHA_TTL });
@@ -219,7 +220,7 @@ export class SystemSecurityService {
   }
 
   /** 校验验证码（一次性，校验后立即失效） */
-  async verifyCaptcha(token: string, code: string): Promise<boolean> {
+  verifyCaptcha(token: string, code: string): boolean {
     if (!token || !code) return false;
     const record = this.captchaStore.get(token);
     if (!record || record.expires < Date.now()) return false;
@@ -234,7 +235,7 @@ export class SystemSecurityService {
 
     const captchaEnabled = (await this.getConfig('login_captcha_enabled', 'false')) === 'true';
     if (captchaEnabled) {
-      const ok = await this.verifyCaptcha(captcha?.token || '', captcha?.code || '');
+      const ok = this.verifyCaptcha(captcha?.token || '', captcha?.code || '');
       if (!ok) {
         throw new HttpException('验证码错误或已过期', HttpStatus.BAD_REQUEST);
       }

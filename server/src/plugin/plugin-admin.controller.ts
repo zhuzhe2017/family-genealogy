@@ -4,7 +4,7 @@ import { RolesGuard } from '../common/guards/roles.guard';
 import { PermissionsGuard } from '../common/guards/permissions.guard';
 import { Permissions } from '../common/decorators/permissions.decorator';
 import { PluginAdminService } from './plugin-admin.service';
-import { type PluginUpsertData } from './types/plugin.types';
+import { PluginUpsertDto } from './dto/plugin.dto';
 import { type AuthenticatedRequest } from '../common/types/common';
 
 /**
@@ -37,14 +37,14 @@ export class PluginAdminController {
   /** 新增 */
   @Permissions('system:app-plugin:create')
   @Post()
-  create(@Body() body: PluginUpsertData, @Req() req: AuthenticatedRequest) {
+  create(@Body() body: PluginUpsertDto, @Req() req: AuthenticatedRequest) {
     return this.adminService.create(body || {}, String(req.user?.id || ''));
   }
 
   /** 编辑 */
   @Permissions('system:app-plugin:update')
   @Put(':id')
-  update(@Param('id') id: string, @Body() body: PluginUpsertData) {
+  update(@Param('id') id: string, @Body() body: PluginUpsertDto) {
     return this.adminService.update(Number(id), body || {});
   }
 

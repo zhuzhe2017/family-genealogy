@@ -11,6 +11,13 @@ import type {
 import { SystemLogService } from '../system-log/system-log.service';
 import { ConfigCryptoService } from '../common/crypto/config-crypto.service';
 
+function toStr(value: unknown): string {
+  if (value === null || value === undefined) return '';
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number' || typeof value === 'boolean' || typeof value === 'bigint') return String(value);
+  return JSON.stringify(value) ?? '';
+}
+
 /** 敏感字段集合（存储前加密，返回时脱敏） */
 const SENSITIVE_FIELDS: Record<CloudStorageProvider, string[]> = {
   tencent: ['secretKey'],
@@ -111,10 +118,10 @@ export class CloudStorageConfigService {
         result[key] = defaults[key as keyof typeof defaults];
       } else if (sensitive.includes(key)) {
         try {
-          result[key] = this.configCrypto.decrypt(String(value));
+          result[key] = this.configCrypto.decrypt(toStr(value));
         } catch {
           // 兼容旧明文数据或异常数据，直接保留原字符串，避免完全丢失
-          result[key] = String(value);
+          result[key] = toStr(value);
         }
       } else {
         result[key] = value;
@@ -146,7 +153,7 @@ export class CloudStorageConfigService {
     const sensitive = SENSITIVE_FIELDS[provider];
     const masked: Record<string, unknown> = { ...config };
     for (const key of sensitive) {
-      const value = String(masked[key] || '');
+      const value = toStr(masked[key]);
       if (value.length === 0) {
         masked[key] = '';
       } else if (value.length <= 4) {
@@ -173,9 +180,9 @@ export class CloudStorageConfigService {
       if (raw) {
         try {
           const parsed = JSON.parse(raw) as Partial<CloudStorageFullConfig[CloudStorageProvider]>;
-          this.setProviderConfig(result, p, this.maskSensitive(p, this.decryptProviderConfig(p, parsed) as Record<string, unknown>));
+          this.setProviderConfig(result, p, this.maskSensitive(p, this.decryptProviderConfig(p, parsed)));
         } catch {
-          this.setProviderConfig(result, p, DEFAULT_CONFIGS[p] as Record<string, unknown>);
+          this.setProviderConfig(result, p, DEFAULT_CONFIGS[p]);
         }
       }
     }
@@ -231,9 +238,9 @@ export class CloudStorageConfigService {
     for (const key of keys) {
       const oldVal = oldConfig[key];
       const newVal = newConfig[key];
-      if (String(oldVal || '') !== String(newVal || '')) {
+      if (toStr(oldVal) !== toStr(newVal)) {
         const maskValue = (value: unknown) => {
-          const str = String(value || '');
+          const str = toStr(value);
           if (!str || !sensitive.includes(key)) return str;
           if (str.length <= 4) return '*'.repeat(str.length);
           return `${str.slice(0, 2)}***${str.slice(-2)}`;
@@ -272,12 +279,12 @@ export class CloudStorageConfigService {
             oldDecrypted = this.decryptProviderConfig(
               p,
               JSON.parse(oldEncrypted) as Partial<CloudStorageFullConfig[CloudStorageProvider]>
-            ) as Record<string, unknown>;
+            );
           } catch {
             oldDecrypted = {};
           }
         }
-        changes.push(...this.diffChanges(p, oldDecrypted, providerConfig as Record<string, unknown>));
+        changes.push(...this.diffChanges(p, oldDecrypted, providerConfig));
 
         await manager.query(
           `INSERT INTO \`sys_config\` (\`config_key\`, \`config_name\`, \`config_value\`, \`value_type\`, \`group\`, \`remark\`, \`sort_order\`, \`is_system\`, \`operator\`)
@@ -352,7 +359,7 @@ export class CloudStorageConfigService {
 
     if (record.enabled === true) {
       for (const field of requiredFields[provider]) {
-        if (!record[field] || String(record[field]).trim() === '') {
+        if (!record[field] || toStr(record[field]).trim() === '') {
           throw new HttpException(
             `${this.getProviderName(provider)} 启用时 ${field} 不能为空`,
             HttpStatus.BAD_REQUEST
@@ -362,13 +369,13 @@ export class CloudStorageConfigService {
     }
 
     // 基础格式校验
-    if (record.bucket && String(record.bucket).length > 63) {
+    if (record.bucket && toStr(record.bucket).length > 63) {
       throw new HttpException(`${this.getProviderName(provider)} 存储桶名称长度不能超过 63 字符`, HttpStatus.BAD_REQUEST);
     }
-    if (record.region && String(record.region).length > 50) {
+    if (record.region && toStr(record.region).length > 50) {
       throw new HttpException(`${this.getProviderName(provider)} 地域长度不能超过 50 字符`, HttpStatus.BAD_REQUEST);
     }
-    if (record.domain && String(record.domain).length > 200) {
+    if (record.domain && toStr(record.domain).length > 200) {
       throw new HttpException(`${this.getProviderName(provider)} 域名长度不能超过 200 字符`, HttpStatus.BAD_REQUEST);
     }
   }

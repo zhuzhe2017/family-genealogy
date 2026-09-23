@@ -8,6 +8,7 @@ import { Permissions } from '../common/decorators/permissions.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
 import { Public } from '../common/decorators/public.decorator';
 import { LoginDto, RefreshTokenDto } from './dto/login.dto';
+import { ChangePasswordDto, BindFamilyDto } from './dto/admin.dto';
 import { type AuthenticatedRequest } from '../common/types/common';
 import { type AdminCreateData, type AdminUpdateData, type AdminProfileUpdateData } from './types/admin.types';
 
@@ -43,7 +44,7 @@ export class AdminController {
   /** 修改当前管理员登录密码（任意已登录管理员可修改本人密码） */
   @UseGuards(JwtAuthGuard)
   @Post('password')
-  async changePassword(@Req() req: AuthenticatedRequest, @Body() body: { oldPassword: string; newPassword: string }) {
+  async changePassword(@Req() req: AuthenticatedRequest, @Body() body: ChangePasswordDto) {
     return this.adminService.updatePassword(req.user.id as number, body.oldPassword, body.newPassword);
   }
 
@@ -84,9 +85,9 @@ export class AdminManageController {
 
   /** 修改密码 */
   @Permissions('system:admin:password')
-  @Post('update-password')
-  async updatePassword(@Req() req: AuthenticatedRequest, @Body() body: { oldPassword: string; newPassword: string }) {
-    return this.adminService.updatePassword(req.user.id as number, body.oldPassword, body.newPassword);
+  @Post('update-password/:id')
+  async updatePassword(@Param('id') id: string, @Body() body: ChangePasswordDto) {
+    return this.adminService.updatePassword(Number(id), body.oldPassword, body.newPassword);
   }
 
   /** 获取管理员管理的家族列表 */
@@ -99,7 +100,7 @@ export class AdminManageController {
   /** 绑定管理员到家族 */
   @Permissions('system:admin:bind-family')
   @Post('bind-family/:id')
-  async bindFamily(@Param('id') id: string, @Body() body: { familyIds: string[] }) {
+  async bindFamily(@Param('id') id: string, @Body() body: BindFamilyDto) {
     return this.adminService.bindFamily(Number(id), body.familyIds || []);
   }
 }

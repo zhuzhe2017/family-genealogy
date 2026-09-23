@@ -37,8 +37,8 @@ export class ConsentService {
       [userId] as QueryValues
     );
     return rows.map((r) => ({
-      docType: String(r.doc_type),
-      docVersion: String(r.doc_version),
+      docType: typeof r.doc_type === 'string' ? r.doc_type : '',
+      docVersion: typeof r.doc_version === 'string' ? r.doc_version : '',
       consent: Number(r.consent) === 1,
       createTime: r.create_time
     }));

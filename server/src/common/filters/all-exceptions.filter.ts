@@ -74,7 +74,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
         operator: request.user?.username || 'anonymous',
         operatorId: this.normalizeOperatorId(request.user?.id),
         ip: request.ip || '',
-        userAgent: request.headers['user-agent'] as string,
+        userAgent: request.headers['user-agent'],
         status,
         success: false,
         detail: exception instanceof Error ? `${exception.message}\n${exception.stack || ''}` : String(message),

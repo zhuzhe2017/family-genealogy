@@ -74,4 +74,8 @@ export class CreateFamilyMemberDto {
   sortOrder?: number;
 }
 
-export class UpdateFamilyMemberDto extends CreateFamilyMemberDto {}
+export class UpdateFamilyMemberDto extends CreateFamilyMemberDto {
+  @IsOptional()
+  @IsNumber({}, { message: '状态必须是数字' })
+  status?: number;
+}

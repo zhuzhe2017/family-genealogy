@@ -148,7 +148,7 @@ export class GenealogyBookService {
       throw new HttpException('同家族下已存在相同书名的家谱', HttpStatus.BAD_REQUEST);
     }
 
-    const result: any = await this.dataSource.query(
+    const result: unknown = await this.dataSource.query(
       `INSERT INTO \`genealogy_book\`
        (\`family_id\`, \`title\`, \`subtitle\`, \`template\`,
         \`preface\`, \`introduction\`, \`clan_rules\`, \`generation_poem\`, \`appendix\`,
@@ -178,7 +178,7 @@ export class GenealogyBookService {
       ]
     );
 
-    return { id: Number(result?.insertId) };
+    return { id: Number((result as { insertId?: number })?.insertId) };
   }
 
   /** 更新 */
@@ -333,7 +333,7 @@ export class GenealogyBookService {
       };
       const gen = m.generation;
       if (!genMap.has(gen)) genMap.set(gen, []);
-      genMap.get(gen)!.push(node);
+      genMap.get(gen).push(node);
     });
 
     const generationLabels = Array.from(genMap.entries())
@@ -354,12 +354,20 @@ export class GenealogyBookService {
   }
 
   /** 从 spouse_info 中提取配偶姓名数组 */
-  private extractSpouseNames(raw: string | null | unknown): string[] {
+  private extractSpouseNames(raw: unknown): string[] {
     if (!raw) return [];
     try {
       const parsed: unknown = typeof raw === 'string' ? JSON.parse(raw) : raw;
       const list = Array.isArray(parsed) ? parsed : [parsed];
-      return list.map((s: any) => s?.name).filter((n): n is string => !!n);
+      return list
+        .map((s: unknown) => {
+          if (s && typeof s === 'object' && 'name' in s) {
+            const name = (s as { name?: unknown }).name;
+            return typeof name === 'string' ? name : null;
+          }
+          return null;
+        })
+        .filter((n): n is string => !!n);
     } catch {
       return [];
     }

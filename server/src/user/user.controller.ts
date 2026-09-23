@@ -6,6 +6,22 @@ import { WxSubscribeMessageService, type SubscribeScene } from './wx-subscribe-m
 import { UserJwtAuthGuard } from './user.guard';
 import { Public } from '../common/decorators/public.decorator';
 import { type AuthenticatedRequest } from '../common/types/common';
+import {
+  UserPwdLoginDto,
+  UserRefreshTokenDto,
+  WxLoginDto,
+  SendSmsCodeDto,
+  PhoneLoginDto,
+  SetPasswordDto,
+  BindPhoneDto,
+  UserProfileUpdateDto,
+  BindMemberDto,
+  JoinFamilyDto,
+  SetFamilyRoleDto,
+  RecordConsentDto,
+  RecordSubscribeAuthDto,
+  DeleteAccountDto
+} from './dto/user.dto';
 
 @Controller('user')
 export class UserController {
@@ -23,7 +39,7 @@ export class UserController {
   @Public()
   @Throttle({ default: { limit: 20, ttl: 60_000 } })
   @Post('pwd-login')
-  async pwdLogin(@Body() body: { phone: string; password: string }) {
+  async pwdLogin(@Body() body: UserPwdLoginDto) {
     return this.userService.pwdLogin(body.phone, body.password);
   }
 
@@ -32,7 +48,7 @@ export class UserController {
    */
   @Public()
   @Post('refreshToken')
-  async refreshToken(@Body() body: { refreshToken: string }) {
+  async refreshToken(@Body() body: UserRefreshTokenDto) {
     return this.userService.refreshToken(body.refreshToken);
   }
 
@@ -43,7 +59,7 @@ export class UserController {
   @Public()
   @Throttle({ default: { limit: 30, ttl: 60_000 } })
   @Post('wx-login')
-  async wxLogin(@Body() body: { code: string }) {
+  async wxLogin(@Body() body: WxLoginDto) {
     return this.userService.wxLogin(body.code);
   }
 
@@ -55,7 +71,7 @@ export class UserController {
   @Public()
   @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @Post('sms/send')
-  async sendSmsCode(@Body() body: { phone: string; scene?: 'login' | 'bind' }) {
+  async sendSmsCode(@Body() body: SendSmsCodeDto) {
     return this.userService.sendSmsCode(body.phone, body.scene || 'login');
   }
 
@@ -66,7 +82,7 @@ export class UserController {
   @Public()
   @Throttle({ default: { limit: 20, ttl: 60_000 } })
   @Post('phone-login')
-  async phoneLogin(@Body() body: { phone: string; code: string }) {
+  async phoneLogin(@Body() body: PhoneLoginDto) {
     return this.userService.phoneLogin(body.phone, body.code);
   }
 
@@ -80,7 +96,7 @@ export class UserController {
   @Post('set-password')
   async setPassword(
     @Req() req: AuthenticatedRequest,
-    @Body() body: { password: string }
+    @Body() body: SetPasswordDto
   ) {
     return this.userService.setPassword(String(req.user.id), body.password);
   }
@@ -95,7 +111,7 @@ export class UserController {
   @Post('bind-phone')
   async bindPhone(
     @Req() req: AuthenticatedRequest,
-    @Body() body: { phone: string; code: string }
+    @Body() body: BindPhoneDto
   ) {
     return this.userService.bindPhone(String(req.user.id), body.phone, body.code);
   }
@@ -119,7 +135,7 @@ export class UserController {
   @Put('profile')
   async updateProfile(
     @Req() req: AuthenticatedRequest,
-    @Body() body: { nickName?: string; avatarUrl?: string; gender?: number }
+    @Body() body: UserProfileUpdateDto
   ) {
     return this.userService.updateProfile(String(req.user.id), body);
   }
@@ -144,7 +160,7 @@ export class UserController {
   @Put('family/bind-member')
   async bindMember(
     @Req() req: AuthenticatedRequest,
-    @Body() body: { memberId: string }
+    @Body() body: BindMemberDto
   ) {
     return this.userService.bindMember(String(req.user.id), body.memberId);
   }
@@ -160,7 +176,7 @@ export class UserController {
   @Post('family/join')
   async joinFamily(
     @Req() req: AuthenticatedRequest,
-    @Body() body: { shareCode: string; memberId?: string }
+    @Body() body: JoinFamilyDto
   ) {
     return this.userService.joinFamily(String(req.user.id), body);
   }
@@ -185,7 +201,7 @@ export class UserController {
   async setFamilyRole(
     @Req() req: AuthenticatedRequest,
     @Param('targetUserId') targetUserId: string,
-    @Body() body: { role: string }
+    @Body() body: SetFamilyRoleDto
   ) {
     return this.userService.setFamilyRole(String(req.user.id), targetUserId, body.role);
   }

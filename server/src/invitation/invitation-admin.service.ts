@@ -143,7 +143,12 @@ export class InvitationAdminService {
 
   /** 行记录 → 对外条目 */
   private toItem(r: Record<string, unknown>): AdminInvitationItem {
-    const str = (v: unknown) => (v == null ? '' : String(v));
+    const str = (v: unknown) => {
+      if (v == null) return '';
+      if (typeof v === 'string') return v;
+      if (typeof v === 'number' || typeof v === 'boolean') return String(v);
+      return '';
+    };
     return {
       id: Number(r.id),
       familyId: Number(r.family_id),

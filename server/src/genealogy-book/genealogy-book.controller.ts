@@ -14,7 +14,7 @@ export class GenealogyBookController {
 
   /** 获取可用模板列表 */
   @Get('templates')
-  async getTemplates() {
+  getTemplates() {
     return this.bookService.getTemplates();
   }
 

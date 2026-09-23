@@ -20,7 +20,7 @@ export interface SysConfigItem {
   id: number;
   configKey: string;
   configName: string;
-  configValue: string | number | boolean | unknown;
+  configValue: string | number | boolean | unknown[];
   valueType: string;
   group: string;
   remark: string;

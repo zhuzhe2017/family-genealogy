@@ -374,10 +374,19 @@ Page({
   onBannerChange(e) {
     this._bannerSwiping = true;
     this.setData({ bannerCurrent: e.detail.current });
-    clearTimeout(this._bannerSwipeTimer);
+    if (this._bannerSwipeTimer) clearTimeout(this._bannerSwipeTimer);
     this._bannerSwipeTimer = setTimeout(() => {
       this._bannerSwiping = false;
+      this._bannerSwipeTimer = null;
     }, 300);
+  },
+
+  /** 页面卸载时清理定时器，防止内存泄漏 */
+  onUnload() {
+    if (this._bannerSwipeTimer) {
+      clearTimeout(this._bannerSwipeTimer);
+      this._bannerSwipeTimer = null;
+    }
   },
 
   /** 未登录状态下点击"立即登录":静默登录成功后刷新 */
@@ -501,7 +510,7 @@ Page({
       .select('.generation-clamp')
       .boundingClientRect((rect) => {
         if (!rect) return;
-        const win = wx.getWindowInfo ? wx.getWindowInfo() : wx.getSystemInfoSync();
+        const win = (wx.getWindowInfo && wx.getWindowInfo()) || (wx.getSystemInfoSync && wx.getSystemInfoSync()) || {};
         const maxHeight = 108 * (win.windowWidth || 375) / 750;
         this.setData({ generationClamped: rect.height > maxHeight + 1 });
       })

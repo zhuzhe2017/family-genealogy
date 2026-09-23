@@ -4,13 +4,13 @@ import { UserJwtAuthGuard } from '../user/user.guard';
 import { type AuthenticatedRequest } from '../common/types/common';
 import { FundService } from './fund.service';
 import {
-  type FundCreateData,
-  type FundUpdateData,
-  type FundOpData,
-  type FundMemberData,
-  type FundApproveData,
-  type FundDissolveData
-} from './types/fund.types';
+  FundCreateDto,
+  FundUpdateDto,
+  FundOpDto,
+  FundMemberDto,
+  FundApproveDto,
+  FundDissolveDto
+} from './dto/fund.dto';
 
 /**
  * 小程序用户端家族基金接口
@@ -31,7 +31,7 @@ export class FundController {
 
   /** 创建基金（每家族唯一，创建人自动成为族长） */
   @Post()
-  create(@Req() req: AuthenticatedRequest, @Query('familyId') familyId: string, @Body() body: FundCreateData) {
+  create(@Req() req: AuthenticatedRequest, @Query('familyId') familyId: string, @Body() body: FundCreateDto) {
     return this.fundService.create(String(req.user.id), Number(familyId) || 0, body || {});
   }
 
@@ -40,7 +40,7 @@ export class FundController {
   updateSettings(
     @Req() req: AuthenticatedRequest,
     @Query('familyId') familyId: string,
-    @Body() body: FundUpdateData
+    @Body() body: FundUpdateDto
   ) {
     return this.fundService.updateSettings(String(req.user.id), Number(familyId) || 0, body || {});
   }
@@ -53,7 +53,7 @@ export class FundController {
 
   /** 添加基金成员（manage_member） */
   @Post('members')
-  addMember(@Req() req: AuthenticatedRequest, @Query('familyId') familyId: string, @Body() body: FundMemberData) {
+  addMember(@Req() req: AuthenticatedRequest, @Query('familyId') familyId: string, @Body() body: FundMemberDto) {
     return this.fundService.addMember(String(req.user.id), Number(familyId) || 0, body || {});
   }
 
@@ -63,7 +63,7 @@ export class FundController {
     @Req() req: AuthenticatedRequest,
     @Query('familyId') familyId: string,
     @Param('userId') targetUserId: string,
-    @Body() body: FundMemberData
+    @Body() body: FundMemberDto
   ) {
     return this.fundService.updateMember(String(req.user.id), Number(familyId) || 0, targetUserId, body || {});
   }
@@ -80,25 +80,25 @@ export class FundController {
 
   /** 存入（deposit） */
   @Post('deposit')
-  deposit(@Req() req: AuthenticatedRequest, @Query('familyId') familyId: string, @Body() body: FundOpData) {
+  deposit(@Req() req: AuthenticatedRequest, @Query('familyId') familyId: string, @Body() body: FundOpDto) {
     return this.fundService.deposit(String(req.user.id), Number(familyId) || 0, body || {});
   }
 
   /** 取出（withdraw；超阈值自动进入待审批） */
   @Post('withdraw')
-  withdraw(@Req() req: AuthenticatedRequest, @Query('familyId') familyId: string, @Body() body: FundOpData) {
+  withdraw(@Req() req: AuthenticatedRequest, @Query('familyId') familyId: string, @Body() body: FundOpDto) {
     return this.fundService.withdraw(String(req.user.id), Number(familyId) || 0, body || {});
   }
 
   /** 成员间转账（transfer，仅个人余额转移） */
   @Post('transfer')
-  transfer(@Req() req: AuthenticatedRequest, @Query('familyId') familyId: string, @Body() body: FundOpData) {
+  transfer(@Req() req: AuthenticatedRequest, @Query('familyId') familyId: string, @Body() body: FundOpDto) {
     return this.fundService.transfer(String(req.user.id), Number(familyId) || 0, body || {});
   }
 
   /** 调账（族长，公共池直接增减） */
   @Post('adjust')
-  adjust(@Req() req: AuthenticatedRequest, @Query('familyId') familyId: string, @Body() body: FundOpData) {
+  adjust(@Req() req: AuthenticatedRequest, @Query('familyId') familyId: string, @Body() body: FundOpDto) {
     return this.fundService.adjust(String(req.user.id), Number(familyId) || 0, body || {});
   }
 
@@ -108,7 +108,7 @@ export class FundController {
     @Req() req: AuthenticatedRequest,
     @Query('familyId') familyId: string,
     @Param('txId') txId: string,
-    @Body() body: FundApproveData
+    @Body() body: FundApproveDto
   ) {
     return this.fundService.approveTx(String(req.user.id), Number(familyId) || 0, Number(txId), body || {});
   }
@@ -141,7 +141,7 @@ export class FundController {
 
   /** 解散基金（dissolve，公共池余额需为 0） */
   @Post('dissolve')
-  dissolve(@Req() req: AuthenticatedRequest, @Query('familyId') familyId: string, @Body() body: FundDissolveData) {
+  dissolve(@Req() req: AuthenticatedRequest, @Query('familyId') familyId: string, @Body() body: FundDissolveDto) {
     return this.fundService.dissolve(String(req.user.id), Number(familyId) || 0, body || {});
   }
 }

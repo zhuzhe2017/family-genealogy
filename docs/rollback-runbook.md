@@ -43,16 +43,25 @@ bash scripts/backup-db.sh
 
 ### 3.1 回滚应用服务
 
+**前提**：CI 已推送带 commit SHA 的镜像标签（如 `family-server:main-abc1234`），旧版本镜像仍在仓库中。
+
 ```bash
 cd /path/to/family-genealogy
 
-# 停止当前服务
-docker compose -f docker-compose.yml -f docker-compose.prod.yml down
+# 1. 记录当前（失败）版本镜像标签，便于事后排查
+docker compose -f docker-compose.yml -f docker-compose.prod.yml images
 
-# 修改 docker-compose.yml 中的镜像标签为上一版本
-# 或直接使用 docker 命令指定旧镜像启动
-docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+# 2. 在 docker-compose.yml 中把镜像标签改为上一稳定版本的标签
+#    例如：image: your-registry/family-server:main-x9y8z7a
+#    或使用 sed 批量替换（谨慎操作，先备份配置）：
+#    sed -i.bak 's/family-server:main-abc1234/family-server:main-x9y8z7a/' docker-compose.yml
+
+# 3. 拉取旧镜像并重启（不要使用 --build，--build 会用当前代码重新构建）
+docker compose -f docker-compose.yml -f docker-compose.prod.yml pull
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --remove-orphans
 ```
+
+**注意**：绝对不要使用 `up -d --build` 来回滚——它会用当前工作区的代码重新构建镜像，结果仍是新版本。
 
 ### 3.2 回滚数据库（仅限 Schema 变更失败时）
 
@@ -91,9 +100,35 @@ curl -sf https://admin.your-domain.com && echo "OK" || echo "FAIL"
 
 ## 5. 自动化回滚（CI/CD）
 
-在 `.github/workflows/ci.yml` 中已配置 `Rollback on failure` 步骤，当前仅打印容器状态。建议增强为：
+在 `.github/workflows/ci.yml` 中已配置 `Rollback on failure` 步骤。回滚需要知道**上一稳定版本的镜像标签**，因此部署前必须先记录当前运行的镜像，失败时恢复到该镜像：
 
 ```yaml
+- name: Deploy to production via docker compose
+  id: deploy
+  uses: appleboy/ssh-action@v1
+  with:
+    host: ${{ secrets.DEPLOY_HOST }}
+    username: ${{ secrets.DEPLOY_USER }}
+    key: ${{ secrets.DEPLOY_SSH_KEY }}
+    script: |
+      cd ${{ secrets.DEPLOY_PATH }}
+      # 部署前记录当前镜像标签，供回滚使用
+      docker compose -f docker-compose.yml -f docker-compose.prod.yml images --format "{{.Name}} {{.Image}}" > /tmp/pre-deploy-images.txt
+      cat /tmp/pre-deploy-images.txt
+
+      docker compose -f docker-compose.yml -f docker-compose.prod.yml pull
+      docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --remove-orphans
+
+      for i in $(seq 1 30); do
+        if curl -sf http://localhost:3000/api/health > /dev/null 2>&1; then
+          echo "Production backend is healthy"
+          exit 0
+        fi
+        sleep 2
+      done
+      echo "Production health check failed after 60s"
+      exit 1
+
 - name: Rollback on failure
   if: failure()
   uses: appleboy/ssh-action@v1
@@ -104,15 +139,17 @@ curl -sf https://admin.your-domain.com && echo "OK" || echo "FAIL"
     script: |
       cd ${{ secrets.DEPLOY_PATH }}
       echo "Deployment failed, initiating rollback..."
-      
-      # 回滚到上一版本镜像（需提前记录旧镜像标签）
-      docker compose -f docker-compose.yml -f docker-compose.prod.yml down
-      docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
-      
-      # 等待服务启动
+
+      # 恢复部署前的镜像标签（真正回滚到旧版本）
+      while read name image; do
+        service=$(echo "$name" | sed 's/.*family-genealogy-//')
+        sed -i "s|image: .*${service}.*|image: ${image}|" docker-compose.yml
+      done < /tmp/pre-deploy-images.txt
+
+      docker compose -f docker-compose.yml -f docker-compose.prod.yml pull
+      docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --remove-orphans
+
       sleep 10
-      
-      # 验证健康
       for i in $(seq 1 30); do
         if curl -sf http://localhost:3000/api/health > /dev/null 2>&1; then
           echo "Rollback successful"
@@ -120,7 +157,7 @@ curl -sf https://admin.your-domain.com && echo "OK" || echo "FAIL"
         fi
         sleep 2
       done
-      
+
       echo "Rollback failed, manual intervention required"
       exit 1
 ```

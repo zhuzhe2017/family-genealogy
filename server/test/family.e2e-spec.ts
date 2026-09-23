@@ -30,7 +30,7 @@ describe('FamilyController (e2e)', () => {
           useValue: {
             query: queryMock,
             // create 内部使用 dataSource.transaction,回调内的 manager.query 复用 queryMock
-            transaction: jest.fn(async (cb: (manager: { query: jest.Mock }) => unknown) => cb({ query: queryMock }))
+            transaction: jest.fn((cb: (manager: { query: jest.Mock }) => unknown) => Promise.resolve(cb({ query: queryMock })))
           }
         }
       ]

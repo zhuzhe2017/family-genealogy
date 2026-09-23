@@ -6,7 +6,7 @@ import { Permissions } from '../common/decorators/permissions.decorator';
 import { type AuthenticatedRequest } from '../common/types/common';
 import { SubscriptionAdminService } from './subscription-admin.service';
 import { SubscriptionService } from './subscription.service';
-import { type PlanUpsertData } from './types/subscription-admin.types';
+import { PlanUpsertDto, ActivateFamilyDto, FreezeFamilyDto, RefundOrderDto } from './dto/subscription-admin.dto';
 
 /**
  * 订阅管理后台接口（套餐 / 家族订阅 / 订单记录）
@@ -40,7 +40,7 @@ export class SubscriptionAdminController {
 
   @Permissions('system:subscription:create')
   @Post('plans/create')
-  async createPlan(@Body() body: PlanUpsertData, @Req() req: AuthenticatedRequest) {
+  async createPlan(@Body() body: PlanUpsertDto, @Req() req: AuthenticatedRequest) {
     return this.adminService.createPlan(
       {
         code: body.code,
@@ -61,7 +61,7 @@ export class SubscriptionAdminController {
   @Put('plans/update/:code')
   async updatePlan(
     @Param('code') code: string,
-    @Body() body: PlanUpsertData,
+    @Body() body: PlanUpsertDto,
     @Req() req: AuthenticatedRequest
   ) {
     return this.adminService.updatePlan(
@@ -103,7 +103,7 @@ export class SubscriptionAdminController {
   @Permissions('system:subscription:update')
   @Post('families/activate')
   async activateFamily(
-    @Body() body: { familyId: number; planCode: string; months?: number; ownerUserId?: string },
+    @Body() body: ActivateFamilyDto,
     @Req() req: AuthenticatedRequest
   ) {
     return this.adminService.activateFamily(
@@ -121,7 +121,7 @@ export class SubscriptionAdminController {
   @Permissions('system:subscription:update')
   @Post('families/freeze')
   async freezeFamily(
-    @Body() body: { familyId: number; reason?: string },
+    @Body() body: FreezeFamilyDto,
     @Req() req: AuthenticatedRequest
   ) {
     return this.adminService.freezeFamily(
@@ -155,7 +155,7 @@ export class SubscriptionAdminController {
   @Permissions('system:subscription:refund')
   @Post('orders/refund')
   async refundOrder(
-    @Body() body: { orderNo: string; reason?: string },
+    @Body() body: RefundOrderDto,
     @Req() req: AuthenticatedRequest
   ) {
     const orderNo = (body.orderNo || '').trim();

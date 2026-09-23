@@ -227,7 +227,7 @@ importers:
         version: 11.4.2(vue@3.5.34(typescript@6.0.3))
       vue-router:
         specifier: 5.0.7
-        version: 5.0.7(@vue/compiler-sfc@3.5.42)(esbuild@0.27.7)(pinia@3.0.4(typescript@6.0.3)(vue@3.5.34(typescript@6.0.3)))(rolldown@1.0.0)(vite@8.0.12(@types/node@25.7.0)(esbuild@0.27.7)(jiti@2.7.0)(sass@1.99.0)(terser@5.51.2)(tsx@4.21.0)(yaml@2.9.1))(vue@3.5.34(typescript@6.0.3))(webpack@5.97.1(esbuild@0.27.7))
+        version: 5.0.7(@vue/compiler-sfc@3.5.42)(esbuild@0.27.7)(pinia@3.0.4(typescript@6.0.3)(vue@3.5.34(typescript@6.0.3)))(rolldown@1.0.0)(vite@8.0.12(@types/node@25.7.0)(esbuild@0.27.7)(jiti@2.7.0)(sass@1.99.0)(terser@5.51.2)(tsx@4.21.0)(yaml@2.9.1))(vue@3.5.34(typescript@6.0.3))(webpack@5.97.1(esbuild@0.27.7)(postcss@5.2.18))
     devDependencies:
       '@elegant-router/vue':
         specifier: 0.3.8
@@ -244,175 +244,6 @@ importers:
       '@sa/uno-preset':
         specifier: workspace:*
         version: link:../web-admin/packages/uno-preset
-      '@soybeanjs/eslint-config-vue':
-        specifier: ^0.0.2
-        version: 0.0.2(eslint@10.3.0(jiti@2.7.0))(typescript@6.0.3)
-      '@types/node':
-        specifier: 25.7.0
-        version: 25.7.0
-      '@types/nprogress':
-        specifier: 0.2.3
-        version: 0.2.3
-      '@unocss/core':
-        specifier: ^66.6.8
-        version: 66.10.2
-      '@unocss/preset-mini':
-        specifier: ^66.6.8
-        version: 66.10.2
-      '@vitejs/plugin-vue':
-        specifier: 6.0.6
-        version: 6.0.6(vite@8.0.12(@types/node@25.7.0)(esbuild@0.27.7)(jiti@2.7.0)(sass@1.99.0)(terser@5.51.2)(tsx@4.21.0)(yaml@2.9.1))(vue@3.5.34(typescript@6.0.3))
-      '@vitejs/plugin-vue-jsx':
-        specifier: 5.1.5
-        version: 5.1.5(vite@8.0.12(@types/node@25.7.0)(esbuild@0.27.7)(jiti@2.7.0)(sass@1.99.0)(terser@5.51.2)(tsx@4.21.0)(yaml@2.9.1))(vue@3.5.34(typescript@6.0.3))
-      axios:
-        specifier: 1.16.0
-        version: 1.16.0
-      consola:
-        specifier: 3.4.2
-        version: 3.4.2
-      eslint:
-        specifier: 10.3.0
-        version: 10.3.0(jiti@2.7.0)
-      kolorist:
-        specifier: 1.8.0
-        version: 1.8.0
-      oxfmt:
-        specifier: ^0.49.0
-        version: 0.49.0
-      oxlint:
-        specifier: ^1.64.0
-        version: 1.83.0
-      sass:
-        specifier: 1.99.0
-        version: 1.99.0
-      simple-git-hooks:
-        specifier: 2.13.1
-        version: 2.13.1
-      tsx:
-        specifier: 4.21.0
-        version: 4.21.0
-      typescript:
-        specifier: 6.0.3
-        version: 6.0.3
-      unocss:
-        specifier: ^66.6.8
-        version: 66.10.2(@devframes/hub@0.9.20(crossws@0.4.12(srvx@1.0.5))(devframe@0.9.20(cac@7.0.0)(srvx@1.0.5)))(cac@7.0.0)(crossws@0.4.12(srvx@1.0.5))(rolldown@1.0.0)(srvx@1.0.5)(vite@8.0.12(@types/node@25.7.0)(esbuild@0.27.7)(jiti@2.7.0)(sass@1.99.0)(terser@5.51.2)(tsx@4.21.0)(yaml@2.9.1))
-      unplugin-icons:
-        specifier: 23.0.1
-        version: 23.0.1(@vue/compiler-sfc@3.5.42)
-      unplugin-vue-components:
-        specifier: 32.0.0
-        version: 32.0.0(esbuild@0.27.7)(rolldown@1.0.0)(vite@8.0.12(@types/node@25.7.0)(esbuild@0.27.7)(jiti@2.7.0)(sass@1.99.0)(terser@5.51.2)(tsx@4.21.0)(yaml@2.9.1))(vue@3.5.34(typescript@6.0.3))(webpack@5.97.1(esbuild@0.27.7))
-      vite:
-        specifier: 8.0.12
-        version: 8.0.12(@types/node@25.7.0)(esbuild@0.27.7)(jiti@2.7.0)(sass@1.99.0)(terser@5.51.2)(tsx@4.21.0)(yaml@2.9.1)
-      vite-plugin-progress:
-        specifier: 0.0.7
-        version: 0.0.7(vite@8.0.12(@types/node@25.7.0)(esbuild@0.27.7)(jiti@2.7.0)(sass@1.99.0)(terser@5.51.2)(tsx@4.21.0)(yaml@2.9.1))
-      vite-plugin-svg-icons:
-        specifier: 2.0.1
-        version: 2.0.1(vite@8.0.12(@types/node@25.7.0)(esbuild@0.27.7)(jiti@2.7.0)(sass@1.99.0)(terser@5.51.2)(tsx@4.21.0)(yaml@2.9.1))
-      vite-plugin-vue-devtools:
-        specifier: 8.1.2
-        version: 8.1.2(vite@8.0.12(@types/node@25.7.0)(esbuild@0.27.7)(jiti@2.7.0)(sass@1.99.0)(terser@5.51.2)(tsx@4.21.0)(yaml@2.9.1))(vue@3.5.34(typescript@6.0.3))
-      vite-plugin-vue-transition-root-validator:
-        specifier: ^0.1.0
-        version: 0.1.0(vite@8.0.12(@types/node@25.7.0)(esbuild@0.27.7)(jiti@2.7.0)(sass@1.99.0)(terser@5.51.2)(tsx@4.21.0)(yaml@2.9.1))(vue@3.5.34(typescript@6.0.3))
-      vue-tsc:
-        specifier: 3.2.8
-        version: 3.2.8(typescript@6.0.3)
-
-  web-admin:
-    dependencies:
-      '@better-scroll/core':
-        specifier: 2.5.1
-        version: 2.5.1
-      '@iconify/vue':
-        specifier: 5.0.1
-        version: 5.0.1(vue@3.5.34(typescript@6.0.3))
-      '@sa/axios':
-        specifier: workspace:*
-        version: link:packages/axios
-      '@sa/color':
-        specifier: workspace:*
-        version: link:packages/color
-      '@sa/hooks':
-        specifier: workspace:*
-        version: link:packages/hooks
-      '@sa/materials':
-        specifier: workspace:*
-        version: link:packages/materials
-      '@sa/utils':
-        specifier: workspace:*
-        version: link:packages/utils
-      '@types/d3':
-        specifier: ^7.4.3
-        version: 7.4.3
-      '@vueuse/core':
-        specifier: 14.3.0
-        version: 14.3.0(vue@3.5.34(typescript@6.0.3))
-      clipboard:
-        specifier: 2.0.11
-        version: 2.0.11
-      d3:
-        specifier: ^7.9.0
-        version: 7.9.0
-      dayjs:
-        specifier: 1.11.20
-        version: 1.11.20
-      defu:
-        specifier: 6.1.7
-        version: 6.1.7
-      echarts:
-        specifier: 6.0.0
-        version: 6.0.0
-      json5:
-        specifier: 2.2.3
-        version: 2.2.3
-      naive-ui:
-        specifier: 2.44.1
-        version: 2.44.1(vue@3.5.34(typescript@6.0.3))
-      nprogress:
-        specifier: 0.2.0
-        version: 0.2.0
-      pinia:
-        specifier: 3.0.4
-        version: 3.0.4(typescript@6.0.3)(vue@3.5.34(typescript@6.0.3))
-      tailwind-merge:
-        specifier: 3.6.0
-        version: 3.6.0
-      treeweave:
-        specifier: ^1.0.0
-        version: 1.0.0
-      vue:
-        specifier: 3.5.34
-        version: 3.5.34(typescript@6.0.3)
-      vue-draggable-plus:
-        specifier: 0.6.1
-        version: 0.6.1(@types/sortablejs@1.15.9)
-      vue-i18n:
-        specifier: 11.4.2
-        version: 11.4.2(vue@3.5.34(typescript@6.0.3))
-      vue-router:
-        specifier: 5.0.7
-        version: 5.0.7(@vue/compiler-sfc@3.5.42)(esbuild@0.27.7)(pinia@3.0.4(typescript@6.0.3)(vue@3.5.34(typescript@6.0.3)))(rolldown@1.0.0)(vite@8.0.12(@types/node@25.7.0)(esbuild@0.27.7)(jiti@2.7.0)(sass@1.99.0)(terser@5.51.2)(tsx@4.21.0)(yaml@2.9.1))(vue@3.5.34(typescript@6.0.3))(webpack@5.97.1(esbuild@0.27.7)(postcss@5.2.18))
-    devDependencies:
-      '@elegant-router/vue':
-        specifier: 0.3.8
-        version: 0.3.8
-      '@iconify/json':
-        specifier: 2.2.472
-        version: 2.2.472
-      '@iconify/utils':
-        specifier: '3'
-        version: 3.1.7
-      '@sa/scripts':
-        specifier: workspace:*
-        version: link:packages/scripts
-      '@sa/uno-preset':
-        specifier: workspace:*
-        version: link:packages/uno-preset
       '@soybeanjs/eslint-config-vue':
         specifier: ^0.0.2
         version: 0.0.2(eslint@10.3.0(jiti@2.7.0))(typescript@6.0.3)
@@ -492,17 +323,171 @@ importers:
         specifier: 3.2.8
         version: 3.2.8(typescript@6.0.3)
 
-  web-admin/packages/alova:
+  web-admin:
     dependencies:
-      '@alova/mock':
-        specifier: 2.0.20
-        version: 2.0.20(alova@3.5.1)
+      '@better-scroll/core':
+        specifier: 2.5.1
+        version: 2.5.1
+      '@iconify/vue':
+        specifier: 5.0.1
+        version: 5.0.1(vue@3.5.34(typescript@6.0.3))
+      '@sa/axios':
+        specifier: workspace:*
+        version: link:packages/axios
+      '@sa/color':
+        specifier: workspace:*
+        version: link:packages/color
+      '@sa/hooks':
+        specifier: workspace:*
+        version: link:packages/hooks
+      '@sa/materials':
+        specifier: workspace:*
+        version: link:packages/materials
       '@sa/utils':
         specifier: workspace:*
-        version: link:../utils
-      alova:
-        specifier: 3.5.1
-        version: 3.5.1
+        version: link:packages/utils
+      '@types/d3':
+        specifier: ^7.4.3
+        version: 7.4.3
+      '@vueuse/core':
+        specifier: 14.3.0
+        version: 14.3.0(vue@3.5.34(typescript@6.0.3))
+      clipboard:
+        specifier: 2.0.11
+        version: 2.0.11
+      d3:
+        specifier: ^7.9.0
+        version: 7.9.0
+      dayjs:
+        specifier: 1.11.20
+        version: 1.11.20
+      defu:
+        specifier: 6.1.7
+        version: 6.1.7
+      echarts:
+        specifier: 6.0.0
+        version: 6.0.0
+      json5:
+        specifier: 2.2.3
+        version: 2.2.3
+      naive-ui:
+        specifier: 2.44.1
+        version: 2.44.1(vue@3.5.34(typescript@6.0.3))
+      nprogress:
+        specifier: 0.2.0
+        version: 0.2.0
+      pinia:
+        specifier: 3.0.4
+        version: 3.0.4(typescript@6.0.3)(vue@3.5.34(typescript@6.0.3))
+      tailwind-merge:
+        specifier: 3.6.0
+        version: 3.6.0
+      vue:
+        specifier: 3.5.34
+        version: 3.5.34(typescript@6.0.3)
+      vue-draggable-plus:
+        specifier: 0.6.1
+        version: 0.6.1(@types/sortablejs@1.15.9)
+      vue-i18n:
+        specifier: 11.4.2
+        version: 11.4.2(vue@3.5.34(typescript@6.0.3))
+      vue-router:
+        specifier: 5.0.7
+        version: 5.0.7(@vue/compiler-sfc@3.5.42)(esbuild@0.27.7)(pinia@3.0.4(typescript@6.0.3)(vue@3.5.34(typescript@6.0.3)))(rolldown@1.0.0)(vite@8.0.12(@types/node@25.7.0)(esbuild@0.27.7)(jiti@2.7.0)(sass@1.99.0)(terser@5.51.2)(tsx@4.21.0)(yaml@2.9.1))(vue@3.5.34(typescript@6.0.3))(webpack@5.97.1(esbuild@0.27.7))
+    devDependencies:
+      '@elegant-router/vue':
+        specifier: 0.3.8
+        version: 0.3.8
+      '@iconify/json':
+        specifier: 2.2.472
+        version: 2.2.472
+      '@iconify/utils':
+        specifier: '3'
+        version: 3.1.7
+      '@sa/scripts':
+        specifier: workspace:*
+        version: link:packages/scripts
+      '@sa/uno-preset':
+        specifier: workspace:*
+        version: link:packages/uno-preset
+      '@soybeanjs/eslint-config-vue':
+        specifier: ^0.0.2
+        version: 0.0.2(eslint@10.3.0(jiti@2.7.0))(typescript@6.0.3)
+      '@types/node':
+        specifier: 25.7.0
+        version: 25.7.0
+      '@types/nprogress':
+        specifier: 0.2.3
+        version: 0.2.3
+      '@unocss/core':
+        specifier: ^66.6.8
+        version: 66.10.2
+      '@unocss/preset-mini':
+        specifier: ^66.6.8
+        version: 66.10.2
+      '@vitejs/plugin-vue':
+        specifier: 6.0.6
+        version: 6.0.6(vite@8.0.12(@types/node@25.7.0)(esbuild@0.27.7)(jiti@2.7.0)(sass@1.99.0)(terser@5.51.2)(tsx@4.21.0)(yaml@2.9.1))(vue@3.5.34(typescript@6.0.3))
+      '@vitejs/plugin-vue-jsx':
+        specifier: 5.1.5
+        version: 5.1.5(vite@8.0.12(@types/node@25.7.0)(esbuild@0.27.7)(jiti@2.7.0)(sass@1.99.0)(terser@5.51.2)(tsx@4.21.0)(yaml@2.9.1))(vue@3.5.34(typescript@6.0.3))
+      axios:
+        specifier: 1.16.0
+        version: 1.16.0
+      consola:
+        specifier: 3.4.2
+        version: 3.4.2
+      eslint:
+        specifier: 10.3.0
+        version: 10.3.0(jiti@2.7.0)
+      kolorist:
+        specifier: 1.8.0
+        version: 1.8.0
+      oxfmt:
+        specifier: ^0.49.0
+        version: 0.49.0
+      oxlint:
+        specifier: ^1.64.0
+        version: 1.83.0
+      sass:
+        specifier: 1.99.0
+        version: 1.99.0
+      simple-git-hooks:
+        specifier: 2.13.1
+        version: 2.13.1
+      tsx:
+        specifier: 4.21.0
+        version: 4.21.0
+      typescript:
+        specifier: 6.0.3
+        version: 6.0.3
+      unocss:
+        specifier: ^66.6.8
+        version: 66.10.2(@devframes/hub@0.9.20(crossws@0.4.12(srvx@1.0.5))(devframe@0.9.20(cac@7.0.0)(srvx@1.0.5)))(cac@7.0.0)(crossws@0.4.12(srvx@1.0.5))(rolldown@1.0.0)(srvx@1.0.5)(vite@8.0.12(@types/node@25.7.0)(esbuild@0.27.7)(jiti@2.7.0)(sass@1.99.0)(terser@5.51.2)(tsx@4.21.0)(yaml@2.9.1))
+      unplugin-icons:
+        specifier: 23.0.1
+        version: 23.0.1(@vue/compiler-sfc@3.5.42)
+      unplugin-vue-components:
+        specifier: 32.0.0
+        version: 32.0.0(esbuild@0.27.7)(rolldown@1.0.0)(vite@8.0.12(@types/node@25.7.0)(esbuild@0.27.7)(jiti@2.7.0)(sass@1.99.0)(terser@5.51.2)(tsx@4.21.0)(yaml@2.9.1))(vue@3.5.34(typescript@6.0.3))(webpack@5.97.1(esbuild@0.27.7))
+      vite:
+        specifier: 8.0.12
+        version: 8.0.12(@types/node@25.7.0)(esbuild@0.27.7)(jiti@2.7.0)(sass@1.99.0)(terser@5.51.2)(tsx@4.21.0)(yaml@2.9.1)
+      vite-plugin-progress:
+        specifier: 0.0.7
+        version: 0.0.7(vite@8.0.12(@types/node@25.7.0)(esbuild@0.27.7)(jiti@2.7.0)(sass@1.99.0)(terser@5.51.2)(tsx@4.21.0)(yaml@2.9.1))
+      vite-plugin-svg-icons:
+        specifier: 2.0.1
+        version: 2.0.1(vite@8.0.12(@types/node@25.7.0)(esbuild@0.27.7)(jiti@2.7.0)(sass@1.99.0)(terser@5.51.2)(tsx@4.21.0)(yaml@2.9.1))
+      vite-plugin-vue-devtools:
+        specifier: 8.1.2
+        version: 8.1.2(vite@8.0.12(@types/node@25.7.0)(esbuild@0.27.7)(jiti@2.7.0)(sass@1.99.0)(terser@5.51.2)(tsx@4.21.0)(yaml@2.9.1))(vue@3.5.34(typescript@6.0.3))
+      vite-plugin-vue-transition-root-validator:
+        specifier: ^0.1.0
+        version: 0.1.0(vite@8.0.12(@types/node@25.7.0)(esbuild@0.27.7)(jiti@2.7.0)(sass@1.99.0)(terser@5.51.2)(tsx@4.21.0)(yaml@2.9.1))(vue@3.5.34(typescript@6.0.3))
+      vue-tsc:
+        specifier: 3.2.8
+        version: 3.2.8(typescript@6.0.3)
 
   web-admin/packages/axios:
     dependencies:
@@ -597,32 +582,14 @@ importers:
       colord:
         specifier: 2.9.3
         version: 2.9.3
-      crypto-js:
-        specifier: 4.2.0
-        version: 4.2.0
       klona:
         specifier: 2.0.6
         version: 2.0.6
-      localforage:
-        specifier: 1.10.0
-        version: 1.10.0
       nanoid:
         specifier: 5.1.11
         version: 5.1.11
-    devDependencies:
-      '@types/crypto-js':
-        specifier: 4.2.2
-        version: 4.2.2
 
 packages:
-
-  '@alova/mock@2.0.20':
-    resolution: {integrity: sha512-JQxvoKLIX7IlJvUp6xaZ/clfV4e2saS2jrObKVl2cQ+Uax++xzvvC8rSJHhecgb3kAJFUjy2g1pDC5/dEJknew==}
-    peerDependencies:
-      alova: ^3.0.20
-
-  '@alova/shared@1.3.2':
-    resolution: {integrity: sha512-1XvDLWgYpVZ99MmLl1f3Fw4T6S6pPYk5afz5cwRVjuq8JXEGsDn9IygDKfvRyWqkqCBx7Jif07LIct1O+MVEow==}
 
   '@angular-devkit/core@17.3.11':
     resolution: {integrity: sha512-vTNDYNsLIWpYk2I969LMQFH29GTsLzxNk/0cLw5q56ARF0v5sIWfHYwGTS88jdDqIpuuettcSczbxeA7EuAmqQ==}
@@ -2127,9 +2094,6 @@ packages:
   '@types/cookiejar@2.1.5':
     resolution: {integrity: sha512-he+DHOWReW0nghN24E1WUqM0efK4kI9oTqDm6XmK8ZPe2djZ90BSNdGnIyCLzCPw7/pogPlGbzI2wHGGmi4O/Q==}
 
-  '@types/crypto-js@4.2.2':
-    resolution: {integrity: sha512-sDOLlVbHhXpAUAL0YHDUUwDZf3iN4Bwi4W6a0W0b+QcAezUbRtH4FVb+9J4h+XFPW7l/gQ9F8qC7P+Ec4k8QVQ==}
-
   '@types/d3-array@3.2.2':
     resolution: {integrity: sha512-hOLWVbm7uRza0BYXpIIW5pxfrKe0W+D5lrFiAEYR+pb6w3N2SwSMaJbXdUfSEv+dT4MfHBLtn5js0LAWaO6otw==}
 
@@ -2763,10 +2727,6 @@ packages:
   alien-signals@3.2.1:
     resolution: {integrity: sha512-I8FjmltrfnDFoZedi5CG8DghVYNhzb/Ijluz7tCSJH0xpd0484Kowhbb1XDYOxfJpU1p5wnM2X54dA+IfGyD1g==}
 
-  alova@3.5.1:
-    resolution: {integrity: sha512-avrWPyFFWW51YLoy0S3OleNw1BV0GqNI+DSdWHfFbAoKZp80cXCCc7OtjA6OWeyhCOMglUMwo9O8j5huwnzFtQ==}
-    engines: {node: '>= 18.0.0'}
-
   ansi-colors@4.1.3:
     resolution: {integrity: sha512-/6w/C21Pm1A7aZitlI5Ni/2J6FFQN8i1Cvz3kHABAAbw93v/NlvKdVOqz7CCWz/3iv/JplRSEEZ83XION15ovw==}
     engines: {node: '>=6'}
@@ -3391,10 +3351,6 @@ packages:
     peerDependenciesMeta:
       srvx:
         optional: true
-
-  crypto-js@4.2.0:
-    resolution: {integrity: sha512-KALDyEYgpY+Rlob/iriUtjV6d5Eq+Y191A5g4UqLAi8CyGP9N1+FdVbkc1SxKc2r4YAYqG8JzO2KGL+AizD70Q==}
-    deprecated: Active development of CryptoJS has been discontinued. This library is no longer maintained.
 
   css-render@0.15.14:
     resolution: {integrity: sha512-9nF4PdUle+5ta4W5SyZdLCCmFd37uVimSjg1evcTqKJCyvCEEj12WKzOSBNak6r4im4J4iYXKH1OWpUV5LBYFg==}
@@ -4488,9 +4444,6 @@ packages:
     engines: {node: '>=0.10.0'}
     hasBin: true
 
-  immediate@3.0.6:
-    resolution: {integrity: sha512-XXOFtyqDjNDAQxVfYxuF7g9Il/IbWmmlQg2MYKOH8ExIT1qg6xc4zyS3HaEEATgs1btfzxq15ciUiY7gjSXRGQ==}
-
   immutable@5.1.9:
     resolution: {integrity: sha512-m8nVez3rwrgmWxtLMt1ZYXB2Lv7OKYn/disyxAlSDYAlKSlFoPPfIAmAM/M5xqL4m4C/wAPw7S2/CNaUii1Hxg==}
 
@@ -5058,9 +5011,6 @@ packages:
   libphonenumber-js@1.13.13:
     resolution: {integrity: sha512-hV6SmWnyQ8U1QXhhqbqYBHIStNnscG7A5XbGodgdHhf/8N5PwhYpJA5U/yHDjYwPYTd8uNGXqq416XctuvK2PA==}
 
-  lie@3.1.1:
-    resolution: {integrity: sha512-RiNhHysUjhrDQntfYSfY4MU24coXXdEOgw9WGcKHNeEwffDYbF//u87M1EWaMGzuFoSbqW0C9C6lEEhDOAswfw==}
-
   lightningcss-android-arm64@1.33.0:
     resolution: {integrity: sha512-gEpRTalKdosp4Bb8qWtc2iOgE5SeIHlpS1up9bFq2wAyYhl1UdTObYiHe98zEM9SQvSoqQZ1IQD0JNpg3Ml5pg==}
     engines: {node: '>= 12.0.0'}
@@ -5145,9 +5095,6 @@ packages:
   local-pkg@1.2.1:
     resolution: {integrity: sha512-++gUqRDEvcnN6Zhqrr+y/CkVEHhlrR96vZn3nZZPYzMcBUyBtTKzB9NadClFIsIVSsu+3i9tfk/erqy9kAmt7Q==}
     engines: {node: '>=14'}
-
-  localforage@1.10.0:
-    resolution: {integrity: sha512-14/H1aX7hzBBmmh7sGPd+AOMkkIrHM3Z1PAyGgZigA1H1p5O5ANnMyWzvpAETtG68/dC4pC0ncy3+PPGzXZHPg==}
 
   locate-path@5.0.0:
     resolution: {integrity: sha512-t7hw9pI+WvuwNJXwk5zVHpyhIqzg2qTlklJOf0mVxGSbe3Fp2VieZcduNYjaLDoy6p9uGpQEGWG87WpMKlNq8g==}
@@ -5955,9 +5902,6 @@ packages:
     resolution: {integrity: sha512-Hrgsx+orqoygnmhFbKaHE6c296J+HTAQXoxEF6gNupROmmGJRoyzfG3ccAveqCBrwr/2yxQ5BVd/GTl5agOwSg==}
     engines: {node: '>= 0.6'}
 
-  rate-limiter-flexible@5.0.5:
-    resolution: {integrity: sha512-+/dSQfo+3FYwYygUs/V2BBdwGa9nFtakDwKt4l0bnvNB53TNT++QSFewwHX9qXrZJuMe9j+TUaU21lm5ARgqdQ==}
-
   raw-body@2.5.3:
     resolution: {integrity: sha512-s4VSOf6yN0rvbRZGxs8Om5CWj6seneMwK3oDb4lWDH0UPhWcxwOWw5+qk24bxq87szX1ydrwylIOp2uG1ojUpA==}
     engines: {node: '>= 0.8'}
@@ -6641,9 +6585,6 @@ packages:
 
   treemate@0.3.11:
     resolution: {integrity: sha512-M8RGFoKtZ8dF+iwJfAJTOH/SM4KluKOKRJpjCMhI8bG3qB74zrFoArKZ62ll0Fr3mqkMJiQOmWYkdYgDeITYQg==}
-
-  treeweave@1.0.0:
-    resolution: {integrity: sha512-Xd5Cy4Nv/+N1x0ivsyDLbxGZ964SDSztiZRIJgfCn1iSs4qmK7a/spZpDRO7eItgily1BEMwKD7KAycXJUB4qg==}
 
   trim-lines@3.0.1:
     resolution: {integrity: sha512-kRj8B+YHZCc9kQYdWfJB2/oUl9rA99qbowYYBtr4ui4mZyAQ2JpvVBd/6U2YloATfqBhBTSMhTpgBHtU0Mf3Rg==}
@@ -7408,13 +7349,6 @@ packages:
     resolution: {integrity: sha512-bXE4cR/kVZhKZX/RjPEflHaKVhUVl85noU3v6b8apfQEc1x4A+zBxjZ4lN8LqGd6WZ3dl98pY4o717VFmoPp+A==}
 
 snapshots:
-
-  '@alova/mock@2.0.20(alova@3.5.1)':
-    dependencies:
-      '@alova/shared': 1.3.2
-      alova: 3.5.1
-
-  '@alova/shared@1.3.2': {}
 
   '@angular-devkit/core@17.3.11(chokidar@3.6.0)':
     dependencies:
@@ -8892,8 +8826,6 @@ snapshots:
 
   '@types/cookiejar@2.1.5': {}
 
-  '@types/crypto-js@4.2.2': {}
-
   '@types/d3-array@3.2.2': {}
 
   '@types/d3-axis@3.0.6':
@@ -9903,11 +9835,6 @@ snapshots:
 
   alien-signals@3.2.1: {}
 
-  alova@3.5.1:
-    dependencies:
-      '@alova/shared': 1.3.2
-      rate-limiter-flexible: 5.0.5
-
   ansi-colors@4.1.3: {}
 
   ansi-escapes@4.3.2:
@@ -10575,8 +10502,6 @@ snapshots:
   crossws@0.4.12(srvx@1.0.5):
     optionalDependencies:
       srvx: 1.0.5
-
-  crypto-js@4.2.0: {}
 
   css-render@0.15.14:
     dependencies:
@@ -11873,8 +11798,6 @@ snapshots:
 
   image-size@0.5.5: {}
 
-  immediate@3.0.6: {}
-
   immutable@5.1.9: {}
 
   import-fresh@3.3.1:
@@ -12625,10 +12548,6 @@ snapshots:
 
   libphonenumber-js@1.13.13: {}
 
-  lie@3.1.1:
-    dependencies:
-      immediate: 3.0.6
-
   lightningcss-android-arm64@1.33.0:
     optional: true
 
@@ -12693,10 +12612,6 @@ snapshots:
       mlly: 1.8.2
       pkg-types: 2.3.3
       quansync: 0.2.11
-
-  localforage@1.10.0:
-    dependencies:
-      lie: 3.1.1
 
   locate-path@5.0.0:
     dependencies:
@@ -13528,8 +13443,6 @@ snapshots:
 
   range-parser@1.2.1: {}
 
-  rate-limiter-flexible@5.0.5: {}
-
   raw-body@2.5.3:
     dependencies:
       bytes: 3.1.2
@@ -14289,8 +14202,6 @@ snapshots:
   tree-kill@1.2.2: {}
 
   treemate@0.3.11: {}
-
-  treeweave@1.0.0: {}
 
   trim-lines@3.0.1: {}
 

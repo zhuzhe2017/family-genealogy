@@ -89,7 +89,7 @@ export class TenantController {
     @Body() body: TenantMemberCreateDto,
     @Req() req: TenantAuthenticatedRequest
   ) {
-    return this.tenantService.createMember(familyId, body as any, String(req.user.id));
+    return this.tenantService.createMember(familyId, body, String(req.user.id));
   }
 
   /** 更新成员 */
@@ -101,7 +101,7 @@ export class TenantController {
     @Body() body: TenantMemberUpdateDto,
     @Req() req: TenantAuthenticatedRequest
   ) {
-    return this.tenantService.updateMember(familyId, id, body as any, String(req.user.id));
+    return this.tenantService.updateMember(familyId, id, body, String(req.user.id));
   }
 
   /** 删除成员（软删除） */

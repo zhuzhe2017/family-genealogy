@@ -30,16 +30,16 @@ export interface SmsProvider {
  * 由接口层将验证码原样返回（devCode）便于本地联调
  */
 class MockSmsProvider implements SmsProvider {
-  async send(phone: string, code: string): Promise<void> {
-    // eslint-disable-next-line no-console
+  send(phone: string, code: string): Promise<void> {
     console.log(`[SMS-MOCK] 向 ${phone} 发送验证码: ${code}`);
+    return Promise.resolve();
   }
 }
 
 /** 未接入真实短信服务商时的占位提供方 */
 class NotConfiguredSmsProvider implements SmsProvider {
-  async send(): Promise<void> {
-    throw new HttpException('短信服务未配置（SMS_PROVIDER=aliyun/tencent 且需填写密钥）', HttpStatus.SERVICE_UNAVAILABLE);
+  send(): Promise<void> {
+    return Promise.reject(new HttpException('短信服务未配置（SMS_PROVIDER=aliyun/tencent 且需填写密钥）', HttpStatus.SERVICE_UNAVAILABLE));
   }
 }
 

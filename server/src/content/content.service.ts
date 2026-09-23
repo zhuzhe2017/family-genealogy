@@ -83,7 +83,7 @@ export class ContentService {
       const group = new Map<string, string[]>();
       images.forEach(img => {
         if (!group.has(img.dynamic_id)) group.set(img.dynamic_id, []);
-        group.get(img.dynamic_id)!.push(img.image_url);
+        group.get(img.dynamic_id).push(img.image_url);
       });
       list.forEach(r => {
         (r as ContentRow & { images?: string[] }).images = group.get(r.id) || [];
@@ -116,7 +116,7 @@ export class ContentService {
       const group = new Map<string, EventMemberData[]>();
       members.forEach(m => {
         if (!group.has(m.event_id)) group.set(m.event_id, []);
-        group.get(m.event_id)!.push({
+        group.get(m.event_id).push({
           id: m.member_id,
           name: m.member_name,
           gender: m.member_gender,

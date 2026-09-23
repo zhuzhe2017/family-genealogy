@@ -1,27 +1,98 @@
 const { API_BASE_URL, TIMEOUT } = require('./config');
 
-/** 读取本地存储的 token */
+/**
+ * 简单的 AES 加密/解密工具，用于本地存储的 token 加密
+ * 注意：这是混淆层面的保护，密钥在客户端可被逆向，但能防止明文直接泄露
+ * 密钥派生：结合设备信息生成，增加逆向难度
+ */
+const CRYPTO_KEY_SEED = 'family-tree-token-key-2024';
+
+function getCryptoKey() {
+  try {
+    const deviceInfo = wx.getDeviceInfo ? wx.getDeviceInfo() : {};
+    const seed = CRYPTO_KEY_SEED + (deviceInfo.model || '') + (deviceInfo.system || '');
+    // 生成 32 字节密钥（AES-256）
+    let hash = 0;
+    for (let i = 0; i < seed.length; i++) {
+      const char = seed.charCodeAt(i);
+      hash = ((hash << 5) - hash + char) | 0;
+    }
+    const key = new Uint8Array(32);
+    for (let i = 0; i < 32; i++) {
+      key[i] = (hash * (i + 1) * 31) & 0xff;
+    }
+    return Array.from(key);
+  } catch (e) {
+    // 降级：使用固定密钥（安全性降低但不影响功能）
+    return Array.from({ length: 32 }, (_, i) => (i * 37 + 11) & 0xff);
+  }
+}
+
+/**
+ * 简化的 AES 加密（基于 XOR 的混淆，微信小程序无原生 AES API）
+ * 真实 AES 需引入 crypto-js 等库，这里用可逆混淆保护明文
+ */
+function obfuscate(text) {
+  if (!text) return '';
+  try {
+    const key = getCryptoKey();
+    const bytes = [];
+    for (let i = 0; i < text.length; i++) {
+      bytes.push(text.charCodeAt(i) ^ key[i % key.length]);
+    }
+    // 转为 base64 存储
+    return 'ENC:' + wx.arrayBufferToBase64(new Uint8Array(bytes).buffer);
+  } catch (e) {
+    console.error('token 加密失败', e);
+    return text;
+  }
+}
+
+function deobfuscate(encoded) {
+  if (!encoded) return '';
+  if (!encoded.startsWith('ENC:')) {
+    // 兼容旧版本明文存储
+    return encoded;
+  }
+  try {
+    const key = getCryptoKey();
+    const buffer = wx.base64ToArrayBuffer(encoded.slice(4));
+    const bytes = new Uint8Array(buffer);
+    let result = '';
+    for (let i = 0; i < bytes.length; i++) {
+      result += String.fromCharCode(bytes[i] ^ key[i % key.length]);
+    }
+    return result;
+  } catch (e) {
+    console.error('token 解密失败', e);
+    return '';
+  }
+}
+
+/** 读取本地存储的 token（自动解密） */
 function getToken() {
   try {
-    return wx.getStorageSync('token') || '';
+    const stored = wx.getStorageSync('token') || '';
+    return deobfuscate(stored);
   } catch (e) {
     return '';
   }
 }
 
-/** 保存 token 到本地存储 */
+/** 保存 token 到本地存储（加密后存储） */
 function setToken(token) {
   try {
-    wx.setStorageSync('token', token);
+    wx.setStorageSync('token', obfuscate(token));
   } catch (e) {
     console.error('token 保存失败', e);
   }
 }
 
-/** 读取本地存储的 refreshToken */
+/** 读取本地存储的 refreshToken（自动解密） */
 function getRefreshToken() {
   try {
-    return wx.getStorageSync('refreshToken') || '';
+    const stored = wx.getStorageSync('refreshToken') || '';
+    return deobfuscate(stored);
   } catch (e) {
     return '';
   }
@@ -79,7 +150,7 @@ function refreshTokenSingleFlight() {
           setToken(data.data.token);
           if (data.data.refreshToken) {
             try {
-              wx.setStorageSync('refreshToken', data.data.refreshToken);
+              wx.setStorageSync('refreshToken', obfuscate(data.data.refreshToken));
             } catch (e) {
               console.error('refreshToken 保存失败', e);
             }

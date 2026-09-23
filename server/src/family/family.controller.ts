@@ -4,7 +4,7 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
-import { Response } from 'express';
+import { Response, type Express } from 'express';
 import { FamilyService } from './family.service';
 import { FamilyImportService, IMPORT_SUPPORTED_EXTS, MAX_IMPORT_FILE_SIZE } from './family-import.service';
 import { JwtAuthGuard } from '../auth/guard/jwt-auth.guard';
@@ -12,7 +12,7 @@ import { RolesGuard } from '../common/guards/roles.guard';
 import { PermissionsGuard } from '../common/guards/permissions.guard';
 import { Permissions } from '../common/decorators/permissions.decorator';
 import { type AuthenticatedRequest } from '../common/types/common';
-import { type FamilyCreateData, type FamilyUpdateData } from './types/family.types';
+import { FamilyCreateDto, FamilyUpdateDto } from './dto/family.dto';
 
 @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
 @Controller('family')
@@ -126,7 +126,7 @@ export class FamilyController {
 
   @Permissions('system:family:create')
   @Post('create')
-  async create(@Body() body: FamilyCreateData) {
+  async create(@Body() body: FamilyCreateDto) {
     return this.familyService.create({
       surnameId: body.surnameId === undefined ? undefined : (body.surnameId === null ? null : Number(body.surnameId)),
       generationTableId: body.generationTableId === undefined ? undefined : (body.generationTableId === null ? null : body.generationTableId),
@@ -144,7 +144,7 @@ export class FamilyController {
 
   @Permissions('system:family:update')
   @Put('update/:id')
-  async update(@Param('id', ParseIntPipe) id: number, @Body() body: FamilyUpdateData) {
+  async update(@Param('id', ParseIntPipe) id: number, @Body() body: FamilyUpdateDto) {
     return this.familyService.update(id, {
       surnameId: body.surnameId === undefined ? undefined : (body.surnameId === null ? null : Number(body.surnameId)),
       generationTableId: body.generationTableId === undefined ? undefined : (body.generationTableId === null ? null : body.generationTableId),

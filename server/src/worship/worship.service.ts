@@ -415,7 +415,7 @@ export class WorshipService {
    * 返回 null 表示无法计算（仅理论上不可能）
    */
   private nextAnniversary(source: Date, now: Date): { daysUntil: number } | null {
-    let year = now.getFullYear();
+    const year = now.getFullYear();
     let month = source.getMonth();
     let day = source.getDate();
     if (month === 1 && day === 29) {

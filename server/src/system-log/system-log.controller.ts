@@ -79,7 +79,7 @@ export class SystemLogController {
         return;
       }
       res.end();
-      // eslint-disable-next-line no-console
+       
       console.error('[system-log] 导出失败:', err instanceof Error ? err.message : err);
     }
   }

@@ -1,16 +1,24 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
 import { DataSource, type QueryRunner } from 'typeorm';
 
 @Injectable()
-export class DatabaseService implements OnModuleInit {
+export class DatabaseService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(DatabaseService.name);
+  private healthCheckTimer: ReturnType<typeof setInterval> | null = null;
 
   constructor(private readonly dataSource: DataSource) {}
 
   onModuleInit() {
-    setInterval(() => {
+    this.healthCheckTimer = setInterval(() => {
       void this.checkConnection();
     }, 30000);
+  }
+
+  onModuleDestroy() {
+    if (this.healthCheckTimer) {
+      clearInterval(this.healthCheckTimer);
+      this.healthCheckTimer = null;
+    }
   }
 
   private async checkConnection() {

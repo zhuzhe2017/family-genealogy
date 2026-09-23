@@ -76,12 +76,14 @@ export function setupAppVersionNotification() {
   // If updates should be checked, set up the visibility change listener and start the update interval
   if (!isShow && document.visibilityState === 'visible') {
     // Check for updates when the document is visible
-    document.addEventListener('visibilitychange', () => {
+    const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
         checkForUpdates();
         startUpdateInterval();
       }
-    });
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
 
     // Start the update interval
     startUpdateInterval();

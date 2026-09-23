@@ -1309,7 +1309,7 @@ export class MemberAdminService {
 
   /** 管理后台操作日志统一记录（fire-and-forget） */
   private writeLog(params: OpLogParams) {
-    this.systemLogService.write({
+    void this.systemLogService.write({
       logType: 'operation',
       module: 'member',
       action: params.action,

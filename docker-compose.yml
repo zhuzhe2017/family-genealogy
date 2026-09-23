@@ -76,7 +76,7 @@ services:
       DB_HOST: mysql
       DB_PORT: 3306
       DB_DATABASE: ${DB_DATABASE:-family_genealogy}
-      DB_USERNAME: ${DB_USERNAME:-root}
+      DB_USERNAME: ${DB_USERNAME:?请先在 .env 中设置 DB_USERNAME（业务账号，禁止 root）}
       DB_PASSWORD: ${DB_PASSWORD:?请先在 .env 中设置 DB_PASSWORD}
       DB_POOL_SIZE: ${DB_POOL_SIZE:-10}
       DB_POOL_TIMEOUT: ${DB_POOL_TIMEOUT:-60000}

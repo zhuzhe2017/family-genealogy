@@ -482,7 +482,7 @@ export class FamilyMemberService {
   }
 
   /** 从 spouse_info 中提取配偶姓名数组 */
-  private extractSpouseNames(raw: string | null | unknown): string[] {
+  private extractSpouseNames(raw: unknown): string[] {
     if (!raw) return [];
     try {
       const parsed: unknown = typeof raw === 'string' ? JSON.parse(raw) : raw;
@@ -951,7 +951,7 @@ export class FamilyMemberService {
 
     const map = new Map(rows.map(r => [r.id, r]));
 
-    const father = map.get(fatherTrimmed)!;
+    const father = map.get(fatherTrimmed);
     if (father.gender !== 'male') {
       throw new HttpException('父亲必须是男性成员', HttpStatus.BAD_REQUEST);
     }
@@ -980,7 +980,7 @@ export class FamilyMemberService {
     const visited = new Set<string>();
     const queue = [fatherTrimmed];
     while (queue.length > 0) {
-      const current = queue.shift()!;
+      const current = queue.shift();
       if (visited.has(current)) continue;
       visited.add(current);
       if (current === memberId) {

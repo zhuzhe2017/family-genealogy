@@ -6,10 +6,7 @@ import { PermissionsGuard } from '../common/guards/permissions.guard';
 import { Permissions } from '../common/decorators/permissions.decorator';
 import { Public } from '../common/decorators/public.decorator';
 import { type AuthenticatedRequest } from '../common/types/common';
-import {
-  type SysConfigUpdateData,
-  type SysConfigSaveItem
-} from './types/system-config.types';
+import { SysConfigUpdateDto, SysConfigSaveBatchDto } from './dto/system-config.dto';
 
 @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
 @Controller('system-config')
@@ -61,7 +58,7 @@ export class SystemConfigController {
   @Put('update/:id')
   async update(
     @Param('id') id: string,
-    @Body() body: SysConfigUpdateData,
+    @Body() body: SysConfigUpdateDto,
     @Req() req: AuthenticatedRequest
   ) {
     return this.systemConfigService.update(Number(id), body, req.user.username);
@@ -70,7 +67,7 @@ export class SystemConfigController {
   /** 批量保存 */
   @Permissions('system:settings:update')
   @Post('save-batch')
-  async saveBatch(@Body() body: { items: SysConfigSaveItem[] }, @Req() req: AuthenticatedRequest) {
+  async saveBatch(@Body() body: SysConfigSaveBatchDto, @Req() req: AuthenticatedRequest) {
     return this.systemConfigService.saveBatch(body?.items || [], req.user.username);
   }
 

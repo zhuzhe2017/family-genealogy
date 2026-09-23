@@ -5,10 +5,9 @@ import { join } from 'path';
 import { randomBytes } from 'crypto';
 import { FamilyService } from '../family/family.service';
 import { FamilyMemberService } from '../family-member/family-member.service';
-import { ContentService } from '../content/content.service';
+import { ContentService, type ContentType } from '../content/content.service';
 import { UserService } from '../user/user.service';
 import { UPLOAD_DIR } from '../common/upload/upload.service';
-import { type ContentType } from '../content/content.service';
 import { type FamilyCreateData } from '../family/types/family.types';
 import { type FamilyMemberCreateData, type FamilyMemberUpdateData } from '../family-member/types/family-member.types';
 import { type ContentCreateData } from '../content/types/content.types';
@@ -271,7 +270,12 @@ export class PortalService {
     const familyId = Number((detail as { family_id?: unknown }).family_id) || 0;
     await this.assertFamilyMemberByUserId(familyId, userId);
     if (type === 'event' && userId) {
-      const creatorId = String((detail as { creator_id?: unknown }).creator_id ?? '');
+      const rawCreatorId = (detail as { creator_id?: unknown }).creator_id;
+      const creatorId = typeof rawCreatorId === 'string'
+        ? rawCreatorId
+        : typeof rawCreatorId === 'number'
+          ? String(rawCreatorId)
+          : '';
       (detail as { canEdit?: boolean }).canEdit = familyId
         ? await this.isContentOwnerOrAdmin(familyId, creatorId, String(userId))
         : false;
@@ -376,7 +380,8 @@ export class PortalService {
     if (!row) {
       throw new HttpException('内容不存在或已删除', HttpStatus.NOT_FOUND);
     }
-    return String(row.creator ?? '');
+    const rawCreator = row.creator;
+    return typeof rawCreator === 'string' ? rawCreator : typeof rawCreator === 'number' ? String(rawCreator) : '';
   }
 
   /** 内容写权限：发布者本人 或 家族创建者/管理员 */

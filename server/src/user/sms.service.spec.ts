@@ -1,5 +1,6 @@
 import { SmsService } from './sms.service';
 import { HttpStatus } from '@nestjs/common';
+import { createHash } from 'crypto';
 
 describe('SmsService', () => {
   let service: SmsService;
@@ -56,7 +57,7 @@ describe('SmsService', () => {
       id: 1,
       phone: '13800138000',
       scene: 'login',
-      code_hash: require('crypto').createHash('sha256').update('13800138000:123456').digest('hex'),
+      code_hash: createHash('sha256').update('13800138000:123456').digest('hex'),
       expires_at: new Date(Date.now() + 60_000),
       attempts: 0,
       used: 0,

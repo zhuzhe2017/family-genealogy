@@ -92,7 +92,11 @@ const surnameChartOptions = computed<ECOption>(() => {
         const idx = params[0]?.dataIndex;
         if (idx === undefined || !data[idx]) return '';
         const item = data[idx];
-        return `<strong>${t('page.home.chartSurnameTip', { name: item.surname })}</strong><br/>
+        // 对后端返回的姓氏做 HTML 转义，防止存储型 XSS（ECharts tooltip 默认渲染 HTML）
+        const escapeHtml = (s: string) =>
+          String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] || c));
+        const safeSurname = escapeHtml(item.surname);
+        return `<strong>${t('page.home.chartSurnameTip', { name: safeSurname })}</strong><br/>
                 ${t('page.home.memberTip', { n: item.memberCount })}<br/>
                 ${t('page.home.familyTip', { n: item.familyCount })}`;
       }

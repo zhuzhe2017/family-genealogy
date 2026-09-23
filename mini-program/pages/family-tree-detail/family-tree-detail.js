@@ -140,19 +140,29 @@ Page({
     this.loadTreeData(this.data.selectedGen);
   },
 
-  /** 返回时置位标记,避免家谱树列表页再次自动跳转造成循环。
-   *  仅物理返回/返回手势(navigateBack 回列表页)需要防循环;
-   *  主动回首页(switchTab,不经过列表页)不置位,避免标记残留导致下次点"家谱树" tab 停在家族列表 */
-  onUnload() {
-    if (this._homeExit) return;
-    app.globalData.skipAutoEnter = true;
-  },
-
   /** 导航栏左上角返回：直接回首页（覆盖默认返回上一页）。
    *  标记 _homeExit,onUnload 时不再置位防循环标记(回首页不经过家谱树列表页,无需防循环) */
   goHome() {
     this._homeExit = true;
     wx.switchTab({ url: '/pages/home/home' });
+  },
+
+  /** 返回时置位标记,避免家谱树列表页再次自动跳转造成循环。
+   *  仅物理返回/返回手势(navigateBack 回列表页)需要防循环;
+   *  主动回首页(switchTab,不经过列表页)不置位,避免标记残留导致下次点"家谱树" tab 停在家族列表。
+   *  同时清理头像缓存的全部加载超时定时器,防止页面卸载后回调造成内存泄漏。 */
+  onUnload() {
+    if (!this._homeExit) {
+      app.globalData.skipAutoEnter = true;
+    }
+    const cache = this.avatarCache || {};
+    Object.keys(cache).forEach((url) => {
+      const entry = cache[url];
+      if (entry && entry.timer) {
+        clearTimeout(entry.timer);
+        entry.timer = null;
+      }
+    });
   },
 
   onShow() {
@@ -193,8 +203,8 @@ Page({
         this._initRetry = 0;
         this.canvasWidth = res[0].width;
         this.canvasHeight = res[0].height;
-        const sysInfo = wx.getSystemInfoSync();
-        this.canvasDpr = sysInfo.pixelRatio || 1;
+        const deviceInfo = wx.getDeviceInfo ? wx.getDeviceInfo() : wx.getSystemInfoSync();
+        this.canvasDpr = deviceInfo.pixelRatio || 1;
         this.canvasReady = true;
         if (this.data.viewMode === 'vertical') {
           this.renderVerticalTree();

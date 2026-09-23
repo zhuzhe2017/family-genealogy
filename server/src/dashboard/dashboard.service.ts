@@ -165,7 +165,7 @@ export class DashboardService {
     // 1. 查询所有家族 ID
     const families = (await this.dataSource.query(
       `SELECT id FROM family WHERE status = 1`
-    )) as { id: number }[];
+    ));
 
     const map = new Map<number, number>();
 
@@ -184,8 +184,8 @@ export class DashboardService {
 
   /** 执行 COUNT 查询并返回单数值 */
   private async queryValue(sql: string, values?: QueryValues): Promise<number> {
-    const rows = (await this.dataSource.query(sql, values)) as DataRow[];
-    return rows.length > 0 ? Number((rows[0] as any).cnt) : 0;
+    const rows = (await this.dataSource.query(sql, values));
+    return rows.length > 0 ? Number((rows[0]).cnt) : 0;
   }
 
   /** 生成指定日期范围内的日期数组（YYYY-MM-DD） */
@@ -194,7 +194,7 @@ export class DashboardService {
     const start = new Date(startDate);
     const end = new Date(endDate);
     for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-      dates.push(d.toISOString().split('T')[0]!);
+      dates.push(d.toISOString().split('T')[0]);
     }
     return dates;
   }
@@ -207,11 +207,11 @@ export class DashboardService {
        WHERE status = 1 AND DATE(create_time) BETWEEN ? AND ?
        GROUP BY DATE(create_time)`,
       [startDate, endDate]
-    )) as { date: string; cnt: number }[];
+    ));
 
     const map = new Map<string, number>();
     rows.forEach((row) => {
-      const dateStr = new Date(row.date).toISOString().split('T')[0]!;
+      const dateStr = new Date(row.date).toISOString().split('T')[0];
       map.set(dateStr, Number(row.cnt));
     });
     return map;
@@ -228,11 +228,11 @@ export class DashboardService {
          AND DATE(so.pay_time) BETWEEN ? AND ?
        GROUP BY DATE(so.pay_time)`,
       [startDate, endDate]
-    )) as { date: string; cnt: number }[];
+    ));
 
     const map = new Map<string, number>();
     rows.forEach((row) => {
-      const dateStr = new Date(row.date).toISOString().split('T')[0]!;
+      const dateStr = new Date(row.date).toISOString().split('T')[0];
       map.set(dateStr, Number(row.cnt));
     });
     return map;
@@ -248,11 +248,11 @@ export class DashboardService {
          AND DATE(pay_time) BETWEEN ? AND ?
        GROUP BY DATE(pay_time)`,
       [startDate, endDate]
-    )) as { date: string; total: number }[];
+    ));
 
     const map = new Map<string, number>();
     rows.forEach((row) => {
-      const dateStr = new Date(row.date).toISOString().split('T')[0]!;
+      const dateStr = new Date(row.date).toISOString().split('T')[0];
       map.set(dateStr, Number(row.total) || 0);
     });
     return map;
@@ -351,12 +351,12 @@ export class DashboardService {
     // 1. 所有启用姓氏
     const surnames = (await this.dataSource.query(
       `SELECT id, surname, ranking FROM surname WHERE status = 1`
-    )) as { id: number; surname: string; ranking: number }[];
+    ));
 
     // 2. 启用家族及其姓氏关联
     const families = (await this.dataSource.query(
       `SELECT id, surname_id FROM family WHERE status = 1`
-    )) as { id: number; surname_id: number | null }[];
+    ));
 
     // 3. 分表实时成员数
     const memberCounts = await this.getFamilyMemberCounts();

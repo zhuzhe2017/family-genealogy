@@ -3,6 +3,12 @@ const { setToken, getToken } = require('./utils/request');
 const { USE_MOCK } = require('./utils/config');
 const { normalizeFamily } = require('./utils/format');
 
+// 条件编译标记 // #ifdef MOCK // ... // #endif 内的代码仅在"MOCK"条件下打包，
+// 生产构建(无该条件)中 mock 模块与 mock 代码会被完全剔除
+// #ifdef MOCK
+const mock = require('./mock/index');
+// #endif
+
 App({
   globalData: {
     userInfo: null,
@@ -288,14 +294,11 @@ App({
     });
   },
 
-  /** Mock 用户(开发期或后端不可用时) */
+  /** 微信登录失败或开发模式下使用 mock 用户 */
   mockLogin() {
-    this.globalData.userInfo = {
-      id: 'user001',
-      nickName: '朱家族人',
-      avatarUrl: '',
-      role: 'admin'
-    };
+    // #ifdef MOCK
+    mock.mockLogin(this);
+    // #endif
   },
 
   /**
@@ -464,38 +467,11 @@ App({
     }
   },
 
-  /** Mock 家族数据 */
+  /** Mock 家族数据：mock 实现位于 mock/index.js,生产构建被条件编译剔除 */
   initMockData() {
-    this.globalData.families = [
-      {
-        id: 'fam001',
-        name: '朱氏家族',
-        logo: '',
-        memberCount: 126,
-        generationCount: 8,
-        generationNames: '文、德、永、世、兴、明、道、广',
-        // 按代字辈序列:同代可有多字辈,首页只显首字带+角标
-        generationSequence: { 1: ['文'], 2: ['德', '得'], 3: ['永'], 4: ['世', '士'], 5: ['兴'], 6: ['明'], 7: ['道'], 8: ['广'] },
-        founder: '朱太公',
-        origin: '山东济南',
-        hallName: '颍川堂',
-        createTime: '2024-01-15',
-        isAdmin: true
-      },
-      {
-        id: 'fam002',
-        name: '朱氏宗族',
-        logo: '',
-        memberCount: 89,
-        generationCount: 6,
-        generationNames: '宗、邦、维、振、家、声',
-        founder: '朱老太',
-        origin: '河南开封',
-        createTime: '2024-03-20',
-        isAdmin: false
-      }
-    ];
-    this.globalData.currentFamily = this.globalData.families[0];
+    // #ifdef MOCK
+    mock.initMockData(this);
+    // #endif
   },
 
   // 全局方法:切换家族(兼容数字 id 与字符串 id)

@@ -28,7 +28,28 @@ CREATE TABLE IF NOT EXISTS `user_consent` (
 
 -- ------------------------------------------------------------
 -- user 表补充注销审计字段（配合已有 deleteAccount：status=0 + 联系方式置空 + 内容匿名化）
+-- 注：MySQL 8.0 不支持 ADD COLUMN IF NOT EXISTS，需先查询 information_schema 判断列是否存在
 -- ------------------------------------------------------------
-ALTER TABLE `user`
-  ADD COLUMN IF NOT EXISTS `deleted_at`    DATETIME     DEFAULT NULL COMMENT '注销时间',
-  ADD COLUMN IF NOT EXISTS `delete_reason` VARCHAR(200) DEFAULT '' COMMENT '注销原因（选填）';
+SET @deleted_at_exists := (
+  SELECT COUNT(*) FROM information_schema.COLUMNS
+  WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'user' AND COLUMN_NAME = 'deleted_at'
+);
+SET @sql := IF(@deleted_at_exists = 0,
+  'ALTER TABLE `user` ADD COLUMN `deleted_at` DATETIME DEFAULT NULL COMMENT ''注销时间''',
+  'SELECT 1'
+);
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+SET @delete_reason_exists := (
+  SELECT COUNT(*) FROM information_schema.COLUMNS
+  WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'user' AND COLUMN_NAME = 'delete_reason'
+);
+SET @sql := IF(@delete_reason_exists = 0,
+  'ALTER TABLE `user` ADD COLUMN `delete_reason` VARCHAR(200) DEFAULT '''' COMMENT ''注销原因（选填）''',
+  'SELECT 1'
+);
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;

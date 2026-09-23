@@ -1,5 +1,4 @@
-import { SystemSecurityService } from './system-security.service';
-import type { PasswordPolicy } from './system-security.service';
+import { SystemSecurityService, type PasswordPolicy } from './system-security.service';
 
 describe('SystemSecurityService (纯逻辑)', () => {
   describe('checkPasswordAgainstPolicy', () => {

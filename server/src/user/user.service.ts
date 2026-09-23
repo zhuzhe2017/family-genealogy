@@ -2,7 +2,7 @@ import { Injectable, HttpException, HttpStatus } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { DataSource } from 'typeorm';
 import { JwtService } from '@nestjs/jwt';
-import { randomBytes } from 'crypto';
+import { randomBytes, randomInt } from 'crypto';
 import * as bcrypt from 'bcrypt';
 import { type UserRow, type UserInfo, type UserLoginResult, type UserAuthIdentityRow } from './types/user.types';
 import { type FamilyRow } from '../family/types/family.types';
@@ -12,6 +12,15 @@ import { Capability } from '../membership/types/membership.types';
 import { MemberService } from '../member/member.service';
 import { MaskingService } from '../common/masking/masking.service';
 import { type WxSessionResponse, type QueryValues, type DataRow, type SuccessResult } from '../common/types/common';
+import { getSafeMemberTableName } from '../common/utils/family-member-table';
+
+/** 将 unknown 值安全转换为字符串（null/undefined → ''，字符串原样返回，其余 JSON 序列化） */
+function toStr(value: unknown): string {
+  if (value === null || value === undefined) return '';
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number' || typeof value === 'boolean' || typeof value === 'bigint') return String(value);
+  return JSON.stringify(value) ?? '';
+}
 
 @Injectable()
 export class UserService {
@@ -148,7 +157,7 @@ export class UserService {
   /** 按微信 openid/unionid 解析账户：查绑定 → unionid 合并 → 存量兜底 → 新建 */
   private async findOrCreateUserByWechat(openid: string, unionid: string) {
     // a. 按 openid 查绑定
-    let binding = await this.findBinding('wechat', openid);
+    const binding = await this.findBinding('wechat', openid);
     if (binding) {
       const user = await this.findUserById(binding.user_id);
       if (user) return user;
@@ -538,7 +547,7 @@ export class UserService {
     if (!family) {
       throw new HttpException('家族不存在或已停用', HttpStatus.NOT_FOUND);
     }
-    const leaderUserId = String(family.creator_user_id || '');
+    const leaderUserId = toStr(family.creator_user_id);
     const canManage = leaderUserId === userId;
 
     // 大族性能优化：列表仅返回「当前登录用户 + 族长 + 管理员」，普通成员不展示；
@@ -568,9 +577,9 @@ export class UserService {
         [familyId]
       )
     ]);
-    const adminSet = new Set<string>(admins.map((a) => String(a.user_id)));
+    const adminSet = new Set<string>(admins.map((a) => toStr(a.user_id)));
     const list = members.map((m) => {
-      const uid = String(m.id);
+      const uid = toStr(m.id);
       const role = uid === leaderUserId ? 'leader' : adminSet.has(uid) ? 'admin' : 'member';
       return {
         userId: uid,
@@ -609,7 +618,7 @@ export class UserService {
     if (!family) {
       throw new HttpException('家族不存在或已停用', HttpStatus.NOT_FOUND);
     }
-    if (String(family.creator_user_id) !== userId) {
+    if (toStr(family.creator_user_id) !== userId) {
       throw new HttpException('仅族长可设置管理员', HttpStatus.FORBIDDEN);
     }
     if (targetUserId === userId) {
@@ -694,15 +703,15 @@ export class UserService {
         'SELECT `surname` FROM `surname` WHERE `id` = ? LIMIT 1',
         [row.surname_id]
       );
-      surname = String(surnameRow?.surname || '');
+      surname = toStr(surnameRow?.surname);
     }
     return {
       id: Number(row.id),
-      name: String(row.name || ''),
-      logo: String(row.logo || ''),
+      name: toStr(row.name),
+      logo: toStr(row.logo),
       surname,
-      hallName: String(row.hall_name || ''),
-      origin: String(row.origin || '')
+      hallName: toStr(row.hall_name),
+      origin: toStr(row.origin)
     };
   }
 
@@ -714,9 +723,9 @@ export class UserService {
     );
     if (!row) return null;
     return {
-      id: String(row.id),
-      name: String(row.name || ''),
-      avatarUrl: String(row.avatar_url || ''),
+      id: toStr(row.id),
+      name: toStr(row.name),
+      avatarUrl: toStr(row.avatar_url),
       gender: Number(row.gender || 0),
       generation: Number(row.generation || 0)
     };
@@ -734,7 +743,6 @@ export class UserService {
   }
 
   private getMemberTableName(familyId: number): string {
-    const { getSafeMemberTableName } = require('../common/utils/family-member-table');
     return getSafeMemberTableName(familyId);
   }
 
@@ -742,7 +750,7 @@ export class UserService {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
     let code = '';
     for (let i = 0; i < 8; i++) {
-      code += chars.charAt(Math.floor(Math.random() * chars.length));
+      code += chars.charAt(randomInt(chars.length));
     }
     const [existing] = await this.dataSource.query<DataRow[]>('SELECT `id` FROM `user` WHERE `share_code` = ? LIMIT 1', [code]);
     if (existing) {

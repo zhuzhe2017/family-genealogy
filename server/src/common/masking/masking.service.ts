@@ -52,6 +52,8 @@ export class MaskingService {
       `SELECT \`user_id\` FROM \`${tableName}\` WHERE \`id\` = ? LIMIT 1`,
       [memberId] as QueryValues
     );
-    return rows.length ? String(rows[0].user_id) : null;
+    if (!rows.length) return null;
+    const userId: unknown = rows[0].user_id;
+    return typeof userId === 'string' ? userId : typeof userId === 'number' ? String(userId) : null;
   }
 }

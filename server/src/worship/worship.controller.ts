@@ -3,6 +3,7 @@ import { Public } from '../common/decorators/public.decorator';
 import { UserJwtAuthGuard } from '../user/user.guard';
 import { type AuthenticatedRequest } from '../common/types/common';
 import { WorshipService } from './worship.service';
+import { WorshipRecordCreateDto, WorshipMemorialCreateDto } from './dto/worship.dto';
 
 /**
  * 小程序用户端祭祀接口
@@ -25,7 +26,7 @@ export class WorshipController {
   @Post('record')
   createRecord(
     @Req() req: AuthenticatedRequest,
-    @Body() body: { familyId?: number; type?: string; content?: string }
+    @Body() body: WorshipRecordCreateDto
   ) {
     return this.worshipService.createRecord(
       String(req.user.id),
@@ -96,7 +97,7 @@ export class WorshipController {
   @Post('memorials')
   createMemorial(
     @Req() req: AuthenticatedRequest,
-    @Body() body: { familyId?: number; memberId?: string; epitaph?: string }
+    @Body() body: WorshipMemorialCreateDto
   ) {
     return this.worshipService.createMemorial(
       String(req.user.id),

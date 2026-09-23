@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { h, ref, reactive, onMounted, watch, computed } from 'vue';
+import { h, ref, reactive, onMounted, onBeforeUnmount, watch, computed } from 'vue';
 import {
   useMessage, useDialog, NTag, NSwitch, NButton, NSpace, NSelect,
   NModal, NInput, NInputNumber, NForm, NFormItem, NRadio, NRadioGroup, NCard,
@@ -51,12 +51,13 @@ async function loadFamilyOptions() {
       label: `${f.name}（ID: ${f.id}，成员: ${f.member_count}）`,
       value: f.id
     }));
-  } catch {
-    familyOptions.value = [
-      { label: '【模拟】朱氏家族（ID: 1，成员: 128）', value: 1 },
-      { label: '【模拟】朱氏家族（ID: 2，成员: 256）', value: 2 },
-      { label: '【模拟】朱氏家族（ID: 3，成员: 64）', value: 3 }
-    ];
+    if (!familyOptions.value.length) {
+      message.warning('暂无可用的家族数据');
+    }
+  } catch (err: any) {
+    // 生产环境不允许回退到假数据，避免管理员在不知情下操作错误数据
+    familyOptions.value = [];
+    message.error(err?.message === 'TIMEOUT' ? '加载家族列表超时，请检查后端连接' : '加载家族列表失败，请稍后重试');
   } finally {
     familyLoading.value = false;
   }
@@ -207,24 +208,11 @@ async function loadData() {
     }
     tableData.value = data.list || [];
     pagination.itemCount = data.total || 0;
-  } catch {
-    message.warning('后端未连接，显示模拟数据');
-    const allMockMembers: FamilyMemberItem[] = [
-      { id: 'a1b2c3d4', family_id: selectedFamilyId.value!, name: '朱伯言', gender: 'male', generation: 1, generation_name: '伯', birth_date: '1880-03-15', birth_place: '浙江绍兴', is_alive: 0, death_date: '1955-07-20', death_place: '浙江绍兴', longitude: 120.58, latitude: 30.03, bio: '一世祖', avatar_url: '', father_id: '', mother_id: '', spouse_info: '[{"name":"王氏","birthDate":"1882"}]', sort_order: 1, status: 1, create_time: '2024-01-01 10:00:00', update_time: '2024-01-01 10:00:00' },
-      { id: 'b2c3d4e5', family_id: selectedFamilyId.value!, name: '朱仲德', gender: 'male', generation: 2, generation_name: '仲', birth_date: '1905-09-10', birth_place: '浙江绍兴', is_alive: 0, death_date: '1978-12-03', death_place: '浙江绍兴', longitude: null, latitude: null, bio: '二世', avatar_url: '', father_id: 'a1b2c3d4', mother_id: '', spouse_info: null, sort_order: 1, status: 1, create_time: '2024-01-02 10:00:00', update_time: '2024-01-02 10:00:00' },
-      { id: 'c3d4e5f6', family_id: selectedFamilyId.value!, name: '朱叔和', gender: 'male', generation: 2, generation_name: '叔', birth_date: '1908-05-20', birth_place: '浙江绍兴', is_alive: 0, death_date: '1985-02-14', death_place: '浙江杭州', longitude: null, latitude: null, bio: '二世次子', avatar_url: '', father_id: 'a1b2c3d4', mother_id: '', spouse_info: null, sort_order: 2, status: 1, create_time: '2024-01-03 10:00:00', update_time: '2024-01-03 10:00:00' },
-      { id: 'd4e5f6a7', family_id: selectedFamilyId.value!, name: '朱季芳', gender: 'female', generation: 2, generation_name: '季', birth_date: '1912-11-08', birth_place: '浙江绍兴', is_alive: 0, death_date: '1990-08-22', death_place: '浙江绍兴', longitude: null, latitude: null, bio: '二世长女', avatar_url: '', father_id: 'a1b2c3d4', mother_id: '', spouse_info: null, sort_order: 3, status: 1, create_time: '2024-01-04 10:00:00', update_time: '2024-01-04 10:00:00' },
-      { id: 'e5f6a7b8', family_id: selectedFamilyId.value!, name: '朱文远', gender: 'male', generation: 3, generation_name: '文', birth_date: '1935-06-01', birth_place: '浙江绍兴', is_alive: 1, death_date: '', death_place: '', longitude: null, latitude: null, bio: '三世长孙', avatar_url: '', father_id: 'b2c3d4e5', mother_id: '', spouse_info: null, sort_order: 1, status: 1, create_time: '2024-02-01 10:00:00', update_time: '2024-02-01 10:00:00' },
-      { id: 'f6a7b8c9', family_id: selectedFamilyId.value!, name: '朱文华', gender: 'male', generation: 3, generation_name: '文', birth_date: '1938-03-12', birth_place: '浙江绍兴', is_alive: 1, death_date: '', death_place: '', longitude: null, latitude: null, bio: '', avatar_url: '', father_id: 'c3d4e5f6', mother_id: '', spouse_info: null, sort_order: 1, status: 1, create_time: '2024-02-02 10:00:00', update_time: '2024-02-02 10:00:00' },
-      { id: 'a7b8c9d0', family_id: selectedFamilyId.value!, name: '朱文静', gender: 'female', generation: 3, generation_name: '文', birth_date: '1940-08-20', birth_place: '浙江绍兴', is_alive: 1, death_date: '', death_place: '', longitude: null, latitude: null, bio: '', avatar_url: '', father_id: 'b2c3d4e5', mother_id: '', spouse_info: null, sort_order: 2, status: 1, create_time: '2024-02-03 10:00:00', update_time: '2024-02-03 10:00:00' },
-      { id: 'b8c9d0e1', family_id: selectedFamilyId.value!, name: '朱建国', gender: 'male', generation: 4, generation_name: '建', birth_date: '1965-04-10', birth_place: '浙江绍兴', is_alive: 1, death_date: '', death_place: '', longitude: null, latitude: null, bio: '工程师', avatar_url: '', father_id: 'e5f6a7b8', mother_id: '', spouse_info: '[{"name":"李氏","birthDate":"1967","isAlive":1},{"name":"周氏","birthDate":"1970","isAlive":0,"deathDate":"2005"}]', sort_order: 1, status: 1, create_time: '2024-03-01 10:00:00', update_time: '2024-03-01 10:00:00' },
-      { id: 'c9d0e1f2', family_id: selectedFamilyId.value!, name: '朱建民', gender: 'male', generation: 4, generation_name: '建', birth_date: '1968-07-15', birth_place: '浙江绍兴', is_alive: 1, death_date: '', death_place: '', longitude: null, latitude: null, bio: '教师', avatar_url: '', father_id: 'f6a7b8c9', mother_id: '', spouse_info: null, sort_order: 1, status: 1, create_time: '2024-03-02 10:00:00', update_time: '2024-03-02 10:00:00' },
-      { id: 'd0e1f2a3', family_id: selectedFamilyId.value!, name: '朱小明', gender: 'male', generation: 5, generation_name: '小', birth_date: '1995-01-20', birth_place: '浙江绍兴', is_alive: 1, death_date: '', death_place: '', longitude: null, latitude: null, bio: '', avatar_url: '', father_id: 'b8c9d0e1', mother_id: '', spouse_info: null, sort_order: 1, status: 1, create_time: '2024-04-01 10:00:00', update_time: '2024-04-01 10:00:00' },
-      { id: 'e1f2a3b4', family_id: selectedFamilyId.value!, name: '朱小红', gender: 'female', generation: 5, generation_name: '小', birth_date: '1998-06-30', birth_place: '浙江绍兴', is_alive: 1, death_date: '', death_place: '', longitude: null, latitude: null, bio: '', avatar_url: '', father_id: 'b8c9d0e1', mother_id: '', spouse_info: null, sort_order: 2, status: 1, create_time: '2024-04-02 10:00:00', update_time: '2024-04-02 10:00:00' }
-    ];
-    const offset = (pagination.page - 1) * pagination.pageSize;
-    tableData.value = allMockMembers.slice(offset, offset + pagination.pageSize);
-    pagination.itemCount = allMockMembers.length;
+  } catch (err: any) {
+    // 生产环境不允许回退到假数据，避免管理员在不知情下对假数据执行真实操作
+    tableData.value = [];
+    pagination.itemCount = 0;
+    message.error(err?.message === 'TIMEOUT' ? '加载成员列表超时，请检查后端连接' : '加载成员列表失败，请稍后重试');
   } finally {
     loading.value = false;
   }
@@ -442,6 +430,18 @@ watch(() => formData.fatherId, async (newVal) => {
 // ===== 同父同名唯一性校验（实时） =====
 const duplicateNameError = ref<string | null>(null);
 let duplicateCheckTimer: ReturnType<typeof setTimeout> | null = null;
+
+/** 组件卸载时清理所有 pending 的防抖定时器，防止内存泄漏 */
+onBeforeUnmount(() => {
+  if (duplicateCheckTimer) {
+    clearTimeout(duplicateCheckTimer);
+    duplicateCheckTimer = null;
+  }
+  if (fatherSearchTimer) {
+    clearTimeout(fatherSearchTimer);
+    fatherSearchTimer = null;
+  }
+});
 
 async function runDuplicateCheck() {
   const familyId = selectedFamilyId.value;

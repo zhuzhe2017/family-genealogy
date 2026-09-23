@@ -384,7 +384,7 @@ export class SubscriptionAdminService {
   // ==================== 工具 ====================
 
   private writeLog(params: OpLogParams) {
-    this.systemLogService.write({
+    void this.systemLogService.write({
       logType: 'operation',
       module: 'subscription',
       action: params.action,

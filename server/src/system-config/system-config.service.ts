@@ -38,7 +38,7 @@ const DEFAULT_VALUES: Record<string, string> = {
 };
 
 /** 配置值按 value_type 归一化 */
-export function normalizeConfigValue(row: Pick<SysConfigRow, 'config_value' | 'value_type'>): string | number | boolean | unknown {
+export function normalizeConfigValue(row: Pick<SysConfigRow, 'config_value' | 'value_type'>): string | number | boolean | unknown[] {
   const raw = row.config_value ?? '';
   switch (row.value_type) {
     case 'number': {

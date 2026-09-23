@@ -383,7 +383,7 @@ export class FundService {
     if (data.description !== undefined) push('`description` = ?', String(data.description).trim());
     if (data.needApproval !== undefined) push('`need_approval` = ?', data.needApproval === 0 || data.needApproval === false ? 0 : 1);
 
-    const limits = this.normalizeLimits(data as FundCreateData);
+    const limits = this.normalizeLimits(data);
     if (limits.singleDepositLimit) push('`single_deposit_limit` = ?', limits.singleDepositLimit);
     if (limits.singleWithdrawLimit) push('`single_withdraw_limit` = ?', limits.singleWithdrawLimit);
     if (limits.dailyDepositLimit) push('`daily_deposit_limit` = ?', limits.dailyDepositLimit);
@@ -518,7 +518,7 @@ export class FundService {
     if (target.role === 'leader' || (await this.isFundLeader(targetUserId, fund))) {
       throw new HttpException('族长不可被修改权限', HttpStatus.BAD_REQUEST);
     }
-    let role = String(data?.role || '').trim() || target.role;
+    const role = String(data?.role || '').trim() || target.role;
     if (!ROLE_LABELS[role]) {
       throw new HttpException('无效的角色', HttpStatus.BAD_REQUEST);
     }

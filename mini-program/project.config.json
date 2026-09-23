@@ -19,9 +19,9 @@
     "minifyWXSS": true,
     "localPlugins": false,
     "disableUseStrict": false,
-    "condition": false,
     "swc": false,
-    "disableSWC": true
+    "disableSWC": true,
+    "condition": true
   },
   "compileType": "miniprogram",
   "simulatorPluginLibVersion": {},

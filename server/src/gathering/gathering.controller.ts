@@ -3,7 +3,13 @@ import { Public } from '../common/decorators/public.decorator';
 import { UserJwtAuthGuard } from '../user/user.guard';
 import { type AuthenticatedRequest } from '../common/types/common';
 import { GatheringService } from './gathering.service';
-import { type RegisterData, type GatheringUpsertData } from './types/gathering.types';
+import {
+  GatheringUpsertDto,
+  GatheringRegisterDto,
+  GatheringStatusUpdateDto,
+  GatheringCheckinDto,
+  GatheringArchiveCreateDto
+} from './dto/gathering.dto';
 
 /**
  * 小程序用户端宗亲聚会接口
@@ -35,7 +41,7 @@ export class GatheringController {
 
   /** 创建聚会 */
   @Post()
-  create(@Req() req: AuthenticatedRequest, @Query('familyId') familyId: string, @Body() body: GatheringUpsertData) {
+  create(@Req() req: AuthenticatedRequest, @Query('familyId') familyId: string, @Body() body: GatheringUpsertDto) {
     return this.gatheringService.create(String(req.user.id), Number(familyId) || 0, body || {});
   }
 
@@ -45,7 +51,7 @@ export class GatheringController {
     @Req() req: AuthenticatedRequest,
     @Query('familyId') familyId: string,
     @Param('id') id: string,
-    @Body() body: GatheringUpsertData
+    @Body() body: GatheringUpsertDto
   ) {
     return this.gatheringService.update(String(req.user.id), Number(familyId) || 0, Number(id), body || {});
   }
@@ -56,7 +62,7 @@ export class GatheringController {
     @Req() req: AuthenticatedRequest,
     @Query('familyId') familyId: string,
     @Param('id') id: string,
-    @Body() body: { status: number }
+    @Body() body: GatheringStatusUpdateDto
   ) {
     return this.gatheringService.updateStatus(String(req.user.id), Number(familyId) || 0, Number(id), Number(body?.status));
   }
@@ -73,9 +79,9 @@ export class GatheringController {
     @Req() req: AuthenticatedRequest,
     @Query('familyId') familyId: string,
     @Param('id') id: string,
-    @Body() body: RegisterData
+    @Body() body: GatheringRegisterDto
   ) {
-    return this.gatheringService.register(String(req.user.id), Number(familyId) || 0, Number(id), (body || {}) as RegisterData);
+    return this.gatheringService.register(String(req.user.id), Number(familyId) || 0, Number(id), (body || {}) as GatheringRegisterDto);
   }
 
   /** 我的报名记录 */
@@ -106,7 +112,7 @@ export class GatheringController {
     @Req() req: AuthenticatedRequest,
     @Query('familyId') familyId: string,
     @Param('id') id: string,
-    @Body() body: { code?: string; method?: string }
+    @Body() body: GatheringCheckinDto
   ) {
     return this.gatheringService.checkin(String(req.user.id), Number(familyId) || 0, Number(id), body || {});
   }
@@ -134,7 +140,7 @@ export class GatheringController {
     @Req() req: AuthenticatedRequest,
     @Query('familyId') familyId: string,
     @Param('id') id: string,
-    @Body() body: { title?: string; fileUrl?: string; fileType?: string; description?: string }
+    @Body() body: GatheringArchiveCreateDto
   ) {
     return this.gatheringService.createArchive(String(req.user.id), Number(familyId) || 0, Number(id), body || {});
   }

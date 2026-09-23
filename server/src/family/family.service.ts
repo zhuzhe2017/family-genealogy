@@ -1,5 +1,6 @@
 import { Injectable, HttpException, HttpStatus } from '@nestjs/common';
 import { DataSource, type EntityManager } from 'typeorm';
+import { randomInt } from 'crypto';
 import {
   type FamilyRow,
   type FamilyQueryParams,
@@ -365,7 +366,7 @@ export class FamilyService {
     for (let i = 0; i < 20; i++) {
       const chars: string[] = [];
       for (let j = 0; j < 8; j++) {
-        chars.push(this.SHARE_CODE_ALPHABET[Math.floor(Math.random() * this.SHARE_CODE_ALPHABET.length)]);
+        chars.push(this.SHARE_CODE_ALPHABET[randomInt(this.SHARE_CODE_ALPHABET.length)]);
       }
       const code = chars.join('');
       const [dup] = await this.dataSource.query<Pick<FamilyRow, 'id'>[]>(

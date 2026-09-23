@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useElementSize } from '@vueuse/core';
 import BScroll from '@better-scroll/core';
 import type { Options } from '@better-scroll/core';
@@ -37,6 +37,11 @@ watch([() => wrapWidth.value, () => width.value, () => height.value], () => {
 
 onMounted(() => {
   initBetterScroll();
+});
+
+onBeforeUnmount(() => {
+  instance.value?.destroy();
+  instance.value = undefined;
 });
 
 defineExpose({ instance });

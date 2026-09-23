@@ -155,7 +155,7 @@ describe('MemberImportService', () => {
   describe('importFromFile', () => {
     it('事务内导入并返回报告、写入审计日志', async () => {
       const managerQuery = jest.fn().mockResolvedValue({ affectedRows: 1 });
-      dataSourceMock.transaction.mockImplementation(async (cb: (m: any) => unknown) => cb({ query: managerQuery }));
+      dataSourceMock.transaction.mockImplementation((cb: (m: any) => unknown) => cb({ query: managerQuery }));
       familyMemberServiceMock.importItems.mockImplementation(async (query: any) => {
         await query('INSERT INTO `family_members_1` ...', []);
         return 2;

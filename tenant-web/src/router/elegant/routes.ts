@@ -62,7 +62,7 @@ export const generatedRoutes: GeneratedRoute[] = [
   },
   {
     name: 'login',
-    path: '/login/:module(pwd-login|code-login|register|reset-pwd|bind-wechat)?',
+    path: '/login/:module(pwd-login|reset-pwd|bind-wechat)?',
     component: 'layout.blank$view.login',
     props: true,
     meta: {
@@ -90,7 +90,8 @@ export const generatedRoutes: GeneratedRoute[] = [
         meta: {
           title: 'tenant_document',
           i18nKey: 'route.tenant_document',
-          icon: 'mdi:file-document-multiple'
+          icon: 'mdi:file-document-multiple',
+          roles: ['super', 'admin']
         }
       },
       {
@@ -100,7 +101,8 @@ export const generatedRoutes: GeneratedRoute[] = [
         meta: {
           title: 'tenant_event',
           i18nKey: 'route.tenant_event',
-          icon: 'mdi:calendar-account'
+          icon: 'mdi:calendar-account',
+          roles: ['super', 'admin']
         }
       },
       {
@@ -110,7 +112,8 @@ export const generatedRoutes: GeneratedRoute[] = [
         meta: {
           title: 'tenant_member',
           i18nKey: 'route.tenant_member',
-          icon: 'mdi:account-group'
+          icon: 'mdi:account-group',
+          roles: ['super', 'admin']
         }
       },
       {
@@ -120,7 +123,8 @@ export const generatedRoutes: GeneratedRoute[] = [
         meta: {
           title: 'tenant_permission',
           i18nKey: 'route.tenant_permission',
-          icon: 'mdi:shield-account'
+          icon: 'mdi:shield-account',
+          roles: ['super']
         }
       },
       {
@@ -130,7 +134,8 @@ export const generatedRoutes: GeneratedRoute[] = [
         meta: {
           title: 'tenant_photo',
           i18nKey: 'route.tenant_photo',
-          icon: 'mdi:image-multiple'
+          icon: 'mdi:image-multiple',
+          roles: ['super', 'admin']
         }
       },
       {
@@ -140,7 +145,8 @@ export const generatedRoutes: GeneratedRoute[] = [
         meta: {
           title: 'tenant_settings',
           i18nKey: 'route.tenant_settings',
-          icon: 'mdi:cog-outline'
+          icon: 'mdi:cog-outline',
+          roles: ['super', 'admin']
         }
       }
     ]

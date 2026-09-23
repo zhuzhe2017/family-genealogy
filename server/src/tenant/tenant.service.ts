@@ -13,8 +13,8 @@ import {
   type IdResult,
   type SuccessResult
 } from '../common/types/common';
-import { type FamilyMemberRow } from '../family-member/types/family-member.types';
 import {
+  type FamilyMemberRow,
   type FamilyMemberCreateData,
   type FamilyMemberUpdateData,
   type FatherCandidate,
@@ -387,7 +387,7 @@ export class TenantService {
       );
     } else if (role === 'member') {
       await this.dataSource.query(
-        'UPDATE \`family_permission\` SET \`role\` = ?, \`status\` = 1 WHERE \`family_id\` = ? AND \`user_id\` = ?',
+        'UPDATE `family_permission` SET `role` = ?, `status` = 1 WHERE `family_id` = ? AND `user_id` = ?',
         ['member', familyId, targetUserId] as QueryValues
       );
     } else {
@@ -408,7 +408,7 @@ export class TenantService {
     }
 
     await this.dataSource.query(
-      'UPDATE \`family_permission\` SET \`status\` = 0 WHERE \`family_id\` = ? AND \`user_id\` = ?',
+      'UPDATE `family_permission` SET `status` = 0 WHERE `family_id` = ? AND `user_id` = ?',
       [familyId, targetUserId] as QueryValues
     );
 

@@ -30,6 +30,8 @@ export class EntitlementService implements OnModuleInit {
   private static readonly SCAN_INTERVAL = 6 * 60 * 60 * 1000;
   /** 扫描中标志，防止 DB 卡顿时 setInterval 叠加并发执行 */
   private scanRunning = false;
+  /** 到期扫描定时器引用，用于优雅关闭时清理 */
+  private scanTimer: ReturnType<typeof setInterval> | null = null;
 
   constructor(
     private readonly dataSource: DataSource,
@@ -38,7 +40,15 @@ export class EntitlementService implements OnModuleInit {
 
   /** 应用启动后注册到期扫描定时任务（active→grace→expired 状态机自动流转） */
   onModuleInit() {
-    setInterval(() => void this.runExpireScan(), EntitlementService.SCAN_INTERVAL);
+    this.scanTimer = setInterval(() => void this.runExpireScan(), EntitlementService.SCAN_INTERVAL);
+  }
+
+  /** 应用关闭时清理定时器，确保优雅退出 */
+  onModuleDestroy() {
+    if (this.scanTimer) {
+      clearInterval(this.scanTimer);
+      this.scanTimer = null;
+    }
   }
 
   /** 执行到期扫描并记录日志；单实例内防重入 */

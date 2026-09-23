@@ -4,11 +4,8 @@ import { Public } from '../common/decorators/public.decorator';
 import { UserJwtAuthGuard } from '../user/user.guard';
 import { type AuthenticatedRequest } from '../common/types/common';
 import { InvitationService } from './invitation.service';
-import {
-  type CreateInvitationData,
-  type ProcessInvitationData,
-  type InvitationQueryParams
-} from './types/invitation.types';
+import { CreateInvitationDto, ProcessInvitationDto } from './dto/invitation.dto';
+import { type InvitationQueryParams } from './types/invitation.types';
 
 /**
  * 家族会员邀请接口（小程序用户端）
@@ -31,7 +28,7 @@ export class InvitationController {
   @Throttle({ default: { limit: 10, ttl: 60_000 } })
   createInvitation(
     @Req() req: AuthenticatedRequest,
-    @Body() body: CreateInvitationData
+    @Body() body: CreateInvitationDto
   ) {
     return this.invitationService.createInvitation(String(req.user.id), body);
   }
@@ -106,7 +103,7 @@ export class InvitationController {
   @Throttle({ default: { limit: 10, ttl: 60_000 } })
   processInvitation(
     @Req() req: AuthenticatedRequest,
-    @Body() body: ProcessInvitationData
+    @Body() body: ProcessInvitationDto
   ) {
     return this.invitationService.processInvitation(String(req.user.id), body);
   }

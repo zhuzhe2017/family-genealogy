@@ -97,10 +97,18 @@ const GENDER_VALUES: Record<string, string> = {
 };
 
 function normalizeHeader(value: unknown): string {
-  return String(value ?? '')
-    .trim()
-    .toLowerCase()
-    .replace(/\s+/g, '');
+  if (value == null) return '';
+  if (typeof value === 'string') return value.trim().toLowerCase().replace(/\s+/g, '');
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value).trim().toLowerCase().replace(/\s+/g, '');
+  return '';
+}
+
+/** 安全地将单元格值转为字符串（仅处理字符串/数字/布尔值，其他类型返回空串） */
+function safeCellString(value: unknown): string {
+  if (value == null) return '';
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+  return '';
 }
 
 /** 是否在世换算：无法识别时默认在世 */
@@ -163,7 +171,7 @@ export class MemberImportService {
     // 表头行：首个含非空单元格的行
     let headerIdx = -1;
     for (let i = 0; i < rows.length; i++) {
-      if ((rows[i] || []).some(c => String(c ?? '').trim() !== '')) {
+      if ((rows[i] || []).some(c => safeCellString(c).trim() !== '')) {
         headerIdx = i;
         break;
       }
@@ -194,13 +202,13 @@ export class MemberImportService {
 
     const cell = (r: unknown[], field: string): string => {
       const i = col[field];
-      return i !== undefined && i < r.length ? String(r[i] ?? '').trim() : '';
+    return i !== undefined && i < r.length ? safeCellString(r[i]).trim() : '';
     };
 
     for (let r = headerIdx + 1; r < rows.length; r++) {
       const raw = rows[r] || [];
       const rowNo = r + 1; // 含表头的原始行号
-      if (raw.every(c => String(c ?? '').trim() === '')) continue; // 空行跳过
+      if (raw.every(c => safeCellString(c).trim() === '')) continue; // 空行跳过
 
       const name = cell(raw, 'name');
       if (!name) {
@@ -357,7 +365,7 @@ export class MemberImportService {
     });
 
     // 审计日志（fire-and-forget，不阻塞响应）
-    this.systemLogService.write({
+    void this.systemLogService.write({
       logType: 'operation',
       module: 'family-member',
       action: '批量导入成员',

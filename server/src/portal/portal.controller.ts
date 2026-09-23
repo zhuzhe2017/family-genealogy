@@ -5,12 +5,17 @@ import { EntitlementGuard } from '../membership/guards/entitlement.guard';
 import { Entitlement, Writable } from '../membership/decorators/entitlement.decorator';
 import { Capability } from '../membership/types/membership.types';
 import { type AuthenticatedRequest } from '../common/types/common';
-import { PortalService } from './portal.service';
+import { PortalService, type CategoryType } from './portal.service';
 import { type ContentType } from '../content/content.service';
-import { type FamilyCreateData } from '../family/types/family.types';
-import { type FamilyMemberCreateData, type FamilyMemberUpdateData } from '../family-member/types/family-member.types';
-import { type ContentCreateData } from '../content/types/content.types';
-import { type CategoryType } from './portal.service';
+import {
+  PortalFamilyCreateDto,
+  PortalFamilyMemberCreateDto,
+  PortalFamilyMemberUpdateDto,
+  PortalContentCreateDto,
+  PortalCommentCreateDto,
+  PortalCategoryCreateDto,
+  PortalCategoryUpdateDto
+} from './dto/portal.dto';
 
 /**
  * 小程序用户端接口（一期）
@@ -131,7 +136,7 @@ export class PortalController {
   }
 
   @Post('family/create')
-  createFamily(@Body() body: FamilyCreateData, @Req() req: AuthenticatedRequest) {
+  createFamily(@Body() body: PortalFamilyCreateDto, @Req() req: AuthenticatedRequest) {
     // 创建者ID以服务端令牌为准，防止客户端伪造
     body.creatorUserId = String(req.user.id);
     return this.portalService.createFamily(body);
@@ -141,7 +146,7 @@ export class PortalController {
   @Post('family/:familyId/members')
   createMember(
     @Param('familyId', ParseIntPipe) familyId: number,
-    @Body() body: FamilyMemberCreateData,
+    @Body() body: PortalFamilyMemberCreateDto,
     @Req() req: AuthenticatedRequest
   ) {
     return this.portalService.createMember(familyId, body, String(req.user.id));
@@ -152,7 +157,7 @@ export class PortalController {
   updateMember(
     @Param('familyId', ParseIntPipe) familyId: number,
     @Param('id') id: string,
-    @Body() body: FamilyMemberUpdateData,
+    @Body() body: PortalFamilyMemberUpdateDto,
     @Req() req: AuthenticatedRequest
   ) {
     return this.portalService.updateMember(familyId, id, body, String(req.user.id));
@@ -190,7 +195,7 @@ export class PortalController {
   @Post('content/:type/create')
   createContent(
     @Param('type') type: string,
-    @Body() body: ContentCreateData,
+    @Body() body: PortalContentCreateDto,
     @Req() req: AuthenticatedRequest
   ) {
     const user = req.user;
@@ -217,7 +222,7 @@ export class PortalController {
   updateContent(
     @Param('type') type: string,
     @Param('id') id: string,
-    @Body() body: ContentCreateData,
+    @Body() body: PortalContentCreateDto,
     @Req() req: AuthenticatedRequest
   ) {
     return this.portalService.updateContent(type as ContentType, id, body, String(req.user.id));
@@ -260,7 +265,7 @@ export class PortalController {
   @Post('content/dynamic/:id/comment')
   createComment(
     @Param('id') id: string,
-    @Body() body: { content?: string },
+    @Body() body: PortalCommentCreateDto,
     @Req() req: AuthenticatedRequest
   ) {
     return this.portalService.createComment(id, String(req.user.id), req.user.nickname || '', body.content || '');
@@ -283,7 +288,7 @@ export class PortalController {
   @Post('category/:type/create')
   createCategory(
     @Param('type') type: string,
-    @Body() body: { familyId?: number; name?: string; icon?: string },
+    @Body() body: PortalCategoryCreateDto,
     @Req() req: AuthenticatedRequest
   ) {
     return this.portalService.createCategory(
@@ -301,7 +306,7 @@ export class PortalController {
   updateCategory(
     @Param('type') type: string,
     @Param('id') id: string,
-    @Body() body: { familyId?: number; name?: string; icon?: string; sortOrder?: number },
+    @Body() body: PortalCategoryUpdateDto,
     @Req() req: AuthenticatedRequest
   ) {
     return this.portalService.updateCategory(

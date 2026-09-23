@@ -4,6 +4,14 @@ import { type DataRow, type QueryValues } from '../common/types/common';
 import { SmsService } from '../user/sms.service';
 import { WxSubscribeMessageService } from '../user/wx-subscribe-message.service';
 
+/** 将 unknown 值安全转换为字符串（null/undefined → ''，字符串原样返回，其余 JSON 序列化） */
+function toStr(value: unknown): string {
+  if (value === null || value === undefined) return '';
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number' || typeof value === 'boolean' || typeof value === 'bigint') return String(value);
+  return JSON.stringify(value) ?? '';
+}
+
 /** 提醒节点：到期前 N 天 / 宽限期第 N 天 */
 export type RemindNode = 'T-30' | 'T-14' | 'T-7' | 'T-1' | 'G-3';
 
@@ -65,11 +73,11 @@ export class RenewalReminderService {
     for (const row of expiring) {
       const target: RemindTarget = {
         familyId: Number(row.family_id),
-        familyName: String(row.family_name || ''),
-        planCode: String(row.plan_code || ''),
-        planName: String(row.plan_name || row.plan_code || ''),
-        ownerUserId: String(row.owner_user_id || ''),
-        ownerPhone: String(row.owner_phone || ''),
+        familyName: toStr(row.family_name),
+        planCode: toStr(row.plan_code),
+        planName: toStr(row.plan_name || row.plan_code),
+        ownerUserId: toStr(row.owner_user_id),
+        ownerPhone: toStr(row.owner_phone),
         expireAt: new Date(row.expire_at as string),
         graceUntil: null
       };
@@ -100,15 +108,15 @@ export class RenewalReminderService {
     for (const row of inGrace) {
       const target: RemindTarget = {
         familyId: Number(row.family_id),
-        familyName: String(row.family_name || ''),
-        planCode: String(row.plan_code || ''),
-        planName: String(row.plan_name || row.plan_code || ''),
-        ownerUserId: String(row.owner_user_id || ''),
-        ownerPhone: String(row.owner_phone || ''),
+        familyName: toStr(row.family_name),
+        planCode: toStr(row.plan_code),
+        planName: toStr(row.plan_name || row.plan_code),
+        ownerUserId: toStr(row.owner_user_id),
+        ownerPhone: toStr(row.owner_phone),
         expireAt: new Date(row.expire_at as string),
         graceUntil: new Date(row.grace_until as string)
       };
-      const graceDaysLeft = Math.ceil((target.graceUntil!.getTime() - Date.now()) / (24 * 60 * 60 * 1000));
+      const graceDaysLeft = Math.ceil((target.graceUntil.getTime() - Date.now()) / (24 * 60 * 60 * 1000));
       // 宽限截止前 3 天当天触发
       if (graceDaysLeft <= 3 && graceDaysLeft > 2) {
         if (await this.sendReminder(target, 'G-3')) counts['G-3']++;

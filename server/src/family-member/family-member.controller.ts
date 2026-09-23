@@ -1,6 +1,7 @@
 import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards, ParseIntPipe, HttpException, HttpStatus, UploadedFile, Req, UseInterceptors, BadRequestException, Header } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
+import type { Express } from 'express';
 import { FamilyMemberService } from './family-member.service';
 import { MemberImportService, IMPORT_SUPPORTED_EXTS, MAX_IMPORT_FILE_SIZE } from './member-import.service';
 import { JwtAuthGuard } from '../auth/guard/jwt-auth.guard';
@@ -8,7 +9,8 @@ import { RolesGuard } from '../common/guards/roles.guard';
 import { PermissionsGuard } from '../common/guards/permissions.guard';
 import { Permissions } from '../common/decorators/permissions.decorator';
 import { type AuthenticatedRequest } from '../common/types/common';
-import { type FamilyMemberCreateData, type FamilyMemberUpdateData, type FamilyMemberImportItem } from './types/family-member.types';
+import { CreateFamilyMemberDto, UpdateFamilyMemberDto } from './dto/family-member.dto';
+import { type FamilyMemberImportItem } from './types/family-member.types';
 
 @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
 @Controller('family-member/:familyId')
@@ -110,7 +112,7 @@ export class FamilyMemberController {
   @Post('create')
   async create(
     @Param('familyId', ParseIntPipe) familyId: number,
-    @Body() body: FamilyMemberCreateData
+    @Body() body: CreateFamilyMemberDto
   ) {
     return this.familyMemberService.create(familyId, {
       name: body.name,
@@ -177,7 +179,7 @@ export class FamilyMemberController {
   async update(
     @Param('familyId', ParseIntPipe) familyId: number,
     @Param('id') id: string,
-    @Body() body: FamilyMemberUpdateData
+    @Body() body: UpdateFamilyMemberDto
   ) {
     return this.familyMemberService.update(familyId, id, {
       name: body.name,

@@ -282,7 +282,7 @@ export class MemberAdminController {
         return;
       }
       res.end();
-      // eslint-disable-next-line no-console
+       
       console.error('[member] 会员导出失败:', err instanceof Error ? err.message : err);
     }
   }
@@ -318,7 +318,7 @@ export class MemberAdminController {
         return;
       }
       res.end();
-      // eslint-disable-next-line no-console
+       
       console.error('[member] 消费导出失败:', err instanceof Error ? err.message : err);
     }
   }

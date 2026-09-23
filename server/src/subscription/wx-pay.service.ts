@@ -69,8 +69,8 @@ export class WxPayService {
   /** 从数据库加载支付配置（覆盖环境变量），仅首次调用时执行 */
   private async ensureConfigLoaded(): Promise<void> {
     if (this.configLoaded) return;
-    if (!this.configLoadPromise) {
-      this.configLoadPromise = (async () => {
+    if (this.configLoadPromise === null) {
+      this.configLoadPromise = (async (): Promise<void> => {
         try {
           const dbConfig = await this.payConfigService.getActiveWxPayConfig();
           if (dbConfig) {

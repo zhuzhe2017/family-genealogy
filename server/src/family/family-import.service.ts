@@ -50,10 +50,18 @@ const HEADER_MAP: Record<string, string> = {
 };
 
 function normalizeHeader(value: unknown): string {
-  return String(value ?? '')
-    .trim()
-    .toLowerCase()
-    .replace(/[\s_-]+/g, '');
+  if (value == null) return '';
+  if (typeof value === 'string') return value.trim().toLowerCase().replace(/[\s_-]+/g, '');
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value).trim().toLowerCase().replace(/[\s_-]+/g, '');
+  return '';
+}
+
+/** 安全地将单元格值转为字符串（仅处理字符串/数字/布尔值，其他类型返回空串） */
+function safeCellString(value: unknown): string {
+  if (value == null) return '';
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+  return '';
 }
 
 function csvEscape(value: string): string {
@@ -95,7 +103,7 @@ export class FamilyImportService {
 
     let headerIdx = -1;
     for (let i = 0; i < rows.length; i++) {
-      if ((rows[i] || []).some(c => String(c ?? '').trim() !== '')) {
+      if ((rows[i] || []).some(c => safeCellString(c).trim() !== '')) {
         headerIdx = i;
         break;
       }
@@ -125,13 +133,13 @@ export class FamilyImportService {
 
     const cell = (r: unknown[], field: string): string => {
       const i = col[field];
-      return i !== undefined && i < r.length ? String(r[i] ?? '').trim() : '';
+    return i !== undefined && i < r.length ? safeCellString(r[i]).trim() : '';
     };
 
     for (let r = headerIdx + 1; r < rows.length; r++) {
       const raw = rows[r] || [];
       const rowNo = r + 1;
-      if (raw.every(c => String(c ?? '').trim() === '')) continue;
+      if (raw.every(c => safeCellString(c).trim() === '')) continue;
 
       const name = cell(raw, 'name');
       if (!name) {
@@ -231,7 +239,7 @@ export class FamilyImportService {
 
     const imported = created + updated;
 
-    this.systemLogService.write({
+    void this.systemLogService.write({
       logType: 'operation',
       module: 'family',
       action: '批量导入家族',

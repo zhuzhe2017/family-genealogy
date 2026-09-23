@@ -53,7 +53,7 @@ export class LogInterceptor implements NestInterceptor {
             operator,
             operatorId: this.normalizeOperatorId(req.user?.id),
             ip: this.getClientIp(req),
-            userAgent: req.headers['user-agent'] as string,
+            userAgent: req.headers['user-agent'],
             status: 200,
             success: true,
             costTime: cost
@@ -83,7 +83,7 @@ export class LogInterceptor implements NestInterceptor {
             operator,
             operatorId: this.normalizeOperatorId(req.user?.id),
             ip: this.getClientIp(req),
-            userAgent: req.headers['user-agent'] as string,
+            userAgent: req.headers['user-agent'],
             status,
             success: false,
             detail,

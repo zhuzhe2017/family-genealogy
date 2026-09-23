@@ -79,7 +79,7 @@ export class SystemLogService {
     } catch (err: unknown) {
       // 日志写入失败不影响主流程
       const message = err instanceof Error ? err.message : 'unknown';
-      // eslint-disable-next-line no-console
+       
       console.warn('[system-log] 日志写入失败:', message);
     }
   }

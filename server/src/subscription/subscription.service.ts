@@ -93,7 +93,7 @@ export class SubscriptionService {
         throw new HttpException('支付服务未正确配置，请联系管理员', HttpStatus.SERVICE_UNAVAILABLE);
       }
       await this.handlePaid(tradeNo, `MOCK_${tradeNo}`, new Date());
-      this.systemLogService.write({
+      void this.systemLogService.write({
         logType: 'operation',
         module: 'subscription',
         action: '购买订阅（模拟支付）',
@@ -159,7 +159,7 @@ export class SubscriptionService {
       await this.handlePaid(resource.out_trade_no, resource.transaction_id, resource.success_time || new Date().toISOString(), resource);
       return { code: 'SUCCESS' };
     } catch (err) {
-      this.systemLogService.write({
+      void this.systemLogService.write({
         logType: 'error',
         module: 'subscription',
         action: '支付回调处理失败',
@@ -231,7 +231,7 @@ export class SubscriptionService {
     }
 
     const refundNo = await this.performRefund(order, dto.reason || '用户申请退款');
-    this.systemLogService.write({
+    void this.systemLogService.write({
       logType: 'operation',
       module: 'subscription',
       action: '退款',
@@ -258,7 +258,7 @@ export class SubscriptionService {
     }
 
     const refundNo = await this.performRefund(order, reason || '管理员退款');
-    this.systemLogService.write({
+    void this.systemLogService.write({
       logType: 'operation',
       module: 'subscription',
       action: '管理退款',

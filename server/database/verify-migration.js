@@ -1,13 +1,23 @@
-// 临时脚本：验证迁移结果（一次性使用）
+// 验证迁移结果：从环境变量读取数据库凭据，禁止硬编码密码
+// 用法：DB_HOST=localhost DB_PORT=3306 DB_USER=root DB_PASSWORD=xxx node verify-migration.js
 const mysql = require('mysql2/promise');
+
+function getOrThrow(name) {
+  const value = process.env[name];
+  if (!value) {
+    console.error(`缺少环境变量 ${name}，请通过环境变量提供数据库凭据`);
+    process.exit(1);
+  }
+  return value;
+}
 
 async function main() {
   const conn = await mysql.createConnection({
-    host: 'localhost',
-    port: 3306,
-    database: 'family_genealogy',
-    user: 'root',
-    password: '3156zhuzhe'
+    host: process.env.DB_HOST || 'localhost',
+    port: Number(process.env.DB_PORT || 3306),
+    database: process.env.DB_DATABASE || 'family_genealogy',
+    user: getOrThrow('DB_USER'),
+    password: getOrThrow('DB_PASSWORD')
   });
 
   try {
