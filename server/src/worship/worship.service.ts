@@ -1,6 +1,7 @@
 import { Injectable, HttpException, HttpStatus } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { type QueryValues } from '../common/types/common';
+import { getSafeMemberTableName } from '../common/utils/family-member-table';
 import { Capability } from '../membership/types/membership.types';
 import { EntitlementService } from '../membership/membership.service';
 import {
@@ -118,13 +119,14 @@ export class WorshipService {
   /** 纪念对象列表（含已故成员生卒信息） */
   async getMemorials(userId: string, familyId: number): Promise<WorshipMemorialItem[]> {
     await this.assertFamilyMember(userId, familyId);
+    const memberTable = getSafeMemberTableName(familyId);
     const rows = await this.dataSource.query<
       (WorshipMemorialRow & { birth_date: string; death_date: string })[]
     >(
       `SELECT m.\`id\`, m.\`member_id\`, m.\`member_name\`, m.\`avatar_url\`, m.\`epitaph\`, m.\`create_time\`,
               fm.\`birth_date\`, fm.\`death_date\`
        FROM \`family_worship_memorial\` m
-       JOIN \`family_member\` fm ON fm.\`id\` = m.\`member_id\`
+       JOIN \`${memberTable}\` fm ON fm.\`id\` = m.\`member_id\`
        WHERE m.\`family_id\` = ? AND m.\`status\` = 1
        ORDER BY m.\`create_time\` DESC, m.\`id\` DESC`,
       [familyId]
@@ -144,11 +146,12 @@ export class WorshipService {
   /** 可创建纪念的已故成员（家族内已故、未创建过纪念） */
   async getMemorialCandidates(userId: string, familyId: number): Promise<WorshipMemorialCandidate[]> {
     await this.assertFamilyMember(userId, familyId);
+    const memberTable = getSafeMemberTableName(familyId);
     const rows = await this.dataSource.query<
       { id: string; name: string; avatar_url: string; birth_date: string; death_date: string }[]
     >(
       `SELECT fm.\`id\`, fm.\`name\`, fm.\`avatar_url\`, fm.\`birth_date\`, fm.\`death_date\`
-       FROM \`family_member\` fm
+       FROM \`${memberTable}\` fm
        WHERE fm.\`family_id\` = ? AND fm.\`status\` = 1 AND fm.\`is_alive\` = 0
          AND NOT EXISTS (
            SELECT 1 FROM \`family_worship_memorial\` m
@@ -188,10 +191,13 @@ export class WorshipService {
       throw new HttpException('纪念寄语不能超过 200 字', HttpStatus.BAD_REQUEST);
     }
 
+    const memberTable = getSafeMemberTableName(familyId);
     const [member] = await this.dataSource.query<
       { id: string; name: string; avatar_url: string; birth_date: string; death_date: string }[]
     >(
-      'SELECT `id`, `name`, `avatar_url`, `birth_date`, `death_date` FROM `family_member` WHERE `id` = ? AND `family_id` = ? AND `status` = 1 AND `is_alive` = 0',
+      `SELECT \`id\`, \`name\`, \`avatar_url\`, \`birth_date\`, \`death_date\`
+       FROM \`${memberTable}\`
+       WHERE \`id\` = ? AND \`family_id\` = ? AND \`status\` = 1 AND \`is_alive\` = 0`,
       [memberId, familyId]
     );
     if (!member) {
@@ -309,13 +315,14 @@ export class WorshipService {
       throw new HttpException('纪念ID非法', HttpStatus.BAD_REQUEST);
     }
 
+    const memberTable = getSafeMemberTableName(familyId);
     const [mem] = await this.dataSource.query<
       (WorshipMemorialRow & { birth_date: string; death_date: string })[]
     >(
       `SELECT m.\`id\`, m.\`member_id\`, m.\`member_name\`, m.\`avatar_url\`, m.\`epitaph\`, m.\`create_time\`,
               fm.\`birth_date\`, fm.\`death_date\`
        FROM \`family_worship_memorial\` m
-       JOIN \`family_member\` fm ON fm.\`id\` = m.\`member_id\`
+       JOIN \`${memberTable}\` fm ON fm.\`id\` = m.\`member_id\`
        WHERE m.\`id\` = ? AND m.\`family_id\` = ? AND m.\`status\` = 1`,
       [id, familyId]
     );
@@ -363,11 +370,12 @@ export class WorshipService {
 
     const safeDays = Number.isInteger(days) && days >= 0 && days <= 365 ? days : 30;
 
+    const memberTable = getSafeMemberTableName(familyId);
     const rows = await this.dataSource.query<
       { id: string; name: string; is_alive: number; birth_date: string; death_date: string }[]
     >(
       `SELECT \`id\`, \`name\`, \`is_alive\`, \`birth_date\`, \`death_date\`
-       FROM \`family_member\`
+       FROM \`${memberTable}\`
        WHERE \`family_id\` = ? AND \`status\` = 1`,
       [familyId]
     );

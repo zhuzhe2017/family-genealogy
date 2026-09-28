@@ -418,10 +418,17 @@ export class TenantService {
   // ---------- 私有辅助方法 ----------
 
   private async getFamilyStats(familyId: number): Promise<DataRow> {
-    const [memberCount] = await this.dataSource.query<{ count: number }[]>(
-      'SELECT COUNT(*) AS count FROM `family_member` WHERE `family_id` = ? AND `status` = 1',
-      [familyId] as QueryValues
-    );
+    // 成员按家族分表存储（family_members_{familyId}），分表缺失时回退 0
+    const memberTable = getSafeMemberTableName(familyId);
+    let memberCount = 0;
+    try {
+      const [memberRow] = await this.dataSource.query<{ count: number }[]>(
+        `SELECT COUNT(*) AS count FROM \`${memberTable}\` WHERE \`status\` = 1`
+      );
+      memberCount = Number(memberRow?.count) || 0;
+    } catch {
+      memberCount = 0;
+    }
     const [photoCount] = await this.dataSource.query<{ count: number }[]>(
       'SELECT COUNT(*) AS count FROM `family_photo` WHERE `family_id` = ? AND `status` = 1',
       [familyId] as QueryValues
@@ -436,7 +443,7 @@ export class TenantService {
     );
 
     return {
-      memberCount: memberCount?.count ?? 0,
+      memberCount,
       photoCount: photoCount?.count ?? 0,
       documentCount: documentCount?.count ?? 0,
       eventCount: eventCount?.count ?? 0
