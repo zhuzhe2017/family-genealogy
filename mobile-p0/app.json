@@ -1,0 +1,28 @@
+{
+  "expo": {
+    "name": "家谱树 Skia Spike",
+    "slug": "family-tree-skia-spike",
+    "version": "0.1.0",
+    "orientation": "default",
+    "platforms": [
+      "ios",
+      "android",
+      "web"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.familytree.skia.spike"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#8B1A1A"
+      },
+      "package": "com.familytree.skia.spike",
+      "versionCode": 1
+    },
+    "plugins": [
+      "expo-asset",
+      "expo-font"
+    ]
+  }
+}
