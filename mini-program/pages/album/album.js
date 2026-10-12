@@ -377,16 +377,21 @@ Page({
           if (!files.length) return;
           // 先选照片分类,保证分类切换有真实数据可切(分类池:动态分类优先,兜底字典次之)
           const pool = (this._categories && this._categories.length) ? this._categories : PHOTO_CATEGORIES;
-          const itemList = pool.map(c => c.name).concat(['未分类']);
+          // wx.showActionSheet 的 itemList 上限为 6:分类超 5 个时仅展示前 5 个,
+          // 保证弹窗始终可用;其余分类的照片仍可归入"未分类"或后续补分类
+          const shown = pool.slice(0, 5);
+          const itemList = shown.map(c => c.name).concat(['未分类']);
           wx.showActionSheet({
             itemList,
+            fail: () => { /* 用户取消或弹窗失败,静默忽略 */ },
             success: (pick) => {
-              const categoryId = pick.tapIndex < pool.length ? pool[pick.tapIndex].id : '';
+              const categoryId = pick.tapIndex < shown.length ? shown[pick.tapIndex].id : '';
               this.uploadPhotos(files, categoryId);
             }
           });
         });
-      }
+      },
+      fail: () => { /* 用户取消选图,静默忽略 */ }
     });
   },
 

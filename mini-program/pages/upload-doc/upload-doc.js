@@ -83,7 +83,8 @@ Page({
           this.setData({ name: (temp.name || '').replace(/\.pdf$/i, '') });
         }
         this.refreshCanSubmit();
-      }
+      },
+      fail: () => { /* 用户取消选文件,静默忽略 */ }
     });
   },
 
@@ -116,10 +117,13 @@ Page({
       wx.showToast({ title: '暂无可选分类', icon: 'none' });
       return;
     }
+    // wx.showActionSheet 的 itemList 上限为 6:分类超 6 个时仅展示前 6 个,保证弹窗可用
+    const shown = pool.slice(0, 6);
     wx.showActionSheet({
-      itemList: pool.map(c => c.name),
+      itemList: shown.map(c => c.name),
+      fail: () => { /* 用户取消或弹窗失败,静默忽略 */ },
       success: (pick) => {
-        const cat = pool[pick.tapIndex];
+        const cat = shown[pick.tapIndex];
         if (!cat) return;
         this.setData({ selectedCategory: cat.id, selectedCategoryName: cat.name });
       }
