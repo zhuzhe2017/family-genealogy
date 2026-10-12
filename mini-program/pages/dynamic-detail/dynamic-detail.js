@@ -1,7 +1,6 @@
 const app = getApp();
 const { content } = require('../../utils/api');
 const { normalizeDynamic } = require('../../utils/format');
-const { USE_MOCK } = require('../../utils/config');
 const { getToken } = require('../../utils/request');
 
 Page({
@@ -26,9 +25,16 @@ Page({
     this.loadDetail();
   },
 
+  /** 页面卸载时清理登录轮询定时器,防止卸载后回调触发 setData */
+  onUnload() {
+    if (this._loginTimer) {
+      clearInterval(this._loginTimer);
+      this._loginTimer = null;
+    }
+  },
+
   /**
    * 加载动态详情 + 第一页评论
-   * - USE_MOCK(开发模式): 展示模拟数据
    * - 未登录: 引导登录
    * - 失败: 显示不存在/下架占位
    */
@@ -36,13 +42,6 @@ Page({
     const { id } = this.data;
     if (!id) {
       this.setData({ loading: false, loadFailed: true });
-      return;
-    }
-
-    // 开发模式:展示模拟数据
-    if (USE_MOCK) {
-      const mock = this.getMockDetail();
-      this.setData({ detail: mock.detail, comments: mock.comments, loading: false });
       return;
     }
 
@@ -82,7 +81,7 @@ Page({
   /** 加载更多评论(分页) */
   loadMoreComments() {
     const { id, commentsLoading, commentsAllLoaded, commentPage, commentPageSize } = this.data;
-    if (USE_MOCK || !getToken() || !id || commentsLoading || commentsAllLoaded) {
+    if (!getToken() || !id || commentsLoading || commentsAllLoaded) {
       return;
     }
     this.setData({ commentsLoading: true });
@@ -107,11 +106,17 @@ Page({
   doLogin() {
     app.login();
     wx.showLoading({ title: '登录中...' });
+    // 先清理上一次可能仍在轮询的定时器,避免重复计时
+    if (this._loginTimer) {
+      clearInterval(this._loginTimer);
+      this._loginTimer = null;
+    }
     let tries = 0;
-    const timer = setInterval(() => {
+    this._loginTimer = setInterval(() => {
       tries++;
       if (getToken() || tries >= 10) {
-        clearInterval(timer);
+        clearInterval(this._loginTimer);
+        this._loginTimer = null;
         wx.hideLoading();
         if (getToken()) {
           this.loadDetail();
@@ -131,22 +136,11 @@ Page({
 
   /** 点赞/取消点赞:未登录不假成功 */
   toggleLike() {
-    if (!USE_MOCK && !getToken()) {
+    if (!getToken()) {
       wx.showToast({ title: '请先登录', icon: 'none' });
       return;
     }
     const detail = this.data.detail;
-    // 开发模式或未登录:本地切换
-    if (USE_MOCK || !getToken()) {
-      this.setData({
-        detail: {
-          ...detail,
-          isLiked: !detail.isLiked,
-          likeCount: detail.likeCount + (detail.isLiked ? -1 : 1)
-        }
-      });
-      return;
-    }
     content.toggleLike(detail.id)
       .then((res) => {
         this.setData({ detail: { ...detail, isLiked: res.isLiked, likeCount: res.likeCount } });
@@ -164,7 +158,7 @@ Page({
 
   /** 提交评论:未登录不假成功 */
   submitComment() {
-    if (!USE_MOCK && !getToken()) {
+    if (!getToken()) {
       wx.showToast({ title: '请先登录', icon: 'none' });
       return;
     }
@@ -174,12 +168,6 @@ Page({
       return;
     }
     const { id } = this.data;
-    // 开发模式或未登录:仅提示
-    if (USE_MOCK || !getToken()) {
-      this.setData({ commentDraft: '' });
-      wx.showToast({ title: '评论成功', icon: 'success' });
-      return;
-    }
     wx.showLoading({ title: '发布中' });
     content.createComment(id, { content: text })
       .then(() => {
@@ -229,26 +217,5 @@ Page({
 
   goBack() {
     wx.navigateBack({ fail: () => wx.switchTab({ url: '/pages/dynamic/dynamic' }) });
-  },
-
-  /** 开发模式模拟数据 */
-  getMockDetail() {
-    return {
-      detail: {
-        id: 1,
-        userName: '朱三',
-        gender: 'male',
-        time: '2小时前',
-        content: '今天整理了家族的老照片，发现了很多珍贵的历史资料，分享给大家看看。这些照片记录了家族近百年的发展历程，非常珍贵。',
-        images: [],
-        likeCount: 28,
-        commentCount: 2,
-        isLiked: false
-      },
-      comments: [
-        { id: 1, userName: '朱四', content: '太珍贵了！' },
-        { id: 2, userName: '朱五', content: '感谢分享！' }
-      ]
-    };
   }
 });

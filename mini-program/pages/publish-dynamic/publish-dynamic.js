@@ -1,6 +1,5 @@
 const app = getApp();
 const contentApi = require('../../utils/api').content;
-const { USE_MOCK } = require('../../utils/config');
 const { getToken, upload } = require('../../utils/request');
 
 Page({
@@ -74,7 +73,7 @@ Page({
 
     const done = () => this.setData({ submitting: false });
     const familyId = (app.globalData.currentFamily || {}).id;
-    if (!USE_MOCK && getToken() && familyId) {
+    if (getToken() && familyId) {
       wx.showLoading({ title: '发布中' });
       const uploads = images.map(img => this.uploadImage(img));
       Promise.all(uploads)

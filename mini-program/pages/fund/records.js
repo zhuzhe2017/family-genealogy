@@ -1,6 +1,5 @@
 const app = getApp();
 const { fund } = require('../../utils/api');
-const { USE_MOCK } = require('../../utils/config');
 const { getToken } = require('../../utils/request');
 
 const TYPES = [
@@ -53,7 +52,7 @@ Page({
 
   load(silent) {
     const familyId = this.data.familyId;
-    if (!familyId || (!USE_MOCK && !getToken())) {
+    if (!familyId || !getToken()) {
       this.setData({ needLogin: true, loading: false });
       return;
     }

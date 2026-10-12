@@ -1,5 +1,7 @@
 {
-  "usingComponents": {},
+  "usingComponents": {
+    "nav-bar": "../../components/nav-bar/nav-bar"
+  },
   "navigationStyle": "custom",
   "navigationBarTitleText": "家族成员"
 }

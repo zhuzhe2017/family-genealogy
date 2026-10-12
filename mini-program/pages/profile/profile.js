@@ -1,7 +1,6 @@
 const app = getApp();
 const { auth, subscription } = require('../../utils/api');
 const { clearToken, getToken, upload } = require('../../utils/request');
-const { USE_MOCK } = require('../../utils/config');
 const { resolveImageUrl, normalizeFamily } = require('../../utils/format');
 
 Page({
@@ -37,7 +36,7 @@ Page({
   /** 加载会员状态角标（当前家族套餐），无家族/离线时保持默认 */
   loadVipStatus() {
     const family = app.globalData.currentFamily;
-    if (USE_MOCK || !getToken() || !family) return;
+    if (!getToken() || !family) return;
     subscription.getCurrent(Number(family.id))
       .then((data) => {
         if (!data) return;
@@ -56,7 +55,7 @@ Page({
 
   /** 加载用户信息:优先走后端 API,失败回退 globalData */
   loadProfile() {
-    if (!USE_MOCK && app.globalData.isOnline && getToken()) {
+    if (app.globalData.isOnline && getToken()) {
       auth.getProfile()
         .then((data) => {
           // 回写全局，保持 globalData.userInfo 与最新资料一致
@@ -325,7 +324,7 @@ Page({
       const payload = { nickName, gender: Number(form.gender) };
       if (avatarUrl) payload.avatarUrl = avatarUrl;
 
-      if (!USE_MOCK && getToken()) {
+      if (getToken()) {
         wx.showLoading({ title: '保存中' });
         auth.updateProfile(payload)
           .then((data) => {
@@ -349,7 +348,7 @@ Page({
 
     // 头像为新选择的临时路径(wxfile:// 或 http://tmp)时需上传;
     // 未换头像时 avatarTempPath 等于后端相对路径(/uploads/...),走普通保存
-    if (!USE_MOCK && getToken() && isNewAvatar) {
+    if (getToken() && isNewAvatar) {
       wx.showLoading({ title: '上传中' });
       this.uploadAvatar(form.avatarTempPath)
         .then((url) => {
@@ -429,7 +428,7 @@ Page({
   },
 
   doDeleteAccount() {
-    if (!USE_MOCK && getToken()) {
+    if (getToken()) {
       wx.showLoading({ title: '注销中...' });
       auth.deleteAccount()
         .then(() => {

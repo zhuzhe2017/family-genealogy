@@ -1,7 +1,6 @@
 const app = getApp();
 const { content, banner, fund } = require('../../utils/api');
 const { normalizeDynamic, normalizeEvent, resolveImageUrl } = require('../../utils/format');
-const { USE_MOCK } = require('../../utils/config');
 const { getToken } = require('../../utils/request');
 
 /** 慈善榜单缓存有效期（毫秒） */
@@ -18,23 +17,23 @@ Page({
       { id: 5, name: '相册影像', icon: '📷', bgColor: '#E0F2F1', url: '/pages/album/album' },
       { id: 6, name: '祭祀祈福', icon: '🙏', bgColor: '#FBE9E7', url: '/pages/worship/worship' },
       { id: 7, name: '家族动态', icon: '💬', bgColor: '#E8EAF6', url: '/pages/dynamic/dynamic' },
+      { id: 10, name: '族成员', icon: '👨👩👧👦', bgColor: '#E8F5E9', url: '/pages/member-list/member-list' },
       { id: 8, name: '应用中心', icon: '🧩', bgColor: '#E0F7FA', url: '/pages/app-center/app-center' },
       { id: 9, name: '亲缘查询', icon: '🔍', bgColor: '#FFF8E1', url: '/pages/kinship/kinship' }
     ],
-    // 家族动态:真实数据 + 状态机,不再静默回退假数据
+    // 家族动态:真实数据 + 状态机
     recentDynamics: [],
     loadingDynamics: true,  // 首屏加载中
     needLogin: false,       // 未登录:引导登录
     dynamicsFailed: false,  // 请求失败:错误占位
     dynamicsEmpty: false,   // 已登录但无动态
-    // 最近活动:仅开发模式有模拟数据,真实模式无数据源时显示空态
+    // 最近活动:无数据源时显示空态
     recentActivities: [],
     // 慈善榜单:从家族基金成功存入流水聚合,带缓存/加载/失败状态
     charityRank: [],
     loadingCharity: false,  // 加载中
     charityFailed: false,   // 加载失败
     charityEmpty: false,    // 暂无捐赠数据
-    isMock: false,           // 开发模式模拟数据角标
     // 家族字辈
     generationList: [],      // 扁平字辈数组 [{ name, generation }](弹窗跳转用)
     generationGroups: [],    // 按代分组 [{ generation, chars: [字...], firstChar, hasMore, expanded }]
@@ -76,32 +75,13 @@ Page({
 
   /**
    * 加载家族动态
-   * - USE_MOCK(开发模式): 展示模拟数据并标注角标
-   * - 未登录: 引导登录,不展示假数据
+   * - 未登录: 引导登录
    * - 请求失败: 清空列表并显示错误占位
    */
   loadDynamics() {
     const familyId = (app.globalData.currentFamily || {}).id;
 
-    // 开发模式:展示模拟数据并标注
-    if (USE_MOCK) {
-      this.setData({
-        recentDynamics: this.getMockDynamics(),
-        recentActivities: this.getMockActivities(),
-        charityRank: this.getMockCharityRank(),
-        isMock: true,
-        loadingDynamics: false,
-        needLogin: false,
-        dynamicsFailed: false,
-        dynamicsEmpty: false,
-        loadingCharity: false,
-        charityFailed: false,
-        charityEmpty: false
-      });
-      return;
-    }
-
-    // 未登录:引导登录,不展示假数据
+    // 未登录:引导登录
     if (!getToken()) {
       this.setData({
         recentDynamics: [],
@@ -111,7 +91,6 @@ Page({
         loadingDynamics: false,
         dynamicsFailed: false,
         dynamicsEmpty: false,
-        isMock: false,
         loadingCharity: false,
         charityFailed: false,
         charityEmpty: false
@@ -129,7 +108,6 @@ Page({
         loadingDynamics: false,
         dynamicsFailed: false,
         dynamicsEmpty: true,
-        isMock: false,
         loadingCharity: false,
         charityFailed: false,
         charityEmpty: true
@@ -141,8 +119,7 @@ Page({
     this.setData({
       loadingDynamics: this.data.recentDynamics.length === 0,
       needLogin: false,
-      dynamicsFailed: false,
-      isMock: false
+      dynamicsFailed: false
     });
     content.getList('dynamic', { familyId, page: 1, pageSize: 3 })
       .then((res) => {
@@ -161,7 +138,7 @@ Page({
       })
       .catch((err) => {
         console.error('动态加载失败', err);
-        // 失败不再静默保留假数据,清空并提示
+        // 失败时清空列表并提示
         this.setData({ recentDynamics: [], loadingDynamics: false, dynamicsFailed: true, dynamicsEmpty: false });
       });
 
@@ -173,8 +150,8 @@ Page({
   },
 
   /**
-   * 加载最近活动(家族事件):真实模式从 family_event 取最近 3 条,
-   * 加载失败/无数据时清空显示空态,不展示假数据
+   * 加载最近活动(家族事件):从 family_event 取最近 3 条,
+   * 加载失败/无数据时清空显示空态
    */
   loadActivities(familyId) {
     content.getList('event', { familyId, page: 1, pageSize: 3 })
@@ -302,7 +279,7 @@ Page({
 
   /**
    * 加载广告轮播:有登录且有家族 → 家族+全局广告;未登录/无家族 → 仅全局广告
-   * - 数字 id 校验:mock 回退数据 id 为 'fam001' 等字符串,后端 Number() 解析为 0 会报"缺少家族ID",
+   * - 数字 id 校验:无效字符串经 Number() 解析为 0 会报"缺少家族ID",
    *   因此请求前统一转数字并确认是有效正整数
    */
   loadBanners() {
@@ -343,10 +320,6 @@ Page({
     if (type === 'page') {
       const tabBarPages = ['/pages/home/home', '/pages/family-tree/family-tree', '/pages/dynamic/dynamic', '/pages/profile/profile'];
       const baseUrl = String(url).split('?')[0];
-      if (baseUrl === '/pages/dynamic/dynamic') {
-        // 显式进入动态列表:置位标记,避免"族成员" tab 劫持
-        app.globalData.dynamicFromHome = true;
-      }
       if (tabBarPages.includes(baseUrl)) {
         wx.switchTab({ url: baseUrl });
       } else {
@@ -387,17 +360,39 @@ Page({
       clearTimeout(this._bannerSwipeTimer);
       this._bannerSwipeTimer = null;
     }
+    if (this._loginTimer) {
+      clearInterval(this._loginTimer);
+      this._loginTimer = null;
+    }
+    if (this._genClampTimer) {
+      clearTimeout(this._genClampTimer);
+      this._genClampTimer = null;
+    }
+    if (this._genModalOpenTimer) {
+      clearTimeout(this._genModalOpenTimer);
+      this._genModalOpenTimer = null;
+    }
+    if (this._generationModalTimer) {
+      clearTimeout(this._generationModalTimer);
+      this._generationModalTimer = null;
+    }
   },
 
   /** 未登录状态下点击"立即登录":静默登录成功后刷新 */
   doLogin() {
     app.login();
     wx.showLoading({ title: '登录中...' });
+    // 先清理上一次可能仍在轮询的定时器,避免重复计时
+    if (this._loginTimer) {
+      clearInterval(this._loginTimer);
+      this._loginTimer = null;
+    }
     let tries = 0;
-    const timer = setInterval(() => {
+    this._loginTimer = setInterval(() => {
       tries++;
       if (getToken() || tries >= 10) {
-        clearInterval(timer);
+        clearInterval(this._loginTimer);
+        this._loginTimer = null;
         wx.hideLoading();
         if (getToken()) {
           this.loadDynamics();
@@ -527,15 +522,17 @@ Page({
       return g;
     });
     this.setData({ generationGroups: groups });
-    // 展开/收起后重新测量高度
-    setTimeout(() => this.measureGenerationClamp(), 60);
+    // 展开/收起后重新测量高度(存引用以便页面卸载时清理)
+    clearTimeout(this._genClampTimer);
+    this._genClampTimer = setTimeout(() => this.measureGenerationClamp(), 60);
   },
 
   /** 打开字辈诗弹窗(带过渡动画) */
   openGenerationModal() {
     this.setData({ generationModalVisible: true });
     // 等待节点渲染后再触发展示态,确保过渡动画生效
-    setTimeout(() => {
+    clearTimeout(this._genModalOpenTimer);
+    this._genModalOpenTimer = setTimeout(() => {
       this.setData({ generationModalShow: true });
     }, 30);
   },
@@ -563,7 +560,7 @@ Page({
       const first = (group.chars || [])[0] || {};
       name = (first.name || '').trim();
     }
-    // familyId 实时取 globalData,兼容数字 id 与字符串 id(如 mock 'fam001')
+    // familyId 实时取 globalData,兼容数字 id 与字符串 id
     const family = app.globalData.currentFamily || this.data.currentFamily || {};
     const familyId = family.id;
 
@@ -602,61 +599,10 @@ Page({
     // tabBar 页面必须用 switchTab 跳转,其余用 navigateTo
     const tabBarPages = ['/pages/home/home', '/pages/family-tree/family-tree', '/pages/dynamic/dynamic', '/pages/profile/profile'];
     const baseUrl = String(url).split('?')[0];
-    if (baseUrl === '/pages/dynamic/dynamic') {
-      // 显式进入动态列表(金刚区/查看更多):置位标记,避免"族成员" tab 劫持
-      app.globalData.dynamicFromHome = true;
-    }
     if (tabBarPages.includes(baseUrl)) {
       wx.switchTab({ url: baseUrl });
     } else {
       wx.navigateTo({ url });
     }
-  },
-
-  /** 开发模式模拟动态 */
-  getMockDynamics() {
-    return [
-      {
-        id: 1,
-        userName: '朱三',
-        time: '2小时前',
-        content: '今天整理了家族的老照片，发现了很多珍贵的历史资料，分享给大家看看。',
-        images: ['', '', '']
-      },
-      {
-        id: 2,
-        userName: '朱四',
-        time: '5小时前',
-        content: '清明节家族祭祖活动圆满结束，感谢各位族人的参与！',
-        images: []
-      },
-      {
-        id: 3,
-        userName: '朱五',
-        time: '昨天',
-        content: '新添了家族成员信息，欢迎小明加入我们的大家庭！',
-        images: []
-      }
-    ];
-  },
-
-  /** 开发模式模拟最近活动 */
-  getMockActivities() {
-    return [
-      { id: 1, day: '15', month: '4月', title: '清明祭祖大典', desc: '全体族人参与，祭祀先祖' },
-      { id: 2, day: '01', month: '5月', title: '家族理事会会议', desc: '讨论家族发展事宜' },
-      { id: 3, day: '18', month: '6月', title: '端午家族聚会', desc: '包粽子、叙亲情' }
-    ];
-  },
-
-  /** 开发模式模拟慈善榜单 */
-  getMockCharityRank() {
-    return [
-      { rank: 1, name: '朱国强', amount: 88800, project: '修缮祖祠', time: '2025-03-18' },
-      { rank: 2, name: '朱文远', amount: 50000, project: '家族助学基金', time: '2025-05-02' },
-      { rank: 3, name: '朱丽华', amount: 30000, project: '清明祭祖大典', time: '2025-02-14' },
-      { rank: 4, name: '朱明德', amount: 12000, project: '族老慰问金', time: '2025-06-01' },
-      { rank: 5, name: '朱晓峰', amount: 8000, project: '宗亲聚会', time: '2025-07-22' }
-    ];
   }
 });

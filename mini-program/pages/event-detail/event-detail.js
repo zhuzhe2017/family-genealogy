@@ -1,7 +1,6 @@
 const app = getApp();
 const { content } = require('../../utils/api');
 const { normalizeEvent, resolveImageUrls } = require('../../utils/format');
-const { USE_MOCK } = require('../../utils/config');
 const { getToken } = require('../../utils/request');
 
 Page({
@@ -16,10 +15,10 @@ Page({
     this.loadEvent(eventId);
   },
 
-  /** 加载事件详情:优先走后端 API;失败仅提示,不回退 mock 数据,避免真假混杂 */
+  /** 加载事件详情:优先走后端 API;失败仅提示,不回退演示数据 */
   loadEvent(id) {
     const familyId = (app.globalData.currentFamily || {}).id;
-    if (!USE_MOCK && getToken() && familyId) {
+    if (getToken() && familyId) {
       this.setData({ loading: true, loadFailed: false });
       content.getById('event', id)
         .then((row) => {
@@ -31,8 +30,8 @@ Page({
           this.setData({ loading: false, loadFailed: true });
         });
     } else {
-      // 离线/未登录场景使用演示数据,避免页面空白
-      this.setData({ event: this.getMockEvent(id), loading: false });
+      // 未登录/未选择家族:显示加载失败占位
+      this.setData({ event: {}, loading: false, loadFailed: true });
     }
   },
 
@@ -53,33 +52,9 @@ Page({
       })),
       photos: resolveImageUrls(r.photos || []),
       details: r.details || [],
-      // 仅家族创建者/管理员可编辑删除（mock 模式放开便于本地演示）
-      canEdit: USE_MOCK ? true : !!r.canEdit
+      // 仅家族创建者/管理员可编辑删除
+      canEdit: !!r.canEdit
     });
-  },
-
-  getMockEvent(id) {
-    return {
-      id: id,
-      year: 1880,
-      month: 3,
-      day: 15,
-      title: '朱太公出生',
-      description: '家族始祖朱太公出生于山东省济南市历城区的一个书香门第。其父为当地知名学者，自幼受到良好教育。朱太公一生勤劳朴实，为家族发展奠定了坚实基础。',
-      type: 'birth',
-      typeName: '出生',
-      details: [
-        { label: '出生时间', value: '1880年3月15日' },
-        { label: '出生地点', value: '山东省济南市历城区' },
-        { label: '父亲', value: '朱老先生' },
-        { label: '母亲', value: '朱老夫人' }
-      ],
-      relatedMembers: [
-        { id: '1', name: '朱太公', gender: 'male', relation: '本人' },
-        { id: '2', name: '朱太婆', gender: 'female', relation: '配偶' }
-      ],
-      photos: []
-    };
   },
 
   viewMember(e) {
@@ -100,7 +75,7 @@ Page({
   editEvent() {
     const event = this.data.event;
     if (!event.id) return;
-    if (!USE_MOCK && !getToken()) {
+    if (!getToken()) {
       wx.showToast({ title: '请先登录', icon: 'none' });
       return;
     }
@@ -113,7 +88,7 @@ Page({
   deleteEvent() {
     const event = this.data.event;
     if (!event.id) return;
-    if (!USE_MOCK && !getToken()) {
+    if (!getToken()) {
       wx.showToast({ title: '请先登录', icon: 'none' });
       return;
     }
@@ -123,11 +98,6 @@ Page({
       confirmColor: '#8B1A1A',
       success: (res) => {
         if (!res.confirm) return;
-        if (USE_MOCK || !getToken()) {
-          wx.showToast({ title: '删除成功', icon: 'success' });
-          setTimeout(() => wx.navigateBack(), 1200);
-          return;
-        }
         wx.showLoading({ title: '删除中' });
         const familyId = (app.globalData.currentFamily || {}).id;
         content.remove('event', event.id, familyId)

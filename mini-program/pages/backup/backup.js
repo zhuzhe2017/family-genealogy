@@ -1,16 +1,6 @@
 const app = getApp();
 const { backup } = require('../../utils/api');
 const { getToken } = require('../../utils/request');
-const { USE_MOCK } = require('../../utils/config');
-
-/** 离线兜底记录（仅离线/未登录演示用） */
-function fallbackRecords() {
-  const now = new Date();
-  return [
-    { id: 1, name: '朱氏家族数据备份', time: '2024-07-20 14:30', status: '成功' },
-    { id: 2, name: '朱氏家族数据备份', time: '2024-06-15 10:00', status: '成功' }
-  ];
-}
 
 Page({
   data: {
@@ -36,11 +26,11 @@ Page({
     wx.stopPullDownRefresh();
   },
 
-  /** 加载备份记录；离线/未登录用本地示例数据 */
+  /** 加载备份记录；未登录/无家族显示空态 */
   loadRecords() {
     const family = app.globalData.currentFamily;
-    if (USE_MOCK || !getToken() || !family) {
-      this.setData({ records: fallbackRecords(), offlineMode: true });
+    if (!getToken() || !family) {
+      this.setData({ records: [], offlineMode: false });
       return;
     }
     backup
@@ -73,24 +63,6 @@ Page({
         content: '请先在首页选择或创建家族，再进行数据备份。',
         showCancel: false
       });
-      return;
-    }
-    // 离线/未登录：本地模拟演示
-    if (USE_MOCK || !getToken()) {
-      wx.showLoading({ title: '备份中' });
-      setTimeout(() => {
-        wx.hideLoading();
-        const records = this.data.records;
-        records.unshift({
-          id: Date.now(),
-          name: (family.name || '家族') + '数据备份',
-          time: this.formatDateTime(new Date()),
-          size: '',
-          status: '成功'
-        });
-        this.setData({ records });
-        wx.showToast({ title: '备份成功', icon: 'success' });
-      }, 800);
       return;
     }
     this.setData({ backingUp: true });

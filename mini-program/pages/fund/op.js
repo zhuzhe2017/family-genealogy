@@ -1,6 +1,5 @@
 const app = getApp();
 const { fund } = require('../../utils/api');
-const { USE_MOCK } = require('../../utils/config');
 const { getToken } = require('../../utils/request');
 
 const TYPE_CONF = {
@@ -55,7 +54,7 @@ Page({
   /** 加载基金规则 + 我的余额 + 转账接收人 */
   loadContext() {
     const familyId = this.data.familyId;
-    if (!familyId || (!USE_MOCK && !getToken())) {
+    if (!familyId || !getToken()) {
       this.setData({ needLogin: true });
       return;
     }

@@ -1,7 +1,6 @@
 const app = getApp();
 const contentApi = require('../../utils/api').content;
 const categoryApi = require('../../utils/api').category;
-const { USE_MOCK } = require('../../utils/config');
 const { getToken, upload } = require('../../utils/request');
 
 // 与 family-docs 页兜底字典一致，作为分类加载失败时的可选池
@@ -42,7 +41,7 @@ Page({
   /** 拉取家族文档分类（失败时回退兜底字典，保证可选） */
   loadCategories() {
     const familyId = (app.globalData.currentFamily || {}).id;
-    if (USE_MOCK || !getToken() || !familyId) return;
+    if (!getToken() || !familyId) return;
     categoryApi.getList('document', familyId)
       .then((list) => {
         const cats = (list || []).map(c => ({ id: c.id, name: c.name }));
@@ -156,7 +155,7 @@ Page({
     }
 
     const familyId = (app.globalData.currentFamily || {}).id;
-    if (!USE_MOCK && getToken() && familyId) {
+    if (getToken() && familyId) {
       this.setData({ submitting: true });
       wx.showLoading({ title: '上传中' });
       this.uploadFile(file.path)

@@ -1,6 +1,5 @@
 const app = getApp();
 const { fund } = require('../../utils/api');
-const { USE_MOCK } = require('../../utils/config');
 const { getToken } = require('../../utils/request');
 
 Page({
@@ -40,7 +39,7 @@ Page({
       this.setData({ loading: false, needChooseFamily: true });
       return;
     }
-    if (!USE_MOCK && !getToken()) {
+    if (!getToken()) {
       this.setData({ loading: false, needChooseFamily: true });
       return;
     }

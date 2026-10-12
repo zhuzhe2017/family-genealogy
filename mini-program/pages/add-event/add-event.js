@@ -1,7 +1,6 @@
 const app = getApp();
 const { content, familyMember } = require('../../utils/api');
 const { normalizeEvent, normalizeMember, resolveImageUrls } = require('../../utils/format');
-const { USE_MOCK } = require('../../utils/config');
 const { getToken, upload } = require('../../utils/request');
 
 /** 事件类型选项（value 与数据库 type 对应） */
@@ -62,7 +61,7 @@ Page({
   /** 编辑模式:加载事件详情回填表单 */
   loadEditData(id) {
     const familyId = (app.globalData.currentFamily || {}).id;
-    if (USE_MOCK || !getToken() || !familyId) return;
+    if (!getToken() || !familyId) return;
     content.getById('event', id)
       .then((row) => {
         const e = normalizeEvent(row);
@@ -166,7 +165,7 @@ Page({
     const familyId = (app.globalData.currentFamily || {}).id;
     const keyword = this.data.memberKeyword.trim();
 
-    if (!familyId || !getToken() || USE_MOCK) return;
+    if (!familyId || !getToken()) return;
     if (!keyword || keyword.length <= 1) return;
 
     const page = reset ? 1 : this.data.memberPage;
@@ -313,7 +312,7 @@ Page({
     };
 
     const familyId = (app.globalData.currentFamily || {}).id;
-    if (!USE_MOCK && getToken() && familyId) {
+    if (getToken() && familyId) {
       wx.showLoading({ title: '提交中' });
       const tempPhotos = (form.photos || []).filter(p => this.isLocalTempFile(p));
       const readyPhotos = (form.photos || []).filter(p => !this.isLocalTempFile(p));
@@ -349,7 +348,7 @@ Page({
           wx.showToast({ title: (err && err.message) || '提交失败', icon: 'none' });
         });
     } else {
-      onSuccess();
+      wx.showToast({ title: '请先登录并选择家族', icon: 'none' });
     }
   }
 });

@@ -1,7 +1,6 @@
 const app = getApp();
 const { auth } = require('../../utils/api');
 const { getToken } = require('../../utils/request');
-const { USE_MOCK } = require('../../utils/config');
 const { resolveImageUrl } = require('../../utils/format');
 
 Page({
@@ -23,7 +22,7 @@ Page({
 
   /** 加载家族成员角色列表（数据源：user.family_id 绑定 + family_permission 角色记录） */
   loadRoles() {
-    if (USE_MOCK || !getToken() || !app.globalData.isOnline) {
+    if (!getToken() || !app.globalData.isOnline) {
       this.setData({ members: [], total: 0, loading: false });
       return;
     }

@@ -35,5 +35,18 @@ Page({
     if (options && (options.tab === 'agreement' || options.tab === 'privacy')) {
       this.setData({ activeTab: options.tab });
     }
+  },
+
+  /**
+   * 从协议页返回时重新检查隐私告知-同意。
+   * 首次同意流程中选择「查看协议」跳来本页时,app 已解除检查锁定;
+   * 返回后此处再次触发,确保未同意用户能被重新征得同意。
+   * 若已同意/已弹过窗,checkPrivacyConsent 内部会静默跳过,不会重复打扰。
+   */
+  onUnload() {
+    const app = getApp();
+    if (app && typeof app.checkPrivacyConsent === 'function') {
+      app.checkPrivacyConsent();
+    }
   }
 });

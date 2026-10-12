@@ -858,14 +858,3 @@ swiper-item {
   border-radius: 32rpx;
   line-height: 1.6;
 }
-
-/* 开发模式模拟数据角标 */
-.mock-banner {
-  margin: 0 24rpx 24rpx;
-  padding: 12rpx 24rpx;
-  background: #FFF7E6;
-  color: #B25E09;
-  font-size: 22rpx;
-  border-radius: 12rpx;
-  text-align: center;
-}

@@ -1,13 +1,6 @@
 const { auth, family } = require('./utils/api');
 const { setToken, getToken } = require('./utils/request');
-const { USE_MOCK } = require('./utils/config');
 const { normalizeFamily } = require('./utils/format');
-
-// 条件编译标记 // #ifdef MOCK // ... // #endif 内的代码仅在"MOCK"条件下打包，
-// 生产构建(无该条件)中 mock 模块与 mock 代码会被完全剔除
-// #ifdef MOCK
-const mock = require('./mock/index');
-// #endif
 
 App({
   globalData: {
@@ -18,27 +11,29 @@ App({
     myFamily: null,
     // 从家谱树页返回时置位,家族列表页据此避免无限自动跳转
     skipAutoEnter: false,
-    // 从成员列表页返回时置位,"族成员" tab 入口页据此避免无限自动跳转
-    skipMemberNav: false,
-    // 首页金刚区/查看更多显式进入动态列表时置位,动态页据此跳过"族成员" tab 劫持
-    dynamicFromHome: false,
     systemInfo: null,
-    // 是否已连接真实后端(API 不可用时降级到 mock 数据)
+    // 是否已连接真实后端
     isOnline: false
   },
 
-  onLaunch() {
+  onLaunch(options) {
     // 获取系统信息(使用新 API 替代已废弃的 wx.getSystemInfo)
     this.initSystemInfo();
 
     // 从本地缓存恢复上次进入的家族,避免冷启动空白等待
     this.restoreLastFamily();
 
-    // 登录:优先走真实 API,失败时回退 mock
+    // 登录:走真实 API
     this.login();
 
-    // 合规：首次进入/隐私政策更新后，弹窗征得用户同意（需登录态，token 就绪后异步检查）
-    this.checkPrivacyConsent();
+    // 合规：隐私政策/用户协议 告知-同意（首次进入即征得）
+    // 入口为开屏页时不打断开屏,延后到进入首页后由开屏页触发;
+    // 直达其他页面(如分享链接)时立即检查
+    if (options && options.path === 'pages/index/index') {
+      this._consentDeferredToIndex = true;
+    } else {
+      this.checkPrivacyConsent();
+    }
 
     // 初始化家族数据
     this.initFamilyData();
@@ -46,48 +41,72 @@ App({
 
   /**
    * 隐私政策/用户协议 告知-同意（《个保法》合规红线）
-   * - 登录后检查当前生效版本（consentVersion）是否已同意，未同意则弹窗征得
+   * - 首次进入即检查当前生效版本（consentVersion）是否已同意，未同意则弹窗征得（不依赖登录态）
    * - 本地记录已展示版本，避免每次启动重复弹窗；服务端留存同意记录（含 IP/UA 审计）
    * - 与后端 ConsentService.currentVersion() 保持一致
    */
   consentVersion: 'v1.0',
 
   checkPrivacyConsent() {
-    if (USE_MOCK) return;
-    // 等待登录态就绪（token 由 login() 异步获取）
-    const tryCheck = (retries) => {
-      if (!getToken()) {
-        if (retries > 0) setTimeout(() => tryCheck(retries - 1), 500);
-        return;
-      }
-      const shownKey = 'consent_shown_' + this.consentVersion;
-      try {
-        // 已对本版本弹过窗（无论同意与否，避免打扰），直接尝试上报服务端留痕
-        if (wx.getStorageSync(shownKey)) {
-          this.recordConsentSilently('privacy');
-          return;
-        }
-      } catch (e) { /* 缓存读取失败继续弹窗 */ }
+    // 同一生命周期内只检查一次,避免重复弹窗
+    if (this._consentChecked) return;
+    this._consentChecked = true;
 
-      wx.showModal({
-        title: '隐私政策与用户协议',
-        content: '为向你提供家族谱系服务，我们需要收集并使用你的微信身份信息及你主动填写的资料。详情请阅读《隐私政策》与《用户协议》。继续使用即表示你同意我们按政策收集、使用和保护你的个人信息。',
-        confirmText: '同意并继续',
-        cancelText: '查看协议',
-        confirmColor: '#8B1A1A',
-        success: (res) => {
+    const shownKey = 'consent_shown_' + this.consentVersion;
+    let alreadyShown = false;
+    try {
+      // 已对本版本点击「同意并继续」(未同意不记录,返回后仍会再次征得)
+      alreadyShown = !!wx.getStorageSync(shownKey);
+    } catch (e) { /* 缓存读取失败按未弹处理 */ }
+
+    // 已弹过窗:不再打扰用户,登录态就绪后静默补报服务端留痕
+    if (alreadyShown) {
+      this.reportConsentWhenOnline('privacy', true);
+      this.reportConsentWhenOnline('agreement', true);
+      return;
+    }
+
+    // 未弹过窗:首次进入即征得同意(不依赖登录态,满足告知-同意要求)
+    wx.showModal({
+      title: '隐私政策与用户协议',
+      content: '为向你提供家族谱系服务，我们需要收集并使用你的微信身份信息及你主动填写的资料。详情请阅读《隐私政策》与《用户协议》。继续使用即表示你同意我们按政策收集、使用和保护你的个人信息。',
+      confirmText: '同意并继续',
+      cancelText: '查看协议',
+      confirmColor: '#8B1A1A',
+      success: (res) => {
+        if (res.confirm) {
+          // 记录已弹窗并同意,避免后续重复打扰
           try { wx.setStorageSync(shownKey, Date.now()); } catch (e) { /* ignore */ }
-          if (res.confirm) {
-            this.recordConsent('privacy');
-            this.recordConsent('agreement');
-          } else {
-            // 引导至协议页阅读，返回后可再次弹窗征得同意
-            wx.navigateTo({ url: '/pages/privacy/privacy?tab=privacy' });
-          }
+          // 同意后上报留痕:未登录时等待 token 就绪再补报,避免合规记录丢失
+          this.reportConsentWhenOnline('privacy', false);
+          this.reportConsentWhenOnline('agreement', false);
+        } else {
+          // 选择查看协议:不记录已弹窗并解除本次生命周期检查锁定,
+          // 返回后(privacy 页 onUnload)可再次弹窗征得同意
+          this._consentChecked = false;
+          wx.navigateTo({ url: '/pages/privacy/privacy?tab=privacy' });
         }
-      });
-    };
-    tryCheck(20);
+      }
+    });
+  },
+
+  /**
+   * 上报同意记录到服务端(含 IP/UA 审计留痕)
+   * - silent=true:先查询服务端是否已有记录,缺失才补报(已弹窗场景)
+   * - silent=false:直接上报(本次刚同意场景)
+   * 未登录时轮询等待 token 就绪(最多 10s),避免合规留痕丢失
+   */
+  reportConsentWhenOnline(docType, silent, retries) {
+    const max = retries === undefined ? 20 : retries;
+    if (!getToken()) {
+      if (max > 0) setTimeout(() => this.reportConsentWhenOnline(docType, silent, max - 1), 500);
+      return;
+    }
+    if (silent) {
+      this.recordConsentSilently(docType);
+    } else {
+      this.recordConsent(docType);
+    }
   },
 
   /** 上报同意记录到服务端（含 IP/UA 审计留痕） */
@@ -132,18 +151,15 @@ App({
     }
   },
 
-  /** 登录流程:wx.login 获取 code → 后端换 token,失败回退 mock */
+  /** 登录流程:wx.login 获取 code → 后端换 token */
   login() {
-    if (!USE_MOCK && !getToken()) {
-      // 生产模式且无缓存 token:走真实登录
-      this.doWxLogin();
-    } else if (getToken()) {
+    if (getToken()) {
       // 已有 token:标记为在线,并主动恢复用户态（含绑定状态）
       this.globalData.isOnline = true;
       this.restoreUserInfo();
     } else {
-      // 开发模式无 token:使用 mock 用户
-      this.mockLogin();
+      // 无缓存 token:走真实微信登录
+      this.doWxLogin();
     }
   },
 
@@ -179,7 +195,7 @@ App({
    * 成功后更新缓存，失败时保留现有状态
    */
   refreshUserInfo() {
-    if (!USE_MOCK && getToken()) {
+    if (getToken()) {
       auth.getProfile()
         .then((info) => {
           this.globalData.userInfo = info;
@@ -282,23 +298,16 @@ App({
     // 登录成功后持久化用户态，供冷启动恢复
     this.persistUserInfo();
     // 登录成功后再拉取真实家族,修复冷启动竞态
-    // (onLaunch 时 initFamilyData 可能因 token 未就绪已走 mock)
+    // (onLaunch 时 initFamilyData 可能因 token 未就绪而跳过)
     this.initFamilyData();
   },
 
-  /** 静默微信登录:调用 wx.login + 后端 /user/wx-login 换取 token,失败回退 mock */
+  /** 静默微信登录:调用 wx.login + 后端 /user/wx-login 换取 token */
   doWxLogin() {
     this.loginByWechat().catch((err) => {
-      console.error('后端登录失败,回退 mock', err);
-      this.mockLogin();
+      console.error('后端登录失败:', err);
+      this.globalData.isOnline = false;
     });
-  },
-
-  /** 微信登录失败或开发模式下使用 mock 用户 */
-  mockLogin() {
-    // #ifdef MOCK
-    mock.mockLogin(this);
-    // #endif
   },
 
   /**
@@ -314,9 +323,7 @@ App({
     // 清除本地缓存的用户态，避免旧数据干扰
     this.clearCachedUserInfo();
     this.globalData.isOnline = false;
-    if (!USE_MOCK) {
-      this.doWxLogin();
-    }
+    this.doWxLogin();
   },
 
   /**
@@ -369,25 +376,25 @@ App({
     wx.navigateTo({ url: '/pages/member-center/member-center' });
   },
 
-  /** 初始化家族数据:优先从后端加载,失败回退 mock */
+  /** 初始化家族数据:从后端加载 */
   initFamilyData() {
-    if (!USE_MOCK && getToken()) {
-      family.getList({ page: 1, pageSize: 50 })
-        .then((res) => {
-          this.globalData.families = (res.list || []).map(normalizeFamily);
-          this.enterAssociatedFamily();
-          this.globalData.isOnline = true;
-          this.loadMyFamily();
-        })
-        .catch((err) => {
-          console.error('家族数据加载失败,回退 mock', err);
-          this.initMockData();
-          // 即使家族列表加载失败，也要尝试恢复绑定状态
-          this.loadMyFamily();
-        });
-    } else {
-      this.initMockData();
+    // 未登录(冷启动 token 尚未就绪)时不请求,待登录成功后由 applyLogin 触发
+    if (!getToken()) {
+      return;
     }
+    family.getList({ page: 1, pageSize: 50 })
+      .then((res) => {
+        this.globalData.families = (res.list || []).map(normalizeFamily);
+        this.enterAssociatedFamily();
+        this.globalData.isOnline = true;
+        this.loadMyFamily();
+      })
+      .catch((err) => {
+        console.error('家族数据加载失败:', err);
+        this.globalData.isOnline = false;
+        // 即使家族列表加载失败，也要尝试恢复绑定状态
+        this.loadMyFamily();
+      });
   },
 
   /**
@@ -395,6 +402,10 @@ App({
    * 后端数据返回后由 enterAssociatedFamily/loadMyFamily 校正为已加入家族)
    */
   restoreLastFamily() {
+    // 未登录(无 token)不恢复家族缓存,避免未登录态展示过期家族信息
+    if (!getToken()) {
+      return;
+    }
     try {
       const saved = wx.getStorageSync('current_family');
       if (saved && saved.id) {
@@ -433,7 +444,7 @@ App({
 
   /** 加载我的家族关联信息（family/member/shareCode），供个人中心展示 */
   loadMyFamily() {
-    if (!USE_MOCK && getToken()) {
+    if (getToken()) {
       auth.getMyFamily()
         .then((data) => {
           this.globalData.myFamily = data || null;
@@ -465,13 +476,6 @@ App({
           // 失败时不清除缓存，保留现有状态等待下次重试
         });
     }
-  },
-
-  /** Mock 家族数据：mock 实现位于 mock/index.js,生产构建被条件编译剔除 */
-  initMockData() {
-    // #ifdef MOCK
-    mock.initMockData(this);
-    // #endif
   },
 
   // 全局方法:切换家族(兼容数字 id 与字符串 id)

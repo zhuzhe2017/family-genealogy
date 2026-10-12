@@ -1,13 +1,7 @@
 <wxs src="../../utils/filters.wxs" module="f" />
 <view class="page-container">
   <!-- 自定义导航栏（左上角返回直接回首页） -->
-  <view class="nav-bar" style="padding-top:{{statusBarHeight}}px;height:{{navBarTotal}}px;">
-    <view class="nav-back" bindtap="goHome">
-      <text class="nav-back-arrow">‹</text>
-    </view>
-    <text class="nav-title">家谱树</text>
-    <view class="nav-placeholder"></view>
-  </view>
+  <nav-bar class="nav-sticky" title="家谱树" bind:back="goHome" bind:ready="onNavBarReady" />
 
   <!-- 顶部工具栏 -->
   <view class="tree-toolbar">
@@ -63,9 +57,9 @@
   <!-- 树状视图（CSS/DOM 方案：舞台承载绝对定位节点与连接线，视口手势平移缩放） -->
   <view class="tree-view" style="height: calc(100vh - {{navBarTotal}}px - 220rpx);" wx:if="{{viewMode === 'tree'}}">
     <view class="family-viewport" id="treeViewport"
-      bindtouchstart="onCanvasTouchStart"
-      catchtouchmove="onCanvasTouchMove"
-      bindtouchend="onCanvasTouchEnd">
+      bindtouchstart="onViewportTouchStart"
+      catchtouchmove="onViewportTouchMove"
+      bindtouchend="onViewportTouchEnd">
       <view class="tree-stage tree-{{treeLod}}"
         style="width:{{treeStageW}}px;height:{{treeStageH}}px;transform:{{treeTransform}};">
         <!-- 连接线（kind v 竖线 / h 横线，坐标为世界 px） -->

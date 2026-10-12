@@ -1,6 +1,5 @@
 const app = getApp();
 const { auth, family } = require('../../utils/api');
-const { USE_MOCK } = require('../../utils/config');
 const { getToken } = require('../../utils/request');
 const { normalizeFamily } = require('../../utils/format');
 
@@ -8,7 +7,8 @@ Page({
   data: {
     familyList: [],
     currentFamily: {},
-    searchKeyword: ''
+    searchKeyword: '',
+    needLogin: false
   },
 
   onLoad() {
@@ -16,10 +16,12 @@ Page({
   },
 
   onShow() {
+    // 无条件消费并清零防循环标记:避免分支未命中时标记残留,影响下次 onShow 行为
+    const skip = app.globalData.skipAutoEnter;
+    app.globalData.skipAutoEnter = false;
+
     // 已加入家族:家谱树 tab 直达家谱树页面;未加入/未登录时正常显示家族选择界面
     if (this.shouldAutoEnterTree()) {
-      const skip = app.globalData.skipAutoEnter;
-      app.globalData.skipAutoEnter = false;
       if (skip) {
         // 从家谱树页返回:本次停留在家族列表,允许切换/加入家族
         this.loadFamilies();
@@ -32,20 +34,23 @@ Page({
     this.loadFamilies();
   },
 
-  /** 已加入家族(用户资料带 familyId)时返回 true,此时点击家谱树 tab 无需再选家族 */
+  /** 已登录且已加入家族(用户资料带 familyId)时返回 true,此时点击家谱树 tab 无需再选家族 */
   shouldAutoEnterTree() {
-    return !!(app.globalData.userInfo && app.globalData.userInfo.familyId);
+    return !!(getToken() && app.globalData.userInfo && app.globalData.userInfo.familyId);
   },
 
   /** 加载家族列表:在线时走后端刷新全局数据,离线/失败回退 globalData 缓存 */
   loadFamilies() {
     const current = app.globalData.currentFamily || {};
     const render = (list) => {
-      this.setData({ currentFamily: app.globalData.currentFamily || {} });
+      this.setData({
+        currentFamily: app.globalData.currentFamily || {},
+        needLogin: !getToken()
+      });
       this.applySearch(list);
     };
 
-    if (!USE_MOCK && getToken()) {
+    if (getToken()) {
       family.getList({ page: 1, pageSize: 50 })
         .then((res) => {
           const list = (res.list || []).map(normalizeFamily);
@@ -144,6 +149,11 @@ Page({
           });
       }
     });
+  },
+
+  /** 未登录:跳转登录页 */
+  loginEntry() {
+    wx.navigateTo({ url: '/pages/login/login' });
   },
 
   createFamily() {

@@ -24,8 +24,8 @@
       </view>
     </view>
 
-    <!-- 顶部家族信息卡片 -->
-    <view class="family-header">
+    <!-- 顶部家族信息卡片(未登录或无当前家族时不展示) -->
+    <view class="family-header" wx:if="{{!needLogin && currentFamily.id}}">
       <view class="family-bg">
         <view class="family-pattern"></view>
       </view>
@@ -87,9 +87,6 @@
     </view>
   </view>
 
-  <!-- 开发模式模拟数据角标 -->
-  <view class="mock-banner" wx:if="{{isMock}}">当前为模拟数据,连接后端后展示真实内容</view>
-
   <!-- 快捷功能入口:左右滑动，显示2排每排4个 -->
   <view class="quick-actions">
     <scroll-view class="action-scroll" scroll-x enhanced show-scrollbar="{{false}}">
@@ -116,7 +113,7 @@
       <text class="home-state-text">加载中...</text>
     </view>
 
-    <!-- 未登录:引导登录,不展示假数据 -->
+    <!-- 未登录:引导登录 -->
     <view class="home-state" wx:elif="{{needLogin}}">
       <text class="home-state-text">登录后可查看家族动态</text>
       <text class="home-state-btn" bindtap="doLogin">立即登录</text>
@@ -183,7 +180,7 @@
         </view>
       </view>
     </view>
-    <!-- 无真实数据源时显示空态,不展示假数据 -->
+    <!-- 无真实数据源时显示空态 -->
     <view class="home-state" wx:else>
       <text class="home-state-text">暂无活动记录</text>
     </view>

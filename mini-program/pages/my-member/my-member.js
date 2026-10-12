@@ -1,7 +1,6 @@
 const app = getApp();
 const { member } = require('../../utils/api');
 const { getToken } = require('../../utils/request');
-const { USE_MOCK } = require('../../utils/config');
 
 /** 积分业务类型 → 展示文案 */
 const BIZ_LABELS = {
@@ -35,7 +34,7 @@ Page({
 
   /** 加载我的会员信息；离线/未登录走空态提示 */
   loadData() {
-    if (USE_MOCK || !getToken()) {
+    if (!getToken()) {
       this.setData({ loading: false, offlineMode: true, hasMember: false, member: null });
       return;
     }

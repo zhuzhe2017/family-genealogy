@@ -1,0 +1,7 @@
+<view class="nav-bar" style="padding-top:{{statusBarHeight}}px;height:{{navBarTotal}}px;">
+  <view class="nav-back" bindtap="onBack">
+    <text class="nav-back-arrow">‹</text>
+  </view>
+  <text class="nav-title">{{title}}</text>
+  <view class="nav-placeholder"></view>
+</view>

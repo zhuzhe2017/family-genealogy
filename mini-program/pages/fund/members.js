@@ -1,6 +1,5 @@
 const app = getApp();
 const { fund, familyMember } = require('../../utils/api');
-const { USE_MOCK } = require('../../utils/config');
 const { getToken } = require('../../utils/request');
 
 const PERM_OPTIONS = [
@@ -46,7 +45,7 @@ Page({
 
   load() {
     const familyId = this.data.familyId;
-    if (!familyId || (!USE_MOCK && !getToken())) {
+    if (!familyId || !getToken()) {
       this.setData({ loading: false });
       return;
     }

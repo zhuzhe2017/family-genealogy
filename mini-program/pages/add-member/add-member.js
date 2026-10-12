@@ -1,7 +1,6 @@
 const app = getApp();
 const { familyMember } = require('../../utils/api');
 const { normalizeMember, parseSpouseList } = require('../../utils/format');
-const { USE_MOCK } = require('../../utils/config');
 const { getToken, upload } = require('../../utils/request');
 
 Page({
@@ -57,7 +56,7 @@ Page({
   /** 根据 fatherId 加载父亲姓名用于回显 */
   loadFatherName(fatherId) {
     const familyId = (app.globalData.currentFamily || {}).id;
-    if (!USE_MOCK && getToken() && familyId) {
+    if (getToken() && familyId) {
       familyMember.getById(familyId, fatherId)
         .then((row) => {
           if (row && row.name) {
@@ -70,7 +69,7 @@ Page({
 
   loadEditData(id) {
     const familyId = (app.globalData.currentFamily || {}).id;
-    if (!USE_MOCK && getToken() && familyId) {
+    if (getToken() && familyId) {
       // 同时加载全量成员用于回显父/母姓名
       Promise.all([
         familyMember.getById(familyId, id),
@@ -497,7 +496,7 @@ Page({
     };
 
     const familyId = (app.globalData.currentFamily || {}).id;
-    if (!USE_MOCK && getToken() && familyId) {
+    if (getToken() && familyId) {
       wx.showLoading({ title: '提交中' });
       // 本地临时照片先逐张上传,拿到 URL 后随成员一起提交；头像同理（单张）
       const tempPhotos = (form.photos || []).filter(p => this.isLocalTempFile(p));

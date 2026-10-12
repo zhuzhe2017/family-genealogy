@@ -213,3 +213,32 @@
   margin-right: 12rpx;
   font-weight: 300;
 }
+
+/* 空态/未登录引导 */
+.empty-state {
+  padding-top: 160rpx;
+}
+
+.empty-emoji {
+  font-size: 96rpx;
+  margin-bottom: 24rpx;
+  opacity: 0.5;
+}
+
+.empty-hint {
+  margin-top: 12rpx;
+  font-size: 24rpx;
+  color: #999;
+}
+
+.empty-action {
+  margin-top: 40rpx;
+  padding: 0 64rpx;
+  height: 80rpx;
+  line-height: 80rpx;
+  background: linear-gradient(135deg, #8B1A1A 0%, #B22222 100%);
+  border-radius: 40rpx;
+  color: #FFFFFF;
+  font-size: 30rpx;
+  box-shadow: 0 8rpx 24rpx rgba(139, 26, 26, 0.3);
+}

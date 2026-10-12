@@ -1,7 +1,6 @@
 const app = getApp();
 const { subscription, auth } = require('../../utils/api');
 const { getToken } = require('../../utils/request');
-const { USE_MOCK } = require('../../utils/config');
 
 /** 订阅消息模板ID（需与后端 WX_SUBSCRIBE_TMPL_RENEWAL 配置一致） */
 const SUBSCRIBE_TMPL_ID = 'renewal_reminder_tmpl_id';
@@ -96,7 +95,7 @@ Page({
     this.setData({ currentFamilyName: (family && family.name) || '' });
 
     // 离线/未登录：展示本地示例套餐，标注离线提示
-    if (USE_MOCK || !getToken()) {
+    if (!getToken()) {
       this.setData({
         plans: FALLBACK_PLANS,
         subStatus: null,

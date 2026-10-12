@@ -1,18 +1,38 @@
 const app = getApp();
 const { familyMember } = require('../../utils/api');
 const { normalizeMember } = require('../../utils/format');
-const { USE_MOCK } = require('../../utils/config');
 const { getToken } = require('../../utils/request');
+const {
+  NODE_W,
+  NODE_H,
+  LEVEL_H,
+  NODE_GAP_X,
+  PADDING,
+  calcTreeLayout,
+  buildGenSpatialIndex,
+  walkVisibleLayout,
+  contentOffsetY,
+  V_AVATAR_R,
+  V_SPOUSE_AVATAR_R,
+  V_SCALE_MIN,
+  V_SCALE_MAX,
+  // 直系图几何布局（纯函数）：与页面同名方法 calcVerticalLayout 区分，避免误读为递归
+  calcVerticalLayout: computeVerticalLayout,
+  // 尺寸/边界/手势纯函数：别名以避免与页面同名方法混淆
+  computeVerticalFitScale: verticalFitScale,
+  computeMinimapScale: minimapScale,
+  computeBounds,
+  computeContentSize,
+  computeVerticalContentSize,
+  coupleMidX,
+  touchDist: touchDistance,
+  getSpouseRole: spouseRoleOf
+} = require('../../utils/tree-layout');
 
-// 节点绘制常量
-const NODE_W = 100;    // 节点卡片宽度（更紧凑）
-const NODE_H = 80;     // 节点卡片高度（基础高度，不含配偶行）
-const LEVEL_H = 180;   // 代际垂直间距
-const NODE_GAP_X = 16; // 节点水平间距（更紧凑）
+// 节点绘制常量（几何常量与布局纯函数见 utils/tree-layout.js）
 const SUBTREE_GAP = 10;// 子树之间额外间距
 const TEXT_H = 12;     // 文字行高（更小字号）
 const AVATAR_R = 13;   // 头像半径（更小）
-const PADDING = 16;    // 画布内边距
 const MIN_SCALE = 0.3; // 最小缩放倍率
 const MAX_SCALE = 1.5; // 最大缩放倍率（过大容易拖出可视区域找不到树）
 // 极端宽树（内容宽度超过画布两屏以上）的初始适配下限：允许整体缩小到屏幕内
@@ -27,16 +47,7 @@ const LIST_PAGE_SIZE = 50; // 列表视图每页成员数
 const LOD_BLOCK_THRESHOLD = 40;  // 卡片 < 40px 时仅画色块，跳过全部文字
 const LOD_MEDIUM_THRESHOLD = 90; // 卡片 < 90px 时画简版（仅名字）
 
-// 直系图（vertical）常量：圆形头像、角色标注、配偶在侧
-const V_AVATAR_R = 26;            // 主成员头像半径（世界坐标）
-const V_SPOUSE_AVATAR_R = V_AVATAR_R * 0.8; // 配偶头像半径（主成员的 0.8 倍，视觉略小、主次分明）
-const V_LEVEL_H = 112;            // 代际垂直间距（紧凑布局）
-const V_SPOUSE_GAP = 36;          // 夫妇头像间距（需大于红心宽度 24px + 两侧留白，避免重叠）
-const V_PADDING_X = 32;           // 直系图水平内边距
-const V_MARGIN_Y = 24;            // 上下边距
-// 直系图缩放范围：有效缩放（初始适配 × 双指手势）统一控制在 0.5~1.0
-const V_SCALE_MIN = 0.5;  // 直系图缩放下限
-const V_SCALE_MAX = 1.0;  // 直系图缩放上限（初始即最大，禁止放大）
+// 直系图（vertical）绘制常量：几何布局常量与缩放范围见 utils/tree-layout.js
 
 // 头像组件常量（canvas 2d 绘制层组件化）
 const AVATAR_SIZE = { small: 22, medium: V_AVATAR_R, large: 46 }; // 尺寸规格（半径 px）
@@ -77,12 +88,13 @@ Page({
     minimapViewportStyle: '',   // 高亮框样式
     minimapW: 160,              // 鹰眼图宽度（px）
     minimapH: 120,              // 鹰眼图高度（px）
+    navBarTotal: 64,            // 导航栏总高（含状态栏，由 nav-bar 组件 ready 事件回填）
   },
 
   // 视图容器状态（不放入 data，避免频繁 setData 重绘）
-  canvasDpr: 1,
-  canvasWidth: 0,       // 视图容器宽（px，渲染与变换共用）
-  canvasHeight: 0,      // 视图容器高（px，渲染与变换共用）
+  viewportDpr: 1,
+  viewportWidth: 0,       // 视图容器宽（px，渲染与变换共用）
+  viewportHeight: 0,      // 视图容器高（px，渲染与变换共用）
   allNodes: [],       // 全部成员（含父子关系）
   rootNodes: [],      // 顶层根节点
   layoutMap: {},      // id -> {x,y,level,node}
@@ -99,7 +111,7 @@ Page({
   vPinchStartZoom: 1,        // 直系图双指缩放起始倍率
   initialScale: 1,  // 基础适配缩放（随布局自动重算）
   vInitialScale: 1, // 直系图基础适配缩放
-  canvasReady: false,       // 视图容器是否已测量完成（DOM 方案：容器就绪即可渲染）
+  viewportReady: false,       // 视图容器是否已测量完成（DOM 方案：容器就绪即可渲染）
   _viewportInitPending: false, // 初始化进行中标记，防止重复初始化
   pinchStartDist: 0,        // 双指缩放起始距离
   pinchStartZoom: 1,        // 双指缩放起始倍率
@@ -133,11 +145,16 @@ Page({
   _minimapStageOffsetY: 0,   // 缩略图内容居中偏移 Y
 
   onLoad() {
-    const win = wx.getWindowInfo ? wx.getWindowInfo() : wx.getSystemInfoSync();
-    const statusBarHeight = (win && win.statusBarHeight) || 20;
-    this.setData({ statusBarHeight, navBarTotal: statusBarHeight + 44 });
     // 默认按「默认(5代)」窗口加载
     this.loadTreeData(this.data.selectedGen);
+  },
+
+  /** 接收 nav-bar 组件透出的导航栏总高，用于计算视口剩余高度 */
+  onNavBarReady(e) {
+    const navBarTotal = (e.detail || {}).navBarTotal;
+    if (navBarTotal) {
+      this.setData({ navBarTotal });
+    }
   },
 
   /** 导航栏左上角返回：直接回首页（覆盖默认返回上一页）。
@@ -184,7 +201,7 @@ Page({
   /** 测量当前视图容器尺寸（幂等：初始化中或已完成时重复调用会被忽略）。
    *  DOM 方案：节点用绝对定位摆放在 stage 内，只需容器尺寸用于适配缩放与变换。 */
   initViewport() {
-    if (this.canvasReady || this._viewportInitPending) return;
+    if (this.viewportReady || this._viewportInitPending) return;
     this._viewportInitPending = true;
     const query = wx.createSelectorQuery();
     const viewportId = this.data.viewMode === 'vertical' ? '#verticalViewport' : '#treeViewport';
@@ -201,11 +218,11 @@ Page({
           return;
         }
         this._initRetry = 0;
-        this.canvasWidth = res[0].width;
-        this.canvasHeight = res[0].height;
+        this.viewportWidth = res[0].width;
+        this.viewportHeight = res[0].height;
         const deviceInfo = wx.getDeviceInfo ? wx.getDeviceInfo() : wx.getSystemInfoSync();
-        this.canvasDpr = deviceInfo.pixelRatio || 1;
-        this.canvasReady = true;
+        this.viewportDpr = deviceInfo.pixelRatio || 1;
+        this.viewportReady = true;
         if (this.data.viewMode === 'vertical') {
           this.renderVerticalTree();
         } else {
@@ -223,7 +240,7 @@ Page({
 
   /**
    * 加载家族树：按代数窗口请求服务端（默认=5代、7代）。
-   * 结果按窗口缓存，切换代数命中缓存时不重复请求；失败回退 mock。
+   * 结果按窗口缓存，切换代数命中缓存时不重复请求；失败时展示错误占位。
    */
   loadTreeData(gen) {
     const familyId = (app.globalData.currentFamily || {}).id;
@@ -242,12 +259,7 @@ Page({
       wx.hideLoading();
       this.setData({ loading: false });
     };
-    const doMock = () => {
-      console.log('loadTreeData: 使用 mock 数据');
-      this.generateTreeData();
-      finishLoading();
-    };
-    if (!USE_MOCK && getToken() && familyId) {
+    if (getToken() && familyId) {
       const params = { generations: genNum };
       familyMember.getAll(familyId, params)
         .then((res) => {
@@ -260,15 +272,13 @@ Page({
         })
         .catch((err) => {
           console.error('家族树加载失败', err);
-          if (USE_MOCK || !getToken()) {
-            doMock();
-          } else {
-            this.setData({ loadError: (err && err.message) || '家谱加载失败，请检查网络' });
-            finishLoading();
-          }
+          this.setData({ loadError: (err && err.message) || '家谱加载失败，请检查网络' });
+          finishLoading();
         });
     } else {
-      doMock();
+      // 未登录/未选择家族:展示空态占位
+      this.setData({ empty: true });
+      finishLoading();
     }
   },
 
@@ -280,7 +290,7 @@ Page({
 
   /**
    * 搜索成员：请求服务端返回「命中成员 + 祖先链 + 后3代」子图后重建树；
-   * 清空关键字时恢复当前代数窗口。mock/离线时退回本地过滤。
+   * 清空关键字时恢复当前代数窗口。离线时退回本地过滤。
    */
   searchMembers(kw) {
     const familyId = (app.globalData.currentFamily || {}).id;
@@ -291,7 +301,7 @@ Page({
       this.loadTreeData(this.data.selectedGen);
       return;
     }
-    if (!USE_MOCK && getToken() && familyId) {
+    if (getToken() && familyId) {
       wx.showLoading({ title: '搜索中...', mask: true });
       familyMember.getAll(familyId, { keyword: this.renderSearch })
         .then((res) => {
@@ -367,14 +377,14 @@ Page({
     this.allNodes = nodeValues;
     this.rootNodes = roots;
     this.nodeMap = nodeMap;
-    // 统一在此更新成员数（缓存命中 / mock / 搜索子图等入口都会经过 buildTree）
+    // 统一在此更新成员数（缓存命中 / 搜索子图等入口都会经过 buildTree）
     this.setData({ memberCount: members.length });
     // 树与列表统一由 applyFilter 驱动（含代数过滤与列表分页）
     this.applyFilter();
     // 同步更新鹰眼图（确保数据加载后缩略图立即显示）
     this.updateMinimap();
     // 视图容器可能尚未测量，重新尝试渲染
-    if (!this.canvasReady) {
+    if (!this.viewportReady) {
       this.initViewport();
     }
     // 「定位到我」等待成员就绪后定位（当前窗口未加载该成员，切到最大代数窗口后在此触发）
@@ -389,31 +399,6 @@ Page({
         wx.showToast({ title: '成员超出可显示代数范围', icon: 'none' });
       }
     }
-  },
-
-  /** 生成 mock 数据，统一走 buildTree 入口 */
-  generateTreeData() {
-    const rows = [
-      { id: '1', name: '朱太公', gender: 'male', generation: 1, generation_name: '文', birth_date: '1880-01-01', father_id: '', mother_id: '', spouse_info: JSON.stringify([{ name: '朱太婆', birthDate: '1882年5月12日', bio: '朱太婆，贤良淑德，相夫教子。', deathDate: '1960年11月8日', deathPlace: '山东省济南市朱氏祖坟', longitude: '117.000923', latitude: '36.675807' }]) },
-      { id: '2', name: '朱大', gender: 'male', generation: 2, generation_name: '德', birth_date: '1910-01-01', father_id: '1', mother_id: '', spouse_info: JSON.stringify([{ name: '李氏', birthDate: '1911年' }]) },
-      { id: '3', name: '朱二', gender: 'male', generation: 2, generation_name: '德', birth_date: '1912-01-01', father_id: '1', mother_id: '', spouse_info: JSON.stringify([{ name: '王氏', birthDate: '1913年' }]) },
-      { id: '4', name: '朱三', gender: 'male', generation: 2, generation_name: '德', birth_date: '1915-01-01', father_id: '1', mother_id: '', spouse_info: JSON.stringify([{ name: '陈氏', birthDate: '1916年' }]) },
-      { id: '5', name: '朱强', gender: 'male', generation: 3, generation_name: '永', birth_date: '1940-01-01', father_id: '2', mother_id: '', spouse_info: JSON.stringify([{ name: '刘氏', birthDate: '1941年' }]) },
-      { id: '6', name: '朱明', gender: 'male', generation: 3, generation_name: '永', birth_date: '1942-01-01', father_id: '2', mother_id: '', spouse_info: JSON.stringify([{ name: '赵氏', birthDate: '1943年' }]) },
-      { id: '7', name: '朱华', gender: 'male', generation: 3, generation_name: '永', birth_date: '1945-01-01', father_id: '3', mother_id: '', spouse_info: JSON.stringify([{ name: '孙氏', birthDate: '1946年' }]) },
-      { id: '8', name: '朱丽', gender: 'female', generation: 3, generation_name: '永', birth_date: '1948-01-01', father_id: '3', mother_id: '', spouse_info: JSON.stringify([{ name: '周先生', birthDate: '1945年' }]) },
-      { id: '9', name: '朱芳', gender: 'female', generation: 3, generation_name: '永', birth_date: '1950-01-01', father_id: '4', mother_id: '', spouse_info: JSON.stringify([{ name: '吴先生', birthDate: '1948年' }]) },
-      { id: '10', name: '朱伟', gender: 'male', generation: 4, generation_name: '世', birth_date: '1970-01-01', father_id: '5', mother_id: '', spouse_info: JSON.stringify([{ name: '郑氏', birthDate: '1971年' }]) },
-      { id: '11', name: '朱敏', gender: 'female', generation: 4, generation_name: '世', birth_date: '1972-01-01', father_id: '5', mother_id: '', spouse_info: JSON.stringify([{ name: '王先生', birthDate: '1970年' }]) },
-      { id: '12', name: '朱军', gender: 'male', generation: 4, generation_name: '世', birth_date: '1975-01-01', father_id: '6', mother_id: '' },
-      { id: '13', name: '朱燕', gender: 'female', generation: 4, generation_name: '世', birth_date: '1978-01-01', father_id: '7', mother_id: '', spouse_info: JSON.stringify([{ name: '李先生', birthDate: '1976年' }]) },
-      { id: '14', name: '朱鹏', gender: 'male', generation: 4, generation_name: '世', birth_date: '1980-01-01', father_id: '8', mother_id: '', spouse_info: JSON.stringify([{ name: '周氏', birthDate: '1981年' }]) },
-      { id: '15', name: '朱浩', gender: 'male', generation: 5, generation_name: '兴', birth_date: '2000-01-01', father_id: '10', mother_id: '' },
-      { id: '16', name: '朱悦', gender: 'female', generation: 5, generation_name: '兴', birth_date: '2005-01-01', father_id: '11', mother_id: '' },
-      { id: '17', name: '朱晨', gender: 'male', generation: 5, generation_name: '兴', birth_date: '2010-01-01', father_id: '11', mother_id: '' },
-      { id: '18', name: '朱雪', gender: 'female', generation: 5, generation_name: '兴', birth_date: '2012-01-01', father_id: '13', mother_id: '' }
-    ];
-    this.buildTree(rows.map(normalizeMember));
   },
 
   /** 按显示代数/搜索关键字过滤，联动列表视图，并重新计算布局 */
@@ -498,63 +483,10 @@ Page({
     this.refreshList();
   },
 
-  /** 递归计算每个节点的 x,y 坐标（子树依次排列 + 父节点居中，HTML 方案同款算法）
-   *  说明：旧实现用 currentX+shift 防重叠，在「满叉树/大族」下会导致宽度指数级膨胀；
-   *  本实现改为每个节点接收子树起始坐标，叶子顺序排列、父节点居中到子树范围中心，
-   *  宽度始终 ≈ 最底层可见节点数 × 卡片间距，任意规模均紧凑。 */
+  /** 递归计算每个节点的 x,y 坐标（子树依次排列 + 父节点居中，见 utils/tree-layout.js） */
   calcLayout() {
     this._domDirty = true; // 布局变化：DOM 节点/连接线需重建
-    const layoutMap = {};
-    const visibleSet = new Set(this.renderNodes.map(n => n.id));
-    let cursorX = PADDING; // 多个根节点子树依次排列的起始坐标
-
-    // 获取节点实际高度（含多配偶行）
-    const getNodeHeight = (node) => {
-      const spouseList = (node.spouseList || []).filter(s => s.name);
-      return NODE_H + (spouseList.length > 0 ? spouseList.length * 14 : 0);
-    };
-
-    const traverse = (node, startX) => {
-      if (!node) return { left: startX, right: startX };
-      const visibleChildren = node.children.filter(c => visibleSet.has(c.id));
-      const nodeWidth = NODE_W;
-      const nodeHeight = getNodeHeight(node);
-      const level = node.generation - 1;
-      const y = PADDING + level * LEVEL_H;
-
-      let left;
-      let right;
-      if (visibleChildren.length === 0) {
-        // 叶子：顺序排列
-        left = startX;
-        right = startX + nodeWidth;
-        layoutMap[node.id] = { x: left, y, width: nodeWidth, height: nodeHeight, node };
-        return { left, right };
-      }
-
-      // 子树依次排列，记录每棵子树的范围
-      let childX = startX;
-      const bounds = [];
-      visibleChildren.forEach((child) => {
-        const b = traverse(child, childX);
-        bounds.push(b);
-        childX = b.right + NODE_GAP_X;
-      });
-
-      left = bounds[0].left;
-      right = bounds[bounds.length - 1].right;
-      // 父节点居中到子树范围中心；若父节点比子树更宽导致左越界，则回推对齐子树左侧
-      const nodeX = Math.max(startX, (left + right) / 2 - nodeWidth / 2);
-      layoutMap[node.id] = { x: nodeX, y, width: nodeWidth, height: nodeHeight, node };
-      return { left: Math.min(left, nodeX), right: Math.max(right, nodeX + nodeWidth) };
-    };
-
-    this.rootNodes.forEach((root) => {
-      const b = traverse(root, cursorX);
-      cursorX = b.right + NODE_GAP_X;
-    });
-
-    this.layoutMap = layoutMap;
+    this.layoutMap = calcTreeLayout(this.rootNodes, this.renderNodes);
     // 布局变化：失效尺寸缓存并重建空间索引（供视口裁剪/命中检测 O(log n) 定位）
     this.invalidateLayoutCache();
     this.buildSpatialIndex();
@@ -567,131 +499,28 @@ Page({
     this._genIndex = null;
   },
 
-  /** 构建空间索引：按代分层，代内按 x 升序排序 */
+  /** 构建空间索引：按代分层，代内按 x 升序排序（见 utils/tree-layout.js） */
   buildSpatialIndex() {
-    const index = {};
-    (this.renderNodes || []).forEach(n => {
-      const l = this.layoutMap[n.id];
-      if (!l) return;
-      const gen = n.generation || 1;
-      (index[gen] = index[gen] || []).push(l);
-    });
-    Object.keys(index).forEach(g => index[g].sort((a, b) => a.x - b.x));
-    this._genIndex = index;
+    this._genIndex = buildGenSpatialIndex(this.renderNodes, this.layoutMap);
   },
 
-  /** 由视口 y 范围反推代际范围（含父代余量，供连线跨代裁剪） */
-  visibleGenRange(viewTop, viewBottom, extraAbove) {
-    let gMin = Math.floor((viewTop - PADDING) / LEVEL_H) + 1;
-    let gMax = Math.ceil((viewBottom - PADDING) / LEVEL_H) + 1;
-    if (extraAbove) gMin = Math.max(1, gMin - 1);
-    return { gMin, gMax };
-  },
-
-  /** 遍历视口内节点（分层 + 代内 x 二分，避免全量扫描） */
+  /** 遍历视口内节点（分层 + 代内 x 二分，避免全量扫描；见 utils/tree-layout.js） */
   forEachVisibleLayout(viewTop, viewBottom, viewLeft, viewRight, extraAbove, cb) {
-    const index = this._genIndex;
-    if (!index) return;
-    const { gMin, gMax } = this.visibleGenRange(viewTop, viewBottom, extraAbove);
-    for (let g = Math.max(1, gMin); g <= gMax; g++) {
-      const arr = index[g];
-      if (!arr || !arr.length) continue;
-      let lo = 0;
-      let hi = arr.length;
-      while (lo < hi) {
-        const mid = (lo + hi) >> 1;
-        if (arr[mid].x + arr[mid].width < viewLeft) lo = mid + 1;
-        else hi = mid;
-      }
-      for (let i = lo; i < arr.length; i++) {
-        const l = arr[i];
-        if (l.x > viewRight) break;
-        cb(l.node, l);
-      }
-    }
+    walkVisibleLayout(this._genIndex, viewTop, viewBottom, viewLeft, viewRight, extraAbove, cb);
   },
 
-  /** 计算直系图布局：以选中的 vRootId（或当前过滤结果中最合适节点）为中心，
-   *  沿父指针向上收集在当前过滤结果中的祖先链 */
+  /** 计算直系图布局（几何算法见 utils/tree-layout.js），结果写回页面状态 */
   calcVerticalLayout() {
     this._vDomDirty = true; // 布局变化：直系图 DOM 数据需重建
-    const visibleSet = new Set((this.renderNodes || []).map(n => n.id));
-    if (!visibleSet.size) {
+    const result = computeVerticalLayout(this.renderNodes, this.nodeMap, this.vRootId, this.renderSearch);
+    if (!result) {
       this.vLayoutMap = {};
       return { contentW: 0, contentH: 0 };
     }
-
-    // 默认中心优先级：用户指定（且在当前过滤中）> 搜索命中 > 最年轻叶子 > 最后一个节点
-    let center = this.nodeMap[this.vRootId];
-    if (!center || !visibleSet.has(center.id)) {
-      center = null;
-    }
-
-    if (!center) {
-      const kw = (this.renderSearch || '').trim();
-      if (kw) {
-        const matched = this.renderNodes.find(n => (n.name || '').indexOf(kw) > -1);
-        if (matched && visibleSet.has(matched.id)) center = matched;
-      }
-    }
-
-    if (!center) {
-      const leaves = this.renderNodes.filter(n => !n.children || !n.children.length || !n.children.some(c => visibleSet.has(c.id)));
-      center = leaves.length ? leaves[leaves.length - 1] : this.renderNodes[this.renderNodes.length - 1];
-    }
-
-    if (!center) {
-      this.vLayoutMap = {};
-      return { contentW: 0, contentH: 0 };
-    }
-
-    // 向上收集祖先链，仅保留在当前过滤结果中的节点
-    const chain = [];
-    const collectAncestors = (node) => {
-      if (!node || !visibleSet.has(node.id)) return;
-      collectAncestors(node.parentId ? this.nodeMap[node.parentId] : null);
-      chain.push(node);
-    };
-    collectAncestors(center);
-
-    if (!chain.length) {
-      this.vLayoutMap = {};
-      return { contentW: 0, contentH: 0 };
-    }
-
-    const layoutMap = {};
-    let maxW = 0;
-
-    chain.forEach((node, idx) => {
-      const hasSpouse = node.spouseInfo && node.spouseInfo.name;
-      // 总宽恒为「主圆直径 + 夫妇间距 + 配偶圆直径」：无配偶时以"失记"占位预留配偶位，
-      // 保证各代夫妇中点(midX)一致 → 竖线统一为直线、不再折线
-      const coupleW = V_AVATAR_R * 2 + V_SPOUSE_GAP + V_SPOUSE_AVATAR_R * 2;
-      maxW = Math.max(maxW, coupleW);
-      const x = V_PADDING_X;
-      const y = V_MARGIN_Y + idx * V_LEVEL_H;
-      layoutMap[node.id] = {
-        x,
-        y,
-        node,
-        hasSpouse,
-        spouseX: x + V_AVATAR_R * 2 + V_SPOUSE_GAP,
-        role: this.getVerticalRole(node, idx, chain.length)
-      };
-    });
-
-    // 将链条水平居中（配偶位无论有无配偶恒同步平移，保证各代夫妇中点 midX 一致）
-    const contentW = maxW + V_PADDING_X * 2;
-    const offsetX = (contentW - maxW) / 2 - V_AVATAR_R;
-    Object.values(layoutMap).forEach(l => {
-      l.x += offsetX;
-      l.spouseX += offsetX;
-    });
-
-    this.vLayoutMap = layoutMap;
+    this.vLayoutMap = result.layoutMap;
     // 缓存布局尺寸：直系图变换/缩放锚点复用，避免双指缩放时每帧重算布局
     this._vLayoutDirty = false;
-    this._vContentSize = { contentW, contentH: V_MARGIN_Y * 2 + chain.length * V_LEVEL_H };
+    this._vContentSize = { contentW: result.contentW, contentH: result.contentH };
     return this._vContentSize;
   },
 
@@ -717,12 +546,9 @@ Page({
     return changed;
   },
 
-  /** 内容高度超出画布时的垂直定位：适配范围内垂直居中，超出时顶对齐 16px 边距。
-   *  变换与缩放锚点反算必须共用同一公式，否则双指缩放时锚点每帧漂移、内容被推出屏幕。 */
+  /** 内容高度超出画布时的垂直定位（见 utils/tree-layout.js） */
   getContentOffsetY(contentH, scale) {
-    return contentH * scale <= this.canvasHeight
-      ? (this.canvasHeight - contentH * scale) / 2
-      : 16;
+    return contentOffsetY(contentH, scale, this.viewportHeight);
   },
 
   /** 渲染树状图（DOM/CSS 方案）：布局脏时重建节点与连接线，随后应用视口变换 */
@@ -935,7 +761,7 @@ Page({
       this.vInitialScale = this.computeVerticalFitScale(contentW, contentH);
     }
     const scale = this.vInitialScale * this.vZoom;
-    const offsetX = (this.canvasWidth - contentW * scale) / 2 + this.vPan.x;
+    const offsetX = (this.viewportWidth - contentW * scale) / 2 + this.vPan.x;
     const offsetY = this.getContentOffsetY(contentH, scale) + this.vPan.y;
     return { scale, offsetX, offsetY };
   },
@@ -947,13 +773,9 @@ Page({
     this.setData({ minimapVisible: !this.data.minimapVisible });
   },
 
-  /** 计算鹰眼图缩放比例，使内容适应缩略图容器 */
+  /** 计算鹰眼图缩放比例（几何见 utils/tree-layout.js） */
   computeMinimapScale(contentW, contentH) {
-    const { minimapW, minimapH } = this.data;
-    if (!contentW || !contentH) return 0.1;
-    const scaleX = minimapW / contentW;
-    const scaleY = minimapH / contentH;
-    return Math.min(scaleX, scaleY) * 0.9; // 留 10% 边距
+    return minimapScale(contentW, contentH, this.data.minimapW, this.data.minimapH);
   },
 
   /** 更新鹰眼图：同步主视图状态，重绘缩略图和高亮框 */
@@ -961,14 +783,14 @@ Page({
     if (!this.data.minimapVisible) return;
     
     // 视图容器未就绪时跳过更新，避免用错误的默认值计算导致偏移
-    if (!this.canvasWidth || !this.canvasHeight) {
+    if (!this.viewportWidth || !this.viewportHeight) {
       // 延迟重试，等待视图测量完成
       setTimeout(() => this.updateMinimap(), 100);
       return;
     }
     
-    const canvasW = this.canvasWidth;
-    const canvasH = this.canvasHeight;
+    const stageW = this.viewportWidth;
+    const stageH = this.viewportHeight;
     
     // 获取当前内容尺寸和视口变换
     const isVertical = this.data.viewMode === 'vertical';
@@ -1009,12 +831,12 @@ Page({
     // 转换到鹰眼图坐标：世界坐标 * minimapScale + stageOffset
     const viewportX = (-viewOffsetX / viewScale) * minimapScale + stageOffsetX;
     const viewportY = (-viewOffsetY / viewScale) * minimapScale + stageOffsetY;
-    const viewportW = (canvasW / viewScale) * minimapScale;
-    const viewportH = (canvasH / viewScale) * minimapScale;
+    const viewportW = (stageW / viewScale) * minimapScale;
+    const viewportH = (stageH / viewScale) * minimapScale;
 
     // 记录当前视口中心的世界坐标（供拖拽起始使用）
-    this._minimapViewWorldX = (canvasW / 2 - viewOffsetX) / viewScale;
-    this._minimapViewWorldY = (canvasH / 2 - viewOffsetY) / viewScale;
+    this._minimapViewWorldX = (stageW / 2 - viewOffsetX) / viewScale;
+    this._minimapViewWorldY = (stageH / 2 - viewOffsetY) / viewScale;
     
     // 记录 stage 偏移（供拖拽换算使用）
     this._minimapStageOffsetX = stageOffsetX;
@@ -1126,21 +948,21 @@ Page({
     }
     
     // 计算使视口中心对准目标世界坐标所需的 offset
-    // 注意：这里必须用真实的 canvasWidth/Height，不能用默认值
-    const canvasW = this.canvasWidth;
-    const canvasH = this.canvasHeight;
-    if (!canvasW || !canvasH) return; // 视图未就绪，跳过
+    // 注意：这里必须用真实的 viewportWidth/Height，不能用默认值
+    const stageW = this.viewportWidth;
+    const stageH = this.viewportHeight;
+    if (!stageW || !stageH) return; // 视图未就绪，跳过
     
-    const targetOffsetX = canvasW / 2 - worldX * viewScale;
-    const targetOffsetY = canvasH / 2 - worldY * viewScale;
+    const targetOffsetX = stageW / 2 - worldX * viewScale;
+    const targetOffsetY = stageH / 2 - worldY * viewScale;
     
     // 反算 pan 值（与 getViewTransform 的公式一致）
     if (isVertical) {
-      this.vPan.x = targetOffsetX - (canvasW - contentW * viewScale) / 2;
+      this.vPan.x = targetOffsetX - (stageW - contentW * viewScale) / 2;
       this.vPan.y = targetOffsetY - this.getContentOffsetY(contentH, viewScale);
       this.renderVerticalTree();
     } else {
-      this.pan.x = targetOffsetX - (canvasW - contentW * viewScale) / 2;
+      this.pan.x = targetOffsetX - (stageW - contentW * viewScale) / 2;
       this.pan.y = targetOffsetY - this.getContentOffsetY(contentH, viewScale);
       this.renderTree();
     }
@@ -1168,27 +990,20 @@ Page({
     }, () => this.updateMinimap());
   },
 
-  /** 直系图尺寸（复用 calcVerticalLayout 的缓存，避免每帧重算布局） */
+  /** 直系图尺寸（复用 calcVerticalLayout 的缓存，避免每帧重算布局；几何见 utils/tree-layout.js） */
   getVerticalContentSize() {
     const layoutSize = this._vContentSize || this.calcVerticalLayout();
-    const w = Math.max(layoutSize.contentW, this.canvasWidth * 0.6);
-    const h = Math.max(layoutSize.contentH, this.canvasHeight * 0.6);
-    return { contentW: w, contentH: h };
+    return computeVerticalContentSize(layoutSize, this.viewportWidth, this.viewportHeight);
   },
 
-  /** 直系图基础适配：小树放大、长链完整显示，初始缩放限定 0.5~1.2 */
+  /** 直系图基础适配缩放（几何见 utils/tree-layout.js） */
   computeVerticalFitScale(contentW, contentH) {
-    if (!this.canvasWidth || !this.canvasHeight) return 1;
-    const fitX = this.canvasWidth / contentW;
-    const fitY = this.canvasHeight / contentH;
-    const fit = Math.max(fitX, fitY);
-    // 头像半径 34px：初始 0.5~1.2 倍（34~82px），随内容自适应
-    return Math.min(V_SCALE_MAX, Math.max(fit, V_SCALE_MIN));
+    return verticalFitScale(contentW, contentH, this.viewportWidth, this.viewportHeight);
   },
 
-  /** 夫妇红心连接点 x：恒取夫妇连线中点（无配偶时配偶位由占位补齐），保证竖线统一直线 */
+  /** 夫妇红心连接点 x（几何见 utils/tree-layout.js） */
   getCoupleMidX(l) {
-    return (l.x + V_AVATAR_R * 2 + l.spouseX) / 2;
+    return coupleMidX(l);
   },
 
   /** 绘制直系图内容：头像、连线、角色、配偶 */
@@ -1227,15 +1042,6 @@ Page({
     });
 
     ctx.restore();
-  },
-
-  /** 角色语义：最下方是自己，向上依次为父亲/母亲、爷爷/奶奶、曾祖父/曾祖母… */
-  getVerticalRole(node, idx, chainLen) {
-    const diff = chainLen - 1 - idx;
-    const maleRoles = ['自己', '父亲', '爷爷', '曾祖父', '高祖父', '天祖父', '烈祖父', '太祖父', '远祖父', '鼻祖父'];
-    const femaleRoles = ['自己', '母亲', '奶奶', '曾祖母', '高祖母', '天祖母', '烈祖母', '太祖母', '远祖母', '鼻祖母'];
-    const roles = node.gender === 'female' ? femaleRoles : maleRoles;
-    return roles[diff] || `上${diff}代`;
   },
 
   /** 绘制直系图节点：头像、姓名、角色 */
@@ -1342,16 +1148,9 @@ Page({
     ctx.fillText(spouseRole, cx, l.y + V_SPOUSE_AVATAR_R * 2 + 26);
   },
 
-  /** 配偶角色：与主角角色对应（父亲↔母亲、爷爷↔奶奶等） */
+  /** 配偶角色（语义见 utils/tree-layout.js） */
   getSpouseRole(role, nodeGender) {
-    const maleRoles = ['自己', '父亲', '爷爷', '曾祖父', '高祖父', '天祖父', '烈祖父', '太祖父', '远祖父', '鼻祖父'];
-    const femaleRoles = ['自己', '母亲', '奶奶', '曾祖母', '高祖母', '天祖母', '烈祖母', '太祖母', '远祖母', '鼻祖母'];
-    const idx = maleRoles.indexOf(role);
-    if (idx === -1) return '配偶';
-    if (nodeGender === 'female') {
-      return idx === 0 ? '丈夫' : maleRoles[idx];
-    }
-    return idx === 0 ? '妻子' : femaleRoles[idx];
+    return spouseRoleOf(role, nodeGender);
   },
 
   /**
@@ -1493,8 +1292,8 @@ Page({
     ctx.scale(scale, scale);
 
     // 视口裁剪：仅绘制进入可视区域的节点与连线（导出时 viewW/H 传完整内容尺寸）
-    const vw = viewW || this.canvasWidth;
-    const vh = viewH || this.canvasHeight;
+    const vw = viewW || this.viewportWidth;
+    const vh = viewH || this.viewportHeight;
     const viewLeft = -offsetX / scale;
     const viewTop = -offsetY / scale;
     const viewRight = (vw - offsetX) / scale;
@@ -1523,32 +1322,17 @@ Page({
     ctx.restore();
   },
 
+  /** 树状图内容边界（世界坐标，带缓存；几何见 utils/tree-layout.js） */
   getBounds() {
     if (this._boundsCache) return this._boundsCache;
-    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-    const layoutKeys = [];
-    Object.keys(this.layoutMap).forEach(k => layoutKeys.push(this.layoutMap[k]));
-    layoutKeys.forEach(l => {
-      const w = l.width;
-      minX = Math.min(minX, l.x);
-      minY = Math.min(minY, l.y);
-      maxX = Math.max(maxX, l.x + w);
-      maxY = Math.max(maxY, l.y + NODE_H);
-    });
-    this._boundsCache = {
-      width: maxX - minX || NODE_W,
-      height: maxY - minY || NODE_H,
-      minX: minX === Infinity ? PADDING : minX,
-      minY: minY === Infinity ? PADDING : minY
-    };
+    this._boundsCache = computeBounds(this.layoutMap);
     return this._boundsCache;
   },
 
-  /** 内容尺寸（世界坐标范围 + 边距） */
+  /** 内容尺寸（世界坐标范围 + 边距，带缓存；几何见 utils/tree-layout.js） */
   getContentSize() {
     if (this._contentSizeCache) return this._contentSizeCache;
-    const bounds = this.getBounds();
-    this._contentSizeCache = { contentW: bounds.width + PADDING * 2, contentH: bounds.height + PADDING * 2 };
+    this._contentSizeCache = computeContentSize(this.getBounds());
     return this._contentSizeCache;
   },
 
@@ -1563,19 +1347,14 @@ computeFitScale(contentW, contentH) {
     const { contentW, contentH } = this.getContentSize();
     this.initialScale = this.computeFitScale(contentW, contentH);
     const scale = this.initialScale * this.zoom;
-    const offsetX = (this.canvasWidth - contentW * scale) / 2 + this.pan.x;
+    const offsetX = (this.viewportWidth - contentW * scale) / 2 + this.pan.x;
     const offsetY = this.getContentOffsetY(contentH, scale) + this.pan.y;
     return { scale, offsetX, offsetY };
   },
 
-  /** 双指间距（防御：触摸点缺失或坐标异常时返回 0，避免除零/NaN 污染缩放状态） */
+  /** 双指间距（几何见 utils/tree-layout.js） */
   touchDist(touches) {
-    if (!touches || touches.length < 2) return 0;
-    const t0 = touches[0];
-    const t1 = touches[1];
-    if (!t0 || !t1 || !isFinite(t0.clientX) || !isFinite(t0.clientY) ||
-        !isFinite(t1.clientX) || !isFinite(t1.clientY)) return 0;
-    return Math.sqrt(Math.pow(t0.clientX - t1.clientX, 2) + Math.pow(t0.clientY - t1.clientY, 2));
+    return touchDistance(touches);
   },
 
   /** 绘制父节点到子节点的折线连接：从父子连线中部开始分树，折线连接卡片上线中部 */
@@ -1857,7 +1636,7 @@ computeFitScale(contentW, contentH) {
     const next = this.data.viewMode === 'tree' ? 'vertical' : 'tree';
     this.setData({ viewMode: next }, () => {
       // wx:if 会销毁并重建视图容器，切换后必须重新测量尺寸
-      this.canvasReady = false;
+      this.viewportReady = false;
       this._domDirty = true;
       this._vDomDirty = true;
       this._lod = '';
@@ -1889,7 +1668,7 @@ computeFitScale(contentW, contentH) {
     }
   },
 
-  onCanvasTouchStart(e) {
+  onViewportTouchStart(e) {
     const touches = e.touches;
     if (touches.length === 2) {
       // 双指：进入缩放模式，记录起始距离与倍率
@@ -1906,7 +1685,7 @@ computeFitScale(contentW, contentH) {
     this.pan.touching = true;
   },
 
-  onCanvasTouchMove(e) {
+  onViewportTouchMove(e) {
     const touches = e.touches;
     if (touches.length === 2 && this.pinchStartDist > 0) {
       const dist = this.touchDist(touches);
@@ -1933,7 +1712,7 @@ computeFitScale(contentW, contentH) {
     this.requestRender();
   },
 
-  onCanvasTouchEnd() {
+  onViewportTouchEnd() {
     this.pan.touching = false;
     this.pinchStartDist = 0;
     this.pinchStartZoom = 1;
@@ -1956,7 +1735,7 @@ computeFitScale(contentW, contentH) {
     const { contentW, contentH } = this.getContentSize();
     const nOffsetX = mx - worldX * ns;
     const nOffsetY = my - worldY * ns;
-    this.pan.x = nOffsetX - (this.canvasWidth - contentW * ns) / 2;
+    this.pan.x = nOffsetX - (this.viewportWidth - contentW * ns) / 2;
     // 与 getViewTransform 共用同一垂直定位公式，锚点反算不再漂移
     this.pan.y = nOffsetY - this.getContentOffsetY(contentH, ns);
     this.requestRender();
@@ -2056,7 +1835,7 @@ computeFitScale(contentW, contentH) {
     const { contentW, contentH } = this.getVerticalContentSize();
     const nOffsetX = mx - worldX * ns;
     const nOffsetY = my - worldY * ns;
-    this.vPan.x = nOffsetX - (this.canvasWidth - contentW * ns) / 2;
+    this.vPan.x = nOffsetX - (this.viewportWidth - contentW * ns) / 2;
     // 与 getVerticalTransform 共用同一垂直定位公式，锚点反算不再漂移
     this.vPan.y = nOffsetY - this.getContentOffsetY(contentH, ns);
     this.requestRender();
@@ -2082,7 +1861,7 @@ computeFitScale(contentW, contentH) {
     }
     if (this.data.viewMode === 'vertical') {
       this.setData({ viewMode: 'tree' }, () => {
-        this.canvasReady = false;
+        this.viewportReady = false;
         wx.nextTick(() => this.locateMember(me));
       });
       return;
@@ -2112,7 +1891,7 @@ computeFitScale(contentW, contentH) {
     }
     const layout = this.layoutMap[id];
     if (!layout) return;
-    if (!this.canvasReady || !this.canvasWidth) {
+    if (!this.viewportReady || !this.viewportWidth) {
       this._pendingCenterLayout = layout;
       return;
     }
@@ -2122,7 +1901,7 @@ computeFitScale(contentW, contentH) {
 
   /** 平移/缩放画布，使指定布局居中到视口中央（至少放大到可读细节等级） */
   centerOn(layout) {
-    if (!this.canvasWidth || !this.canvasHeight) return;
+    if (!this.viewportWidth || !this.viewportHeight) return;
     const { contentW, contentH } = this.getContentSize();
     const baseScale = this.computeFitScale(contentW, contentH);
     // 定位时保证卡片 ≥ 90px（完整细节等级），过大的树不强制放大以免偏离
@@ -2131,11 +1910,11 @@ computeFitScale(contentW, contentH) {
     const scale = baseScale * this.zoom;
     const cx = layout.x + layout.width / 2;
     const cy = layout.y + NODE_H / 2;
-    this.pan.x = this.canvasWidth / 2 - cx * scale - (this.canvasWidth - contentW * scale) / 2;
-    if (contentH * scale <= this.canvasHeight) {
-      this.pan.y = this.canvasHeight / 2 - cy * scale - (this.canvasHeight - contentH * scale) / 2;
+    this.pan.x = this.viewportWidth / 2 - cx * scale - (this.viewportWidth - contentW * scale) / 2;
+    if (contentH * scale <= this.viewportHeight) {
+      this.pan.y = this.viewportHeight / 2 - cy * scale - (this.viewportHeight - contentH * scale) / 2;
     } else {
-      this.pan.y = this.canvasHeight / 2 - cy * scale - 16;
+      this.pan.y = this.viewportHeight / 2 - cy * scale - 16;
     }
   },
 
@@ -2338,7 +2117,7 @@ computeFitScale(contentW, contentH) {
   },
 
   exportTree() {
-    if (!this.canvasReady || !this.renderNodes.length) {
+    if (!this.viewportReady || !this.renderNodes.length) {
       wx.showToast({ title: '画布未就绪', icon: 'none' });
       return;
     }
@@ -2366,7 +2145,7 @@ computeFitScale(contentW, contentH) {
     const contentW = bounds.width + PADDING * 2;
     const contentH = bounds.height + PADDING * 2;
     // 离屏画布按设备像素输出保证清晰，导出倍率最高取 2 避免超大图内存溢出
-    const exportDpr = Math.min(this.canvasDpr || 2, 2);
+    const exportDpr = Math.min(this.viewportDpr || 2, 2);
 
     const doExport = (canvas) => {
       wx.canvasToTempFilePath({
@@ -2406,7 +2185,7 @@ computeFitScale(contentW, contentH) {
       wx.showToast({ title: '暂无可导出内容', icon: 'none' });
       return;
     }
-    const exportDpr = Math.min(this.canvasDpr || 2, 2);
+    const exportDpr = Math.min(this.viewportDpr || 2, 2);
     const doExport = (canvas) => {
       wx.canvasToTempFilePath({
         canvas,

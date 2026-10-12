@@ -21,7 +21,7 @@
   </view>
 
   <block wx:elif="{{!loading}}">
-    <!-- 未登录:引导登录,不展示假数据 -->
+    <!-- 未登录:引导登录 -->
     <view class="state-box" wx:if="{{needLogin}}">
       <text class="state-icon">🔒</text>
       <text class="state-text">登录后才能查看家族动态</text>
@@ -40,9 +40,6 @@
       <text class="state-icon">📭</text>
       <text class="state-text">还没有动态,快来发布第一条吧</text>
     </view>
-
-    <!-- 开发模式模拟数据角标 -->
-    <view class="mock-banner" wx:if="{{isMock}}">当前为模拟数据,连接后端后展示真实动态</view>
 
     <!-- 动态列表 -->
     <view class="dynamic-list" wx:if="{{dynamics.length > 0}}">

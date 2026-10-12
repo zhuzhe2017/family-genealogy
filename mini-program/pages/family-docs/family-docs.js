@@ -1,11 +1,10 @@
 const app = getApp();
 const { content: contentApi, category: categoryApi } = require('../../utils/api');
-const { USE_MOCK } = require('../../utils/config');
 const { getToken } = require('../../utils/request');
 const { normalizeDocument } = require('../../utils/format');
 
 // 文档分类兜底字典(与后端默认分类约定一致;优先使用后端动态分类 loadCategories,
-// 仅在后端加载失败/mock 环境回退,保证离线可用)
+// 仅在后端加载失败时回退,保证离线可用)
 const DOC_CATEGORY_FALLBACK = [
   { id: 'genealogy', name: '族谱' },
   { id: 'history', name: '家族史' },
@@ -47,7 +46,7 @@ Page({
   /** 拉取家族文档分类(后端懒初始化默认分类;失败回退硬编码兜底字典) */
   loadCategories() {
     const familyId = (app.globalData.currentFamily || {}).id;
-    if (USE_MOCK || !getToken() || !familyId) {
+    if (!getToken() || !familyId) {
       this.setData({ categories: [{ id: 'all', name: '全部' }].concat(DOC_CATEGORY_FALLBACK) });
       return;
     }
@@ -63,10 +62,10 @@ Page({
       });
   },
 
-  /** 加载文档列表:优先走后端 API;失败仅提示,不回退 mock 数据,避免真假混杂 */
+  /** 加载文档列表:优先走后端 API;失败仅提示,避免真假混杂 */
   loadDocuments() {
     const familyId = (app.globalData.currentFamily || {}).id;
-    if (USE_MOCK || !getToken() || !familyId) {
+    if (!getToken() || !familyId) {
       this.setData({ documents: [], allDocuments: [], loading: false, loadFailed: false });
       return;
     }

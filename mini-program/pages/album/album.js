@@ -1,6 +1,5 @@
 const app = getApp();
 const contentApi = require('../../utils/api').content;
-const { USE_MOCK } = require('../../utils/config');
 const { getToken, upload } = require('../../utils/request');
 const { normalizePhoto } = require('../../utils/format');
 
@@ -17,7 +16,7 @@ const PAGE_PADDING = 12;      // 瀑布流容器左右内边距(px)
 const ratioCache = new Map();
 
 // 照片分类兜底字典(与后端默认分类约定一致;优先使用后端动态分类 loadCategories,
-// 仅在后端加载失败/mock 环境回退到此字典,保证离线可用)
+// 仅在后端加载失败时回退到此字典)
 const PHOTO_CATEGORIES = [
   { id: 'ancestor', name: '先祖', icon: '👴' },
   { id: 'family', name: '全家福', icon: '👨‍👩‍👧‍👦' },
@@ -180,7 +179,7 @@ Page({
    */
   async loadCategories() {
     const familyId = (app.globalData.currentFamily || {}).id;
-    if (USE_MOCK || !getToken() || !familyId) {
+    if (!getToken() || !familyId) {
       this._categories = PHOTO_CATEGORIES;
       return;
     }
@@ -200,12 +199,12 @@ Page({
   /** 拉取数据并渲染 */
   async fetchAndRender(reset) {
     const familyId = (app.globalData.currentFamily || {}).id;
-    if (USE_MOCK || !getToken() || !familyId) {
+    if (!getToken() || !familyId) {
       if (reset) {
-        this._allPhotos = this.mockPhotos();
+        this._allPhotos = [];
         this.setData({ loading: true });
         await this.renderMasonry(this.currentViewPhotos(), false);
-        this.setData({ loading: false, loadingMore: false, photoCount: this._allPhotos.length, hasMore: false, showEmpty: false });
+        this.setData({ loading: false, loadingMore: false, photoCount: 0, hasMore: false, showEmpty: true });
         this.refreshCategories();
       }
       return;
@@ -402,7 +401,7 @@ Page({
   /** 逐张上传并创建照片记录,全部成功后统一刷新 */
   uploadPhotos(files, categoryId) {
     const familyId = (app.globalData.currentFamily || {}).id;
-    if (!USE_MOCK && getToken() && familyId) {
+    if (getToken() && familyId) {
       wx.showLoading({ title: '上传中' });
       const tasks = files.map((filePath) =>
         this.uploadImage(filePath)
@@ -425,7 +424,7 @@ Page({
           wx.showToast({ title: (err && err.message) || '上传失败', icon: 'none' });
         });
     } else {
-      wx.showToast({ title: '上传成功', icon: 'success' });
+      wx.showToast({ title: '请先登录并选择家族', icon: 'none' });
     }
   },
 
@@ -433,21 +432,5 @@ Page({
     const familyId = (app.globalData.currentFamily || {}).id;
     const formData = familyId ? { familyId: String(familyId), bizType: 'photo' } : {};
     return upload({ url: '/common/upload', filePath, formData }).then(data => data.url);
-  },
-
-  /** Mock 相册数据(开发期) */
-  mockPhotos() {
-    const list = [
-      { id: 1, url: '', title: '朱太公遗照', year: '1950', category: 'ancestor' },
-      { id: 2, url: '', title: '家族祠堂', year: '1960', category: 'buildings' },
-      { id: 3, url: '', title: '1950年全家福', year: '1950', category: 'family' },
-      { id: 4, url: '', title: '祭祖大典', year: '2024', category: 'events' },
-      { id: 5, url: '', title: '族谱封面', year: '2024', category: 'documents' },
-      { id: 6, url: '', title: '家族聚会', year: '2023', category: 'events' },
-      { id: 7, url: '', title: '老宅照片', year: '1970', category: 'buildings' },
-      { id: 8, url: '', title: '朱大肖像', year: '1940', category: 'ancestor' },
-      { id: 9, url: '', title: '2024年全家福', year: '2024', category: 'family' }
-    ];
-    return list.map(normalizePhoto);
   }
 });

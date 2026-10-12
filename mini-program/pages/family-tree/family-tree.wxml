@@ -1,7 +1,7 @@
 <wxs src="../../utils/filters.wxs" module="f" />
 <view class="page-container">
   <!-- 搜索栏 -->
-  <view class="search-bar">
+  <view class="search-bar" wx:if="{{!needLogin}}">
     <view class="search-input-wrap">
       <text class="search-icon">🔍</text>
       <input class="search-input" placeholder="搜索家族名称" placeholder-class="placeholder" bindinput="onSearch"/>
@@ -9,7 +9,7 @@
   </view>
 
   <!-- 家族列表 -->
-  <view class="family-list">
+  <view class="family-list" wx:if="{{familyList.length > 0}}">
     <view class="family-card {{currentFamily.id === item.id ? 'active' : ''}}" 
           wx:for="{{familyList}}" 
           wx:key="id" 
@@ -59,8 +59,22 @@
     </view>
   </view>
 
-  <!-- 创建新家族按钮 -->
-  <view class="create-family-btn" bindtap="createFamily">
+  <!-- 空态:未登录引导登录,或已登录但尚未加入家族 -->
+  <view class="empty-state" wx:else>
+    <block wx:if="{{needLogin}}">
+      <text class="empty-emoji">🔒</text>
+      <text class="empty-text">登录后可查看和管理你的家族</text>
+      <view class="empty-action" bindtap="loginEntry">立即登录</view>
+    </block>
+    <block wx:else>
+      <text class="empty-emoji">🏯</text>
+      <text class="empty-text">还没有加入任何家族</text>
+      <text class="empty-hint">创建新家族，或通过分享码加入已有家族</text>
+    </block>
+  </view>
+
+  <!-- 创建新家族按钮(未登录时隐藏,由登录引导替代) -->
+  <view class="create-family-btn" wx:if="{{!needLogin}}" bindtap="createFamily">
     <text class="plus-icon">+</text>
     <text>创建新家族</text>
   </view>

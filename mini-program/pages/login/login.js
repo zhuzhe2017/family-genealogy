@@ -1,7 +1,6 @@
 const app = getApp();
 const { auth } = require('../../utils/api');
 const { getToken, setToken } = require('../../utils/request');
-const { USE_MOCK } = require('../../utils/config');
 
 const PHONE_REG = /^1[3-9]\d{9}$/;
 
@@ -24,7 +23,7 @@ Page({
     // 支持从个人中心带参进入绑定模式：/pages/login/login?mode=bind
     const mode = options && options.mode === 'bind' ? 'bind' : 'login';
     this.setData({ mode, userInfo: app.globalData.userInfo || {} });
-    if (mode === 'bind' && !USE_MOCK && getToken()) {
+    if (mode === 'bind' && getToken()) {
       this.loadBindPhone();
     }
   },
@@ -86,7 +85,7 @@ Page({
     const scene = this.data.mode === 'bind' ? 'bind' : 'login';
     auth.sendSmsCode(phone, scene)
       .then((data) => {
-        // 开发模式(mock 短信)后端返回 devCode，自动填入方便联调
+        // 后端返回 devCode 时自动填入方便联调
         if (data.devCode) {
           this.setData({ code: data.devCode });
         }
@@ -157,10 +156,6 @@ Page({
   submitWxLogin() {
     if (!this.data.agreed) {
       wx.showToast({ title: '请先阅读并同意协议', icon: 'none' });
-      return;
-    }
-    if (USE_MOCK) {
-      this.applyLogin(app.globalData.userInfo || {});
       return;
     }
     wx.showLoading({ title: '登录中' });

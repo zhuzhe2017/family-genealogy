@@ -79,7 +79,7 @@
       },
       {
         "pagePath": "pages/dynamic/dynamic",
-        "text": "族成员",
+        "text": "家族动态",
         "iconPath": "images/tab-dynamic.png",
         "selectedIconPath": "images/tab-dynamic-active.png"
       },

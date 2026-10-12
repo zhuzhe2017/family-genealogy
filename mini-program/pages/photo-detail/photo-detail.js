@@ -1,7 +1,6 @@
 const app = getApp();
 const contentApi = require('../../utils/api').content;
 const categoryApi = require('../../utils/api').category;
-const { USE_MOCK } = require('../../utils/config');
 const { getToken } = require('../../utils/request');
 const { normalizePhoto } = require('../../utils/format');
 
@@ -25,7 +24,7 @@ Page({
   /** 加载照片详情,并用分类列表把 category_id 映射为可读分类名 */
   loadPhoto(id) {
     const familyId = (app.globalData.currentFamily || {}).id;
-    if (!USE_MOCK && getToken() && familyId) {
+    if (getToken() && familyId) {
       this.setData({ loading: true, loadFailed: false });
       Promise.all([
         contentApi.getById('photo', id),
@@ -49,21 +48,9 @@ Page({
           this.setData({ loading: false, loadFailed: true });
         });
     } else {
-      this.setData({ photo: this.getMockPhoto(id), loading: false });
+      // 离线/未登录:展示加载失败占位,避免页面空白
+      this.setData({ photo: {}, loading: false, loadFailed: true });
     }
-  },
-
-  getMockPhoto(id) {
-    return {
-      id: id,
-      url: '',
-      title: '朱太公遗照',
-      year: '1950',
-      description: '这是朱太公晚年留下的珍贵照片，拍摄于家族老宅。照片记录了朱太公慈祥的面容，是家族珍贵的历史资料。',
-      categoryName: '先祖照片',
-      uploader: '朱三',
-      uploadTime: '2024-01-15'
-    };
   },
 
   viewRelated(e) {

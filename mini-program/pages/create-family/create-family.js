@@ -1,6 +1,5 @@
 const app = getApp();
 const { family } = require('../../utils/api');
-const { USE_MOCK } = require('../../utils/config');
 const { getToken, upload } = require('../../utils/request');
 const { normalizeFamily } = require('../../utils/format');
 
@@ -95,7 +94,7 @@ Page({
       });
     };
 
-    if (!USE_MOCK && getToken()) {
+    if (getToken()) {
       // 本地临时 logo 先上传到后端,拿到可访问 URL 后再创建家族
       const logoPromise = this.isLocalTempFile(form.logo)
         ? this.uploadImage(form.logo)
