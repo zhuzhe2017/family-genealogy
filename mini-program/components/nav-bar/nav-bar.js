@@ -7,7 +7,9 @@
 Component({
   properties: {
     // 导航标题
-    title: { type: String, value: '' }
+    title: { type: String, value: '' },
+    // 是否显示左上角返回箭头(默认显示;tabBar 页面等无需返回时置 false)
+    showBack: { type: Boolean, value: true }
   },
 
   data: {

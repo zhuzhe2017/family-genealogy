@@ -78,8 +78,8 @@
         "selectedIconPath": "images/tab-tree-active.png"
       },
       {
-        "pagePath": "pages/dynamic/dynamic",
-        "text": "家族动态",
+        "pagePath": "pages/member-list/member-list",
+        "text": "族成员",
         "iconPath": "images/tab-dynamic.png",
         "selectedIconPath": "images/tab-dynamic-active.png"
       },

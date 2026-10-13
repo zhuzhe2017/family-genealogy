@@ -17,7 +17,6 @@ Page({
       { id: 5, name: '相册影像', icon: '📷', bgColor: '#E0F2F1', url: '/pages/album/album' },
       { id: 6, name: '祭祀祈福', icon: '🙏', bgColor: '#FBE9E7', url: '/pages/worship/worship' },
       { id: 7, name: '家族动态', icon: '💬', bgColor: '#E8EAF6', url: '/pages/dynamic/dynamic' },
-      { id: 10, name: '族成员', icon: '👨👩👧👦', bgColor: '#E8F5E9', url: '/pages/member-list/member-list' },
       { id: 8, name: '应用中心', icon: '🧩', bgColor: '#E0F7FA', url: '/pages/app-center/app-center' },
       { id: 9, name: '亲缘查询', icon: '🔍', bgColor: '#FFF8E1', url: '/pages/kinship/kinship' }
     ],
@@ -318,7 +317,7 @@ Page({
       banner.recordClick(id).catch(() => {});
     }
     if (type === 'page') {
-      const tabBarPages = ['/pages/home/home', '/pages/family-tree/family-tree', '/pages/dynamic/dynamic', '/pages/profile/profile'];
+      const tabBarPages = ['/pages/home/home', '/pages/family-tree/family-tree', '/pages/member-list/member-list', '/pages/profile/profile'];
       const baseUrl = String(url).split('?')[0];
       if (tabBarPages.includes(baseUrl)) {
         wx.switchTab({ url: baseUrl });
@@ -580,15 +579,20 @@ Page({
     if (this.data.generationModalVisible) {
       this.closeGenerationModal();
     }
-    // encodeURIComponent 保证中文/特殊字辈名与字符串家族id跨页传递不丢乱码
-    const url = '/pages/member-list/member-list?familyId=' + encodeURIComponent(String(familyId))
-      + '&generation=' + generation
-      + '&generationName=' + encodeURIComponent(name);
-    console.log('[goGenerationMembers] 跳转:', url);
-    wx.navigateTo({
-      url: url,
+    // 族成员已是 tabBar 页面,switchTab 不支持携带参数:
+    // 通过 globalData 传递筛选条件,由 member-list 的 onShow 消费后清空
+    app.globalData.memberListFilter = {
+      familyId: String(familyId),
+      generation: generation,
+      generationName: name
+    };
+    console.log('[goGenerationMembers] switchTab 族成员,筛选:', app.globalData.memberListFilter);
+    wx.switchTab({
+      url: '/pages/member-list/member-list',
       fail: (err) => {
-        console.error('[goGenerationMembers] 跳转失败', err, 'url=', url);
+        console.error('[goGenerationMembers] 跳转失败', err, '筛选=', app.globalData.memberListFilter);
+        // 跳转失败时清理待消费参数,避免污染下次进入
+        app.globalData.memberListFilter = null;
         wx.showToast({ title: '页面跳转失败,请重试', icon: 'none' });
       }
     });
@@ -597,7 +601,7 @@ Page({
   navigateTo(e) {
     const url = e.currentTarget.dataset.url;
     // tabBar 页面必须用 switchTab 跳转,其余用 navigateTo
-    const tabBarPages = ['/pages/home/home', '/pages/family-tree/family-tree', '/pages/dynamic/dynamic', '/pages/profile/profile'];
+    const tabBarPages = ['/pages/home/home', '/pages/family-tree/family-tree', '/pages/member-list/member-list', '/pages/profile/profile'];
     const baseUrl = String(url).split('?')[0];
     if (tabBarPages.includes(baseUrl)) {
       wx.switchTab({ url: baseUrl });

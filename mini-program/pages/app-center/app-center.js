@@ -1,7 +1,7 @@
 /** 应用中心:全部应用来自后端 app_plugin 表(动态),管理员可在后台增删/启停 */
 const { plugin } = require('../../utils/api');
 const { resolveImageUrl } = require('../../utils/format');
-const TAB_BAR_PAGES = ['/pages/home/home', '/pages/family-tree/family-tree', '/pages/dynamic/dynamic', '/pages/profile/profile'];
+const TAB_BAR_PAGES = ['/pages/home/home', '/pages/family-tree/family-tree', '/pages/member-list/member-list', '/pages/profile/profile'];
 
 Page({
   data: {

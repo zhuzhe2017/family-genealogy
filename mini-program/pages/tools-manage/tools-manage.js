@@ -1,7 +1,7 @@
 /** 工具管理:对应用中心插件工具进行购买、授权及相关管理操作(数据源与应用中心一致,来自 app_plugin) */
 const { plugin } = require('../../utils/api');
 const { resolveImageUrl } = require('../../utils/format');
-const TAB_BAR_PAGES = ['/pages/home/home', '/pages/family-tree/family-tree', '/pages/dynamic/dynamic', '/pages/profile/profile'];
+const TAB_BAR_PAGES = ['/pages/home/home', '/pages/family-tree/family-tree', '/pages/member-list/member-list', '/pages/profile/profile'];
 
 Page({
   data: {

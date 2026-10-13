@@ -53,6 +53,30 @@ Page({
     }
     // 先同步写入参数再加载,避免 fetchPage 读到旧 generation
     this.setData(next, () => {
+      // 存在待消费的 tab 筛选参数(首页“字辈→族成员”入口)时交由 onShow 统一加载,避免重复请求
+      if (app.globalData.memberListFilter) return;
+      this.refresh();
+    });
+  },
+
+  /**
+   * 族成员已是 tabBar 页面,switchTab 无法携带参数:
+   * 消费首页“字辈→族成员”入口经 globalData 传入的筛选条件,读取后立即清空避免残留
+   */
+  onShow() {
+    const pending = app.globalData.memberListFilter;
+    if (!pending) return;
+    app.globalData.memberListFilter = null;
+    const generation = Number(pending.generation) || 0;
+    const generationName = pending.generationName || '';
+    this.setData({
+      familyId: pending.familyId ? String(pending.familyId) : String(this.data.familyId || ''),
+      generation,
+      generationName,
+      navTitle: generation > 0
+        ? (generationName ? generationName + '字辈成员' : '第' + generation + '代成员')
+        : ''
+    }, () => {
       this.refresh();
     });
   },
@@ -229,10 +253,5 @@ Page({
     wx.navigateTo({
       url: '/pages/add-member/add-member'
     });
-  },
-
-  /** 导航栏左上角返回：直接回首页（覆盖默认返回上一页） */
-  goHome() {
-    wx.switchTab({ url: '/pages/home/home' });
   }
 });

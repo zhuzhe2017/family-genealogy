@@ -1,7 +1,7 @@
 <wxs src="../../utils/filters.wxs" module="f" />
 <view class="page-container">
-  <!-- 自定义导航栏（左上角返回直接回首页） -->
-  <nav-bar class="nav-sticky" title="家族成员" bind:back="goHome" />
+  <!-- 自定义导航栏（tabBar 页面，无需返回箭头） -->
+  <nav-bar class="nav-sticky" title="家族成员" showBack="{{false}}" />
 
   <!-- 搜索和筛选 -->
   <view class="search-filter-bar">

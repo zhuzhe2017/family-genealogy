@@ -11,6 +11,8 @@ App({
     myFamily: null,
     // 从家谱树页返回时置位,家族列表页据此避免无限自动跳转
     skipAutoEnter: false,
+    // 首页“字辈→族成员”入口的跨页筛选参数(tabBar 页面 switchTab 无法携带 URL 参数)
+    memberListFilter: null,
     systemInfo: null,
     // 是否已连接真实后端
     isOnline: false

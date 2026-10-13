@@ -216,6 +216,7 @@ Page({
   },
 
   goBack() {
-    wx.navigateBack({ fail: () => wx.switchTab({ url: '/pages/dynamic/dynamic' }) });
+    // 家族动态已不再是 tabBar 页面:回退失败(无历史栈)时用 navigateTo 打开,switchTab 会失败
+    wx.navigateBack({ fail: () => wx.navigateTo({ url: '/pages/dynamic/dynamic' }) });
   }
 });

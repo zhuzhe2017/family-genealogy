@@ -1,7 +1,10 @@
 <view class="nav-bar" style="padding-top:{{statusBarHeight}}px;height:{{navBarTotal}}px;">
-  <view class="nav-back" bindtap="onBack">
-    <text class="nav-back-arrow">‹</text>
-  </view>
+  <!-- 返回箭头与右侧占位成对渲染,保证标题始终居中;showBack 为 false 时整体隐藏 -->
+  <block wx:if="{{showBack}}">
+    <view class="nav-back" bindtap="onBack">
+      <text class="nav-back-arrow">‹</text>
+    </view>
+  </block>
   <text class="nav-title">{{title}}</text>
-  <view class="nav-placeholder"></view>
+  <view class="nav-placeholder" wx:if="{{showBack}}"></view>
 </view>
