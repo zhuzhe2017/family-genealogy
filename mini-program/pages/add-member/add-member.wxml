@@ -77,7 +77,10 @@
 
       <view class="form-group" wx:if="{{!form.isAlive}}">
         <text class="form-label">安葬地点</text>
-        <input class="form-input" placeholder="请输入安葬地点" value="{{form.deathPlace}}" bindinput="inputChange" data-field="deathPlace" maxlength="200"/>
+        <view class="loc-row">
+          <input class="form-input loc-input" placeholder="请输入安葬地点" value="{{form.deathPlace}}" bindinput="inputChange" data-field="deathPlace" maxlength="200"/>
+          <view class="map-pick-btn" bindtap="chooseDeathPlace">地图选点</view>
+        </view>
       </view>
 
       <view class="form-group" wx:if="{{!form.isAlive}}">
@@ -153,7 +156,10 @@
 
             <view class="spouse-row" wx:if="{{item.isAlive === 0}}">
               <text class="form-label">安葬地点</text>
-              <input class="form-input" placeholder="请输入安葬地点" value="{{item.deathPlace}}" bindinput="spouseInputChange" data-index="{{index}}" data-field="deathPlace" maxlength="200"/>
+              <view class="loc-row">
+                <input class="form-input loc-input" placeholder="请输入安葬地点" value="{{item.deathPlace}}" bindinput="spouseInputChange" data-index="{{index}}" data-field="deathPlace" maxlength="200"/>
+                <view class="map-pick-btn" bindtap="chooseSpouseDeathPlace" data-index="{{index}}">地图选点</view>
+              </view>
             </view>
 
             <view class="spouse-row" wx:if="{{item.isAlive === 0}}">

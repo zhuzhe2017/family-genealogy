@@ -53,6 +53,24 @@
   width: auto;
 }
 
+/* 地图选点按钮与坐标提示 */
+.map-pick {
+  flex-shrink: 0;
+  margin-left: 12rpx;
+  font-size: 24rpx;
+  color: #8B1A1A;
+  background: #FBF3E8;
+  border: 1rpx solid #E8D5B5;
+  border-radius: 24rpx;
+  padding: 10rpx 20rpx;
+}
+
+.coord-tip {
+  font-size: 22rpx;
+  color: #999;
+  margin: -8rpx 0 20rpx 160rpx;
+}
+
 /* 时间行 */
 .field-row {
   display: flex;

@@ -2,6 +2,7 @@ const app = getApp();
 const { familyMember } = require('../../utils/api');
 const { normalizeMember, parseSpouseList } = require('../../utils/format');
 const { getToken, upload } = require('../../utils/request');
+const { openLocationPicker, readPickedLocation } = require('../../utils/location');
 
 Page({
   data: {
@@ -51,6 +52,43 @@ Page({
       });
       this.loadFatherName(options.fatherId);
     }
+  },
+
+  /** 从「地图选点」插件返回后回填安葬地点与经纬度（区分主成员 / 配偶） */
+  onShow() {
+    const picked = readPickedLocation();
+    const target = this._pickTarget;
+    this._pickTarget = null;
+    if (!picked || !target) return;
+    const place = [picked.name, picked.address].filter(Boolean).join(' ').slice(0, 200);
+    const longitude = picked.longitude != null ? String(picked.longitude) : '';
+    const latitude = picked.latitude != null ? String(picked.latitude) : '';
+    if (target.type === 'spouse') {
+      const idx = target.index;
+      this.setData({
+        [`form.spouseList[${idx}].deathPlace`]: place,
+        [`form.spouseList[${idx}].longitude`]: longitude,
+        [`form.spouseList[${idx}].latitude`]: latitude
+      });
+    } else {
+      this.setData({
+        'form.deathPlace': place,
+        'form.longitude': longitude,
+        'form.latitude': latitude
+      });
+    }
+  },
+
+  /** 打开「地图选点」选择主成员安葬地点 */
+  chooseDeathPlace() {
+    this._pickTarget = { type: 'self' };
+    openLocationPicker({ category: '风景名胜,生活服务' });
+  },
+
+  /** 打开「地图选点」选择配偶安葬地点 */
+  chooseSpouseDeathPlace(e) {
+    this._pickTarget = { type: 'spouse', index: e.currentTarget.dataset.index };
+    openLocationPicker({ category: '风景名胜,生活服务' });
   },
 
   /** 根据 fatherId 加载父亲姓名用于回显 */

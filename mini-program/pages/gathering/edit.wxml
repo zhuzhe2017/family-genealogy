@@ -9,11 +9,13 @@
     <view class="field">
       <text class="label">聚会地点</text>
       <input class="input" value="{{form.location}}" data-key="location" bindinput="onInput" placeholder="如：朱氏宗祠" maxlength="50" />
+      <view class="map-pick" bindtap="chooseLocation">地图选点</view>
     </view>
     <view class="field">
       <text class="label">详细地址</text>
       <input class="input" value="{{form.addressDetail}}" data-key="addressDetail" bindinput="onInput" placeholder="如：XX省XX市XX区XX路 1 号" maxlength="100" />
     </view>
+    <view class="coord-tip" wx:if="{{form.latitude != null && form.longitude != null}}">已定位坐标：{{form.longitude}}, {{form.latitude}}</view>
     <view class="field">
       <text class="label">聚会介绍</text>
       <textarea class="textarea" value="{{form.description}}" data-key="description" bindinput="onInput" placeholder="聚会主题、注意事项等" maxlength="1000" />

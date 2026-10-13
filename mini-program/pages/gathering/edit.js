@@ -1,5 +1,6 @@
 const app = getApp();
 const { gathering } = require('../../utils/api');
+const { openLocationPicker, readPickedLocation } = require('../../utils/location');
 
 Page({
   data: {
@@ -10,6 +11,8 @@ Page({
       title: '',
       location: '',
       addressDetail: '',
+      latitude: null,
+      longitude: null,
       description: '',
       capacity: '',
       startDate: '',
@@ -35,6 +38,23 @@ Page({
     }
   },
 
+  /** 从「地图选点」插件返回后回填地点、详细地址与坐标 */
+  onShow() {
+    const picked = readPickedLocation();
+    if (!picked) return;
+    this.setData({
+      'form.location': picked.name || '',
+      'form.addressDetail': picked.address || '',
+      'form.latitude': picked.latitude != null ? picked.latitude : null,
+      'form.longitude': picked.longitude != null ? picked.longitude : null
+    });
+  },
+
+  /** 打开腾讯位置服务「地图选点」插件 */
+  chooseLocation() {
+    openLocationPicker({ category: '生活服务,风景名胜,小区' });
+  },
+
   loadDetail(id) {
     wx.showLoading({ title: '加载中' });
     gathering.getDetail(this.data.familyId, id)
@@ -45,6 +65,8 @@ Page({
             title: d.title || '',
             location: d.location || '',
             addressDetail: d.addressDetail || '',
+            latitude: d.latitude != null ? Number(d.latitude) : null,
+            longitude: d.longitude != null ? Number(d.longitude) : null,
             description: d.description || '',
             capacity: d.capacity ? String(d.capacity) : '',
             ...this.splitTime(d.startTime, 'start'),
@@ -152,6 +174,8 @@ Page({
       title: f.title.trim(),
       location: f.location.trim(),
       addressDetail: f.addressDetail.trim(),
+      latitude: f.latitude != null ? Number(f.latitude) : null,
+      longitude: f.longitude != null ? Number(f.longitude) : null,
       description: f.description.trim(),
       capacity: f.capacity ? Number(f.capacity) : 0,
       startTime: this.joinTime(f.startDate, f.startTime),

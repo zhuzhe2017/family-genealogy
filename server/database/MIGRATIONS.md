@@ -71,5 +71,6 @@
 | `fix-member-module.sql` | 会员（CRM）模块补全：member/member_level/points_rule/points_record/member_consume 表 + 种子 + 权限码 + 菜单（挂系统管理）+ super 授权 | INSERT IGNORE / NOT EXISTS / UPDATE，幂等 |
 | `fix-menu-unique-route-name.sql` | 清理 sys_menu.route_name 重复行 + 建立唯一索引 `uk_menu_route_name`（根治 INSERT IGNORE 防重失效问题） | 非重复执行无副作用 |
 | `fix-subscription-refund.sql` | 后台订单退款权限码 `system:subscription:refund` + super 授权（配合 P1-2 退款接口） | INSERT IGNORE，幂等 |
+| `add-gathering-location-coords.sql` | 聚会主表 `family_gathering` 新增 `latitude` / `longitude` 列（腾讯位置服务「地图选点」保存聚会地点坐标，供「路线规划」导航使用） | COLUMNS 判断 + PREPARE，幂等 |
 
-> 上述脚本对应的结构变更已同步进 `schema.sql`：`sys_menu` 唯一索引、`member.user_id` + `uk_member_user` 唯一索引、`system:subscription:refund` 权限码。
+> 上述脚本对应的结构变更已同步进 `schema.sql`：`sys_menu` 唯一索引、`member.user_id` + `uk_member_user` 唯一索引、`system:subscription:refund` 权限码、`family_gathering.latitude/longitude` 列。

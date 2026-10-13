@@ -96,6 +96,27 @@
   word-break: break-all;
 }
 
+/* 位置导航 */
+.nav-row {
+  margin-top: 16rpx;
+}
+
+.btn-nav {
+  width: 100%;
+  margin: 0;
+  font-size: 28rpx;
+  font-weight: 500;
+  line-height: 2.4;
+  border-radius: 44rpx;
+  background: #FBF3E8 !important;
+  color: #8B1A1A !important;
+  border: 1rpx solid #E8D5B5;
+}
+
+.btn-nav::after {
+  border: none;
+}
+
 .desc-text {
   font-size: 26rpx;
   color: #555;

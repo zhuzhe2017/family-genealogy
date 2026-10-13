@@ -20,6 +20,9 @@
       <text class="info-label">地址</text>
       <text class="info-value">{{detail.addressDetail}}</text>
     </view>
+    <view class="nav-row" wx:if="{{canNavigate}}">
+      <button class="btn-nav" bindtap="goNavigation">导航到聚会地点</button>
+    </view>
     <view class="info-row" wx:if="{{detail.signupDeadline}}">
       <text class="info-label">报名截止</text>
       <text class="info-value">{{detail.signupDeadline}}</text>

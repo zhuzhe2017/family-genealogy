@@ -334,8 +334,9 @@ export class GatheringService {
       const [result] = await queryRunner.query(
         `INSERT INTO \`family_gathering\`
          (\`family_id\`, \`title\`, \`description\`, \`cover_image\`, \`location\`, \`address_detail\`,
+          \`latitude\`, \`longitude\`,
           \`start_time\`, \`end_time\`, \`signup_deadline\`, \`agenda\`, \`capacity\`, \`status\`, \`organizer_user_id\`)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           familyId,
           title,
@@ -343,6 +344,8 @@ export class GatheringService {
           data.coverImage || '',
           data.location || '',
           data.addressDetail || '',
+          this.nullableCoord(data.latitude),
+          this.nullableCoord(data.longitude),
           this.nullableDate(data.startTime),
           this.nullableDate(data.endTime),
           this.nullableDate(data.signupDeadline),
@@ -371,6 +374,7 @@ export class GatheringService {
     await this.dataSource.query(
       `UPDATE \`family_gathering\`
        SET \`title\` = ?, \`description\` = ?, \`cover_image\` = ?, \`location\` = ?, \`address_detail\` = ?,
+           \`latitude\` = ?, \`longitude\` = ?,
            \`start_time\` = ?, \`end_time\` = ?, \`signup_deadline\` = ?, \`agenda\` = ?, \`capacity\` = ?
        WHERE \`id\` = ?`,
       [
@@ -379,6 +383,8 @@ export class GatheringService {
         data.coverImage ?? (gathering.cover_image || ''),
         data.location ?? (gathering.location || ''),
         data.addressDetail ?? (gathering.address_detail || ''),
+        data.latitude !== undefined ? this.nullableCoord(data.latitude) : gathering.latitude,
+        data.longitude !== undefined ? this.nullableCoord(data.longitude) : gathering.longitude,
         this.nullableDate(data.startTime),
         this.nullableDate(data.endTime),
         this.nullableDate(data.signupDeadline),
@@ -720,6 +726,13 @@ export class GatheringService {
     return isNaN(d.getTime()) ? null : v;
   }
 
+  /** 经纬度入库（undefined/null → null；非法数字 → null） */
+  private nullableCoord(v?: number | null): number | null {
+    if (v === undefined || v === null) return null;
+    const num = Number(v);
+    return Number.isFinite(num) ? num : null;
+  }
+
   private toListItem(r: GatheringRow & { signed_total?: number; checkin_total?: number; session_count?: number }) {
     return {
       id: r.id,
@@ -729,6 +742,8 @@ export class GatheringService {
       coverImage: r.cover_image || '',
       location: r.location || '',
       addressDetail: r.address_detail || '',
+      latitude: r.latitude != null ? Number(r.latitude) : null,
+      longitude: r.longitude != null ? Number(r.longitude) : null,
       startTime: r.start_time,
       endTime: r.end_time,
       signupDeadline: r.signup_deadline,

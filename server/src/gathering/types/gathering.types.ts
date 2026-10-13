@@ -13,6 +13,8 @@ export interface GatheringRow {
   cover_image: string;
   location: string;
   address_detail: string;
+  latitude: number | null;
+  longitude: number | null;
   start_time: Date | null;
   end_time: Date | null;
   signup_deadline: Date | null;
@@ -96,6 +98,8 @@ export interface GatheringUpsertData {
   coverImage?: string;
   location?: string;
   addressDetail?: string;
+  latitude?: number | null;
+  longitude?: number | null;
   startTime?: string;
   endTime?: string;
   signupDeadline?: string;

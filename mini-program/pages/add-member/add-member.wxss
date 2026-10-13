@@ -75,6 +75,28 @@
   box-sizing: border-box;
 }
 
+/* 安葬地点：输入框 + 地图选点按钮 */
+.loc-row {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+}
+
+.loc-input {
+  flex: 1;
+  width: auto;
+}
+
+.map-pick-btn {
+  flex-shrink: 0;
+  font-size: 24rpx;
+  color: #8B1A1A;
+  background: #FBF3E8;
+  border: 1rpx solid #E8D5B5;
+  border-radius: 24rpx;
+  padding: 18rpx 20rpx;
+}
+
 .form-tip {
   font-size: 22rpx;
   color: #999;

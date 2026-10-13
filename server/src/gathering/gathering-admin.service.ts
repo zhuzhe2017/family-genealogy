@@ -100,6 +100,8 @@ export class GatheringAdminService {
       coverImage: gathering.cover_image || '',
       location: gathering.location || '',
       addressDetail: gathering.address_detail || '',
+      latitude: gathering.latitude != null ? Number(gathering.latitude) : null,
+      longitude: gathering.longitude != null ? Number(gathering.longitude) : null,
       startTime: gathering.start_time,
       endTime: gathering.end_time,
       signupDeadline: gathering.signup_deadline,
@@ -132,8 +134,9 @@ export class GatheringAdminService {
     const [result] = await this.dataSource.query(
       `INSERT INTO \`family_gathering\`
        (\`family_id\`, \`title\`, \`description\`, \`cover_image\`, \`location\`, \`address_detail\`,
+        \`latitude\`, \`longitude\`,
         \`start_time\`, \`end_time\`, \`signup_deadline\`, \`agenda\`, \`capacity\`, \`status\`, \`organizer_user_id\`)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         familyId,
         title,
@@ -141,6 +144,8 @@ export class GatheringAdminService {
         data.coverImage || '',
         data.location || '',
         data.addressDetail || '',
+        this.nullableCoord(data.latitude),
+        this.nullableCoord(data.longitude),
         this.nullableDate(data.startTime),
         this.nullableDate(data.endTime),
         this.nullableDate(data.signupDeadline),
@@ -164,6 +169,7 @@ export class GatheringAdminService {
     await this.dataSource.query(
       `UPDATE \`family_gathering\`
        SET \`title\` = ?, \`description\` = ?, \`cover_image\` = ?, \`location\` = ?, \`address_detail\` = ?,
+           \`latitude\` = ?, \`longitude\` = ?,
            \`start_time\` = ?, \`end_time\` = ?, \`signup_deadline\` = ?, \`agenda\` = ?, \`capacity\` = ?
        WHERE \`id\` = ?`,
       [
@@ -172,6 +178,8 @@ export class GatheringAdminService {
         data.coverImage ?? (gathering.cover_image || ''),
         data.location ?? (gathering.location || ''),
         data.addressDetail ?? (gathering.address_detail || ''),
+        data.latitude !== undefined ? this.nullableCoord(data.latitude) : gathering.latitude,
+        data.longitude !== undefined ? this.nullableCoord(data.longitude) : gathering.longitude,
         this.nullableDate(data.startTime),
         this.nullableDate(data.endTime),
         this.nullableDate(data.signupDeadline),
@@ -451,5 +459,12 @@ export class GatheringAdminService {
     if (!v) return null;
     const d = new Date(v);
     return isNaN(d.getTime()) ? null : v;
+  }
+
+  /** 经纬度入库（undefined/null → null；非法数字 → null） */
+  private nullableCoord(v?: number | null): number | null {
+    if (v === undefined || v === null) return null;
+    const num = Number(v);
+    return Number.isFinite(num) ? num : null;
   }
 }

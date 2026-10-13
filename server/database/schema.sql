@@ -1178,6 +1178,8 @@ CREATE TABLE IF NOT EXISTS `family_gathering` (
   `cover_image`       VARCHAR(500)  NOT NULL DEFAULT '' COMMENT '封面图URL',
   `location`          VARCHAR(200)  NOT NULL DEFAULT '' COMMENT '聚会地点(简)',
   `address_detail`    VARCHAR(500)  NOT NULL DEFAULT '' COMMENT '详细地址',
+  `latitude`          DECIMAL(10, 7) DEFAULT NULL COMMENT '聚会地点纬度(地图选点)',
+  `longitude`         DECIMAL(10, 7) DEFAULT NULL COMMENT '聚会地点经度(地图选点)',
   `start_time`        DATETIME      DEFAULT NULL COMMENT '开始时间',
   `end_time`          DATETIME      DEFAULT NULL COMMENT '结束时间',
   `signup_deadline`   DATETIME      DEFAULT NULL COMMENT '报名截止时间(空=截止到开始前)',

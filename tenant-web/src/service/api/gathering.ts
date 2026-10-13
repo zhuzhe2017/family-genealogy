@@ -50,6 +50,8 @@ export interface AdminGatheringPayload {
   coverImage?: string;
   location?: string;
   addressDetail?: string;
+  latitude?: number | null;
+  longitude?: number | null;
   startTime?: string | null;
   endTime?: string | null;
   signupDeadline?: string | null;
@@ -87,6 +89,8 @@ export interface AdminGatheringDetail {
   coverImage: string;
   location: string;
   addressDetail: string;
+  latitude: number | null;
+  longitude: number | null;
   startTime: string | null;
   endTime: string | null;
   signupDeadline: string | null;

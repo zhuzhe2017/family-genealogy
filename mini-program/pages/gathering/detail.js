@@ -1,5 +1,6 @@
 const app = getApp();
 const { gathering } = require('../../utils/api');
+const { openRoutePlan } = require('../../utils/location');
 
 const STATUS_LABELS = { 0: '草稿', 1: '筹备中', 2: '进行中', 3: '已结束', 4: '已归档' };
 const DIET_LABELS = { normal: '无要求', vegetarian: '素食', halal: '清真', custom: '其他' };
@@ -10,6 +11,8 @@ Page({
     id: 0,
     detail: null,
     loading: true,
+    // 是否可导航（有聚会地点坐标）
+    canNavigate: false,
     // 组织者状态操作按钮
     statusAction: null,
     // 我的报名展示
@@ -39,6 +42,7 @@ Page({
         this.setData({
           detail,
           loading: false,
+          canNavigate: detail.latitude != null && detail.longitude != null,
           statusAction: this.nextAction(data.status),
           myReg: data.myRegistration ? Object.assign({}, data.myRegistration, {
             dietLabel: DIET_LABELS[data.myRegistration.dietType] || data.myRegistration.dietType
@@ -84,6 +88,18 @@ Page({
   fmtTime(t) {
     if (!t) return '';
     return String(t).replace('T', ' ').substring(0, 16);
+  },
+
+  // ============ 位置导航 ============
+  /** 打开腾讯位置服务「路线规划」插件导航到聚会地点 */
+  goNavigation() {
+    const d = this.data.detail;
+    if (!d || d.latitude == null || d.longitude == null) return;
+    openRoutePlan({
+      name: d.location || d.title || '',
+      latitude: Number(d.latitude),
+      longitude: Number(d.longitude)
+    });
   },
 
   // ============ 成员操作 ============
