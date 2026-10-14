@@ -1,0 +1,139 @@
+<wxs src="../../utils/filters.wxs" module="f" />
+<view class="nav-page">
+  <block wx:if="{{status === 'ready'}}">
+    <!-- 顶部工具条：状态图例 + 重新定位 -->
+    <view class="nav-toolbar">
+      <view class="legend">
+        <view class="legend-item">
+          <view class="legend-dot alive"></view>
+          <text class="legend-text">在世 {{aliveCount}}</text>
+        </view>
+        <view class="legend-item">
+          <view class="legend-dot deceased"></view>
+          <text class="legend-text">已故 {{deceasedCount}}</text>
+        </view>
+        <view class="legend-item">
+          <view class="legend-dot selected"></view>
+          <text class="legend-text">当前目标</text>
+        </view>
+      </view>
+      <view class="locate-btn {{locating ? 'disabled' : ''}}" bindtap="relocate">
+        <text class="locate-text">📍 定位</text>
+      </view>
+    </view>
+
+    <!-- 定位未开启提示 -->
+    <view class="locate-banner" wx:if="{{locationDenied}}">
+      <text class="locate-banner-text">定位未开启，无法规划从当前位置出发的路线</text>
+      <text class="locate-banner-btn" bindtap="handleLocationDenied">去开启</text>
+    </view>
+
+    <!-- 内置地图：展示全部带坐标的成员标记点 -->
+    <map
+      id="memberMap"
+      class="nav-map"
+      latitude="{{centerLatitude}}"
+      longitude="{{centerLongitude}}"
+      scale="{{scale}}"
+      markers="{{markers}}"
+      polyline="{{polyline}}"
+      include-points="{{includePoints}}"
+      show-location="{{true}}"
+      enable-zoom="{{true}}"
+      enable-scroll="{{true}}"
+      bindmarkertap="onMarkerTap"
+    ></map>
+
+    <!-- 底部指引面板 -->
+    <view class="nav-panel">
+      <block wx:if="{{selectedMember}}">
+        <view class="panel-head">
+          <view class="panel-avatar {{selectedMember.isAlive ? 'alive' : 'deceased'}}">
+            <text class="panel-avatar-text">{{f.firstChar(selectedMember.name)}}</text>
+          </view>
+          <view class="panel-info">
+            <text class="panel-name">{{selectedMember.name}}</text>
+            <text class="panel-sub">{{selectedMember.statusText}} · 第{{selectedMember.generation}}代{{selectedMember.generationName ? '「' + selectedMember.generationName + '」' : ''}}</text>
+            <text class="panel-place" wx:if="{{selectedMember.placeLabel}}">{{selectedMember.placeLabel}}</text>
+          </view>
+          <view class="panel-close" bindtap="clearRoute">
+            <text class="panel-close-icon">✕</text>
+          </view>
+        </view>
+
+        <!-- 规划中 -->
+        <view class="route-state" wx:if="{{routeLoading}}">
+          <text class="route-state-text">正在规划导航路线…</text>
+        </view>
+
+        <!-- 规划失败：多为定位不可用 -->
+        <view class="route-state" wx:elif="{{routeFailed}}">
+          <text class="route-state-text">{{locationDenied ? '定位未开启，无法确定导航起点' : '未能获取你的位置，规划失败'}}</text>
+          <view class="route-state-actions">
+            <text class="route-link" bindtap="retryRoute">重试</text>
+            <text class="route-link" bindtap="openLocationSetting">去设置</text>
+          </view>
+        </view>
+
+        <!-- 规划结果 -->
+        <block wx:elif="{{routeInfo}}">
+          <view class="route-summary">
+            <text class="route-distance">{{routeInfo.distanceText}}</text>
+            <text class="route-duration" wx:if="{{routeInfo.durationText}}">约 {{routeInfo.durationText}}</text>
+            <text class="route-badge" wx:if="{{routeFallback}}">直线参考</text>
+          </view>
+          <text class="route-tip" wx:if="{{routeFallback}}">路线服务暂不可用，当前显示直线距离，可点击下方按钮跳转地图App导航</text>
+          <scroll-view class="route-steps" scroll-y wx:if="{{routeSteps.length > 0}}">
+            <view class="route-step" wx:for="{{routeSteps}}" wx:key="index">
+              <text class="step-index">{{item.index}}</text>
+              <text class="step-text">{{item.instruction}}</text>
+              <text class="step-distance" wx:if="{{item.distance}}">{{item.distance}}</text>
+            </view>
+          </scroll-view>
+          <view class="panel-actions">
+            <view class="btn btn-primary" bindtap="openExternalMap">
+              <text class="btn-text">打开地图App导航</text>
+            </view>
+          </view>
+        </block>
+      </block>
+
+      <!-- 未选中成员：引导点击标记点 -->
+      <view class="panel-empty" wx:else>
+        <text class="panel-empty-title">点击地图标记点开始导航</text>
+        <text class="panel-empty-desc">共 {{availableCount}} 位成员已录入位置坐标，点击标记点即可规划从当前位置出发的路线</text>
+      </view>
+    </view>
+  </block>
+
+  <!-- 非正常态占位 -->
+  <view class="nav-state" wx:elif="{{status === 'loading'}}">
+    <text class="nav-state-text">地图加载中…</text>
+  </view>
+  <view class="nav-state" wx:elif="{{status === 'needLogin'}}">
+    <text class="nav-state-icon">📍</text>
+    <text class="nav-state-title">登录后查看成员位置</text>
+    <text class="nav-state-desc">登录并进入家族后，可在地图上查看成员位置并规划导航路线</text>
+    <view class="nav-state-btn" bindtap="doLogin">
+      <text class="nav-state-btn-text">立即登录</text>
+    </view>
+  </view>
+  <view class="nav-state" wx:elif="{{status === 'noFamily'}}">
+    <text class="nav-state-icon">🏠</text>
+    <text class="nav-state-title">请先选择家族</text>
+    <text class="nav-state-desc">选择家族后可查看该家族成员的位置分布并规划导航</text>
+  </view>
+  <view class="nav-state" wx:elif="{{status === 'failed'}}">
+    <text class="nav-state-icon">⚠️</text>
+    <text class="nav-state-title">位置数据加载失败</text>
+    <text class="nav-state-desc">请检查网络连接后重试</text>
+    <view class="nav-state-btn" bindtap="loadMembers">
+      <text class="nav-state-btn-text">重新加载</text>
+    </view>
+  </view>
+  <view class="nav-state" wx:else>
+    <text class="nav-state-icon">🗺️</text>
+    <text class="nav-state-title">暂无可导航的成员位置</text>
+    <text class="nav-state-desc">家族共 {{memberTotal}} 位成员，均未录入位置坐标，可在成员详情中补充安葬地点</text>
+  </view>
+</view>

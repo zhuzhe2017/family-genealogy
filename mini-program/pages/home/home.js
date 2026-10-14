@@ -18,7 +18,8 @@ Page({
       { id: 6, name: '祭祀祈福', icon: '🙏', bgColor: '#FBE9E7', url: '/pages/worship/worship' },
       { id: 7, name: '家族动态', icon: '💬', bgColor: '#E8EAF6', url: '/pages/dynamic/dynamic' },
       { id: 8, name: '应用中心', icon: '🧩', bgColor: '#E0F7FA', url: '/pages/app-center/app-center' },
-      { id: 9, name: '亲缘查询', icon: '🔍', bgColor: '#FFF8E1', url: '/pages/kinship/kinship' }
+      { id: 9, name: '亲缘查询', icon: '🔍', bgColor: '#FFF8E1', url: '/pages/kinship/kinship' },
+      { id: 10, name: '位置导航', icon: '📍', bgColor: '#F1F8E9', url: '/pages/member-map/member-map' }
     ],
     // 家族动态:真实数据 + 状态机
     recentDynamics: [],
