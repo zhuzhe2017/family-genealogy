@@ -1,4 +1,4 @@
-/* 位置导航页：地图 + 指引面板，整屏纵向布局 */
+/* 位置导航页：地图 + 侧边栏（宽屏左右分栏 / 窄屏上下分栏） */
 .nav-page {
   display: flex;
   flex-direction: column;
@@ -11,59 +11,88 @@
 .nav-toolbar {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 16rpx 28rpx;
+  padding: 16rpx 24rpx;
   background: #FFFFFF;
+  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.04);
+  position: relative;
+  z-index: 2;
 }
 
-.legend {
+.search-box {
+  flex: 1 1 auto;
+  min-width: 0;
   display: flex;
   align-items: center;
+  height: 68rpx;
+  padding: 0 20rpx;
+  border-radius: 34rpx;
+  background: #F5F5F5;
 }
 
-.legend-item {
+.search-icon {
+  font-size: 24rpx;
+  margin-right: 10rpx;
+}
+
+.search-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 68rpx;
+  font-size: 26rpx;
+  color: #333333;
+}
+
+.search-placeholder {
+  font-size: 26rpx;
+  color: #AAAAAA;
+}
+
+.search-clear {
+  width: 48rpx;
+  height: 48rpx;
   display: flex;
   align-items: center;
-  margin-right: 28rpx;
+  justify-content: center;
+  flex-shrink: 0;
 }
 
-.legend-dot {
-  width: 16rpx;
-  height: 16rpx;
-  border-radius: 50%;
-  margin-right: 8rpx;
+.search-clear-icon {
+  font-size: 24rpx;
+  color: #999999;
 }
 
-.legend-dot.alive {
-  background: #2E9E5B;
+.tool-btn {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  height: 68rpx;
+  padding: 0 20rpx;
+  margin-left: 16rpx;
+  border-radius: 34rpx;
+  background: #F5F5F5;
 }
 
-.legend-dot.deceased {
-  background: #7C8794;
-}
-
-.legend-dot.selected {
-  background: #F5A623;
-}
-
-.legend-text {
-  font-size: 22rpx;
-  color: #666666;
-}
-
-.locate-btn {
-  padding: 10rpx 28rpx;
-  border-radius: 32rpx;
+.tool-btn.active {
   background: #FBEFEF;
 }
 
-.locate-btn.disabled {
+.tool-btn.disabled {
   opacity: 0.5;
 }
 
-.locate-text {
+.tool-btn-icon {
   font-size: 24rpx;
+  margin-right: 6rpx;
+}
+
+.tool-btn-text {
+  font-size: 24rpx;
+  color: #555555;
+}
+
+.tool-btn.active .tool-btn-text {
   color: #8B1A1A;
+  font-weight: 600;
 }
 
 /* ---------- 定位未开启提示条 ---------- */
@@ -88,7 +117,24 @@
   margin-left: 20rpx;
 }
 
-/* ---------- 地图 ---------- */
+/* ---------- 主体：地图 + 侧边栏 ---------- */
+.nav-body {
+  flex: 1 1 auto;
+  display: flex;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* 宽屏（PC / 平板）：地图在左，侧边栏在右 */
+.nav-body.wide {
+  flex-direction: row;
+}
+
+/* 窄屏（手机）：地图在上，侧边栏在下 */
+.nav-body.narrow {
+  flex-direction: column;
+}
+
 .nav-map {
   flex: 1 1 auto;
   width: 100%;
@@ -96,16 +142,151 @@
   background: #E8EDF2;
 }
 
-/* ---------- 底部指引面板 ---------- */
-.nav-panel {
+.nav-body.wide .nav-map {
+  min-width: 0;
+}
+
+.nav-side {
   flex-shrink: 0;
-  padding: 24rpx 28rpx;
-  padding-bottom: calc(24rpx + env(safe-area-inset-bottom));
   background: #FFFFFF;
+}
+
+.nav-body.wide .nav-side {
+  width: 46%;
+  max-width: 900rpx;
+  min-width: 560rpx;
+  border-left: 1rpx solid #EFEFEF;
+}
+
+.nav-body.narrow .nav-side {
+  height: 46vh;
   border-radius: 24rpx 24rpx 0 0;
   box-shadow: 0 -6rpx 24rpx rgba(0, 0, 0, 0.06);
 }
 
+.side-scroll {
+  height: 100%;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.side-inner {
+  padding: 24rpx 28rpx;
+  padding-bottom: calc(24rpx + env(safe-area-inset-bottom));
+}
+
+/* ---------- 侧边栏标题 ---------- */
+.side-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding-bottom: 16rpx;
+  border-bottom: 1rpx solid #F2F2F2;
+}
+
+.side-title {
+  font-size: 28rpx;
+  color: #222222;
+  font-weight: 600;
+}
+
+.side-count {
+  font-size: 22rpx;
+  color: #999999;
+  margin-left: 16rpx;
+  flex-shrink: 0;
+}
+
+/* ---------- 成员列表 ---------- */
+.member-list {
+  padding-top: 8rpx;
+}
+
+.member-item {
+  display: flex;
+  align-items: center;
+  padding: 18rpx 12rpx;
+  border-radius: 16rpx;
+  border-bottom: 1rpx solid #F5F5F5;
+}
+
+.member-item.active {
+  background: #FDF4E8;
+}
+
+.member-avatar {
+  width: 64rpx;
+  height: 64rpx;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.member-avatar.alive {
+  background: #E8F5E9;
+}
+
+.member-avatar.deceased {
+  background: #ECEFF1;
+}
+
+.member-avatar-text {
+  font-size: 26rpx;
+  color: #333333;
+  font-weight: 600;
+}
+
+.member-main {
+  flex: 1;
+  margin-left: 18rpx;
+  min-width: 0;
+}
+
+.member-name {
+  display: block;
+  font-size: 28rpx;
+  color: #222222;
+  font-weight: 600;
+}
+
+.member-sub {
+  display: block;
+  font-size: 22rpx;
+  color: #888888;
+  margin-top: 4rpx;
+}
+
+.member-place {
+  display: block;
+  font-size: 22rpx;
+  color: #666666;
+  margin-top: 4rpx;
+  line-height: 1.4;
+}
+
+.list-empty {
+  padding: 60rpx 0;
+  text-align: center;
+}
+
+.list-empty-text {
+  font-size: 26rpx;
+  color: #999999;
+}
+
+.list-more {
+  padding: 24rpx 0;
+  text-align: center;
+}
+
+.list-more-text {
+  font-size: 24rpx;
+  color: #AAAAAA;
+}
+
+/* ---------- 导航指引：成员信息 ---------- */
 .panel-head {
   display: flex;
   align-items: flex-start;
@@ -237,7 +418,7 @@
 }
 
 .route-steps {
-  max-height: 220rpx;
+  max-height: 320rpx;
   margin-top: 16rpx;
 }
 
@@ -295,6 +476,99 @@
   font-size: 28rpx;
   color: #FFFFFF;
   font-weight: 600;
+}
+
+/* ---------- 无定位坐标提示 ---------- */
+.coord-tip {
+  margin-top: 20rpx;
+  padding: 18rpx 20rpx;
+  background: #FFF7E6;
+  border-radius: 12rpx;
+}
+
+.coord-tip-text {
+  font-size: 24rpx;
+  color: #B26A00;
+  line-height: 1.5;
+}
+
+/* 检索结果汇总提示（命中结果中存在无坐标成员） */
+.side-tip {
+  margin: 16rpx 0 4rpx;
+  padding: 14rpx 18rpx;
+  background: #FFF7E6;
+  border-radius: 12rpx;
+}
+
+.side-tip-text {
+  font-size: 22rpx;
+  color: #B26A00;
+  line-height: 1.5;
+}
+
+/* 无有效坐标按钮：置灰不可点 */
+.btn-disabled {
+  background: #E0E0E0;
+}
+
+.btn-disabled .btn-text {
+  color: #9E9E9E;
+}
+
+/* ---------- 查询中态 ---------- */
+.list-loading {
+  padding: 60rpx 0;
+  text-align: center;
+}
+
+.list-loading-text {
+  font-size: 26rpx;
+  color: #999999;
+}
+
+/* ---------- 成员名称行（名称 + 无坐标标签） ---------- */
+.member-title-row {
+  display: flex;
+  align-items: center;
+}
+
+.member-flag {
+  margin-left: 12rpx;
+  padding: 2rpx 10rpx;
+  font-size: 20rpx;
+  color: #B26A00;
+  background: #FFF7E6;
+  border-radius: 8rpx;
+  flex-shrink: 0;
+}
+
+/* ---------- 单命中成员详情 ---------- */
+.detail-grid {
+  margin-top: 24rpx;
+  border-top: 1rpx solid #F2F2F2;
+}
+
+.detail-row {
+  display: flex;
+  align-items: flex-start;
+  padding: 16rpx 0;
+  border-bottom: 1rpx solid #F7F7F7;
+}
+
+.detail-label {
+  width: 150rpx;
+  flex-shrink: 0;
+  font-size: 24rpx;
+  color: #999999;
+}
+
+.detail-value {
+  flex: 1;
+  min-width: 0;
+  font-size: 26rpx;
+  color: #333333;
+  line-height: 1.5;
+  word-break: break-all;
 }
 
 /* ---------- 未选中空态 ---------- */

@@ -94,7 +94,7 @@
   },
   "plugins": {
     "route-plan": {
-      "version": "2.2.0",
+      "version": "2.2.4",
       "provider": "wx50b5593e81dd937a"
     },
     "chooseLocation": {
