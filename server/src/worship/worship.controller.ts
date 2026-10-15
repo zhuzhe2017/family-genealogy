@@ -77,10 +77,18 @@ export class WorshipController {
     return this.worshipService.getMemorials(String(req.user.id), Number(familyId) || 0);
   }
 
-  /** 可创建纪念的已故成员列表 */
+  /** 可创建纪念的已故成员列表（keyword 选填：按姓名模糊匹配） */
   @Get('memorial-candidates')
-  getMemorialCandidates(@Req() req: AuthenticatedRequest, @Query('familyId') familyId?: string) {
-    return this.worshipService.getMemorialCandidates(String(req.user.id), Number(familyId) || 0);
+  getMemorialCandidates(
+    @Req() req: AuthenticatedRequest,
+    @Query('familyId') familyId?: string,
+    @Query('keyword') keyword?: string
+  ) {
+    return this.worshipService.getMemorialCandidates(
+      String(req.user.id),
+      Number(familyId) || 0,
+      String(keyword || '')
+    );
   }
 
   /** 纪念对象详情：纪念信息 + 家族最近祭祀记录（?familyId=） */

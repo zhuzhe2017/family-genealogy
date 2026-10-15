@@ -262,9 +262,12 @@ const worship = {
   getMemorialDetail: function (familyId, id) {
     return request({ url: '/user/worship/memorials/' + id, data: { familyId: familyId } });
   },
-  /** 可创建纪念的已故成员列表 */
-  getMemorialCandidates: function (familyId) {
-    return request({ url: '/user/worship/memorial-candidates', data: { familyId: familyId } });
+  /** 可创建纪念的已故成员列表（keyword 选填：按姓名子串模糊匹配） */
+  getMemorialCandidates: function (familyId, keyword) {
+    return request({
+      url: '/user/worship/memorial-candidates',
+      data: { familyId: familyId, keyword: keyword || '' }
+    });
   },
   /** 创建纪念对象（消耗 worship_pro 额度；data: { familyId, memberId, epitaph? }） */
   createMemorial: function (data) {

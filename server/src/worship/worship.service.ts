@@ -143,22 +143,40 @@ export class WorshipService {
     }));
   }
 
-  /** 可创建纪念的已故成员（家族内已故、未创建过纪念） */
-  async getMemorialCandidates(userId: string, familyId: number): Promise<WorshipMemorialCandidate[]> {
+  /**
+   * 可创建纪念的已故成员（家族内已故、未创建过纪念）
+   * keyword 选填：按姓名子串模糊匹配；为空时返回全部候选（保持原行为）
+   */
+  async getMemorialCandidates(
+    userId: string,
+    familyId: number,
+    keyword = ''
+  ): Promise<WorshipMemorialCandidate[]> {
     await this.assertFamilyMember(userId, familyId);
     const memberTable = getSafeMemberTableName(familyId);
+    const kw = String(keyword || '').trim().slice(0, 50);
+    // 命中关键字时按姓名模糊查询并限制返回条数，避免大姓（如「朱」）返回上千条拖慢响应
+    const params: QueryValues = [familyId];
+    let nameFilter = '';
+    let limitClause = '';
+    if (kw) {
+      const escaped = kw.replace(/[\\%_]/g, (c) => `\\${c}`);
+      nameFilter = ' AND fm.`name` LIKE ?';
+      params.push(`%${escaped}%`);
+      limitClause = ' LIMIT 100';
+    }
     const rows = await this.dataSource.query<
       { id: string; name: string; avatar_url: string; birth_date: string; death_date: string }[]
     >(
       `SELECT fm.\`id\`, fm.\`name\`, fm.\`avatar_url\`, fm.\`birth_date\`, fm.\`death_date\`
        FROM \`${memberTable}\` fm
-       WHERE fm.\`family_id\` = ? AND fm.\`status\` = 1 AND fm.\`is_alive\` = 0
+       WHERE fm.\`family_id\` = ? AND fm.\`status\` = 1 AND fm.\`is_alive\` = 0${nameFilter}
          AND NOT EXISTS (
            SELECT 1 FROM \`family_worship_memorial\` m
            WHERE m.\`family_id\` = fm.\`family_id\` AND m.\`member_id\` = fm.\`id\` AND m.\`status\` = 1
          )
-       ORDER BY fm.\`sort_order\` DESC, fm.\`id\` DESC`,
-      [familyId]
+       ORDER BY fm.\`sort_order\` DESC, fm.\`id\` DESC${limitClause}`,
+      params
     );
     return rows.map((r) => ({
       memberId: r.id,

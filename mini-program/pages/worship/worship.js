@@ -27,7 +27,9 @@ Page({
     memorialLoading: false,   // 纪念列表加载中
     showMemberPicker: false,  // 已故成员选择弹层
     memberPickerLoading: false,
-    memorialCandidates: [],   // 可创建纪念的已故成员
+    memberKeyword: '',         // 已故成员姓名查询关键字
+    memberSearched: false,     // 是否已执行过姓名查询（区分「未查询」与「无结果」）
+    memorialCandidates: [],   // 姓名查询命中的已故成员
     memorialSubmitting: false, // 创建纪念防抖
     reminders: [],        // 纪念日/生日提醒列表
     reminderLoading: false,   // 提醒加载中
@@ -305,7 +307,7 @@ Page({
 
   // ==================== 纪念对象（纪念堂） ====================
 
-  /** 打开已故成员选择弹层（创建纪念入口） */
+  /** 打开已故成员选择弹层（创建纪念入口）：仅打开查询框，输入姓名后再按需检索 */
   openMemberPicker() {
     const familyId = this.data.familyId;
     if (!getToken()) {
@@ -316,22 +318,72 @@ Page({
       wx.showToast({ title: '请先加入家族再创建纪念', icon: 'none', duration: 2500 });
       return;
     }
-    this.setData({ showMemberPicker: true, memberPickerLoading: true, memorialCandidates: [] });
-    worship.getMemorialCandidates(familyId)
-      .then((list) => {
-        this.setData({ memorialCandidates: list || [], memberPickerLoading: false });
-      })
-      .catch((err) => {
-        console.error('已故成员加载失败', err);
-        this.setData({ memberPickerLoading: false });
-        if (!err || !err.entitlement) {
-          wx.showToast({ title: (err && err.message) || '加载失败，请重试', icon: 'none' });
-        }
-      });
+    // 作废可能仍在途的旧检索结果，避免串写到新弹层
+    this.clearMemberSearchTimer();
+    this._memberSearchSeq = (this._memberSearchSeq || 0) + 1;
+    this.setData({
+      showMemberPicker: true,
+      memberPickerLoading: false,
+      memberKeyword: '',
+      memberSearched: false,
+      memorialCandidates: []
+    });
   },
 
   closeMemberPicker() {
-    this.setData({ showMemberPicker: false });
+    this.clearMemberSearchTimer();
+    this.setData({ showMemberPicker: false, memberPickerLoading: false });
+  },
+
+  /** 姓名输入：防抖后触发服务端模糊检索；清空则回到「未查询」态 */
+  onMemberKeywordInput(e) {
+    const raw = e.detail.value || '';
+    const keyword = raw.trim();
+    this.setData({ memberKeyword: raw });
+    this.clearMemberSearchTimer();
+    if (!keyword) {
+      this.setData({ memorialCandidates: [], memberPickerLoading: false, memberSearched: false });
+      return;
+    }
+    // 防抖 200ms：避免连续输入触发大量请求
+    this._memberSearchTimer = setTimeout(() => {
+      this.searchMemberCandidates(keyword);
+    }, 200);
+  },
+
+  /** 清理姓名检索防抖定时器 */
+  clearMemberSearchTimer() {
+    if (this._memberSearchTimer) {
+      clearTimeout(this._memberSearchTimer);
+      this._memberSearchTimer = null;
+    }
+  },
+
+  /** 服务端检索已故成员（姓名子串模糊匹配）；请求序号防止竞态结果覆盖 */
+  searchMemberCandidates(keyword) {
+    const familyId = this.data.familyId;
+    if (!familyId) return;
+    const seq = (this._memberSearchSeq || 0) + 1;
+    this._memberSearchSeq = seq;
+    this.setData({ memberPickerLoading: true });
+    worship.getMemorialCandidates(familyId, keyword)
+      .then((list) => {
+        if (this._memberSearchSeq !== seq) return; // 已有更新的请求，丢弃本次结果
+        this.setData({
+          memorialCandidates: list || [],
+          memberPickerLoading: false,
+          memberSearched: true
+        });
+      })
+      .catch((err) => {
+        if (this._memberSearchSeq !== seq) return;
+        console.error('已故成员检索失败', err);
+        // 失败回到未查询态并提示，避免误显示为「无匹配」
+        this.setData({ memorialCandidates: [], memberPickerLoading: false, memberSearched: false });
+        if (!err || !err.entitlement) {
+          wx.showToast({ title: (err && err.message) || '查询失败，请重试', icon: 'none' });
+        }
+      });
   },
 
   /** 阻止弹层面板点击冒泡到遮罩 */
