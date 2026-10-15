@@ -243,9 +243,16 @@ const worship = {
   getRecordPage: function (familyId, params) {
     return request({ url: '/user/worship/records', data: Object.assign({ familyId: familyId }, params || {}) });
   },
-  /** 纪念日/生日提醒（reminder 权益；days 选填，默认 30 天） */
+  /** 纪念日/生日提醒（reminder 权益；days 选填，默认 30 天）
+   *  skipEntitlementGuide: 该接口在页面 onShow 时主动拉取，
+   *  权益受限(4001/4004)由页面内联「去开通」占位展示，避免每次进页都弹全局引导弹窗
+   */
   getReminders: function (familyId, days) {
-    return request({ url: '/user/worship/reminders', data: { familyId: familyId, days: days || 30 } });
+    return request({
+      url: '/user/worship/reminders',
+      data: { familyId: familyId, days: days || 30 },
+      skipEntitlementGuide: true
+    });
   },
   /** 纪念对象列表（纪念堂） */
   getMemorials: function (familyId) {

@@ -70,8 +70,13 @@ Page({
       })
       .catch((err) => {
         console.error('纪念日提醒加载失败', err);
-        // 权益受限(4001/4004)由全局引导处理,此处仅展示开通引导位;其他错误静默
-        this.setData({ reminderLoading: false, reminderLocked: true, reminders: [] });
+        // 仅权益受限(4001/4004，err.entitlement)时展示开通引导位；
+        // 网络异常等其他错误静默处理，避免误显示为「会员专属」
+        this.setData({
+          reminderLoading: false,
+          reminderLocked: !!(err && err.entitlement),
+          reminders: []
+        });
       });
   },
 

@@ -172,7 +172,8 @@ export class WorshipService {
   /**
    * 创建纪念对象（纪念堂）：
    * - 目标成员须为家族内已故成员（is_alive=0）
-   * - 同一成员仅允许一个纪念（唯一约束）
+   * - 同一成员仅允许一个有效纪念（唯一约束，键为 family_id + member_id）
+   * - 若该成员存在历史软删除记录（status=0），复用该行重建，避免唯一键冲突
    * - 消耗 1 次 worship_pro 额度
    */
   async createMemorial(
@@ -204,24 +205,37 @@ export class WorshipService {
       throw new HttpException('未找到该已故成员，无法创建纪念', HttpStatus.NOT_FOUND);
     }
 
-    const [dup] = await this.dataSource.query<{ id: number }[]>(
-      'SELECT `id` FROM `family_worship_memorial` WHERE `family_id` = ? AND `member_id` = ? AND `status` = 1',
+    // 唯一键 uk_family_member (family_id, member_id) 不含 status，无法存在多行，
+    // 故一次查出该成员的全部记录：status=1 为有效纪念 → 冲突；status=0 为历史删除 → 复用重建
+    const [existing] = await this.dataSource.query<{ id: number; status: number }[]>(
+      'SELECT `id`, `status` FROM `family_worship_memorial` WHERE `family_id` = ? AND `member_id` = ? LIMIT 1',
       [familyId, memberId]
     );
-    if (dup) {
+    if (existing && Number(existing.status) === 1) {
       throw new HttpException('该成员已创建纪念', HttpStatus.CONFLICT);
     }
 
     // 创建纪念（纪念堂）为会员增值能力，消耗 worship_pro 额度
     await this.entitlementService.consumeQuota(familyId, Capability.WorshipPro, 1);
 
-    const result = await this.dataSource.query<{ insertId: number }>(
-      'INSERT INTO `family_worship_memorial` (`family_id`, `member_id`, `member_name`, `avatar_url`, `epitaph`, `creator_user_id`) VALUES (?, ?, ?, ?, ?, ?)',
-      [familyId, memberId, member.name, member.avatar_url || '', trimmedEpitaph, userId] as QueryValues
-    );
+    let memorialId: number;
+    if (existing) {
+      // 复用软删除行重建，并刷新创建时间使新纪念排在最前
+      await this.dataSource.query(
+        'UPDATE `family_worship_memorial` SET `member_name` = ?, `avatar_url` = ?, `epitaph` = ?, `creator_user_id` = ?, `status` = 1, `create_time` = CURRENT_TIMESTAMP WHERE `id` = ?',
+        [member.name, member.avatar_url || '', trimmedEpitaph, userId, existing.id] as QueryValues
+      );
+      memorialId = Number(existing.id);
+    } else {
+      const result = await this.dataSource.query<{ insertId: number }>(
+        'INSERT INTO `family_worship_memorial` (`family_id`, `member_id`, `member_name`, `avatar_url`, `epitaph`, `creator_user_id`) VALUES (?, ?, ?, ?, ?, ?)',
+        [familyId, memberId, member.name, member.avatar_url || '', trimmedEpitaph, userId] as QueryValues
+      );
+      memorialId = Number(result?.insertId) || 0;
+    }
 
     return {
-      id: Number(result?.insertId) || 0,
+      id: memorialId,
       memberId,
       memberName: member.name,
       avatarUrl: member.avatar_url || '',
