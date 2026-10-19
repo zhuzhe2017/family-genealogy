@@ -380,7 +380,7 @@ Page({
   contactUs() {
     wx.showModal({
       title: '联系客服',
-      content: '客服电话：400-888-8888\n工作时间：9:00-18:00',
+      content: '客服电话：0851-85814057\n工作时间：9:00-17:00',
       showCancel: false
     });
   },
