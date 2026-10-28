@@ -331,7 +331,7 @@ export class GatheringService {
     await queryRunner.connect();
     try {
       await queryRunner.startTransaction();
-      const [result] = await queryRunner.query(
+      const result = await queryRunner.query(
         `INSERT INTO \`family_gathering\`
          (\`family_id\`, \`title\`, \`description\`, \`cover_image\`, \`location\`, \`address_detail\`,
           \`latitude\`, \`longitude\`,
@@ -355,7 +355,7 @@ export class GatheringService {
           userId
         ]
       );
-      const gatheringId = Number(result.insertId);
+      const gatheringId = this.insertId(result);
       await this.replaceSessions(queryRunner, gatheringId, data.sessions);
       await queryRunner.commitTransaction();
       return { success: true, id: gatheringId };
@@ -561,13 +561,13 @@ export class GatheringService {
     if (!title) {
       throw new HttpException('请填写资料标题', HttpStatus.BAD_REQUEST);
     }
-    const [result] = await this.dataSource.query(
+    const result = await this.dataSource.query(
       `INSERT INTO \`family_gathering_archive\`
        (\`gathering_id\`, \`title\`, \`file_url\`, \`file_type\`, \`description\`, \`creator_user_id\`)
        VALUES (?, ?, ?, ?, ?, ?)`,
       [gatheringId, title, body.fileUrl || '', body.fileType || 'image', (body.description || '').slice(0, 500), userId]
     );
-    return { success: true, id: Number(result.insertId) };
+    return { success: true, id: this.insertId(result) };
   }
 
   /** 删除归档资料（组织者） */
@@ -697,11 +697,11 @@ export class GatheringService {
           [name, this.nullableDate(s.startTime), this.nullableDate(s.endTime), capacity, Number(s.id), gatheringId]
         );
       } else {
-        const [result] = await queryRunner.query(
+        const result = await queryRunner.query(
           'INSERT INTO `family_gathering_session` (`gathering_id`, `name`, `start_time`, `end_time`, `capacity`) VALUES (?, ?, ?, ?, ?)',
           [gatheringId, name, this.nullableDate(s.startTime), this.nullableDate(s.endTime), capacity]
         );
-        keptIds.push(Number(result.insertId));
+        keptIds.push(this.insertId(result));
       }
     }
     if (keptIds.length) {
@@ -718,6 +718,12 @@ export class GatheringService {
     if (agenda === undefined || agenda === null) return '';
     if (typeof agenda === 'string') return agenda;
     return JSON.stringify((agenda || []).filter((a) => a.item || a.time));
+  }
+
+  /** 提取 INSERT 自增ID（兼容 mysql2 返回数组或 ResultSetHeader 对象两种形态） */
+  private insertId(result: unknown): number {
+    const header = Array.isArray(result) ? result[0] : result;
+    return Number((header as { insertId?: number } | undefined)?.insertId || 0);
   }
 
   private nullableDate(v?: string): string | null {

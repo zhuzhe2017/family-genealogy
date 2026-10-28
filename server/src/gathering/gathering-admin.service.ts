@@ -131,7 +131,7 @@ export class GatheringAdminService {
     if (!title) {
       throw new HttpException('请填写聚会名称', HttpStatus.BAD_REQUEST);
     }
-    const [result] = await this.dataSource.query(
+    const result = await this.dataSource.query(
       `INSERT INTO \`family_gathering\`
        (\`family_id\`, \`title\`, \`description\`, \`cover_image\`, \`location\`, \`address_detail\`,
         \`latitude\`, \`longitude\`,
@@ -155,7 +155,7 @@ export class GatheringAdminService {
         operatorId || ''
       ]
     );
-    const gatheringId = Number(result.insertId);
+    const gatheringId = this.insertId(result);
     await this.replaceSessions(gatheringId, data.sessions);
     return { success: true, id: gatheringId };
   }
@@ -381,13 +381,13 @@ export class GatheringAdminService {
     if (!title) {
       throw new HttpException('请填写资料标题', HttpStatus.BAD_REQUEST);
     }
-    const [result] = await this.dataSource.query(
+    const result = await this.dataSource.query(
       `INSERT INTO \`family_gathering_archive\`
        (\`gathering_id\`, \`title\`, \`file_url\`, \`file_type\`, \`description\`, \`creator_user_id\`)
        VALUES (?, ?, ?, ?, ?, ?)`,
       [id, title, body.fileUrl || '', body.fileType || 'image', (body.description || '').slice(0, 500), operatorId || '']
     );
-    return { success: true, id: Number(result.insertId) };
+    return { success: true, id: this.insertId(result) };
   }
 
   /** 删除归档资料 */
@@ -423,11 +423,11 @@ export class GatheringAdminService {
           [name, this.nullableDate(s.startTime), this.nullableDate(s.endTime), capacity, Number(s.id), gatheringId]
         );
       } else {
-        const [result] = await this.dataSource.query(
+        const result = await this.dataSource.query(
           'INSERT INTO `family_gathering_session` (`gathering_id`, `name`, `start_time`, `end_time`, `capacity`) VALUES (?, ?, ?, ?, ?)',
           [gatheringId, name, this.nullableDate(s.startTime), this.nullableDate(s.endTime), capacity]
         );
-        keptIds.push(Number(result.insertId));
+        keptIds.push(this.insertId(result));
       }
     }
     if (keptIds.length) {
@@ -437,6 +437,12 @@ export class GatheringAdminService {
         [gatheringId, ...keptIds]
       );
     }
+  }
+
+  /** 提取 INSERT 自增ID（兼容 mysql2 返回数组或 ResultSetHeader 对象两种形态） */
+  private insertId(result: unknown): number {
+    const header = Array.isArray(result) ? result[0] : result;
+    return Number((header as { insertId?: number } | undefined)?.insertId || 0);
   }
 
   private serializeAgenda(agenda?: AgendaItem[] | string): string {
