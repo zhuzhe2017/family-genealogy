@@ -91,10 +91,21 @@ export class GatheringService {
     if (!id || id <= 0) {
       throw new HttpException('缺少聚会ID', HttpStatus.BAD_REQUEST);
     }
-    const gathering = await this.getGathering(id);
-    if (!gathering || Number(gathering.family_id) !== Number(familyId)) {
+    const [gatheringWithStats] = await this.dataSource.query<
+      (GatheringRow & { signed_total: number; checkin_total: number })[]
+    >(
+      `SELECT g.*,
+        (SELECT COUNT(*) FROM \`family_gathering_registration\` r
+          WHERE r.\`gathering_id\` = g.\`id\` AND r.\`status\` IN (1, 3)) AS \`signed_total\`,
+        (SELECT COUNT(*) FROM \`family_gathering_registration\` r
+          WHERE r.\`gathering_id\` = g.\`id\` AND r.\`status\` = 3) AS \`checkin_total\`
+       FROM \`family_gathering\` g WHERE g.\`id\` = ? LIMIT 1`,
+      [id]
+    );
+    if (!gatheringWithStats || Number(gatheringWithStats.family_id) !== Number(familyId)) {
       throw new HttpException('聚会不存在', HttpStatus.NOT_FOUND);
     }
+    const gathering: GatheringRow = gatheringWithStats;
     const [isMember, isOrganizer] = await Promise.all([
       this.isFamilyMember(userId, familyId),
       this.isFamilyOrganizerFor(userId, gathering)
