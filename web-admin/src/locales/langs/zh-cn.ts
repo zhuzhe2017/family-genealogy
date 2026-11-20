@@ -240,6 +240,7 @@ const local: App.I18n.Schema = {
     'mini-program_surname': '姓氏管理',
     'mini-program_subscription': '订阅管理',
     'mini-program_banner': '广告轮播',
+    'mini-program_cultural-doc': '文化典籍',
     'mini-program_family-invitation': '家族邀请',
     'mini-program_worship': '祭祀管理',
     system: '系统管理',

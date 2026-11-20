@@ -1,0 +1,99 @@
+<!--pages/relation-tool/relation-tool.wxml-->
+<view class="rel-wrap">
+
+  <!-- 选择区 -->
+  <view class="select-area">
+    <view class="member-slot" bindtap="onSelectA">
+      <view class="slot-label">成员 A</view>
+      <view wx:if="{{memberA}}" class="slot-value">
+        <text class="member-name">{{memberA.name}}</text>
+      </view>
+      <view wx:else class="slot-placeholder">点击选择</view>
+    </view>
+
+    <view class="swap-btn" bindtap="swapMembers">
+      <text class="swap-icon">⇄</text>
+    </view>
+
+    <view class="member-slot" bindtap="onSelectB">
+      <view class="slot-label">成员 B</view>
+      <view wx:if="{{memberB}}" class="slot-value">
+        <text class="member-name">{{memberB.name}}</text>
+      </view>
+      <view wx:else class="slot-placeholder">点击选择</view>
+    </view>
+  </view>
+
+  <!-- 推算按钮 -->
+  <view class="calc-area">
+    <view
+      class="calc-btn {{!memberA || !memberB || calculating ? 'disabled' : ''}}"
+      bindtap="calculate"
+    >
+      <text wx:if="{{calculating}}">🤖 AI 推算中...</text>
+      <text wx:else>🔗 推算亲属关系</text>
+    </view>
+    <view wx:if="{{memberA || memberB}}" class="reset-btn" bindtap="resetSelection">重置</view>
+  </view>
+
+  <!-- 结果展示 -->
+  <view wx:if="{{result}}" class="result-card">
+    <view class="result-head">
+      <text class="result-emoji">🧬</text>
+      <view class="result-title">推算结果</view>
+    </view>
+
+    <view class="relation-line">
+      <text class="rel-a">{{memberA.name}}</text>
+      <text class="rel-op">的</text>
+      <text class="rel-result">{{result.relation}}</text>
+      <text class="rel-op">是</text>
+      <text class="rel-b">{{memberB.name}}</text>
+    </view>
+
+    <view class="explanation-box">
+      <view class="exp-label">📝 AI 解释</view>
+      <view class="exp-text">{{result.explanation}}</view>
+    </view>
+  </view>
+
+  <!-- 空态提示 -->
+  <view wx:if="{{!result && !calculating}}" class="tips">
+    <view class="tip-item">① 分别点击 A、B 选择两位家族成员</view>
+    <view class="tip-item">② 点击「推算亲属关系」</view>
+    <view class="tip-item">③ AI 会自动追溯共同祖先并给出结论</view>
+  </view>
+
+  <!-- ============ 选人弹窗 ============ -->
+  <view wx:if="{{showPicker}}" class="picker-mask" bindtap="closePicker"></view>
+  <view class="picker-sheet {{showPicker ? 'show' : ''}}">
+    <view class="picker-head">
+      <text class="picker-title">选择成员 {{selectTarget}}</text>
+      <text class="picker-close" bindtap="closePicker">✕</text>
+    </view>
+    <view class="picker-search">
+      <text class="search-ic">🔍</text>
+      <input
+        class="search-in"
+        placeholder="搜索姓名"
+        value="{{pickerSearch}}"
+        bindinput="onPickerSearch"
+      />
+    </view>
+    <scroll-view scroll-y class="picker-list">
+      <block wx:for="{{filteredMembers}}" wx:key="id">
+        <view
+          class="picker-item"
+          data-id="{{item.id}}"
+          data-name="{{item.name}}"
+          bindtap="onPickMember"
+        >
+          <view class="p-name">{{item.name}}</view>
+          <view wx:if="{{item.generation}}" class="p-gen">第 {{item.generation}} 代</view>
+        </view>
+      </block>
+      <view wx:if="{{filteredMembers.length === 0}}" class="p-empty">无匹配成员</view>
+    </scroll-view>
+  </view>
+
+</view>

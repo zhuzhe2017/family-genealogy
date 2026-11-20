@@ -1,0 +1,6 @@
+{
+  "navigationBarTitleText": "字典",
+  "navigationBarBackgroundColor": "#8B1A1A",
+  "navigationBarTextStyle": "white",
+  "enablePullDownRefresh": true
+}

@@ -21,3 +21,4 @@ export * from './invitation';
 export * from './gathering';
 export * from './member';
 export * from './genealogy-book';
+export * from './cultural-document';

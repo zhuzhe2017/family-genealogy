@@ -1,0 +1,197 @@
+<!--pages/ocr-import/ocr-import.wxml-->
+<view class="ocr-wrap">
+
+  <!-- 步骤条 -->
+  <view class="step-bar">
+    <view class="step {{step >= 1 ? 'active' : ''}}">
+      <view class="step-ic">{{step > 1 ? '✓' : '1'}}</view>
+      <text>上传照片</text>
+    </view>
+    <view class="step-line {{step >= 2 ? 'done' : ''}}"></view>
+    <view class="step {{step >= 2 ? 'active' : ''}}">
+      <view class="step-ic">{{step > 2 ? '✓' : '2'}}</view>
+      <text>AI 解析</text>
+    </view>
+    <view class="step-line {{step >= 3 ? 'done' : ''}}"></view>
+    <view class="step {{step >= 3 ? 'active' : ''}}">
+      <view class="step-ic">{{step > 3 ? '✓' : '3'}}</view>
+      <text>确认导入</text>
+    </view>
+  </view>
+
+  <!-- ============================================================ -->
+  <!-- Step 1: 上传照片 -->
+  <!-- ============================================================ -->
+  <view wx:if="{{step === 1}}" class="step-content">
+    <view class="upload-area" bindtap="onChooseImage">
+      <image wx:if="{{imagePath}}" src="{{imagePath}}" class="preview-img" mode="widthFix" />
+      <block wx:else>
+        <text class="upload-emoji">📷</text>
+        <view class="upload-text">点击选择照片 / 拍照</view>
+        <view class="upload-hint">支持手写族谱扫描件、老照片</view>
+      </block>
+    </view>
+
+    <view class="tips-box">
+      <view class="tips-title">📌 拍摄建议</view>
+      <view class="tip-item">• 使用高分辨率图片（建议 ≥ 2000px）</view>
+      <view class="tip-item">• 光照均匀，避免阴影和反光</view>
+      <view class="tip-item">• 文字尽量大且清晰，朝向一致</view>
+      <view class="tip-item">• 单章/单页效果最佳，过长可分多次</view>
+    </view>
+
+    <view
+      wx:if="{{imagePath}}"
+      class="primary-btn {{recognizing ? 'disabled' : ''}}"
+      bindtap="startRecognize"
+    >
+      <text wx:if="{{recognizing}}">🤖 AI 识别中...</text>
+      <text wx:else>🔍 开始 OCR 识别</text>
+    </view>
+  </view>
+
+  <!-- ============================================================ -->
+  <!-- Step 2: OCR 结果 + AI 结构化 -->
+  <!-- ============================================================ -->
+  <view wx:if="{{step === 2}}" class="step-content">
+    <!-- OCR 原文 -->
+    <view wx:if="{{ocrResult}}" class="ocr-box">
+      <view class="box-head">
+        <text class="box-title">📄 OCR 识别结果</text>
+        <text class="box-provider">来源：{{ocrResult.provider}}</text>
+      </view>
+      <scroll-view scroll-y class="ocr-text">
+        <text>{{ocrResult.text}}</text>
+      </scroll-view>
+      <view class="box-hint">
+        💡 若识别效果不佳，可返回 Step 1 重拍；也可先看 AI 解析是否可用
+      </view>
+    </view>
+
+    <view class="primary-btn {{structuring ? 'disabled' : ''}}" bindtap="startStructure">
+      <text wx:if="{{structuring}}">🤖 AI 解析中...</text>
+      <text wx:else>✨ AI 自动提取家族成员</text>
+    </view>
+
+    <view class="secondary-btn" bindtap="resetFlow">🔄 重拍</view>
+  </view>
+
+  <!-- ============================================================ -->
+  <!-- Step 3: 编辑成员 + 预览 + 导入 -->
+  <!-- ============================================================ -->
+  <view wx:if="{{step === 3}}" class="step-content">
+
+    <!-- 成员表格（可编辑） -->
+    <view class="members-box">
+      <view class="box-head">
+        <text class="box-title">👥 成员列表（{{members.length}} 人）</text>
+        <text class="add-btn" bindtap="onAddMember">＋ 添加</text>
+      </view>
+
+      <scroll-view scroll-y class="members-scroll">
+        <block wx:for="{{members}}" wx:key="index">
+          <view class="member-row">
+            <view class="row-index">#{{index + 1}}</view>
+            <view class="row-fields">
+              <input
+                class="field-input name"
+                placeholder="姓名"
+                value="{{item.name}}"
+                data-idx="{{index}}" data-field="name"
+                bindinput="onEditMemberField"
+              />
+              <input
+                class="field-input gen"
+                type="number"
+                placeholder="世代"
+                value="{{item.generation}}"
+                data-idx="{{index}}" data-field="generation"
+                bindinput="onEditMemberField"
+              />
+              <input
+                class="field-input genname"
+                placeholder="字辈"
+                value="{{item.generationName}}"
+                data-idx="{{index}}" data-field="generationName"
+                bindinput="onEditMemberField"
+              />
+              <input
+                class="field-input father"
+                placeholder="父亲"
+                value="{{item.fatherName}}"
+                data-idx="{{index}}" data-field="fatherName"
+                bindinput="onEditMemberField"
+              />
+            </view>
+            <view class="row-del" data-idx="{{index}}" bindtap="onDeleteMember">✕</view>
+          </view>
+        </block>
+      </scroll-view>
+    </view>
+
+    <!-- 预览/结果区 -->
+    <block wx:if="{{summary}}">
+      <view class="summary-card">
+        <view class="sum-title">📊 导入预览</view>
+        <view class="sum-row">
+          <view class="sum-item">
+            <view class="sum-num">{{summary.total}}</view>
+            <view class="sum-label">总计</view>
+          </view>
+          <view class="sum-item good">
+            <view class="sum-num">{{summary.willCreate}}</view>
+            <view class="sum-label">将新增</view>
+          </view>
+          <view class="sum-item warn">
+            <view class="sum-num">{{summary.duplicates}}</view>
+            <view class="sum-label">疑似重复</view>
+          </view>
+          <view class="sum-item bad">
+            <view class="sum-num">{{summary.warnings}}</view>
+            <view class="sum-label">需注意</view>
+          </view>
+        </view>
+      </view>
+
+      <!-- 重复/警告列表 -->
+      <view wx:if="{{previewList.length > 0}}" class="preview-list">
+        <block wx:for="{{previewList}}" wx:key="index">
+          <view wx:if="{{item.duplicate || item.warnings.length > 0}}" class="preview-item {{item.duplicate ? 'dup' : ''}}">
+            <view class="p-head">
+              <text class="p-name">{{item.name || '（未命名）'}}</text>
+              <text wx:if="{{item.duplicate}}" class="p-badge dup">重复</text>
+            </view>
+            <view wx:if="{{item.warnings.length > 0}}" class="p-warnings">
+              <text wx:for="{{item.warnings}}" wx:for-item="w" wx:key="*this" class="warning-chip">⚠ {{w}}</text>
+            </view>
+          </view>
+        </block>
+      </view>
+
+      <!-- 导入结果 -->
+      <view wx:if="{{importResult}}" class="result-card">
+        <view class="res-title">🎉 导入完成</view>
+        <view class="res-row success">✅ 成功导入：{{importResult.success}} 人</view>
+        <view wx:if="{{importResult.skipped > 0}}" class="res-row warn">⏭ 跳过：{{importResult.skipped}} 人</view>
+        <view wx:if="{{importResult.failed > 0}}" class="res-row bad">❌ 失败：{{importResult.failed}} 人</view>
+        <view wx:if="{{importResult.errors.length > 0}}" class="res-errors">
+          <view wx:for="{{importResult.errors}}" wx:key="name" class="res-err-item">{{item.name}}：{{item.error}}</view>
+        </view>
+      </view>
+    </block>
+
+    <!-- 操作按钮 -->
+    <view wx:if="{{!summary}}" class="primary-btn {{previewLoading ? 'disabled' : ''}}" bindtap="startPreview">
+      <text wx:if="{{previewLoading}}">🔍 预览中...</text>
+      <text wx:else>📋 预览去重校验</text>
+    </view>
+
+    <view wx:if="{{summary && !importResult}}" class="primary-btn {{importing ? 'disabled' : ''}}" bindtap="startConfirmImport">
+      <text wx:if="{{importing}}">📦 导入中...</text>
+      <text wx:else>📥 确认导入 {{summary.willCreate}} 位成员</text>
+    </view>
+
+    <view class="secondary-btn" bindtap="resetFlow">🔄 重新开始</view>
+  </view>
+
+</view>

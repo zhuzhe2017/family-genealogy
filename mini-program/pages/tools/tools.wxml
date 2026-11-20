@@ -1,0 +1,39 @@
+<!--pages/tools/tools.wxml-->
+<view class="tools-wrap">
+
+  <!-- 搜索框（快捷搜索所有字典 + 古籍） -->
+  <view class="search-bar" bindtap="onQuickSearch">
+    <text class="search-icon">🔍</text>
+    <text class="search-placeholder">搜索字辈 / 堂号 / 古籍...</text>
+  </view>
+
+  <!-- 工具卡片网格 -->
+  <view class="grid">
+    <block wx:for="{{tools}}" wx:key="key">
+      <view
+        class="tool-card"
+        style="--card-color: {{item.color}}"
+        data-key="{{item.key}}"
+        bindtap="onToolTap"
+      >
+        <view class="card-icon">
+          <text class="icon-emoji">{{item.emoji}}</text>
+        </view>
+        <view class="card-body">
+          <view class="card-label">{{item.label}}</view>
+          <view wx:if="{{item.category}}" class="card-stat">
+            共 {{stats[item.category] || 0}} 条
+          </view>
+          <view wx:else class="card-hint">点击进入</view>
+        </view>
+        <view class="card-arrow">›</view>
+      </view>
+    </block>
+  </view>
+
+  <!-- 底部提示 -->
+  <view class="footer-tip">
+    <text>📖 内容来源于公共版权古籍 + 家族谱牒整理</text>
+  </view>
+
+</view>

@@ -50,7 +50,16 @@
     "pages/app-center/app-center",
     "pages/webview/webview",
     "pages/kinship/kinship",
-    "pages/member-map/member-map"
+    "pages/member-map/member-map",
+    "pages/cultural-index/cultural-index",
+    "pages/reader/reader",
+    "pages/ai-chat/ai-chat",
+    "pages/audio-player/audio-player",
+    "pages/tools/tools",
+    "pages/dict-list/dict-list",
+    "pages/relation-tool/relation-tool",
+    "pages/ocr-import/ocr-import",
+    "pages/migration-map/migration-map"
   ],
   "entryPagePath": "pages/index/index",
   "window": {

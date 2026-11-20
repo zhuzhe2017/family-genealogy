@@ -491,4 +491,298 @@ const kinship = {
   }
 };
 
-module.exports = { auth, family, familyMember, content, category, subscription, member, backup, worship, invitation, banner, plugin, gathering, fund, kinship };
+/**
+ * 文化典籍接口（识典古籍对标）
+ * type 取值：genealogy=家族谱 / ancient=公共古籍 / handwritten=手写稿
+ */
+const culturalDoc = {
+  /** 公共古籍分页列表（公开端点，无需登录） */
+  getPublicList: function (params) {
+    return request({ url: '/cultural-doc/public/list', data: params || {} });
+  },
+  /** 公共古籍详情 */
+  getPublicById: function (id) {
+    return request({ url: '/cultural-doc/public/' + id });
+  },
+  /** 公共古籍章节树 */
+  getPublicChapters: function (id) {
+    return request({ url: '/cultural-doc/public/' + id + '/chapters' });
+  },
+  /** 公共古籍章节正文（含 translated 译文） */
+  getPublicChapterContent: function (chapterId) {
+    return request({ url: '/cultural-doc/public/chapter/' + chapterId });
+  },
+  /** 公共古籍原页图片列表 */
+  getPublicPages: function (id) {
+    return request({ url: '/cultural-doc/public/' + id + '/pages' });
+  },
+
+  /** 家族私有文档分页列表（需登录 + 家族归属） */
+  getFamilyList: function (familyId, params) {
+    return request({ url: '/cultural-doc/' + familyId + '/list', data: params || {} });
+  },
+  /** 家族文档详情 */
+  getFamilyById: function (familyId, id) {
+    return request({ url: '/cultural-doc/' + familyId + '/' + id });
+  },
+  /** 家族文档章节树 */
+  getFamilyChapters: function (familyId, id) {
+    return request({ url: '/cultural-doc/' + familyId + '/' + id + '/chapters' });
+  },
+  /** 家族文档原页图片列表 */
+  getFamilyPages: function (familyId, id) {
+    return request({ url: '/cultural-doc/' + familyId + '/' + id + '/pages' });
+  }
+};
+
+/**
+ * AI 助手接口（识典古籍对标 · 阶段 2）
+ * 所有端点都需要 JWT 登录态，部分需要会员权益额度
+ */
+const aiAssistant = {
+  /** ========== 会话管理 ========== */
+
+  /** 创建新会话，返回 sessionId */
+  createSession: function (familyId, data) {
+    return request({
+      url: '/ai/' + familyId + '/session',
+      method: 'POST',
+      data: data || {}
+    });
+  },
+  /** 获取当前用户的会话列表（按最近消息时间倒序） */
+  getSessionList: function (familyId) {
+    return request({ url: '/ai/' + familyId + '/session/list' });
+  },
+  /** 获取某会话的完整消息历史 */
+  getSessionHistory: function (familyId, sessionId) {
+    return request({ url: '/ai/' + familyId + '/session/' + sessionId + '/messages' });
+  },
+  /** 删除会话（级联删除消息记录） */
+  deleteSession: function (familyId, sessionId) {
+    return request({
+      url: '/ai/' + familyId + '/session/' + sessionId,
+      method: 'DELETE'
+    });
+  },
+
+  /** ========== AI 核心能力 ========== */
+
+  /**
+   * 发送消息，获取 AI 回复
+   * 需要会员权益 AiChat（额度型：免费 10 次/天，家族版 200 次/天）
+   * @param {number} familyId
+   * @param {object} data { sessionId, question, historyRounds? }
+   */
+  chat: function (familyId, data) {
+    return request({
+      url: '/ai/' + familyId + '/chat',
+      method: 'POST',
+      data: data
+    });
+  },
+  /**
+   * AI 摘要：对长文本生成 300 字左右摘要
+   * 需要会员权益 AiSummary（额度型）
+   * @param {number} familyId
+   * @param {object} data { text, maxWords?, documentId? }
+   */
+  summarize: function (familyId, data) {
+    return request({
+      url: '/ai/' + familyId + '/summarize',
+      method: 'POST',
+      data: data
+    });
+  },
+  /**
+   * 古文断句注释：自动对古文标点断句 + 生僻字注释
+   * 需要会员权益 Annotate（额度型）
+   * @param {number} familyId
+   * @param {object} data { text }
+   */
+  annotate: function (familyId, data) {
+    return request({
+      url: '/ai/' + familyId + '/annotate',
+      method: 'POST',
+      data: data
+    });
+  },
+  /**
+   * 实体提取：从文本中识别人名/地名/年号等
+   * 基础能力，登录即可使用
+   * @param {number} familyId
+   * @param {object} data { text }
+   */
+  extractEntities: function (familyId, data) {
+    return request({
+      url: '/ai/' + familyId + '/extract',
+      method: 'POST',
+      data: data
+    });
+  },
+  /**
+   * 亲属关系推理：自动计算家族中两位成员的关系
+   * 登录即可使用
+   * @param {number} familyId
+   * @param {object} data { memberIdA, memberIdB }
+   */
+  calcRelation: function (familyId, data) {
+    return request({
+      url: '/ai/' + familyId + '/relation',
+      method: 'POST',
+      data: data
+    });
+  }
+};
+
+/**
+ * TTS 听书接口（识典古籍对标 · 阶段 4）
+ * 所有端点都需要 JWT 登录态 + TtsListen 会员权益
+ */
+const tts = {
+  /** 获取可用音色列表（公开） */
+  getVoices: function () {
+    return request({ url: '/tts/voices' });
+  },
+  /**
+   * 通用文本合成音频
+   * @param {number} familyId
+   * @param {object} data { text, voice? }
+   */
+  synthesize: function (familyId, data) {
+    return request({
+      url: '/tts/' + familyId + '/synthesize',
+      method: 'POST',
+      data: data
+    });
+  },
+  /**
+   * 按章节正文合成音频（自动从数据库取 content/translated）
+   * @param {number} familyId
+   * @param {number} chapterId
+   * @param {object} data { voice?, field? } field='content'|'translated'
+   */
+  synthesizeChapter: function (familyId, chapterId, data) {
+    return request({
+      url: '/tts/' + familyId + '/chapter/' + chapterId,
+      method: 'POST',
+      data: data || {}
+    });
+  },
+  /** 查询章节缓存音频（不触发合成，未命中返回 null） */
+  getChapterAudio: function (familyId, chapterId) {
+    return request({ url: '/tts/' + familyId + '/chapter/' + chapterId });
+  }
+};
+
+/**
+ * 文化字典接口（识典古籍对标 · 阶段 1.6 补齐后端）
+ * 全部公开端点，无需登录
+ * - zibei      字辈
+ * - tanghao    堂号
+ * - terminology 家谱术语
+ * - suyuan     姓氏溯源
+ */
+const culturalDict = {
+  /** 按分类+关键词+姓氏查询，分页 */
+  getList: function (params) {
+    return request({ url: '/cultural-dict/list', data: params || {} });
+  },
+  /** 各分类条数统计（工具箱首页展示） */
+  getStats: function () {
+    return request({ url: '/cultural-dict/stats' });
+  },
+  /** 便捷：按姓氏查堂号 */
+  getTanghaoBySurname: function (surname) {
+    return request({ url: '/cultural-dict/list', data: { category: 'tanghao', surname: surname } });
+  },
+  /** 便捷：按分类 + 关键词（搜索页） */
+  search: function (keyword) {
+    return request({ url: '/cultural-dict/list', data: { keyword: keyword } });
+  }
+};
+
+/**
+ * OCR 手写族谱录入接口（识典古籍对标 · 阶段 5）
+ * 需 JWT + OcrImport 会员权益（额度型）
+ * 四步流程：recognize → structure → preview → confirm
+ */
+const ocr = {
+  /**
+   * 第一步：上传图片（data URL 或纯 base64）→ OCR 识别
+   * 返回统一协议 { text, lines, provider, errcode, errmsg }
+   * @param {number} familyId
+   * @param {object} data { imageDataUrl? | imageBase64? }
+   */
+  recognize: function (familyId, data) {
+    return request({
+      url: '/ocr/' + familyId + '/recognize',
+      method: 'POST',
+      data: data
+    });
+  },
+  /**
+   * 第二步：OCR 文本 → AI 结构化（家族成员数组）
+   * @param {number} familyId
+   * @param {object} data { text, allowPartial? }
+   */
+  structure: function (familyId, data) {
+    return request({
+      url: '/ocr/' + familyId + '/structure',
+      method: 'POST',
+      data: data
+    });
+  },
+  /**
+   * 第三步：预览去重校验（前端校对后调用）
+   * @param {number} familyId
+   * @param {object} data { members }
+   */
+  preview: function (familyId, data) {
+    return request({
+      url: '/ocr/' + familyId + '/preview',
+      method: 'POST',
+      data: data
+    });
+  },
+  /**
+   * 第四步：确认导入（写入 family_members_{familyId}）
+   * @param {number} familyId
+   * @param {object} data { members }
+   */
+  confirm: function (familyId, data) {
+    return request({
+      url: '/ocr/' + familyId + '/confirm',
+      method: 'POST',
+      data: data
+    });
+  }
+};
+
+/**
+ * 时空地图接口（识典古籍对标 · 阶段 6）
+ * - generations  按世代分组地理分布（核心渲染数据）
+ * - migration    家族迁徙路线
+ * - history      同期历史事件（公开）
+ * - timeline     家族事件 + 历史事件叠加
+ */
+const timelineMap = {
+  /** 按世代分组的地理分布 */
+  getGenerations: function (familyId, params) {
+    return request({ url: '/timeline-map/' + familyId + '/generations', data: params || {} });
+  },
+  /** 家族迁徙路线 */
+  getMigration: function (familyId) {
+    return request({ url: '/timeline-map/' + familyId + '/migration' });
+  },
+  /** 同期历史事件（公开，无需登录） */
+  getHistory: function (params) {
+    return request({ url: '/timeline-map/history', data: params || {} });
+  },
+  /** 家族事件 + 历史事件叠加 */
+  getCombinedTimeline: function (familyId) {
+    return request({ url: '/timeline-map/' + familyId + '/timeline' });
+  }
+};
+
+module.exports = { auth, family, familyMember, content, category, subscription, member, backup, worship, invitation, banner, plugin, gathering, fund, kinship, culturalDoc, aiAssistant, tts, culturalDict, ocr, timelineMap };

@@ -1,0 +1,120 @@
+<!--pages/ai-chat/ai-chat.wxml-->
+<view class="chat-wrap">
+
+  <!-- 消息区 -->
+  <scroll-view
+    class="msg-scroll"
+    scroll-y
+    scroll-into-view="{{scrollIntoView}}"
+    scroll-with-animation
+  >
+    <view class="msg-list">
+
+      <block wx:for="{{messages}}" wx:key="id" wx:for-item="msg">
+        <view
+          id="msg_{{msg.id}}"
+          class="msg-item {{msg.role === 'user' ? 'user' : 'ai'}}"
+        >
+          <!-- 头像 -->
+          <view class="avatar {{msg.role === 'user' ? 'user-avatar' : 'ai-avatar'}}">
+            <text class="avatar-icon">{{msg.role === 'user' ? '👤' : '🤖'}}</text>
+          </view>
+
+          <!-- 气泡 -->
+          <view class="bubble-wrap">
+            <view wx:if="{{msg.isLoading}}" class="bubble ai-bubble loading">
+              <view class="typing-dots">
+                <view class="dot"></view>
+                <view class="dot"></view>
+                <view class="dot"></view>
+              </view>
+            </view>
+            <view wx:else class="bubble {{msg.role === 'user' ? 'user-bubble' : 'ai-bubble'}}">
+              <view class="bubble-text">{{msg.content}}</view>
+            </view>
+          </view>
+        </view>
+      </block>
+
+    </view>
+  </scroll-view>
+
+  <!-- 快捷短语 -->
+  <view wx:if="{{!sending && messages.length <= 1}}" class="quick-prompts">
+    <scroll-view scroll-x class="prompts-scroll">
+      <view
+        wx:for="{{quickPrompts}}"
+        wx:key="label"
+        class="prompt-chip"
+        data-q="{{item.q}}"
+        bindtap="onQuickPrompt"
+      >
+        <text class="prompt-emoji">{{item.emoji}}</text>
+        <text class="prompt-label">{{item.label}}</text>
+      </view>
+    </scroll-view>
+  </view>
+
+  <!-- 输入框 -->
+  <view class="input-bar">
+    <input
+      class="input-field"
+      v-model="inputText"
+      placeholder="输入问题...（回车发送）"
+      confirm-type="send"
+      value="{{inputText}}"
+      bindinput="onInput"
+      bindconfirm="sendMessage"
+      disabled="{{sending}}"
+    />
+    <view
+      class="send-btn {{sending ? 'disabled' : ''}}"
+      bindtap="sendMessage"
+    >
+      <text class="send-icon">{{sending ? '⏳' : '➤'}}</text>
+    </view>
+  </view>
+
+  <!-- ============ 会话抽屉 ============ -->
+  <view
+    wx:if="{{showDrawer}}"
+    class="drawer-mask"
+    bindtap="toggleDrawer"
+  ></view>
+  <view class="session-drawer {{showDrawer ? 'show' : ''}}">
+    <view class="drawer-header">
+      <text class="drawer-title">历史会话</text>
+      <view class="new-session-btn" bindtap="onNewSession">
+        <text class="plus-icon">＋</text>
+        <text>新对话</text>
+      </view>
+    </view>
+
+    <scroll-view scroll-y class="drawer-scroll">
+      <view wx:if="{{sessionsLoading}}" class="drawer-empty">加载中...</view>
+      <view wx:elif="{{sessionList.length === 0}}" class="drawer-empty">暂无历史会话</view>
+
+      <block wx:for="{{sessionList}}" wx:key="id">
+        <view
+          class="session-item {{item.isCurrent ? 'current' : ''}}"
+          data-id="{{item.id}}"
+          bindtap="onSelectSession"
+        >
+          <view class="session-info">
+            <view class="session-title">
+              {{item.title || '（未命名会话）'}}
+            </view>
+            <view class="session-meta">
+              <text class="meta-tag type-{{item.context_type}}">{{item.contextLabel}}</text>
+              <text class="meta-count">{{item.message_count}} 条消息</text>
+            </view>
+          </view>
+          <view class="session-delete" catchtap="onDeleteSession" data-id="{{item.id}}">
+            ✕
+          </view>
+        </view>
+      </block>
+    </scroll-view>
+  </view>
+
+</view>

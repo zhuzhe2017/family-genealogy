@@ -1,0 +1,87 @@
+/* pages/tools/tools.wxss */
+page { background: #f4f1ec; height: 100%; }
+
+.tools-wrap {
+  min-height: 100vh;
+  padding: 24rpx 28rpx 80rpx;
+}
+
+/* 搜索 */
+.search-bar {
+  display: flex;
+  align-items: center;
+  background: #fff;
+  border-radius: 40rpx;
+  padding: 20rpx 32rpx;
+  gap: 16rpx;
+  box-shadow: 0 2rpx 12rpx rgba(0,0,0,0.05);
+  margin-bottom: 32rpx;
+}
+.search-icon { font-size: 30rpx; }
+.search-placeholder {
+  color: #aaa;
+  font-size: 28rpx;
+}
+
+/* 网格 */
+.grid {
+  display: flex;
+  flex-direction: column;
+  gap: 20rpx;
+}
+
+.tool-card {
+  --card-color: #8B1A1A;
+  background: #fff;
+  border-radius: 16rpx;
+  padding: 28rpx 28rpx;
+  display: flex;
+  align-items: center;
+  gap: 24rpx;
+  box-shadow: 0 2rpx 12rpx rgba(0,0,0,0.04);
+  border-left: 8rpx solid var(--card-color);
+}
+.tool-card:active { opacity: 0.85; }
+
+.card-icon {
+  width: 96rpx;
+  height: 96rpx;
+  border-radius: 16rpx;
+  background: color-mix(in srgb, var(--card-color) 15%, white);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.icon-emoji { font-size: 52rpx; }
+
+.card-body { flex: 1; }
+.card-label {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: #2c1810;
+}
+.card-stat {
+  font-size: 24rpx;
+  color: var(--card-color);
+  margin-top: 8rpx;
+}
+.card-hint {
+  font-size: 24rpx;
+  color: #aaa;
+  margin-top: 8rpx;
+}
+
+.card-arrow {
+  font-size: 48rpx;
+  color: #ccc;
+  font-weight: 300;
+}
+
+.footer-tip {
+  text-align: center;
+  font-size: 24rpx;
+  color: #bbb;
+  margin-top: 60rpx;
+  padding: 0 40rpx;
+}

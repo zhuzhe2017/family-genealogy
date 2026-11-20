@@ -1,0 +1,221 @@
+/* pages/relation-tool/relation-tool.wxss */
+page { background: #f4f1ec; min-height: 100%; }
+.rel-wrap {
+  min-height: 100vh;
+  padding: 32rpx 28rpx 80rpx;
+  display: flex;
+  flex-direction: column;
+  gap: 32rpx;
+}
+
+/* ============ 选择区 ============ */
+.select-area {
+  background: linear-gradient(135deg, #8B1A1A 0%, #a83c3c 100%);
+  border-radius: 20rpx;
+  padding: 48rpx 40rpx;
+  display: flex;
+  align-items: center;
+  gap: 24rpx;
+  box-shadow: 0 8rpx 24rpx rgba(139,26,26,0.2);
+}
+.member-slot {
+  flex: 1;
+  background: rgba(255,255,255,0.95);
+  border-radius: 16rpx;
+  padding: 28rpx;
+  text-align: center;
+  min-height: 140rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+.slot-label {
+  font-size: 24rpx;
+  color: rgba(139,26,26,0.7);
+  margin-bottom: 8rpx;
+}
+.slot-value .member-name {
+  font-size: 40rpx;
+  font-weight: 700;
+  color: #8B1A1A;
+}
+.slot-placeholder {
+  font-size: 28rpx;
+  color: #bbb;
+}
+.swap-btn {
+  width: 72rpx;
+  height: 72rpx;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.swap-icon {
+  font-size: 36rpx;
+  color: #fff;
+}
+
+/* ============ 推算按钮 ============ */
+.calc-area {
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+}
+.calc-btn {
+  flex: 1;
+  background: #2d6a4f;
+  color: #fff;
+  text-align: center;
+  padding: 28rpx 0;
+  border-radius: 16rpx;
+  font-size: 30rpx;
+  font-weight: 600;
+  box-shadow: 0 4rpx 16rpx rgba(45,106,79,0.25);
+}
+.calc-btn.disabled {
+  background: #ccc;
+  box-shadow: none;
+}
+.calc-btn:active:not(.disabled) { opacity: 0.85; }
+.reset-btn {
+  background: #fff;
+  color: #8B1A1A;
+  padding: 24rpx 32rpx;
+  border-radius: 16rpx;
+  font-size: 28rpx;
+}
+
+/* ============ 结果卡片 ============ */
+.result-card {
+  background: #fff;
+  border-radius: 20rpx;
+  padding: 40rpx 36rpx;
+  box-shadow: 0 4rpx 20rpx rgba(0,0,0,0.05);
+  border-top: 6rpx solid #8B1A1A;
+}
+.result-head {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  margin-bottom: 28rpx;
+}
+.result-emoji { font-size: 40rpx; }
+.result-title {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #2c1810;
+}
+
+.relation-line {
+  background: #faf7f0;
+  padding: 32rpx;
+  border-radius: 12rpx;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8rpx;
+  line-height: 1.8;
+}
+.rel-a, .rel-b {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: #8B1A1A;
+}
+.rel-op {
+  font-size: 28rpx;
+  color: #666;
+}
+.rel-result {
+  font-size: 32rpx;
+  font-weight: 700;
+  color: #2d6a4f;
+}
+
+.explanation-box {
+  margin-top: 24rpx;
+  padding-top: 24rpx;
+  border-top: 1rpx solid #f0ebe0;
+}
+.exp-label {
+  font-size: 26rpx;
+  color: #8b7355;
+  margin-bottom: 12rpx;
+}
+.exp-text {
+  font-size: 28rpx;
+  color: #333;
+  line-height: 1.8;
+}
+
+/* ============ 空态提示 ============ */
+.tips {
+  margin-top: 40rpx;
+  padding: 32rpx;
+  background: #fff;
+  border-radius: 16rpx;
+}
+.tip-item {
+  font-size: 26rpx;
+  color: #888;
+  line-height: 2;
+}
+
+/* ============ 选人弹窗 ============ */
+.picker-mask {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.4);
+  z-index: 50;
+}
+.picker-sheet {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: #fff;
+  z-index: 51;
+  border-radius: 24rpx 24rpx 0 0;
+  transform: translateY(100%);
+  transition: transform 0.25s ease;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+}
+.picker-sheet.show { transform: translateY(0); }
+.picker-head {
+  padding: 28rpx 32rpx;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1rpx solid #eee;
+  flex-shrink: 0;
+}
+.picker-title { font-size: 30rpx; font-weight: 600; color: #2c1810; }
+.picker-close { font-size: 32rpx; color: #999; padding: 8rpx 16rpx; }
+
+.picker-search {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  padding: 20rpx 28rpx;
+  border-bottom: 1rpx solid #f0ebe0;
+  flex-shrink: 0;
+}
+.search-ic { font-size: 28rpx; color: #aaa; }
+.search-in { flex: 1; font-size: 28rpx; }
+
+.picker-list { padding-bottom: 40rpx; flex: 1; height: 50vh; }
+.picker-item {
+  padding: 24rpx 32rpx;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1rpx solid #f8f5ee;
+}
+.p-name { font-size: 30rpx; color: #2c1810; }
+.p-gen { font-size: 24rpx; color: #8B1A1A; }
+.p-empty { padding: 60rpx; text-align: center; color: #aaa; }

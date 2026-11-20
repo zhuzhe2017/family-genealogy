@@ -105,6 +105,15 @@ export const generatedRoutes: GeneratedRoute[] = [
         }
       },
       {
+        name: 'mini-program_cultural-doc',
+        path: '/mini-program/cultural-doc',
+        component: 'view.mini-program_cultural-doc',
+        meta: {
+          title: 'mini-program_cultural-doc',
+          i18nKey: 'route.mini-program_cultural-doc'
+        }
+      },
+      {
         name: 'mini-program_content',
         path: '/mini-program/content',
         component: 'view.mini-program_content',

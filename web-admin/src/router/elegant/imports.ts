@@ -23,6 +23,7 @@ export const views: Record<LastLevelRouteKey, RouteComponent | (() => Promise<Ro
   "app-center": () => import("@/views/app-center/index.vue"),
   home: () => import("@/views/home/index.vue"),
   "mini-program_banner": () => import("@/views/mini-program/banner/index.vue"),
+  "mini-program_cultural-doc": () => import("@/views/mini-program/cultural-doc/index.vue"),
   "mini-program_content": () => import("@/views/mini-program/content/index.vue"),
   "mini-program_family-invitation": () => import("@/views/mini-program/family-invitation/index.vue"),
   "mini-program_family-tree": () => import("@/views/mini-program/family-tree/index.vue"),

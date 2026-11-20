@@ -37,6 +37,13 @@ import { FundModule } from './fund/fund.module';
 import { MemberModule } from './member/member.module';
 import { GenealogyBookModule } from './genealogy-book/genealogy-book.module';
 import { KinshipModule } from './kinship/kinship.module';
+import { CulturalDocumentModule } from './cultural-document/cultural-document.module';
+import { CulturalDictModule } from './cultural-dict/cultural-dict.module';
+import { AiAssistantModule } from './ai-assistant/ai-assistant.module';
+import { TtsModule } from './tts/tts.module';
+import { OcrModule } from './ocr/ocr.module';
+import { TimelineMapModule } from './timeline-map/timeline-map.module';
+import { LlmModule } from './llm/llm.module';
 import { TenantModule } from './tenant/tenant.module';
 import { JwtAuthGuard } from './auth/guard/jwt-auth.guard';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
@@ -88,6 +95,13 @@ import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
     MemberModule,
     GenealogyBookModule,
     KinshipModule,
+    CulturalDocumentModule,
+    CulturalDictModule,
+    AiAssistantModule,
+    TtsModule,
+    OcrModule,
+    TimelineMapModule,
+    LlmModule,
     TenantModule
   ],
   controllers: [AppController],

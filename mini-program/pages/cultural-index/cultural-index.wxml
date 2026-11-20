@@ -1,0 +1,82 @@
+<!--pages/cultural-index/cultural-index.wxml-->
+<view class="container">
+  <!-- Tab 切换 -->
+  <view class="tabs">
+    <view
+      wx:for="{{tabs}}"
+      wx:key="key"
+      class="tab-item {{activeTab === item.key ? 'active' : ''}}"
+      data-tab="{{item.key}}"
+      bindtap="onTabChange"
+    >{{item.label}}</view>
+  </view>
+
+  <!-- 搜索框 -->
+  <view class="search-bar">
+    <view class="search-input-wrap">
+      <input
+        class="search-input"
+        placeholder="搜索典籍/族谱"
+        value="{{keyword}}"
+        bindinput="onKeywordInput"
+        bindconfirm="onSearch"
+        confirm-type="search"
+      />
+      <view wx:if="{{keyword}}" class="clear-btn" bindtap="onSearch">🔍</view>
+    </view>
+  </view>
+
+  <!-- 家族未绑定提示 -->
+  <view wx:if="{{activeTab === 'family' && !familyId}}" class="empty-tip">
+    请先绑定家族成员账号，再查看家族族谱
+  </view>
+
+  <!-- 加载中 -->
+  <view wx:if="{{loading && list.length === 0}}" class="loading">加载中...</view>
+
+  <!-- 列表 -->
+  <view wx:elif="{{list.length > 0}}" class="doc-list">
+    <view
+      wx:for="{{list}}"
+      wx:key="id"
+      class="doc-card"
+      data-doc="{{item}}"
+      bindtap="goReader"
+    >
+      <!-- 封面 -->
+      <view class="cover-wrap">
+        <image
+          wx:if="{{item.cover_url}}"
+          class="cover-img"
+          src="{{item.cover_url}}"
+          mode="aspectFill"
+        />
+        <view wx:else class="cover-placeholder">
+          <text class="placeholder-icon">📜</text>
+        </view>
+        <view class="type-badge type-{{item.type}}">
+          {{item.type === 'genealogy' ? '族谱' : item.type === 'handwritten' ? '手写' : '古籍'}}
+        </view>
+      </view>
+
+      <!-- 信息 -->
+      <view class="doc-info">
+        <view class="doc-title">{{item.title}}</view>
+        <view wx:if="{{item.author}}" class="doc-meta">{{item.author}}</view>
+        <view wx:if="{{item.dynasty}}" class="doc-meta">{{item.dynasty}}</view>
+        <view wx:if="{{item.summary}}" class="doc-summary">{{item.summary}}</view>
+        <view class="doc-stats">
+          <text class="stat-item">👁 {{item.view_count || 0}}</text>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 空状态 -->
+  <view wx:elif="{{!loading && list.length === 0}}" class="empty-tip">
+    暂无内容
+  </view>
+
+  <!-- 加载更多提示 -->
+  <view wx:if="{{list.length > 0 && noMore}}" class="no-more">—— 没有更多了 ——</view>
+</view>

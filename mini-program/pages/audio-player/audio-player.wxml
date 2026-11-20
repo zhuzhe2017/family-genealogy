@@ -1,0 +1,94 @@
+<!--pages/audio-player/audio-player.wxml-->
+<view class="player-wrap">
+
+  <!-- 合成中 -->
+  <view wx:if="{{synthesizing}}" class="synthesizing-mask">
+    <view class="synthesizing-spinner"></view>
+    <view class="synthesizing-text">AI 正在为您朗读...</view>
+    <view class="synthesizing-hint">首次合成可能需要 30 秒左右，后续自动走缓存</view>
+  </view>
+
+  <!-- 主面板 -->
+  <view wx:else class="player-panel">
+
+    <!-- 封面 + 标题 -->
+    <view class="cover-wrap">
+      <view class="cover">
+        <view class="cover-inner">
+          <text class="cover-icon">🎧</text>
+        </view>
+      </view>
+      <view class="info">
+        <view class="title">{{title}}</view>
+        <view class="sub">
+          <text wx:if="{{chapterId}}">章节 {{chapterId}}</text>
+          <text wx:else>{{voices.length > 0 ? voices[0].provider + ' · AI 朗读' : 'AI 朗读'}}</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 进度条 -->
+    <view class="progress-wrap">
+      <slider
+        class="progress"
+        min="0"
+        max="{{duration || 100}}"
+        value="{{currentTime}}"
+        activeColor="#8B1A1A"
+        backgroundColor="#e8e0d0"
+        block-color="#8B1A1A"
+        block-size="18"
+        bindchange="onSeek"
+      />
+      <view class="time-label">
+        <text>{{currentTimeText}}</text>
+        <text>{{durationText}}</text>
+      </view>
+    </view>
+
+    <!-- 播放控制 -->
+    <view class="controls">
+      <view
+        class="play-btn {{playing ? 'playing' : ''}}"
+        bindtap="togglePlay"
+      >
+        <text class="play-icon">{{playing ? '⏸' : '▶'}}</text>
+      </view>
+    </view>
+
+    <!-- 倍速 -->
+    <view class="rate-row">
+      <view class="rate-label">倍速</view>
+      <view class="rate-chips">
+        <view
+          wx:for="{{rates}}"
+          wx:key="*this"
+          class="rate-chip {{rateIndex === index ? 'active' : ''}}"
+          data-idx="{{index}}"
+          bindtap="onRateTap"
+        >
+          {{item}}x
+        </view>
+      </view>
+    </view>
+
+    <!-- 定时关闭 -->
+    <view class="timer-row">
+      <view class="timer-label">定时关闭</view>
+      <view class="timer-chips">
+        <view
+          wx:for="{{timerPresets}}"
+          wx:key="*this"
+          class="timer-chip {{timerMinutes === item ? 'active' : ''}}"
+          data-min="{{item}}"
+          bindtap="onTimerTap"
+        >
+          {{item === 0 ? '不启用' : item + '分钟'}}
+        </view>
+      </view>
+      <view wx:if="{{timerDisplay}}" class="timer-active">⏰ {{timerDisplay}}</view>
+    </view>
+
+  </view>
+
+</view>

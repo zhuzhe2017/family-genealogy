@@ -1,0 +1,6 @@
+{
+  "navigationBarTitleText": "听书",
+  "navigationBarBackgroundColor": "#8B1A1A",
+  "navigationBarTextStyle": "white",
+  "enableBackgroundAudio": true
+}

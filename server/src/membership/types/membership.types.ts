@@ -31,7 +31,24 @@ export enum Capability {
   /** 非拦截：专属客服 */
   Support = 'support',
   /** 非拦截：去广告 */
-  NoAds = 'no_ads'
+  NoAds = 'no_ads',
+
+  // ====== 文化内容域 · 识典古籍对标 ======
+
+  /** 额度型：AI 对话（按次/天） */
+  AiChat = 'ai_chat',
+  /** 额度型：AI 摘要/译文生成 */
+  AiSummary = 'ai_summary',
+  /** 额度型：AI 古文断句注释 */
+  Annotate = 'annotate',
+  /** 拦截型：高清原页阅读 + 图文对照 */
+  ReaderPro = 'reader_pro',
+  /** 拦截型：听书功能（TTS） */
+  TtsListen = 'tts_listen',
+  /** 额度型：老族谱 OCR 录入（按页） */
+  OcrImport = 'ocr_import',
+  /** 拦截型：公共古籍全部内容访问 */
+  CulturalDoc = 'cultural_doc'
 }
 
 /** 订阅状态 */

@@ -1,0 +1,71 @@
+<!--pages/dict-list/dict-list.wxml-->
+<view class="dict-wrap">
+
+  <!-- 搜索框 -->
+  <view class="search-row">
+    <view class="search-box">
+      <text class="search-ic">🔍</text>
+      <input
+        class="search-input"
+        placeholder="搜索关键词（如：文、陇西堂、谱序）"
+        value="{{keyword}}"
+        bindinput="onSearchInput"
+        bindconfirm="onSearchConfirm"
+        confirm-type="search"
+      />
+      <text wx:if="{{keyword}}" class="clear-ic" bindtap="onClearKeyword">✕</text>
+    </view>
+  </view>
+
+  <!-- 空态 -->
+  <view wx:if="{{empty}}" class="empty">
+    <text class="empty-emoji">📭</text>
+    <text class="empty-text">暂无匹配词条</text>
+    <text class="empty-hint">换个关键词试试，或在工具箱首页浏览全部内容</text>
+  </view>
+
+  <!-- 列表 -->
+  <view wx:else class="dict-list">
+
+    <block wx:for="{{list}}" wx:key="id" wx:for-item="item" wx:for-index="idx">
+      <view class="dict-item" data-idx="{{idx}}" bindtap="onToggleItem">
+        <view class="item-head">
+          <!-- 字辈：大字展示 -->
+          <view wx:if="{{category === 'zibei'}}" class="zibei-char">{{item.dict_key}}</view>
+          <!-- 堂号：大号 + 姓氏角标 -->
+          <view wx:elif="{{category === 'tanghao'}}" class="tanghao-head">
+            <view class="tanghao-name">{{item.dict_key}}</view>
+            <view wx:if="{{item.surname}}" class="tanghao-surname">· {{item.surname}}氏</view>
+          </view>
+          <!-- 术语：左侧小标签 -->
+          <view wx:else class="term-head">
+            <text class="term-name">{{item.dict_key}}</text>
+          </view>
+          <!-- 通用 key（兜底） -->
+          <view wx:if="{{!category}}" class="any-key">{{item.dict_key}}</view>
+
+          <view class="item-arrow {{item.expanded ? 'open' : ''}}">›</view>
+        </view>
+
+        <!-- 展开详情 -->
+        <view wx:if="{{item.expanded}}" class="item-detail">
+          <view class="detail-content">{{item.content}}</view>
+          <view wx:if="{{item.source}}" class="detail-source">📖 出处：{{item.source}}</view>
+          <view wx:if="{{item.tags && item.tags.length > 0}}" class="detail-tags">
+            <text wx:for="{{item.tags}}" wx:key="*this" wx:for-item="tag" class="tag-chip">{{tag}}</text>
+          </view>
+          <view class="detail-actions">
+            <view class="action-btn" data-content="{{item.content}}" catchtap="onCopyContent">📋 复制</view>
+            <view class="action-btn" data-keyword="{{item.dict_key}}" catchtap="onOpenCultural">📚 查古籍</view>
+          </view>
+        </view>
+      </view>
+    </block>
+
+    <!-- 加载中 -->
+    <view wx:if="{{loading}}" class="loading-tip">加载中...</view>
+    <!-- 到底 -->
+    <view wx:elif="{{!hasMore && list.length > 0}}" class="end-tip">—— 已到全部 ——</view>
+  </view>
+
+</view>

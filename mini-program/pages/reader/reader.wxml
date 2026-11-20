@@ -1,0 +1,158 @@
+<!--pages/reader/reader.wxml-->
+<view class="reader-wrap">
+
+  <!-- 加载中 -->
+  <view wx:if="{{loading}}" class="loading-mask">加载中...</view>
+
+  <!-- 加载失败 -->
+  <view wx:elif="{{loadError}}" class="error-mask">
+    <view class="error-text">加载失败</view>
+    <view class="retry-btn" bindtap="onRetryLoad">重试</view>
+  </view>
+
+  <block wx:else>
+
+    <!-- 顶部工具栏 -->
+    <view class="toolbar">
+      <view class="toolbar-left" bindtap="toggleChapterDrawer">
+        <text class="toolbar-icon">☰</text>
+        <text class="toolbar-label">目录</text>
+      </view>
+
+      <view class="view-tabs">
+        <view
+          wx:for="{{viewTabs}}"
+          wx:key="key"
+          class="view-tab {{currentView === item.key ? 'active' : ''}}"
+          data-view="{{item.key}}"
+          bindtap="onViewChange"
+        >{{item.label}}</view>
+      </view>
+
+      <view class="toolbar-right">
+        <text class="page-indicator" wx:if="{{currentView === 'pages' && pages.length > 0}}">
+          {{pageNo}} / {{pages.length}}
+        </text>
+      </view>
+    </view>
+
+    <!-- ==================== 原页浏览 ==================== -->
+    <view wx:if="{{currentView === 'pages'}}" class="pages-view">
+      <view wx:if="{{pagesLoading}}" class="loading-mask small">原页加载中...</view>
+      <view wx:elif="{{pages.length === 0}}" class="empty-page">
+        <text class="empty-icon">📖</text>
+        <text class="empty-text">暂无原页图片</text>
+      </view>
+      <swiper
+        wx:else
+        class="pages-swiper"
+        current="{{pageIndex}}"
+        bindchange="onPageChange"
+        circular="{{false}}"
+      >
+        <swiper-item wx:for="{{pages}}" wx:key="id">
+          <movable-area class="movable-area" scale-area>
+            <movable-view
+              class="movable-img"
+              direction="all"
+              scale
+              scale-min="1"
+              scale-max="3"
+              scale-value="{{1}}"
+              out-of-bounds="{{false}}"
+            >
+              <image
+                class="page-img"
+                src="{{item.image_url}}"
+                mode="widthFix"
+                data-src="{{item.image_url}}"
+                bindtap="onImageTap"
+                lazy-load
+              />
+            </movable-view>
+          </movable-area>
+        </swiper-item>
+      </swiper>
+
+      <!-- 翻页按钮 -->
+      <view wx:if="{{pages.length > 1}}" class="page-nav">
+        <view
+          class="nav-btn {{pageIndex === 0 ? 'disabled' : ''}}"
+          bindtap="onPrevPage"
+        >◀</view>
+        <view
+          class="nav-btn {{pageIndex >= pages.length - 1 ? 'disabled' : ''}}"
+          bindtap="onNextPage"
+        >▶</view>
+      </view>
+    </view>
+
+    <!-- ==================== 正文整理版 ==================== -->
+    <view wx:elif="{{currentView === 'text'}}" class="text-view">
+      <scroll-view scroll-y class="text-scroll">
+        <view class="text-content">
+          <view wx:if="{{chapters.length === 0}}" class="empty-page">
+            <text class="empty-text">暂无章节内容</text>
+          </view>
+          <view wx:elif="{{!chapterContent}}" class="empty-page">
+            <text class="empty-text">请从左侧目录选择章节</text>
+          </view>
+          <view wx:else class="chapter-body">
+            <view wx:if="{{chapters.length > 0}}" class="chapter-title">
+              {{chapters.find(c => c.id === activeChapterId).title}}
+            </view>
+            <view class="chapter-text">{{chapterContent}}</view>
+          </view>
+        </view>
+      </scroll-view>
+    </view>
+
+    <!-- ==================== 白话译文 ==================== -->
+    <view wx:elif="{{currentView === 'trans'}}" class="text-view">
+      <scroll-view scroll-y class="text-scroll">
+        <view class="text-content">
+          <view wx:if="{{chapters.length === 0}}" class="empty-page">
+            <text class="empty-text">暂无章节内容</text>
+          </view>
+          <view wx:elif="{{!translatedContent}}" class="empty-page">
+            <text class="empty-text">暂无译文（后续由 AI 生成）</text>
+          </view>
+          <view wx:else class="chapter-body trans-body">
+            <view wx:if="{{chapters.length > 0}}" class="chapter-title">
+              {{chapters.find(c => c.id === activeChapterId).title}}
+            </view>
+            <view class="chapter-text">{{translatedContent}}</view>
+          </view>
+        </view>
+      </scroll-view>
+    </view>
+
+    <!-- ==================== 章节抽屉 ==================== -->
+    <view
+      wx:if="{{showChapterDrawer}}"
+      class="drawer-mask"
+      bindtap="closeChapterDrawer"
+    ></view>
+    <view class="chapter-drawer {{showChapterDrawer ? 'show' : ''}}">
+      <view class="drawer-header">
+        <text class="drawer-title">目录</text>
+        <text class="drawer-close" bindtap="closeChapterDrawer">✕</text>
+      </view>
+      <scroll-view scroll-y class="drawer-scroll">
+        <view
+          wx:for="{{chapters}}"
+          wx:key="id"
+          class="chapter-item {{activeChapterId === item.id ? 'active' : ''}}"
+          style="padding-left: {{item.depth * 24 + 24}}rpx"
+          data-id="{{item.id}}"
+          bindtap="onChapterSelect"
+        >
+          <view class="chapter-dot"></view>
+          <view class="chapter-name">{{item.title}}</view>
+          <view wx:if="{{item.pageStart}}" class="chapter-page">P{{item.pageStart}}</view>
+        </view>
+      </scroll-view>
+    </view>
+
+  </block>
+</view>

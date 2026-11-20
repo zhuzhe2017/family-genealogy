@@ -1,0 +1,143 @@
+/* pages/dict-list/dict-list.wxss */
+page { background: #f4f1ec; }
+.dict-wrap { min-height: 100vh; padding-bottom: 120rpx; }
+
+/* 搜索 */
+.search-row {
+  padding: 20rpx 28rpx;
+  background: #fff;
+  border-bottom: 1rpx solid #eee;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+.search-box {
+  display: flex;
+  align-items: center;
+  background: #f5f1ea;
+  border-radius: 40rpx;
+  padding: 14rpx 24rpx;
+  gap: 12rpx;
+}
+.search-ic { font-size: 28rpx; }
+.search-input { flex: 1; font-size: 28rpx; }
+.clear-ic { color: #ccc; font-size: 24rpx; }
+
+/* 空态 */
+.empty {
+  text-align: center;
+  padding: 160rpx 80rpx;
+  display: flex;
+  flex-direction: column;
+  gap: 20rpx;
+}
+.empty-emoji { font-size: 80rpx; }
+.empty-text { font-size: 30rpx; color: #666; }
+.empty-hint { font-size: 24rpx; color: #aaa; }
+
+/* 列表 */
+.dict-list { padding: 16rpx 20rpx; }
+.dict-item {
+  background: #fff;
+  border-radius: 14rpx;
+  margin-bottom: 16rpx;
+  overflow: hidden;
+  box-shadow: 0 2rpx 8rpx rgba(0,0,0,0.03);
+}
+.item-head {
+  padding: 24rpx 28rpx;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16rpx;
+}
+
+/* 字辈大字 */
+.zibei-char {
+  font-size: 64rpx;
+  font-weight: 700;
+  color: #8B1A1A;
+  line-height: 1;
+  font-family: "STKaiti", "华文楷体", serif;
+}
+
+/* 堂号 */
+.tanghao-head { display: flex; align-items: baseline; gap: 8rpx; }
+.tanghao-name {
+  font-size: 34rpx;
+  font-weight: 600;
+  color: #2d6a4f;
+}
+.tanghao-surname {
+  font-size: 24rpx;
+  color: #888;
+}
+
+/* 术语 */
+.term-name {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #2c1810;
+}
+
+/* 箭头 */
+.item-arrow {
+  font-size: 36rpx;
+  color: #ccc;
+  transition: transform 0.2s;
+  transform: rotate(90deg);
+}
+.item-arrow.open { transform: rotate(-90deg); }
+
+/* 展开详情 */
+.item-detail {
+  padding: 0 28rpx 28rpx;
+  border-top: 1rpx solid #f0ebe0;
+  padding-top: 20rpx;
+}
+.detail-content {
+  font-size: 28rpx;
+  color: #333;
+  line-height: 1.8;
+}
+.detail-source {
+  margin-top: 16rpx;
+  font-size: 24rpx;
+  color: #8B1A1A;
+}
+.detail-tags {
+  margin-top: 12rpx;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10rpx;
+}
+.tag-chip {
+  font-size: 22rpx;
+  padding: 4rpx 16rpx;
+  background: #f5f1ea;
+  color: #8b7355;
+  border-radius: 20rpx;
+}
+.detail-actions {
+  margin-top: 20rpx;
+  display: flex;
+  gap: 16rpx;
+}
+.action-btn {
+  flex: 1;
+  text-align: center;
+  font-size: 26rpx;
+  padding: 16rpx 0;
+  background: #f5f1ea;
+  border-radius: 10rpx;
+  color: #2c1810;
+}
+.action-btn:active { background: #e5ddd0; }
+
+/* 加载 */
+.loading-tip, .end-tip {
+  text-align: center;
+  padding: 32rpx 0;
+  font-size: 24rpx;
+  color: #aaa;
+}
