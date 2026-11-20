@@ -99,7 +99,7 @@
           </view>
           <view wx:else class="chapter-body">
             <view wx:if="{{chapters.length > 0}}" class="chapter-title">
-              {{chapters.find(c => c.id === activeChapterId).title}}
+              {{activeChapterTitle}}
             </view>
             <view class="chapter-text">{{chapterContent}}</view>
           </view>
@@ -119,7 +119,7 @@
           </view>
           <view wx:else class="chapter-body trans-body">
             <view wx:if="{{chapters.length > 0}}" class="chapter-title">
-              {{chapters.find(c => c.id === activeChapterId).title}}
+              {{activeChapterTitle}}
             </view>
             <view class="chapter-text">{{translatedContent}}</view>
           </view>

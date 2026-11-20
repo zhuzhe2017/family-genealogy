@@ -54,6 +54,7 @@ Page({
     // --- 正文/译文 ---
     chapters: [],        // 扁平章节列表（for 渲染）
     activeChapterId: null,
+    activeChapterTitle: '',
     chapterContent: '',
     translatedContent: '',
     textLoading: false
@@ -118,13 +119,17 @@ Page({
             this.setData({ pageIndex: idx, pageNo: bookmark.pageNo });
           }
         } else if (bookmark.chapterId) {
-          this.setData({ activeChapterId: bookmark.chapterId });
+          const bc = this.data.chapters.find(c => c.id === bookmark.chapterId);
+          this.setData({
+            activeChapterId: bookmark.chapterId,
+            activeChapterTitle: bc ? bc.title : ''
+          });
           this.loadChapterContent(bookmark.chapterId);
         }
       } else if (this.data.chapters.length > 0) {
         // 默认选第一章
         const first = this.data.chapters[0];
-        this.setData({ activeChapterId: first.id });
+        this.setData({ activeChapterId: first.id, activeChapterTitle: first.title });
         this.loadChapterContent(first.id);
       }
     }).catch(err => {
@@ -285,8 +290,10 @@ Page({
       }
     } else {
       // 正文模式，加载章节内容
+      const chapter = this.data.chapters.find(c => c.id === id);
       this.setData({
         activeChapterId: id,
+        activeChapterTitle: chapter ? chapter.title : '',
         showChapterDrawer: false
       });
       this.loadChapterContent(id);
