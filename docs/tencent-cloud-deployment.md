@@ -1,9 +1,11 @@
 # 数字家谱腾讯云部署方案
 
-> 版本：v1.0 ｜ 日期：2026-08-24 ｜ 性质：生产部署方案（腾讯云）
+> 版本：v1.1 ｜ 日期：2026-11-23 ｜ 性质：生产部署方案（腾讯云）
 >
 > 关联文档：[baota-deployment.md](./baota-deployment.md)（宝塔单机部署，本方案迁移过渡参照）、[saas-transformation-plan.md](./saas-transformation-plan.md)（SaaS 化改造与运维规划）、[commercial-strategy.md](./commercial-strategy.md)（商业策略）
 > 本文定位：面向商业运营（冷启动 → 增长 → 规模三阶段）的腾讯云部署方案，含资源规划、迁移步骤、容器化落地、监控容灾与成本估算。
+>
+> **v1.1 更新**：新增「识典古籍对标」功能层部署专项（6 阶段已全部落地）。详见 **§3.11 识典古籍功能部署**。
 
 ---
 
@@ -18,6 +20,21 @@
 | 管理后台 | Vue3 + Vite + Naive UI | 构建产物 `web-admin/dist/` |
 | 小程序 | 原生微信小程序 | 通过 `mini-program/utils/config.js` 的 `API_BASE_URL` 对接 |
 | 商业化 | 订阅（free/family/premium）+ 微信支付 | 已落地，能力点模型 |
+| 识典古籍对标 | AI 助手 + 在线阅读器 + 听书 TTS + 手写 OCR + 时空地图 + 文化工具箱 | **v1.1 新增**，详见 §3.11 |
+
+**识典古籍对标功能层（v1.1 新增，6 阶段已交付）**：
+
+| 阶段 | 功能 | 后端模块 | 小程序页面 | 核心依赖 |
+|------|------|---------|-----------|---------|
+| 0 基础设施 | Capability 枚举扩展 + LLM 通用服务 + 5 张新表 | `llm` + `ai_chat_session` / `ai_chat_message` / `cultural_document` / `_page` / `_chapter` / `_dictionary` | — | `sys_config` 3 条 LLM 配置 |
+| 1 在线阅读器 | 公共古籍 + 家族族谱双域 CRUD + 种子数据 | `cultural-document` + `cultural-dict` | `pages/cultural-index` + `pages/reader` + web-admin 管理页 | `cultural-seed-data.sql` |
+| 2 AI 助手 | RAG 对话 + 亲属关系 LCA 推理 + 会话持久化 | `ai-assistant` | `pages/ai-chat` | `LlmService` + `Entitlement(OcrImport/AiChat/AiSummary/Annotate)` |
+| 3 文化工具箱 | 字辈/堂号/家谱术语查询 + 亲属关系计算 | 复用 `cultural-dict` + `ai-assistant` 关系接口 | `pages/tools` + `pages/dict-list` + `pages/relation-tool` | — |
+| 4 听书 TTS | 分段并行合成 + 7 天缓存 + edge-tts Provider | `tts` + `tts_audio_cache` | `pages/audio-player` | `sys_config` 3 条 TTS 配置 |
+| 5 手写 OCR | Provider 抽象 + LLM 结构化 + 分表确认导入 | `ocr` + `ocr_result_cache` | `pages/ocr-import` | `Entitlement(OcrImport)` 额度 |
+| 6 时空地图 | 按世代地理分布 + 迁徙路线 + 内置 23 条历史事件 | `timeline-map` + `timeline_map_cache` | `pages/migration-map` | 成员表 `lat`/`lng` 字段 |
+
+> 后端模块总计 **10 个新文件组**，小程序新增 **36 个页面文件**，新增 **7 个 Capability 能力点**，全部通过 `tsc --noEmit` 零错误编译验证。
 
 ### 1.2 商业阶段与部署目标
 
@@ -111,6 +128,28 @@ DB_PASSWORD=<强密码>
 
 > 结构初始化：新环境直接导入 `server/database/schema.sql`（唯一主库升级脚本）；存量库按 `MERGE_LOG.md` 核对增量，方法与 `baota-deployment.md` §4 一致。
 
+**识典古籍对标新增表（v1.1 必执行）**：
+
+`server/database/cultural-content.sql` 已统一幂等（`CREATE TABLE IF NOT EXISTS` + `INSERT IGNORE`），在 `schema.sql` 之后追加执行：
+
+```bash
+# 新环境：schema.sql 之后执行
+mysql -u family_app -p family_genealogy < server/database/schema.sql
+mysql -u family_app -p family_genealogy < server/database/cultural-content.sql
+
+# 种子数据（公共古籍 + 字典词条，可选但推荐）
+mysql -u family_app -p family_genealogy < server/database/cultural-seed-data.sql
+```
+
+新增 **9 张表** + **7 条权限码** + **8 条 sys_config**（LLM 3 条 + TTS 3 条 + OCR 2 条）：
+
+| 分类 | 表名 | 用途 | 数据量 |
+|------|------|------|--------|
+| 文化内容 | `cultural_document` / `_page` / `_chapter` | 公共古籍 + 家族族谱双域 | 种子数据 5 部 / 业务动态 |
+| AI 会话 | `ai_chat_session` / `ai_chat_message` | AI 助手多轮对话持久化 | 按用户增长 |
+| 字典 | `cultural_dictionary` | 字辈/堂号/家谱术语 | 种子数据 40 条 |
+| 缓存 | `tts_audio_cache` / `ocr_result_cache` / `timeline_map_cache` | TTS/OCR/时空地图查询结果缓存 | 自动填充，TTL 过期 |
+
 ### 3.4 对象存储 COS + CDN（P0，需代码改造）
 
 现状 `server/uploads/` 本地磁盘无法支撑多实例与弹性伸缩，阶段一迁移至 COS：
@@ -162,6 +201,39 @@ docker run -d --name family-server \
   -v /www/wwwroot/jiapuadmin/server/uploads:/app/uploads \
   family-genealogy-server:latest
 ```
+
+**识典古籍新模块注册验证（v1.1 必做）**：
+
+所有新模块已在 `server/src/app.module.ts` 中按字母序注册（`AiAssistantModule` / `TimelineMapModule` / `LlmModule` / `OcrModule` / `TtsModule` / `CulturalDocumentModule` / `CulturalDictModule`），启动时无显式报错即可。生产验证用 `curl` 快速抽查 4 个公开端点（无需鉴权）：
+
+```bash
+# 公共古籍列表（cultural-document）
+curl -s https://api.jiapuadmin.deejee.net/api/cultural-doc/public/list?page=1 | head -c 200
+
+# 字典分类统计（cultural-dict）
+curl -s https://api.jiapuadmin.deejee.net/api/cultural-dict/stats
+
+# 历史事件（timeline-map 公开）
+curl -s "https://api.jiapuadmin.deejee.net/api/timeline-map/history?start=-221&end=2025&cat=politics" | head -c 200
+
+# TTS 音色列表（公开）
+curl -s https://api.jiapuadmin.deejee.net/api/tts/voices
+```
+
+**sys_config 生产配置项（v1.1 新增，8 条，已在 SQL 中 INSERT IGNORE）**：
+
+| config_key | 默认值 | 生产建议 | 说明 |
+|-----------|--------|---------|------|
+| `llm_provider` | `mock` | `doubao` 或 `deepseek` | LLM Provider 选择 |
+| `llm_api_key` | 空 | 填入加密后的 API Key | 建议 `config-crypto.module.ts` 加密存储 |
+| `llm_model` | 空 | `doubao-lite-32k` / `deepseek-chat` | 具体模型名 |
+| `tts_provider` | `mock` | `edge-tts`（零成本）或 `tencent` | TTS Provider |
+| `tts_api_key` | 空 | edge-tts 可留空 | 腾讯云 TTS 必填 |
+| `tts_app_id` | 空 | 腾讯云 AppID | — |
+| `ocr_provider` | `mock` | `tencent`（手写体推荐） | OCR Provider |
+| `ocr_api_key` | 空 | 腾讯云 OCR SecretId/Key | — |
+
+> **⚠️ 关键**：生产环境必须把 `mock` Provider 切换为真实服务，否则 AI 助手返回模拟族谱文本、TTS 无法合成真实音频、OCR 无法识别真实图片。切换方式：在管理后台 → 系统设置 → 基础配置 页面修改，或直接 UPDATE `sys_config` 表。
 
 ### 3.6 前端部署
 
@@ -245,6 +317,72 @@ module.exports = {
 | 文件 | COS 版本管理 + 跨区域复制 | 实时 | 按版本策略 |
 | 业务 | 家族数据导出（现有 backup 能力点） | 用户自助 | 用户自持 |
 | 演练 | 每季度恢复演练（RPO≤24h / RTO≤4h） | 每季度 | — |
+
+---
+
+### 3.11 识典古籍功能部署（v1.1 新增）
+
+**前置条件**：§3.3 数据库 SQL 已执行、§3.5 后端已重新构建部署、§3.9 监控已开启。
+
+#### 3.11.1 生产环境 CheckList（按顺序）
+
+| # | 检查项 | 命令/操作 | 通过标准 |
+|---|--------|----------|---------|
+| 1 | 新增表存在 | `SHOW TABLES LIKE 'cultural_%';` + `SHOW TABLES LIKE 'ai_chat_%';` + `SHOW TABLES LIKE '%cache%';` | 9 张表全在 |
+| 2 | 权限码已授权 | `SELECT COUNT(*) FROM sys_role_permission rp JOIN sys_role r ON r.id = rp.role_id JOIN sys_permission p ON p.id = rp.permission_id WHERE r.code = 'super' AND p.code LIKE 'system:cultural-%';` | 返回 **7** |
+| 3 | sys_config 已填真实值 | `SELECT config_key, config_value FROM sys_config WHERE config_key IN ('llm_provider','llm_api_key','tts_provider','ocr_provider');` | `provider ≠ 'mock'`，key 非空 |
+| 4 | 公共古籍种子 | `SELECT COUNT(*) FROM cultural_document WHERE family_id IS NULL;` | 返回 **5** |
+| 5 | 字典种子 | `SELECT COUNT(*) FROM cultural_dictionary;` | 返回 **40** |
+| 6 | 后端启动无报错 | 看 Docker 日志 `docker logs family-server --tail 100` | 无 Error 堆栈 |
+| 7 | 公开端点探活 | 见 §3.5 底部 4 条 curl 命令 | 每条都返回有效 JSON（非 404） |
+| 8 | 会员权益点生效 | JWT 登录态调 `POST /ai/:fid/chat` + 传 `AiChat` 次数耗尽 | 返回 4003/4004 额度不足，而不是 500 |
+| 9 | TTS 合成不报错 | JWT 登录态调 `POST /tts/:fid/chapter/:cid` | 返回音频 URL（非 `mock` Provider） |
+| 10 | OCR 入口存在 | 小程序打开工具箱 → 看到 ✍️ 手写录入、🗺️ 时空地图入口 | — |
+
+#### 3.11.2 小程序侧部署
+
+1. **版本号提升**：`mini-program/app.json` 的 `version` 字段升级（如 `1.0.0 → 1.1.0`），确保微信审核与现有包体区分。
+2. **新页面注册确认**：`pages` 数组末尾应包含 4 个新页面路径：
+   ```
+   pages/cultural-index/cultural-index
+   pages/reader/reader
+   pages/ai-chat/ai-chat
+   pages/tools/tools
+   pages/dict-list/dict-list
+   pages/relation-tool/relation-tool
+   pages/audio-player/audio-player
+   pages/ocr-import/ocr-import
+   pages/migration-map/migration-map
+   ```
+3. **API Base URL**：`mini-program/utils/config.js` 的 `API_BASE_URL` 指向生产域名（与管理后台共用）。
+4. **微信开发者工具**：上传代码 → 提交审核 → 发布上线。
+
+#### 3.11.3 会员权益配置（production 表直接 UPDATE）
+
+```sql
+-- 示例：family 套餐新增识典古籍权益
+UPDATE subscription_plan 
+SET capabilities = JSON_SET(
+  capabilities,
+  '$.ai_chat',          'unlimited',     -- 或 '200/day'
+  '$.ai_summary',       '200/month',
+  '$.annotate',         '100/month',
+  '$.reader_pro',       true,
+  '$.tts_listen',       true,
+  '$.ocr_import',       '50',
+  '$.cultural_doc',     true
+)
+WHERE code = 'family';
+```
+
+#### 3.11.4 监控点（§3.9 告警追加）
+
+| 监控项 | 阈值 | 告警方式 |
+|--------|------|---------|
+| `cultural-doc/public/list` 接口 P95 耗时 | >500ms | 企业微信 |
+| `ai/:fid/chat` 接口错误率 | >1% | 企业微信 |
+| LLM Provider 调用失败率（后端 Logger 中 error 关键字） | >3 次/分钟 | 短信 |
+| `timeline_map_cache` 命中率（定时脚本查询） | <50% | 企业微信 |
 
 ---
 

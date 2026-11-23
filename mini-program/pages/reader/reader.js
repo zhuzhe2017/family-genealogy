@@ -38,8 +38,9 @@ Page({
     showChapterDrawer: false,
 
     // --- 视图切换 ---
-    currentView: 'pages', // pages | text | trans
+    currentView: 'dual', // dual=对照 | pages | text | trans
     viewTabs: [
+      { key: 'dual', label: '对照' },
       { key: 'pages', label: '原页' },
       { key: 'text', label: '整理版' },
       { key: 'trans', label: '译文' }

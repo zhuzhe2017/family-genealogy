@@ -15,6 +15,7 @@
  */
 import { Injectable, Logger } from '@nestjs/common';
 import { DataSource } from 'typeorm';
+import * as crypto from 'crypto';
 
 export interface MigrationPoint {
   lat: number;
@@ -71,17 +72,27 @@ const HISTORY_TIMELINE: HistoryEvent[] = [
 @Injectable()
 export class TimelineMapService {
   private readonly logger = new Logger(TimelineMapService.name);
+  /** 缓存 TTL：家族时空数据变化频率低，24 小时足够 */
+  private readonly CACHE_TTL_HOURS = 24;
 
   constructor(private readonly dataSource: DataSource) {}
 
   // =================================================================
-  // 1. 按世代分组的地理分布
+  // 1. 按世代分组的地理分布（带缓存）
   // =================================================================
 
   async getGenerations(
     familyId: number,
     range?: { minGen?: number; maxGen?: number }
   ): Promise<GenerationGeo[]> {
+    // 缓存 key：fingerprint（数据变化自动失效）+ 参数
+    const fp = await this.getFamilyFingerprint(familyId);
+    const cacheKey = this.hash(`generations|${familyId}|${fp}|${range?.minGen ?? ''}-${range?.maxGen ?? ''}`);
+
+    const cached: any = await this.getCacheObj(cacheKey);
+    if (cached) return cached;
+
+    // 原逻辑
     const table = `family_members_${familyId}`;
     const where: string[] = [
       '`lat` IS NOT NULL AND `lat` != 0',
@@ -112,7 +123,6 @@ export class TimelineMapService {
 
     const out: GenerationGeo[] = [];
     for (const [gen, members] of [...byGen.entries()].sort((a, b) => a[0] - b[0])) {
-      // 计算该世代的地理中心（按 placeName 聚类）
       const placeMap = new Map<string, { latSum: number; lngSum: number; count: number }>();
       for (const m of members) {
         const key = m.place_name || `${m.lat},${m.lng}`;
@@ -144,16 +154,24 @@ export class TimelineMapService {
       });
     }
 
+    // 写缓存
+    await this.setCacheObj(cacheKey, out);
     return out;
   }
 
   // =================================================================
-  // 2. 家族迁徙路线（始祖 → 始迁祖 → 现代）
+  // 2. 家族迁徙路线（带缓存）
   // =================================================================
 
   async getMigration(
     familyId: number
   ): Promise<{ points: MigrationPoint[]; routes: Array<{ from: MigrationPoint; to: MigrationPoint }> }> {
+    const fp = await this.getFamilyFingerprint(familyId);
+    const cacheKey = this.hash(`migration|${familyId}|${fp}`);
+
+    const cached: any = await this.getCacheObj(cacheKey);
+    if (cached) return cached;
+
     const table = `family_members_${familyId}`;
     const rows = await this.dataSource.query<any[]>(
       `SELECT \`id\`, \`name\`, \`generation\`, \`father_name\`,
@@ -171,12 +189,7 @@ export class TimelineMapService {
       return { points: [], routes: [] };
     }
 
-    // 迁徙规则（简化版）：
-    //  - 始祖（generation=1）→ 类型 ancestor
-    //  - 后代中 placeName 与父代不同 → 类型 migration（始迁祖）
-    //  - 其余按 birth/death 区分
     const points: MigrationPoint[] = [];
-    const idMap = new Map<string, MigrationPoint>();
     const genMap = new Map<number, MigrationPoint[]>();
 
     for (const row of rows) {
@@ -191,15 +204,13 @@ export class TimelineMapService {
         memberName: row.name
       };
       points.push(p);
-      idMap.set(String(row.id), p);
       if (!genMap.has(gen)) genMap.set(gen, []);
       genMap.get(gen)!.push(p);
     }
 
-    // 标记迁徙点：同代中 placeName 发生变化的视为迁徙
+    // 标记迁徙点：同代中心点与上一代差距 > 0.5°（约 50km）
     for (const [gen, genPoints] of genMap) {
       if (gen <= 1) continue;
-      // 简单规则：同代中心点与上一代中心点差距超过 0.5°（约 50km）视为迁徙
       const prevGenPoints = genMap.get(gen - 1) || [];
       if (prevGenPoints.length > 0 && genPoints.length > 0) {
         const prevCenter = this.average(prevGenPoints);
@@ -214,20 +225,20 @@ export class TimelineMapService {
       }
     }
 
-    // 构造迁徙路线：按世代中心点连线
+    // 构造迁徙路线
     const routes: Array<{ from: MigrationPoint; to: MigrationPoint }> = [];
     const sortedGens = [...genMap.keys()].sort((a, b) => a - b);
     for (let i = 0; i < sortedGens.length - 1; i++) {
-      const fromGen = sortedGens[i];
-      const toGen = sortedGens[i + 1];
-      const fromPoints = genMap.get(fromGen)!;
-      const toPoints = genMap.get(toGen)!;
+      const fromPoints = genMap.get(sortedGens[i])!;
+      const toPoints = genMap.get(sortedGens[i + 1])!;
       if (fromPoints.length > 0 && toPoints.length > 0) {
         routes.push({ from: fromPoints[0], to: toPoints[0] });
       }
     }
 
-    return { points, routes };
+    const result = { points, routes };
+    await this.setCacheObj(cacheKey, result);
+    return result;
   }
 
   // =================================================================
@@ -246,13 +257,19 @@ export class TimelineMapService {
   }
 
   // =================================================================
-  // 4. 家族事件 + 历史事件叠加
+  // 4. 家族事件 + 历史事件叠加（带缓存）
   // =================================================================
 
   async getCombinedTimeline(familyId: number): Promise<{
     familyEvents: Array<{ year: number; title: string; memberName: string; event: string }>;
     historyEvents: HistoryEvent[];
   }> {
+    const fp = await this.getFamilyFingerprint(familyId);
+    const cacheKey = this.hash(`timeline|${familyId}|${fp}`);
+
+    const cached: any = await this.getCacheObj(cacheKey);
+    if (cached) return cached;
+
     const table = `family_members_${familyId}`;
     const rows = await this.dataSource.query<any[]>(
       `SELECT \`name\`, \`birth_year\`, \`death_year\`, \`generation\`
@@ -282,16 +299,17 @@ export class TimelineMapService {
       }
     }
 
-    // 取年份范围
     const allYears = familyEvents.map(e => e.year);
-    if (allYears.length === 0) {
-      return { familyEvents: [], historyEvents: [] };
+    let historyEvents: HistoryEvent[] = [];
+    if (allYears.length > 0) {
+      const minYear = Math.min(...allYears) - 20;
+      const maxYear = Math.max(...allYears) + 20;
+      historyEvents = this.getHistoryEvents({ start: minYear, end: maxYear });
     }
-    const minYear = Math.min(...allYears) - 20;
-    const maxYear = Math.max(...allYears) + 20;
 
-    const historyEvents = this.getHistoryEvents({ start: minYear, end: maxYear });
-    return { familyEvents, historyEvents };
+    const result = { familyEvents, historyEvents };
+    await this.setCacheObj(cacheKey, result);
+    return result;
   }
 
   // =================================================================
@@ -304,5 +322,56 @@ export class TimelineMapService {
       { lat: 0, lng: 0 }
     );
     return { lat: sum.lat / points.length, lng: sum.lng / points.length };
+  }
+
+  // =================================================================
+  // 内部：缓存（复用 timeline_map_cache 表）
+  // =================================================================
+
+  private hash(input: string): string {
+    return crypto.createHash('md5').update(input).digest('hex');
+  }
+
+  /**
+   * 家族数据指纹：成员总数 + 最新 update_time
+   * 成员新增/修改/删除后 fingerprint 变化 → 缓存 key 自然不同 → 自动失效
+   */
+  private async getFamilyFingerprint(familyId: number): Promise<string> {
+    const table = `family_members_${familyId}`;
+    try {
+      const rows = await this.dataSource.query<any[]>(
+        `SELECT COUNT(*) AS cnt, COALESCE(MAX(\`update_time\`), '1970-01-01') AS last_update FROM \`${table}\``
+      );
+      const cnt = Number(rows[0]?.cnt || 0);
+      const last = rows[0]?.last_update || '1970-01-01';
+      return `${cnt}|${last}`;
+    } catch {
+      return 'unknown';
+    }
+  }
+
+  private async getCacheObj<T>(key: string): Promise<T | null> {
+    try {
+      const rows = await this.dataSource.query<any[]>(
+        `SELECT \`data_json\` FROM \`timeline_map_cache\`
+         WHERE \`cache_key\` = ? AND \`expire_time\` > NOW() LIMIT 1`,
+        [key]
+      );
+      if (rows.length === 0) return null;
+      return JSON.parse(rows[0].data_json) as T;
+    } catch { return null; }
+  }
+  private async setCacheObj(key: string, data: any): Promise<void> {
+    try {
+      const json = JSON.stringify(data);
+      await this.dataSource.query(
+        `INSERT INTO \`timeline_map_cache\` (\`cache_key\`, \`data_json\`, \`expire_time\`)
+         VALUES (?, ?, DATE_ADD(NOW(), INTERVAL ? HOUR))
+         ON DUPLICATE KEY UPDATE \`data_json\`=VALUES(\`data_json\`), \`expire_time\`=VALUES(\`expire_time\`)`,
+        [key, json, this.CACHE_TTL_HOURS]
+      );
+    } catch (err) {
+      this.logger.warn('[timeline-map] cache write failed:', err);
+    }
   }
 }

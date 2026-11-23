@@ -36,6 +36,79 @@
       </view>
     </view>
 
+    <!-- ==================== 图文对照（识典核心差异化） ==================== -->
+    <view wx:if="{{currentView === 'dual'}}" class="dual-view">
+      <!-- 左：原页浏览 -->
+      <view class="dual-left">
+        <view wx:if="{{pagesLoading}}" class="loading-mask small">原页加载中...</view>
+        <view wx:elif="{{pages.length === 0}}" class="empty-page">
+          <text class="empty-icon">📖</text>
+        </view>
+        <swiper
+          wx:else
+          class="pages-swiper dual-swiper"
+          current="{{pageIndex}}"
+          bindchange="onPageChange"
+          circular="{{false}}"
+        >
+          <swiper-item wx:for="{{pages}}" wx:key="id">
+            <movable-area class="movable-area" scale-area>
+              <movable-view
+                class="movable-img"
+                direction="all"
+                scale
+                scale-min="1"
+                scale-max="3"
+                scale-value="{{1}}"
+                out-of-bounds="{{false}}"
+              >
+                <image
+                  class="page-img"
+                  src="{{item.image_url}}"
+                  mode="widthFix"
+                  data-src="{{item.image_url}}"
+                  bindtap="onImageTap"
+                  lazy-load
+                />
+              </movable-view>
+            </movable-area>
+          </swiper-item>
+        </swiper>
+        <!-- 翻页小按钮 -->
+        <view wx:if="{{pages.length > 1}}" class="page-nav dual-nav">
+          <view
+            class="nav-btn {{pageIndex === 0 ? 'disabled' : ''}}"
+            bindtap="onPrevPage"
+          >◀</view>
+          <view class="page-indicator inline">{{pageNo}}/{{pages.length}}</view>
+          <view
+            class="nav-btn {{pageIndex >= pages.length - 1 ? 'disabled' : ''}}"
+            bindtap="onNextPage"
+          >▶</view>
+        </view>
+      </view>
+
+      <!-- 右：整理版正文 -->
+      <view class="dual-right">
+        <scroll-view scroll-y class="text-scroll">
+          <view class="text-content dual-content">
+            <view wx:if="{{chapters.length === 0}}" class="empty-page">
+              <text class="empty-text">暂无章节</text>
+            </view>
+            <view wx:elif="{{!chapterContent}}" class="empty-page">
+              <text class="empty-text">请先选章节</text>
+            </view>
+            <view wx:else class="chapter-body">
+              <view wx:if="{{activeChapterTitle}}" class="chapter-title">
+                {{activeChapterTitle}}
+              </view>
+              <view class="chapter-text">{{chapterContent}}</view>
+            </view>
+          </view>
+        </scroll-view>
+      </view>
+    </view>
+
     <!-- ==================== 原页浏览 ==================== -->
     <view wx:if="{{currentView === 'pages'}}" class="pages-view">
       <view wx:if="{{pagesLoading}}" class="loading-mask small">原页加载中...</view>

@@ -218,7 +218,26 @@ INSERT IGNORE INTO `sys_config`
 --   预期: 6 张表（cultural_document / _page / _chapter / _dictionary + ai_chat_session / _message）
 --
 --   SHOW TABLES LIKE '%cache%';
---   预期: 2 张表（tts_audio_cache + ocr_result_cache）
+--   预期: 3 张表（tts_audio_cache + ocr_result_cache + timeline_map_cache）
+--
+--   SHOW TABLES LIKE 'timeline_map_cache';
+--   预期: 1 张表
+
+-- ============================================================
+-- Part 7：时空地图缓存表（识典古籍对标 · 阶段 6 增强）
+-- 一张表存 generations / migration / timeline 三类查询结果
+-- ============================================================
+CREATE TABLE IF NOT EXISTS `timeline_map_cache` (
+  `id`               BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `cache_key`        VARCHAR(64)   NOT NULL COMMENT 'MD5(method|familyId|fingerprint|params)',
+  `data_json`        LONGTEXT      NOT NULL COMMENT '完整查询结果 JSON',
+  `expire_time`      DATETIME      NOT NULL COMMENT '过期时间（默认 24 小时）',
+  `create_time`      DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `update_time`      DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_cache_key` (`cache_key`),
+  INDEX `idx_expire` (`expire_time`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='时空地图查询缓存表';
 --
 -- 权限码：
 --   SELECT * FROM sys_permission WHERE code LIKE 'system:cultural-%';

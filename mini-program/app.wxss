@@ -19,11 +19,231 @@ page {
   --radius-lg: 24rpx;
   --radius-xl: 32rpx;
 
+  /* ============ 识典古籍 · 古典设计 Token（v1.1 新增） ============ */
+  --paper:      #f4ead5;   /* 古籍米黄纸（识典主色） */
+  --paper-2:    #faf3e0;   /* 浅米黄（卡片底色） */
+  --paper-3:    #efe4c8;   /* 深米黄（强调） */
+  --ink:        #2c1810;   /* 深墨色（正文） */
+  --ink-soft:   #4a3a2c;   /* 软墨（次级文字） */
+  --seal:       #8B1A1A;   /* 印章朱红（已有 --primary） */
+  --gold:       #c9a962;   /* 古典金（已有 --gold） */
+  --line:       #e5dcc5;   /* 纸缝分割线 */
+  --line-strong:#c9bda2;   /* 强调分割线 */
+  --seal-bg:    #8B1A1A;   /* 印章背景 */
+  --gold-bg:    #c9a962;   /* 金色背景 */
+  --bg-dark:    #1a1510;   /* 听书/夜间暗色 */
+  --ink-on-dark:#f4ead5;   /* 暗色上文字 */
+
+  /* 字体栈：楷体优先（系统自带，小程序支持） */
+  --font-kai:  KaiTi, "STKaiti", "楷体", "Kaiti SC", "Kaiti TC", serif;
+  --font-song: "Noto Serif SC", "STSong", "宋体", "SimSun", serif;
+  --font-ink:  "LXGW WenKai", KaiTi, "STKaiti", serif;  /* 若用户装了霞鹜文楷则更漂亮 */
+
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
   background-color: var(--bg);
   color: var(--text-primary);
   font-size: 28rpx;
   line-height: 1.6;
+}
+
+/* ============ 识典古籍 · 古典通用组件类（v1.1 新增） ============ */
+
+/* 米黄纸背景容器（文化典籍/阅读器用） */
+.paper-bg {
+  background: var(--paper);
+  min-height: 100vh;
+  color: var(--ink);
+}
+
+/* 古典卡片（米黄纸 + 纸缝边框 + 印章朱标题） */
+.classical-card {
+  background: var(--paper-2);
+  border-radius: var(--radius-md);
+  border: 1rpx solid var(--line);
+  box-shadow: var(--shadow-card);
+  padding: 32rpx;
+  margin-bottom: 24rpx;
+  position: relative;
+  overflow: hidden;
+}
+.classical-card::before {
+  /* 四角印章效果 */
+  content: '';
+  position: absolute;
+  top: 12rpx; left: 12rpx;
+  width: 32rpx; height: 32rpx;
+  border-top: 2rpx solid var(--seal);
+  border-left: 2rpx solid var(--seal);
+  opacity: 0.4;
+}
+.classical-card::after {
+  content: '';
+  position: absolute;
+  bottom: 12rpx; right: 12rpx;
+  width: 32rpx; height: 32rpx;
+  border-bottom: 2rpx solid var(--seal);
+  border-right: 2rpx solid var(--seal);
+  opacity: 0.4;
+}
+
+/* 古典标题（楷体 + 印章朱小方块前置） */
+.classical-title {
+  font-family: var(--font-kai);
+  color: var(--ink);
+  letter-spacing: 4rpx;
+  font-weight: 700;
+  font-size: 36rpx;
+}
+.classical-title-seal::before {
+  content: '';
+  display: inline-block;
+  width: 16rpx; height: 16rpx;
+  background: var(--seal);
+  margin-right: 12rpx;
+  vertical-align: middle;
+  border-radius: 2rpx;
+}
+
+/* 古典正文（宋体 + 墨色 + 宽松行距） */
+.classical-body {
+  font-family: var(--font-song);
+  color: var(--ink);
+  line-height: 2.2;
+  font-size: 30rpx;
+  letter-spacing: 2rpx;
+}
+
+/* 竖排正文（古籍阅读模式） */
+.classical-vertical {
+  writing-mode: vertical-rl;
+  text-orientation: upright;
+  font-family: var(--font-kai);
+  letter-spacing: 8rpx;
+  line-height: 1.4;
+  max-height: 100%;
+}
+
+/* 印章标签（朝代/分类小标签） */
+.seal-tag {
+  display: inline-block;
+  padding: 4rpx 16rpx;
+  background: var(--seal);
+  color: #fff;
+  font-size: 22rpx;
+  border-radius: 4rpx;
+  letter-spacing: 2rpx;
+  font-family: var(--font-kai);
+}
+
+/* 古典金色胶囊标签 */
+.gold-tag {
+  display: inline-block;
+  padding: 4rpx 16rpx;
+  background: rgba(201, 169, 98, 0.15);
+  color: var(--ink);
+  font-size: 22rpx;
+  border-radius: 20rpx;
+  border: 1rpx solid var(--gold);
+}
+
+/* 古籍正文墨线（章节间分隔） */
+.ink-divider {
+  height: 1rpx;
+  background: linear-gradient(90deg, transparent, var(--line-strong), transparent);
+  margin: 32rpx 0;
+}
+
+/* 封面墙条目（识典古籍首页风格：3:4 封面 + 楷体书名 + 朝代副标题） */
+.book-cover-item {
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  border-radius: 12rpx;
+  overflow: hidden;
+  background: var(--paper-3);
+  position: relative;
+  box-shadow: var(--shadow-card);
+}
+.book-cover-item .cover-image {
+  width: 100%;
+  height: 70%;
+  object-fit: cover;
+}
+.book-cover-item .cover-info {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  padding: 16rpx 20rpx;
+  background: linear-gradient(to top, rgba(44,24,16,0.9), transparent);
+  color: var(--paper);
+}
+.book-cover-item .cover-title {
+  font-family: var(--font-kai);
+  font-size: 28rpx;
+  font-weight: 700;
+  letter-spacing: 2rpx;
+  line-height: 1.3;
+}
+.book-cover-item .cover-sub {
+  font-size: 20rpx;
+  opacity: 0.75;
+  margin-top: 4rpx;
+}
+
+/* 古籍页眉（阅读器顶部装饰） */
+.classical-header {
+  position: relative;
+  padding: 20rpx 32rpx;
+  background: var(--paper-3);
+  border-bottom: 2rpx solid var(--seal);
+}
+.classical-header::before {
+  content: '';
+  position: absolute;
+  top: 8rpx; bottom: 8rpx; left: 8rpx;
+  width: 6rpx;
+  background: var(--seal);
+  border-radius: 2rpx;
+}
+
+/* 暗色沉浸式容器（听书播放器用） */
+.dark-immersive {
+  background: var(--bg-dark);
+  color: var(--ink-on-dark);
+  min-height: 100vh;
+}
+.dark-immersive .gold-accent {
+  color: var(--gold);
+}
+
+/* AI 聊天气泡（识典风格：米黄底 + 楷体） */
+.ai-bubble {
+  background: var(--paper-2);
+  border: 1rpx solid var(--line);
+  border-radius: 12rpx;
+  padding: 20rpx 24rpx;
+  font-family: var(--font-song);
+  line-height: 2;
+  color: var(--ink);
+  font-size: 28rpx;
+}
+
+/* 加载中动画（识典古籍「正在翻书」风格） */
+.classical-loading {
+  font-family: var(--font-kai);
+  color: var(--seal);
+  font-size: 26rpx;
+  text-align: center;
+  padding: 60rpx 0;
+  letter-spacing: 8rpx;
+}
+.classical-loading::after {
+  content: '翻书中...';
+  animation: bookflip 1.2s infinite;
+  display: inline-block;
+}
+@keyframes bookflip {
+  0%, 100% { content: '翻书中...'; }
+  33% { content: '翻书中．．'; }
+  66% { content: '翻书中．．．'; }
 }
 
 /* 通用容器 */

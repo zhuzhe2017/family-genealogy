@@ -67,6 +67,11 @@ Page({
     }
   },
 
+  /** Level 2：点击悬浮按钮 → 跳 AI 助手 */
+  onOpenAiChat: function () {
+    wx.navigateTo({ url: '/pages/ai-chat/ai-chat' });
+  },
+
   getCurrentFamilyId: function () {
     try { const info = wx.getStorageSync('currentFamily'); return info ? Number(info.id) : null; }
     catch { return null; }

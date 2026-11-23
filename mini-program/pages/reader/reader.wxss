@@ -1,20 +1,21 @@
-/* pages/reader/reader.wxss */
-page { background: #1a1410; }
+/* pages/reader/reader.wxss — 识典古籍古典风格（v1.1） */
+
+page { background: var(--bg-dark); }
 
 .reader-wrap {
   height: 100vh;
   display: flex;
   flex-direction: column;
-  background: #1a1410;
+  background: var(--bg-dark);
 }
 
-/* ============ 工具栏 ============ */
+/* ============ 工具栏 — 暗色金墨风格 ============ */
 .toolbar {
   display: flex;
   align-items: center;
   padding: 16rpx 24rpx;
   background: #2a1f16;
-  border-bottom: 1rpx solid rgba(255, 255, 255, 0.08);
+  border-bottom: 2rpx solid var(--gold);
   flex-shrink: 0;
 }
 .toolbar-left, .toolbar-right {
@@ -23,7 +24,7 @@ page { background: #1a1410; }
 .toolbar-left {
   display: flex;
   align-items: center;
-  color: #d4c4a8;
+  color: var(--gold);
   font-size: 26rpx;
 }
 .toolbar-icon {
@@ -34,8 +35,10 @@ page { background: #1a1410; }
   text-align: right;
 }
 .page-indicator {
-  color: #d4c4a8;
+  color: var(--gold);
   font-size: 24rpx;
+  font-family: var(--font-kai);
+  letter-spacing: 2rpx;
 }
 
 .view-tabs {
@@ -46,14 +49,17 @@ page { background: #1a1410; }
 .view-tab {
   padding: 12rpx 28rpx;
   margin: 0 8rpx;
+  font-family: var(--font-kai);
   font-size: 26rpx;
-  color: #8b7355;
+  color: var(--ink-soft);
   border-radius: 30rpx;
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(244, 234, 213, 0.08);
+  letter-spacing: 2rpx;
 }
 .view-tab.active {
-  color: #fff;
-  background: #8B1A1A;
+  color: var(--bg-dark);
+  background: var(--gold);
+  font-weight: 700;
 }
 
 /* ============ 加载/错误 ============ */
@@ -62,8 +68,10 @@ page { background: #1a1410; }
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #8b7355;
+  color: var(--gold);
+  font-family: var(--font-kai);
   font-size: 28rpx;
+  letter-spacing: 4rpx;
 }
 .loading-mask.small {
   position: absolute;
@@ -78,16 +86,19 @@ page { background: #1a1410; }
   justify-content: center;
 }
 .error-text {
-  color: #d4c4a8;
+  color: var(--ink-on-dark);
+  font-family: var(--font-kai);
   font-size: 30rpx;
   margin-bottom: 24rpx;
 }
 .retry-btn {
   padding: 16rpx 48rpx;
-  background: #8B1A1A;
+  background: var(--seal);
   color: #fff;
   border-radius: 30rpx;
   font-size: 26rpx;
+  font-family: var(--font-kai);
+  letter-spacing: 2rpx;
 }
 
 /* ============ 原页浏览 ============ */
@@ -127,8 +138,9 @@ page { background: #1a1410; }
 .nav-btn {
   width: 80rpx;
   height: 80rpx;
-  background: rgba(0, 0, 0, 0.5);
-  color: #fff;
+  background: rgba(26, 21, 16, 0.7);
+  border: 2rpx solid var(--gold);
+  color: var(--gold);
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -136,43 +148,70 @@ page { background: #1a1410; }
   font-size: 36rpx;
 }
 .nav-btn.disabled {
-  opacity: 0.3;
+  opacity: 0.25;
+  border-color: var(--ink-soft);
+  color: var(--ink-soft);
 }
 
-/* ============ 正文/译文 ============ */
+/* ============ 正文/译文 — 米黄纸 + 楷体 ============ */
 .text-view {
   flex: 1;
   display: flex;
-  background: #f7f3ed;
+  background: var(--paper);          /* 古籍米黄纸 */
 }
 .text-scroll {
   flex: 1;
   height: 100%;
 }
 .text-content {
-  padding: 48rpx 40rpx 80rpx;
+  padding: 48rpx 48rpx 80rpx;
   min-height: 100%;
 }
 .chapter-title {
-  font-size: 36rpx;
-  font-weight: 600;
-  color: #2c1810;
+  font-family: var(--font-kai);
+  font-size: 40rpx;
+  font-weight: 700;
+  color: var(--ink);
   text-align: center;
-  margin-bottom: 36rpx;
+  margin-bottom: 40rpx;
   padding-bottom: 24rpx;
-  border-bottom: 2rpx solid #d4c4a8;
+  border-bottom: 2rpx solid var(--seal);
+  letter-spacing: 8rpx;
+  position: relative;
 }
+/* 标题两端印章装饰 */
+.chapter-title::before {
+  content: '';
+  position: absolute;
+  bottom: -2rpx; left: 20%;
+  width: 16rpx; height: 16rpx;
+  background: var(--seal);
+  border-radius: 2rpx;
+}
+.chapter-title::after {
+  content: '';
+  position: absolute;
+  bottom: -2rpx; right: 20%;
+  width: 16rpx; height: 16rpx;
+  background: var(--seal);
+  border-radius: 2rpx;
+}
+
 .chapter-text {
+  font-family: var(--font-song);
   font-size: 32rpx;
-  line-height: 2;
-  color: #333;
+  line-height: 2.2;
+  color: var(--ink);
   text-align: justify;
-  font-family: "Noto Serif SC", "Songti SC", "STSong", serif;
+  letter-spacing: 1rpx;
 }
+
+/* 译文：现代字体 + 墨色软 */
 .trans-body .chapter-text {
-  font-family: -apple-system, "PingFang SC", sans-serif;
+  font-family: -apple-system, "PingFang SC", var(--font-song), sans-serif;
   font-size: 30rpx;
-  color: #444;
+  color: var(--ink-soft);
+  line-height: 2;
 }
 
 /* 空状态 */
@@ -182,21 +221,24 @@ page { background: #1a1410; }
   align-items: center;
   justify-content: center;
   padding: 160rpx 0;
-  color: #8b7355;
+  color: var(--ink-soft);
 }
 .empty-icon {
   font-size: 100rpx;
   margin-bottom: 24rpx;
+  filter: sepia(0.5);
 }
 .empty-text {
+  font-family: var(--font-kai);
   font-size: 28rpx;
+  letter-spacing: 4rpx;
 }
 
-/* ============ 章节抽屉 ============ */
+/* ============ 章节抽屉 — 米黄纸风格 ============ */
 .drawer-mask {
   position: absolute;
   inset: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(26, 21, 16, 0.55);
   z-index: 10;
 }
 .chapter-drawer {
@@ -206,12 +248,13 @@ page { background: #1a1410; }
   bottom: 0;
   width: 70%;
   max-width: 560rpx;
-  background: #fff;
+  background: var(--paper);
   z-index: 11;
   transform: translateX(-100%);
   transition: transform 0.25s ease;
   display: flex;
   flex-direction: column;
+  border-right: 4rpx solid var(--seal);
 }
 .chapter-drawer.show {
   transform: translateX(0);
@@ -221,17 +264,20 @@ page { background: #1a1410; }
   align-items: center;
   justify-content: space-between;
   padding: 32rpx 32rpx 24rpx;
-  border-bottom: 1rpx solid #eee;
+  border-bottom: 2rpx solid var(--seal);
   flex-shrink: 0;
+  background: var(--paper-3);
 }
 .drawer-title {
-  font-size: 32rpx;
-  font-weight: 600;
-  color: #2c1810;
+  font-family: var(--font-kai);
+  font-size: 34rpx;
+  font-weight: 700;
+  color: var(--ink);
+  letter-spacing: 4rpx;
 }
 .drawer-close {
   font-size: 36rpx;
-  color: #999;
+  color: var(--ink-soft);
   padding: 8rpx;
 }
 .drawer-scroll {
@@ -241,34 +287,113 @@ page { background: #1a1410; }
 .chapter-item {
   display: flex;
   align-items: center;
-  padding: 24rpx;
-  border-bottom: 1rpx solid #f5f5f5;
+  padding: 24rpx 32rpx;
+  border-bottom: 1rpx solid var(--line);
 }
 .chapter-item.active {
-  background: rgba(139, 26, 26, 0.06);
-  color: #8B1A1A;
+  background: rgba(139, 26, 26, 0.08);
+  border-left: 4rpx solid var(--seal);
 }
 .chapter-dot {
   width: 12rpx;
   height: 12rpx;
   border-radius: 50%;
-  background: #ccc;
+  background: var(--line-strong);
   margin-right: 16rpx;
   flex-shrink: 0;
 }
 .chapter-item.active .chapter-dot {
-  background: #8B1A1A;
+  background: var(--seal);
 }
 .chapter-name {
   flex: 1;
+  font-family: var(--font-song);
   font-size: 28rpx;
-  color: #333;
+  color: var(--ink);
 }
 .chapter-item.active .chapter-name {
-  color: #8B1A1A;
-  font-weight: 500;
+  color: var(--seal);
+  font-weight: 600;
+  font-family: var(--font-kai);
 }
 .chapter-page {
   font-size: 22rpx;
-  color: #aaa;
+  color: var(--ink-soft);
+  opacity: 0.7;
+}
+
+/* ============ Level 2 图文对照（识典核心差异化） ============ */
+.dual-view {
+  flex: 1;
+  display: flex;
+  background: var(--paper);
+  min-height: 0;           /* 让 flex 子项正确收缩 */
+}
+.dual-left {
+  width: 48%;              /* 左 48%：原页图片 */
+  position: relative;
+  background: var(--bg-dark);
+  border-right: 2rpx solid var(--seal);
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.dual-swiper {
+  flex: 1;
+  height: auto;
+}
+.dual-left .pages-swiper { height: 100%; }
+.dual-left .movable-area {
+  width: 100%;
+  height: 100%;
+}
+.dual-left .page-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.dual-nav {
+  position: absolute;
+  bottom: 16rpx;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+  background: rgba(26, 21, 16, 0.6);
+  padding: 8rpx 16rpx;
+  border-radius: 30rpx;
+  border: 1rpx solid var(--gold);
+}
+.dual-nav .nav-btn {
+  width: 56rpx;
+  height: 56rpx;
+  font-size: 28rpx;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+}
+.page-indicator.inline {
+  color: var(--gold);
+  font-size: 20rpx;
+  font-family: var(--font-kai);
+}
+
+.dual-right {
+  width: 52%;              /* 右 52%：正文 */
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.dual-content {
+  padding: 32rpx 28rpx 60rpx;
+}
+.dual-right .chapter-title {
+  font-size: 32rpx;        /* 并排时标题稍小 */
+  margin-bottom: 24rpx;
+  letter-spacing: 4rpx;
+}
+.dual-right .chapter-text {
+  font-size: 28rpx;        /* 并排时正文稍小 */
+  line-height: 2;
 }

@@ -36,4 +36,10 @@
     <text>📖 内容来源于公共版权古籍 + 家族谱牒整理</text>
   </view>
 
+  <!-- ============ Level 2 AI 助手悬浮入口（识典风格） ============ -->
+  <view class="ai-fab" bindtap="onOpenAiChat">
+    <text class="ai-fab-seal">智</text>
+    <view class="ai-fab-badge" wx:if="{{familyId}}">AI</view>
+  </view>
+
 </view>
