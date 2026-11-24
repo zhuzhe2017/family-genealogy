@@ -3,7 +3,7 @@ import {
   ParseIntPipe, ValidationPipe, HttpCode, HttpStatus,
   Req, UseGuards
 } from '@nestjs/common';
-import { JwtAuthGuard } from '../auth/guard/jwt-auth.guard';
+import { AuthGuard } from '@nestjs/passport';
 import { EntitlementGuard } from '../membership/guards/entitlement.guard';
 import { Entitlement } from '../membership/decorators/entitlement.decorator';
 import { Capability } from '../membership/types/membership.types';
@@ -23,8 +23,11 @@ import type { ContextType } from './types/ai-assistant.types';
  * - POST   /ai/:familyId/annotate        古文断句注释（Entitlement Annotate）
  * - POST   /ai/:familyId/extract         实体提取（JWT 基础守卫）
  * - POST   /ai/:familyId/relation        亲属关系推理（JWT 基础守卫）
+ *
+ * 鉴权：AuthGuard(['jwt', 'user-jwt']) 同时接受后台管理员令牌(type='admin')
+ *       和小程序 C 端用户令牌(type='user')，EntitlementGuard 负责会员权益校验。
  */
-@UseGuards(JwtAuthGuard, EntitlementGuard)
+@UseGuards(AuthGuard(['jwt', 'user-jwt']), EntitlementGuard)
 @Controller('ai')
 export class AiAssistantController {
   constructor(private readonly aiService: AiAssistantService) {}

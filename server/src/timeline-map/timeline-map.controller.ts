@@ -1,8 +1,9 @@
 import {
   Controller, Get, Query, Param, ParseIntPipe, UseGuards
 } from '@nestjs/common';
-import { JwtAuthGuard } from '../auth/guard/jwt-auth.guard';
+import { AuthGuard } from '@nestjs/passport';
 import { TimelineMapService } from './timeline-map.service';
+import { Public } from '../common/decorators/public.decorator';
 
 /**
  * 时空地图端点（识典古籍对标 · 阶段 6）
@@ -10,10 +11,13 @@ import { TimelineMapService } from './timeline-map.service';
  * 统一路由：/timeline-map
  * - GET /timeline-map/:familyId/generations      按世代分组的地理分布
  * - GET /timeline-map/:familyId/migration        家族迁徙路线
- * - GET /timeline-map/history?start=&end=&cat=  同期历史事件（公开）
+ * - GET /timeline-map/history?start=&end=&cat=  同期历史事件（公开，无需登录）
  * - GET /timeline-map/:familyId/timeline         家族事件 + 历史事件叠加
+ *
+ * 鉴权：AuthGuard(['jwt', 'user-jwt']) 同时接受后台管理员和小程序 C 端用户令牌。
+ *       history 端点标注 @Public() 跳过鉴权，供未登录用户浏览历史事件。
  */
-@UseGuards(JwtAuthGuard)
+@UseGuards(AuthGuard(['jwt', 'user-jwt']))
 @Controller('timeline-map')
 export class TimelineMapController {
   constructor(private readonly svc: TimelineMapService) {}
@@ -38,6 +42,7 @@ export class TimelineMapController {
   }
 
   /** 同期历史事件（公开，无需家族） */
+  @Public()
   @Get('history')
   history(
     @Query('start') start?: string,

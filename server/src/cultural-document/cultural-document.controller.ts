@@ -2,6 +2,7 @@ import {
   Controller, Get, Post, Put, Delete, Body, Param, Query,
   UseGuards, ParseIntPipe, ParseUUIDPipe, HttpException, HttpStatus
 } from '@nestjs/common';
+import { AuthGuard } from '@nestjs/passport';
 import { CulturalDocumentService } from './cultural-document.service';
 import { Public } from '../common/decorators/public.decorator';
 import { JwtAuthGuard } from '../auth/guard/jwt-auth.guard';
@@ -67,15 +68,16 @@ export class CulturalDocumentPublicController {
 }
 
 // =================================================================
-// 家族私有端点：需 JWT + 权限守卫 + familyId 归属校验
+// 家族私有端点：需登录（admin 或 user-jwt），service 层做家族归属校验
+// GET 端点：登录即可访问（家族成员可读）
+// POST/PUT/DELETE：admin-only（方法级 JwtAuthGuard + PermissionsGuard 覆盖类级）
 // =================================================================
-@UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
+@UseGuards(AuthGuard(['jwt', 'user-jwt']))
 @Controller('cultural-doc/:familyId')
 export class CulturalDocumentFamilyController {
   constructor(private readonly docService: CulturalDocumentService) {}
 
   /** 家族文档分页列表 */
-  @Permissions('system:cultural-doc:list')
   @Get('list')
   async getList(
     @Param('familyId', ParseIntPipe) familyId: number,
@@ -93,7 +95,6 @@ export class CulturalDocumentFamilyController {
   }
 
   /** 家族文档详情 */
-  @Permissions('system:cultural-doc:list')
   @Get(':id')
   async getById(
     @Param('familyId', ParseIntPipe) familyId: number,
@@ -103,7 +104,6 @@ export class CulturalDocumentFamilyController {
   }
 
   /** 家族文档章节树 */
-  @Permissions('system:cultural-doc:list')
   @Get(':id/chapters')
   async getChapters(
     @Param('familyId', ParseIntPipe) familyId: number,
@@ -115,7 +115,6 @@ export class CulturalDocumentFamilyController {
   }
 
   /** 家族文档原页图片 */
-  @Permissions('system:cultural-doc:list')
   @Get(':id/pages')
   async getPages(
     @Param('familyId', ParseIntPipe) familyId: number,
@@ -125,7 +124,8 @@ export class CulturalDocumentFamilyController {
     return this.docService.getPages(id);
   }
 
-  /** 创建家族文档 */
+  /** 创建家族文档（admin-only） */
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
   @Permissions('system:cultural-doc:create')
   @Post('create')
   async create(
@@ -144,7 +144,8 @@ export class CulturalDocumentFamilyController {
     });
   }
 
-  /** 更新家族文档 */
+  /** 更新家族文档（admin-only） */
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
   @Permissions('system:cultural-doc:update')
   @Put('update/:id')
   async update(
@@ -155,7 +156,8 @@ export class CulturalDocumentFamilyController {
     return this.docService.update(familyId, id, body);
   }
 
-  /** 删除家族文档 */
+  /** 删除家族文档（admin-only） */
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
   @Permissions('system:cultural-doc:delete')
   @Delete('delete/:id')
   async delete(
@@ -165,7 +167,8 @@ export class CulturalDocumentFamilyController {
     return this.docService.delete(familyId, id);
   }
 
-  /** 批量上传/覆盖家族文档原页图片 */
+  /** 批量上传/覆盖家族文档原页图片（admin-only） */
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
   @Permissions('system:cultural-doc:page')
   @Post(':id/pages')
   async uploadPages(
