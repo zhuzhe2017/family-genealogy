@@ -238,7 +238,7 @@ Page({
   // ============================================================
 
   getCurrentFamilyId: function () {
-    try { const info = wx.getStorageSync('currentFamily'); return info ? Number(info.id) : null; }
+    try { const info = wx.getStorageSync('current_family'); return info ? Number(info.id) : null; }
     catch { return null; }
   }
 });

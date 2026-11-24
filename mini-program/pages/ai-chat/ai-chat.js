@@ -332,7 +332,7 @@ Page({
   // ============================================================
   getCurrentFamilyId: function () {
     try {
-      const info = wx.getStorageSync('currentFamily');
+      const info = wx.getStorageSync('current_family');
       return info ? Number(info.id) : null;
     } catch { return null; }
   },

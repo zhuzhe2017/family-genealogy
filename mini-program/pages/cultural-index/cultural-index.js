@@ -42,7 +42,7 @@ Page({
   // 获取当前家族ID（兼容已登录/未登录）
   getCurrentFamilyId: function () {
     try {
-      const info = wx.getStorageSync('currentFamily');
+      const info = wx.getStorageSync('current_family');
       return info ? Number(info.id) : null;
     } catch {
       return null;
