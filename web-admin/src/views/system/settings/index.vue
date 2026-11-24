@@ -26,7 +26,8 @@ import {
   type CloudStorageFullConfig,
   type CloudStorageProvider,
   type PayFullConfig,
-  type PayProvider
+  type PayProvider,
+  type SystemConfigItem
 } from '@/service/api';
 
 defineOptions({ name: 'SystemSettings' });
@@ -82,6 +83,8 @@ const canViewCloudStorage = computed(() => hasAuth('system:settings:cloud:list')
 const canUpdateCloudStorage = computed(() => hasAuth('system:settings:cloud:update'));
 const canViewPay = computed(() => hasAuth('system:settings:pay:list'));
 const canUpdatePay = computed(() => hasAuth('system:settings:pay:update'));
+const canViewAi = computed(() => canViewPay.value); // 复用 pay 权限级别（AI 是支付之后的同等敏感配置）
+const canUpdateAi = computed(() => canUpdatePay.value);
 
 // ==================== 配置数据 ====================
 const activeTab = ref('basic');
@@ -430,6 +433,125 @@ async function handleTestPay(provider: PayProvider) {
   }
 }
 
+// ==================== AI / LLM 大模型配置（识典古籍对标 · 阶段 2 基础设施） ====================
+const aiLoading = ref(false);
+const aiSaving = ref(false);
+const aiModel = reactive({
+  provider: 'deepseek',
+  apiKey: '',
+  apiKeyMasked: false,
+  model: 'deepseek-chat',
+  providerOptions: [
+    { label: 'DeepSeek（推荐，性价比最高）', value: 'deepseek' },
+    { label: '豆包 Doubao（字节跳动）', value: 'doubao' },
+    { label: '通义千问 Qwen（阿里云）', value: 'qwen' }
+  ] as { label: string; value: string }[]
+});
+const aiConfigItems = ref<SystemConfigItem[]>([]); // sys_config 表里 llm_* 三条记录的 id
+
+async function loadAiConfig() {
+  aiLoading.value = true;
+  try {
+    // 直接查 sys_config 的 ai 分组
+    const { data } = await fetchSystemConfigGroups();
+    if (!data) return;
+
+    const aiGroup = (data.basic || []).filter(item => String(item.configKey).startsWith('llm_'));
+    // 也可能放在 security 组，兜底
+    const fallback = aiGroup.length === 0
+      ? (data.security || []).filter(item => String(item.configKey).startsWith('llm_'))
+      : [];
+    const allAi = [...aiGroup, ...fallback];
+    aiConfigItems.value = allAi as unknown as SystemConfigItem[];
+
+    // 填值
+    const map = new Map(allAi.map(item => [item.configKey, item]));
+    const providerItem = map.get('llm_provider');
+    const apiKeyItem = map.get('llm_api_key');
+    const modelItem = map.get('llm_model');
+
+    aiModel.provider = String(providerItem?.configValue || 'deepseek');
+    aiModel.model = String(modelItem?.configValue || 'deepseek-chat');
+
+    const rawKey = String(apiKeyItem?.configValue || '');
+    if (rawKey && rawKey.length > 0) {
+      aiModel.apiKey = rawKey; // 实际值（可能是加密的）
+      aiModel.apiKeyMasked = true;
+    } else {
+      aiModel.apiKey = '';
+      aiModel.apiKeyMasked = false;
+    }
+  } finally {
+    aiLoading.value = false;
+  }
+}
+
+async function handleSaveAi() {
+  if (!canUpdateAi.value) return;
+  if (!(await ensureVerified())) return;
+
+  aiSaving.value = true;
+  try {
+    // 验证
+    if (!aiModel.apiKey.trim()) {
+      message.error('请填写 LLM API Key');
+      return;
+    }
+
+    // 构建保存项（用 config id 更新）
+    const keyMap = new Map(aiConfigItems.value.map(item => [item.configKey, item]));
+    const saveItems = [] as { id: number; configValue: string }[];
+
+    // provider
+    const providerItem = keyMap.get('llm_provider');
+    if (providerItem) saveItems.push({ id: providerItem.id, configValue: aiModel.provider });
+
+    // model
+    const modelItem = keyMap.get('llm_model');
+    if (modelItem) saveItems.push({ id: modelItem.id, configValue: aiModel.model.trim() });
+
+    // apiKey：如果用户清空了掩码（重新输入了），保存新值；如果还是掩码，跳过（服务端保留原值）
+    const apiKeyItem = keyMap.get('llm_api_key');
+    if (apiKeyItem) {
+      const raw = aiModel.apiKey;
+      if (!aiModel.apiKeyMasked || (aiModel.apiKey.trim() && aiModel.apiKey.trim() !== '********')) {
+        // 用户输入了新值，保存（后端会自动加密）
+        saveItems.push({ id: apiKeyItem.id, configValue: raw });
+      }
+      // 如果还是掩码，跳过 → 服务端保留原值
+    }
+
+    if (saveItems.length === 0) {
+      message.info('没有需要保存的更改');
+      return;
+    }
+
+    const { error } = await fetchSaveSystemConfigBatch(saveItems);
+    if (!error) {
+      message.success('AI 大模型配置已保存（API Key 已自动加密）');
+      aiModel.apiKeyMasked = true;
+    }
+  } finally {
+    aiSaving.value = false;
+  }
+}
+
+function onAiKeyFocus() {
+  // 聚焦时清空掩码，让用户可以重新输入
+  if (aiModel.apiKeyMasked) {
+    aiModel.apiKey = '';
+    aiModel.apiKeyMasked = false;
+  }
+}
+
+function aiProviderDesc(provider: string): string {
+  return {
+    deepseek: '性价比最高，中文能力强，OpenAI 兼容。推荐 deepseek-chat 模型。',
+    doubao: '字节跳动豆包，和识典古籍同家。推荐 doubao-pro-32k 模型。',
+    qwen: '阿里云通义千问，国内生态好。推荐 qwen-plus 模型。'
+  }[provider] || '';
+}
+
 async function loadConfigs() {
   loading.value = true;
   try {
@@ -770,6 +892,9 @@ watch(activeTab, tab => {
   if (tab === 'pay' && canViewPay.value) {
     loadPayConfig();
   }
+  if (tab === 'ai' && canViewAi.value) {
+    loadAiConfig();
+  }
 });
 
 onMounted(() => {
@@ -777,6 +902,7 @@ onMounted(() => {
   loadSensitiveConfig();
   loadCloudStorageConfig();
   loadPayConfig();
+  if (canViewAi.value) loadAiConfig();
 });
 </script>
 
@@ -796,6 +922,7 @@ onMounted(() => {
       <NTabPane name="security" :tab="$t('page.systemSettings.security')" />
       <NTabPane name="cloud" :tab="$t('page.systemSettings.cloudStorage')" />
       <NTabPane name="pay" :tab="$t('page.systemSettings.payConfig')" />
+      <NTabPane v-if="canViewAi" name="ai" tab="AI 大模型" />
     </NTabs>
 
     <div v-if="loading && activeTab !== 'log'" class="mt-24px">
@@ -1238,6 +1365,110 @@ onMounted(() => {
             status="403"
             :title="$t('page.systemSettings.noPermission')"
             :description="$t('page.systemSettings.noPermissionTip')"
+          />
+        </NCard>
+      </NSpin>
+    </div>
+
+    <!-- AI / LLM 大模型配置面板（识典古籍对标 · 阶段 2 基础设施） -->
+    <div v-show="activeTab === 'ai'" class="space-y-16px">
+      <NSpin :show="aiLoading">
+        <NCard
+          v-if="canViewAi"
+          title="AI 大模型 / LLM 配置"
+          :bordered="false"
+          class="shadow-sm"
+        >
+          <template #header-extra>
+            <NTag type="info" size="small">识典古籍 · AI 助手依赖</NTag>
+          </template>
+
+          <NAlert
+            type="info"
+            :show-icon="true"
+            class="mb-16px"
+          >
+            AI 助手、古籍自动断句注释、AI 摘要、亲属关系推理等功能均依赖大语言模型。请先申请 API Key 后在此配置。
+          </NAlert>
+
+          <NForm
+            label-placement="left"
+            label-width="160px"
+            :show-feedback="false"
+            class="space-y-12px"
+          >
+            <NFormItem label="服务提供商">
+              <NRadioGroup
+                v-model:value="aiModel.provider"
+                :disabled="!canUpdateAi"
+              >
+                <NRadio
+                  v-for="opt in aiModel.providerOptions"
+                  :key="opt.value"
+                  :value="opt.value"
+                >
+                  {{ opt.label }}
+                </NRadio>
+              </NRadioGroup>
+              <div class="mt-8px text-12px text-gray-500 leading-relaxed">
+                {{ aiProviderDesc(aiModel.provider) }}
+              </div>
+            </NFormItem>
+
+            <NFormItem label="默认模型">
+              <NInput
+                v-model:value="aiModel.model"
+                :disabled="!canUpdateAi"
+                placeholder="deepseek-chat / doubao-pro-32k / qwen-plus"
+              />
+              <div class="mt-8px text-12px text-gray-500">
+                各 Provider 模型名不同，参考对应官方文档
+              </div>
+            </NFormItem>
+
+            <NFormItem label="API Key">
+              <NInput
+                v-model:value="aiModel.apiKey"
+                :disabled="!canUpdateAi"
+                :type="aiModel.apiKeyMasked ? 'password' : 'text'"
+                :placeholder="aiModel.apiKeyMasked ? '********（已加密存储，点击清空后可重新输入）' : 'sk-xxx 或相应格式的 API Key'"
+                @focus="onAiKeyFocus"
+                show-password-on="click"
+              />
+              <div class="mt-8px text-12px text-gray-500 leading-relaxed">
+                API Key 保存时将自动加密，数据库中不存储明文。修改时先点击输入框清空旧值再粘贴新 Key。
+              </div>
+            </NFormItem>
+          </NForm>
+
+          <NDivider />
+
+          <div class="flex items-center gap-12px">
+            <NButton
+              v-if="canUpdateAi"
+              type="primary"
+              :loading="aiSaving"
+              @click="handleSaveAi"
+            >
+              保存 AI 大模型配置
+            </NButton>
+            <NButton
+              :disabled="!canUpdateAi"
+              @click="loadAiConfig"
+            >
+              重新加载
+            </NButton>
+            <NTag :bordered="false" :type="aiModel.apiKeyMasked ? 'success' : 'warning'">
+              {{ aiModel.apiKeyMasked ? 'API Key 已配置' : 'API Key 未配置' }}
+            </NTag>
+          </div>
+        </NCard>
+
+        <NCard v-else :bordered="false" class="shadow-sm">
+          <NResult
+            status="403"
+            title="无权限"
+            description="当前账号无权配置 AI 大模型参数"
           />
         </NCard>
       </NSpin>
