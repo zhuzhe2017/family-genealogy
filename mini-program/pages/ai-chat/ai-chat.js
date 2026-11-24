@@ -22,9 +22,12 @@ Page({
   // ============================================================
   data: {
     familyId: null,
+    sessionReady: false,
+    sessionError: '',
     // 当前会话
     sessionId: '',
     sessionTitle: '',
+    initRetries: 0,
     // 会话抽屉
     showDrawer: false,
     sessionList: [],
@@ -82,7 +85,7 @@ Page({
 
     if (cachedSessionId) {
       // 恢复旧会话 → 拉历史消息
-      this.setData({ sessionId: cachedSessionId });
+      this.setData({ sessionId: cachedSessionId, sessionReady: true });
       this.loadHistory(cachedSessionId);
     } else {
       // 新建会话
@@ -95,18 +98,43 @@ Page({
 
   createNewSession: function (contextType) {
     const familyId = this.data.familyId;
+    this.setData({ sessionReady: false, sessionError: '' });
     api.aiAssistant.createSession(familyId, {
       contextType: contextType || 'general'
     }).then(res => {
       const sessionId = res.data.sessionId;
-      this.setData({ sessionId, sessionTitle: '', messages: [] });
+      this.setData({ sessionId, sessionTitle: '', messages: [], sessionReady: true, initRetries: 0 });
       this.persistSessionId(sessionId);
 
       // 欢迎语（前端生成，不走 AI）
       const welcome = this.buildWelcomeMessage();
       this.setData({ messages: [welcome] });
     }).catch(err => {
-      wx.showToast({ title: err.msg || '创建会话失败', icon: 'none' });
+      // 自动重试最多 2 次
+      const retries = this.data.initRetries + 1;
+      this.setData({ initRetries: retries });
+
+      if (retries <= 2) {
+        console.warn('[AI Chat] createSession 失败，第 ' + retries + ' 次重试:', err);
+        setTimeout(() => this.createNewSession(contextType), 1200);
+      } else {
+        const msg = (err && err.msg) || '后端暂未就绪，请稍后再试';
+        this.setData({ sessionError: msg });
+        wx.showModal({
+          title: 'AI 助手未就绪',
+          content: msg + '\n\n可能原因：\n• 服务器未执行识典古籍 SQL\n• AI 会话表不存在\n\n请联系管理员或稍后重试。',
+          confirmText: '重试',
+          cancelText: '返回',
+          success: (res) => {
+            if (res.confirm) {
+              this.setData({ initRetries: 0 });
+              this.createNewSession(contextType);
+            } else {
+              wx.navigateBack();
+            }
+          }
+        });
+      }
     });
   },
 
@@ -188,8 +216,17 @@ Page({
   sendMessage: function () {
     const question = (this.data.inputText || '').trim();
     if (!question || this.data.sending) return;
+
     if (!this.data.sessionId) {
-      wx.showToast({ title: '会话未就绪', icon: 'none' });
+      if (!this.data.sessionReady) {
+        // 还在初始化中，提示用户
+        if (this.data.initRetries >= 2) {
+          // 已重试多次，给明确错误
+          wx.showToast({ title: '请先执行服务器 SQL：cultural-content.sql', icon: 'none', duration: 3000 });
+        } else {
+          wx.showToast({ title: '会话创建中，请稍候', icon: 'none' });
+        }
+      }
       return;
     }
 
