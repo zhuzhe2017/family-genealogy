@@ -3,7 +3,7 @@ const contentApi = require('../../utils/api').content;
 const categoryApi = require('../../utils/api').category;
 const { getToken, upload } = require('../../utils/request');
 
-// 与 family-docs 页兜底字典一致，作为分类加载失败时的可选池
+// 兜底分类字典，作为分类加载失败时的可选池
 const DOC_CATEGORY_FALLBACK = [
   { id: 'genealogy', name: '族谱' },
   { id: 'history', name: '家族史' },

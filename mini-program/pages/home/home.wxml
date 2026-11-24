@@ -93,7 +93,7 @@
       <view class="action-grid">
         <view class="action-item" wx:for="{{quickActions}}" wx:key="id" bindtap="navigateTo" data-url="{{item.url}}">
           <view class="action-icon" style="background: {{item.bgColor}}">
-            <text class="action-icon-text">{{item.icon}}</text>
+            <text class="action-icon-text" style="color: {{item.iconColor || ''}}">{{item.icon}}</text>
           </view>
           <text class="action-name">{{item.name}}</text>
         </view>

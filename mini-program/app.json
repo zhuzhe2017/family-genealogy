@@ -7,7 +7,6 @@
     "pages/member-list/member-list",
     "pages/member-detail/member-detail",
     "pages/add-member/add-member",
-    "pages/family-docs/family-docs",
     "pages/doc-detail/doc-detail",
     "pages/upload-doc/upload-doc",
     "pages/timeline/timeline",

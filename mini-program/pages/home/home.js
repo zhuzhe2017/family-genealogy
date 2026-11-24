@@ -12,14 +12,19 @@ Page({
     quickActions: [
       { id: 1, name: '宗亲聚会', icon: '🎉', bgColor: '#E8F5E9', url: '/pages/gathering/index' },
       { id: 2, name: '家族基金', icon: '💰', bgColor: '#E3F2FD', url: '/pages/fund/index' },
-      { id: 3, name: '家族资料', icon: '📚', bgColor: '#FFF3E0', url: '/pages/family-docs/family-docs' },
-      { id: 4, name: '事件时间', icon: '📅', bgColor: '#F3E5F5', url: '/pages/timeline/timeline' },
-      { id: 5, name: '相册影像', icon: '📷', bgColor: '#E0F2F1', url: '/pages/album/album' },
-      { id: 6, name: '祭祀祈福', icon: '🙏', bgColor: '#FBE9E7', url: '/pages/worship/worship' },
-      { id: 7, name: '家族动态', icon: '💬', bgColor: '#E8EAF6', url: '/pages/dynamic/dynamic' },
-      { id: 8, name: '应用中心', icon: '🧩', bgColor: '#E0F7FA', url: '/pages/app-center/app-center' },
-      { id: 9, name: '亲缘查询', icon: '🔍', bgColor: '#FFF8E1', url: '/pages/kinship/kinship' },
-      { id: 10, name: '位置导航', icon: '📍', bgColor: '#F1F8E9', url: '/pages/member-map/member-map' }
+      { id: 3, name: '事件时间', icon: '📅', bgColor: '#F3E5F5', url: '/pages/timeline/timeline' },
+      { id: 4, name: '相册影像', icon: '📷', bgColor: '#E0F2F1', url: '/pages/album/album' },
+      { id: 5, name: '祭祀祈福', icon: '🙏', bgColor: '#FBE9E7', url: '/pages/worship/worship' },
+      { id: 6, name: '家族动态', icon: '💬', bgColor: '#E8EAF6', url: '/pages/dynamic/dynamic' },
+      { id: 7, name: '应用中心', icon: '🧩', bgColor: '#E0F7FA', url: '/pages/app-center/app-center' },
+      { id: 8, name: '亲缘查询', icon: '🔍', bgColor: '#FFF8E1', url: '/pages/kinship/kinship' },
+      { id: 9, name: '位置导航', icon: '📍', bgColor: '#F1F8E9', url: '/pages/member-map/member-map' },
+      // ======== 识典古籍对标 v1.1（合并原"家族资料"功能） ========
+      { id: 10, name: '文化典籍', icon: '📜', bgColor: '#f4ead5', url: '/pages/cultural-index/cultural-index' },
+      { id: 11, name: 'AI 助手', icon: '智', bgColor: '#8B1A1A', iconColor: '#fff', url: '/pages/ai-chat/ai-chat' },
+      { id: 12, name: '时空地图', icon: '🗺️', bgColor: '#e5dcc5', url: '/pages/migration-map/migration-map' },
+      { id: 13, name: '手写录入', icon: '✍️', bgColor: '#efe4c8', url: '/pages/ocr-import/ocr-import' },
+      { id: 14, name: '文化工具', icon: '🧰', bgColor: '#c9a962', url: '/pages/tools/tools' }
     ],
     // 家族动态:真实数据 + 状态机
     recentDynamics: [],
