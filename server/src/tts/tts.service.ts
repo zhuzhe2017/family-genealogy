@@ -59,10 +59,10 @@ export class TtsService {
   private async loadProviderConfig(): Promise<void> {
     try {
       const [rows] = await this.dataSource.query<any[]>(
-        `SELECT \`key\`, \`value\` FROM \`sys_config\` WHERE \`key\` IN ('tts_provider', 'tts_api_key', 'tts_app_id')`
+        `SELECT \`config_key\`, \`config_value\` FROM \`sys_config\` WHERE \`config_key\` IN ('tts_provider', 'tts_api_key', 'tts_app_id')`
       );
       const cfg: Record<string, string> = {};
-      for (const row of rows) cfg[row.key] = String(row.value || '');
+      for (const row of rows) cfg[row.config_key] = String(row.config_value || '');
       const prov = cfg.tts_provider && PROVIDER_DEFAULTS[cfg.tts_provider] ? cfg.tts_provider : 'edge-tts';
       this.provider = prov;
       this.voiceList = PROVIDER_DEFAULTS[prov].voiceList;
