@@ -551,6 +551,22 @@ function aiProviderDesc(provider: string): string {
   }[provider] || '';
 }
 
+/** 提供商 → 默认模型映射 */
+const PROVIDER_DEFAULT_MODEL: Record<string, string> = {
+  deepseek: 'deepseek-chat',
+  doubao: 'doubao-pro-32k',
+  qwen: 'qwen-plus'
+};
+
+// 切换提供商时，自动填入推荐模型（仅在 model 还是当前 provider 的默认值时才联动，避免覆盖用户自定义输入）
+watch(() => aiModel.provider, (newProvider, oldProvider) => {
+  const oldDefault = PROVIDER_DEFAULT_MODEL[oldProvider];
+  // 如果 model 是旧提供商的默认值或空，自动切到新提供商的默认值
+  if (!aiModel.model.trim() || (oldDefault && aiModel.model.trim() === oldDefault)) {
+    aiModel.model = PROVIDER_DEFAULT_MODEL[newProvider] ?? '';
+  }
+});
+
 async function loadConfigs() {
   loading.value = true;
   try {
