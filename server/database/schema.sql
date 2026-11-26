@@ -793,7 +793,11 @@ INSERT IGNORE INTO `sys_config`
 ('sensitive_op_verify_timeout','二次验证有效期(秒)',   '120',   'number', 'security', '密码验证通过后的有效时间',            16, 1),
 -- 日志配置
 ('log_access_enabled',         '记录访问日志',        'true',  'boolean', 'log', '记录所有 API 请求的访问日志',          1, 1),
-('log_retention_days',         '日志保留天数',        '30',    'number', 'log',   '超过该天数的日志可被自动清理',         2, 1);
+('log_retention_days',         '日志保留天数',        '30',    'number', 'log',   '超过该天数的日志可被自动清理',         2, 1),
+-- AI / LLM 大模型配置
+('llm_provider',               'LLM 提供商',         'deepseek', 'string', 'ai',    'deepseek-DeepSeek / doubao-豆包 / qwen-通义千问', 1, 1),
+('llm_api_key',                'LLM API Key',        '',        'string', 'ai',    'LLM 大模型 API Key，后端自动加密存储',              2, 1),
+('llm_model',                  'LLM 模型',           'deepseek-chat', 'string', 'ai', '模型名称，如 deepseek-chat / doubao-pro-32k',  3, 1);
 
 -- ------------------------------------------------------------
 -- 5. 将超级管理员角色绑定到默认 admin 账号（如已创建，幂等）

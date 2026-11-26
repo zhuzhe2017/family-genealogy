@@ -456,12 +456,11 @@ async function loadAiConfig() {
     const { data } = await fetchSystemConfigGroups();
     if (!data) return;
 
-    const aiGroup = (data.basic || []).filter(item => String(item.configKey).startsWith('llm_'));
-    // 也可能放在 security 组，兜底
-    const fallback = aiGroup.length === 0
-      ? (data.security || []).filter(item => String(item.configKey).startsWith('llm_'))
-      : [];
-    const allAi = [...aiGroup, ...fallback];
+    // 从所有组里过滤出 llm_ 开头的配置项（兜底 basic/security/ai 三个常见位置）
+    const sources = [data.basic, data.security, data.ai].filter(Boolean) as SystemConfigItem[][];
+    const allAi = sources
+      .flat()
+      .filter(item => String(item.configKey).startsWith('llm_'));
     aiConfigItems.value = allAi as unknown as SystemConfigItem[];
 
     // 填值
