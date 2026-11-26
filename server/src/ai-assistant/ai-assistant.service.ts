@@ -333,9 +333,15 @@ export class AiAssistantService {
   // =================================================================
 
   private classifyIntent(question: string): ContextType {
-    const q = question.toLowerCase();
-    // 家族域关键词
-    const famKw = ['族谱', '家族', '家谱', '辈分', '字辈', '世代', '成员', '祖先', '始祖', '公', '迁徙'];
+    // 家族域关键词（扩充：字辈/始祖/堂号/迁徙/亲属关系/代数等）
+    const famKw = [
+      '族谱', '家族', '家谱', '辈分', '字辈', '世代', '成员', '祖先', '始祖',
+      '迁徙', '堂号', '字辈表', '族规', '家训', '家族简介', '家族历史',
+      '爷爷', '奶奶', '父亲', '母亲', '爸爸', '妈妈', '儿子', '女儿',
+      '孙子', '孙女', '侄子', '侄女', '外甥', '外孙', '堂', '表',
+      '哥哥', '姐姐', '弟弟', '妹妹', '兄弟', '姐妹',
+      '几代', '多少代', '代数', '先祖', '高祖', '曾祖', '祖父', '太爷'
+    ];
     if (famKw.some(k => question.includes(k))) return 'genealogy';
     // 古籍域关键词
     const ancKw = ['古籍', '古文', '断句', '注释', '百家姓', '三字经', '颜氏家训', '朱子家训', '史记', '典故', '文言'];
@@ -352,39 +358,47 @@ export class AiAssistantService {
         return await this.retrieveDocContext(question);
       }
     } catch (err) {
-      // 上下文检索失败不阻断主流程
       this.logger.warn('[ai] retrieveContext failed:', err);
     }
     return '';
   }
 
-  /** 家族域：从 family_members_{familyId} 检索相关成员 + generation_table */
+  /**
+   * 家族域多源检索：
+   *  ① family 表（始祖、堂号、发源地、简介）— 无关键词也能返回
+   *  ② generation_table 字辈序列
+   *  ③ family_member 成员（人名模糊匹配）
+   *  ④ family_event 家族大事
+   *  ⑤ 两名人场景 → 族谱推理工具算真实关系链
+   */
   private async retrieveFamilyContext(familyId: number, question: string): Promise<string> {
-    // 提取疑似人名（启发式：2-4 字中文 + 以"公/祖/父"结尾）
-    const names = this.extractChineseNames(question).slice(0, 5);
-    if (names.length === 0) return '';
+    const snippets: string[] = [];
 
-    const tableName = `family_members_${familyId}`;
-    const conditions = names.map(() => '`name` LIKE ?').join(' OR ');
-    const values = names.map(n => `%${n}%`);
+    // ① 家族基本信息（总是注入，即使没关键词）
+    const familyInfo = await this.queryFamilyBasic(familyId);
+    if (familyInfo) snippets.push(familyInfo);
 
-    const rows = await this.dataSource.query<any[]>(
-      `SELECT \`id\`, \`name\`, \`generation\`, \`father_id\`, \`birth_year\`, \`death_year\`
-       FROM \`${tableName}\`
-       WHERE ${conditions}
-       LIMIT 10`,
-      values
-    );
+    // ② 字辈
+    const genInfo = await this.queryGenerationTable(familyId);
+    if (genInfo && /字辈|排行|行辈|派|诗|世代/.test(question)) {
+      snippets.push(genInfo);
+    }
 
-    if (rows.length === 0) return '';
+    // ③ 成员 + ⑤ 关系推理（两名人时自动算）
+    const memberResult = await this.queryMembers(familyId, question);
+    if (memberResult.members.length > 0) snippets.push(memberResult.text);
 
-    const lines = rows.map(r => {
-      const gen = r.generation ? `第${r.generation}代` : '';
-      const span = (r.birth_year || r.death_year) ? `（${r.birth_year || '?'}~${r.death_year || '?'}）` : '';
-      return `- ${r.name} ${gen}${span}`;
-    });
+    // 两名人 → 族谱推理
+    if (memberResult.members.length >= 2) {
+      const relChain = await this.computeRelationChain(familyId, memberResult.members);
+      if (relChain) snippets.push(relChain);
+    }
 
-    return `[家族上下文]\n本家族中与您问题相关的成员：\n${lines.join('\n')}`;
+    // ④ 家族事件
+    const events = await this.queryFamilyEvents(familyId, question);
+    if (events) snippets.push(events);
+
+    return snippets.length > 0 ? `[家族上下文]\n${snippets.join('\n\n')}` : '';
   }
 
   /** 古籍域：从 cultural_document 检索匹配段落 */
@@ -403,10 +417,143 @@ export class AiAssistantService {
     return `[古籍上下文]\n${lines.join('\n\n')}`;
   }
 
-  /** 极简中文人名提取（启发式：2-4 个连续中文字符） */
+  /** 查询家族基本信息（始祖/堂号/发源地/简介/代数/成员数） */
+  private async queryFamilyBasic(familyId: number): Promise<string> {
+    const [row] = await this.dataSource.query<any[]>(
+      `SELECT \`name\`, \`founder\`, \`hall_name\`, \`origin\`, \`description\`, \`member_count\`, \`gen_count\`
+       FROM \`family\` WHERE \`id\` = ? AND \`status\` = 1 LIMIT 1`,
+      [familyId]
+    );
+    if (!row) return '';
+    const parts: string[] = [`家族名称：${row.name}`];
+    if (row.founder) parts.push(`始祖：${row.founder}`);
+    if (row.hall_name) parts.push(`堂号：${row.hall_name}`);
+    if (row.origin) parts.push(`发源地：${row.origin}`);
+    if (row.member_count) parts.push(`成员数：${row.member_count} 人`);
+    if (row.gen_count) parts.push(`传承：${row.gen_count} 代`);
+    if (row.description) parts.push(`简介：${String(row.description).slice(0, 300)}`);
+    return parts.join('\n');
+  }
+
+  /** 查询字辈表（generation_sequence JSON → 诗句字符串） */
+  private async queryGenerationTable(familyId: number): Promise<string> {
+    const [fam] = await this.dataSource.query<any[]>(
+      `SELECT \`generation_table_id\` FROM \`family\` WHERE \`id\` = ? LIMIT 1`,
+      [familyId]
+    );
+    if (!fam?.generation_table_id) return '';
+
+    const [gt] = await this.dataSource.query<any[]>(
+      `SELECT \`surname\`, \`founder\`, \`generation_sequence\`
+       FROM \`generation_table\` WHERE \`id\` = ? AND \`status\` = 1 LIMIT 1`,
+      [fam.generation_table_id]
+    );
+    if (!gt) return '';
+
+    let seq: string[] = [];
+    try {
+      const parsed = typeof gt.generation_sequence === 'string'
+        ? JSON.parse(gt.generation_sequence)
+        : gt.generation_sequence;
+      if (Array.isArray(parsed)) seq = parsed;
+    } catch { /* noop */ }
+
+    const lines = seq.map((chars: any, i: number) => {
+      // generation_sequence 可以是字符串数组（每代为一字）或二维数组（每代多字）
+      const charsStr = Array.isArray(chars) ? chars.join(' / ') : String(chars);
+      return `  第${i + 1}代：${charsStr}`;
+    });
+
+    return `字辈表（${gt.surname}氏 · ${gt.founder}支系）：\n${lines.join('\n')}`;
+  }
+
+  /** 成员模糊搜索：分表 family_members_{familyId} */
+  private async queryMembers(familyId: number, question: string): Promise<{ members: any[]; text: string }> {
+    const names = this.extractChineseNames(question).slice(0, 5);
+    if (names.length === 0) return { members: [], text: '' };
+
+    const tableName = `family_members_${familyId}`;
+    const conditions = names.map(() => '`name` LIKE ?').join(' OR ');
+    const values = names.map(n => `%${n}%`);
+
+    const rows = await this.dataSource.query<any[]>(
+      `SELECT \`id\`, \`name\`, \`gender\`, \`generation\`, \`generation_name\`, \`father_id\`, \`birth_date\`, \`death_date\`, \`is_alive\`, LEFT(\`bio\`, 200) AS bio
+       FROM \`${tableName}\`
+       WHERE \`status\` = 1
+         AND (${conditions})
+       ORDER BY \`generation\` ASC, \`sort_order\` ASC
+       LIMIT 15`,
+      values
+    );
+    if (rows.length === 0) return { members: [], text: '' };
+
+    const lines = rows.map(r => {
+      const gen = r.generation ? `第${r.generation}代` : '';
+      const zi = r.generation_name ? `（字辈 "${r.generation_name}"）` : '';
+      const alive = r.is_alive ? '在世' : '已故';
+      const bio = r.bio ? `，${String(r.bio).slice(0, 80)}` : '';
+      return `- ${r.name} ${gen}${zi} ${alive}${bio}`;
+    });
+    const text = `本家族中相关成员（${rows.length}人）：\n${lines.join('\n')}`;
+    return { members: rows, text };
+  }
+
+  /** 两名人 → 族谱推理：算真实关系链注入 prompt */
+  private async computeRelationChain(familyId: number, members: any[]): Promise<string> {
+    if (members.length < 2) return '';
+    // 取前两个有 father_id 的成员算关系
+    const a = members[0];
+    const b = members[1];
+    if (!a?.father_id || !b?.father_id) return '';
+
+    try {
+      // 改为分表 family_members_{familyId}
+      const tableName = `family_members_${familyId}`;
+      const chainA = await this.buildAncestorChain(tableName, a.id);
+      const chainB = await this.buildAncestorChain(tableName, b.id);
+      if (chainA.length < 2 || chainB.length < 2) return '';
+
+      const lca = this.findLca(chainA, chainB);
+      if (!lca) return '';
+
+      const aDepth = chainA.findIndex((c: any) => String(c.id) === String(lca.id));
+      const bDepth = chainB.findIndex((c: any) => String(c.id) === String(lca.id));
+      if (aDepth < 0 || bDepth < 0) return '';
+
+      // 祖先链文本
+      const chainAText = chainA.map((c: any) => c.name).join(' → ');
+      const chainBText = chainB.map((c: any) => c.name).join(' → ');
+
+      const rel = this.mapRelation(lca, aDepth, bDepth, a, b);
+      return `[族谱关系链]\n「${a.name}」祖先链：${chainAText}\n「${b.name}」祖先链：${chainBText}\n${rel.explanation}`;
+    } catch (err) {
+      this.logger.warn('[ai] computeRelationChain failed:', err);
+      return '';
+    }
+  }
+
+  /** 查询家族事件（迁徙/修谱/重大活动） */
+  private async queryFamilyEvents(familyId: number, question: string): Promise<string> {
+    const keyword = question.slice(0, 8);
+    const rows = await this.dataSource.query<any[]>(
+      `SELECT \`title\`, \`event_date\`, LEFT(\`description\`, 200) AS desc_text
+       FROM \`family_event\`
+       WHERE \`family_id\` = ? AND \`status\` = 1
+         AND (\`title\` LIKE ? OR \`description\` LIKE ?)
+       ORDER BY \`event_date\` DESC LIMIT 5`,
+      [familyId, `%${keyword}%`, `%${keyword}%`]
+    );
+    if (rows.length === 0) return '';
+    const lines = rows.map(r => `- [${r.event_date || '?'}] ${r.title}：${r.desc_text || ''}`);
+    return `家族相关大事：\n${lines.join('\n')}`;
+  }
+
+  /** 极简中文人名提取（2-4 字中文，扩展字辈/世系识别） */
   private extractChineseNames(text: string): string[] {
     const matches = text.match(/[\u4e00-\u9fa5]{2,4}/g) || [];
-    return [...new Set(matches)];
+    // 过滤掉太像功能词的项
+    const stopwords = new Set(['什么', '怎么', '如何', '为什么', '知道', '我们', '你们', '他们', '这个', '那个']);
+    return [...new Set(matches)].filter(n => !stopwords.has(n));
   }
 
   private buildSystemPrompt(intent: ContextType): string {
@@ -438,7 +585,7 @@ export class AiAssistantService {
     let guard = 50;
 
     while (curId && guard-- > 0) {
-      if (visited.has(curId)) break; // 防环
+      if (visited.has(curId)) break;
       visited.add(curId);
 
       const [row] = await this.dataSource.query<any[]>(
