@@ -107,9 +107,11 @@ stages:
           - pnpm build
 
   # ============================================================
-  # 阶段二：构建镜像 → 推送镜像仓库（build@docker 插件，凭证认证）
-  # 前置：Gitee Go 凭证管理中已配置 Docker Registry 凭证 gitee-docker-registry
-  #       （仓库地址 registry.gitee.com / 用户名 myuser / 密码）
+  # 阶段二：构建镜像 → 推送镜像仓库（手写脚本，避免 build@docker 插件静默失败）
+  # 前置：
+  #   1. Gitee Go 环境变量里配置 REGISTRY_USERNAME / REGISTRY_PASSWORD（或用凭证）
+  #   2. Runner 有 docker daemon（Gitee Go 个人版默认有）
+  # 每步都显式 echo + set -e，失败必有日志
   # ============================================================
   - stage:
     name: docker
@@ -117,29 +119,38 @@ stages:
     strategy: fast
     trigger: auto
     steps:
-      - step: build@docker
+      # --- 后端镜像 ---
+      - step: build@nodejs
         name: build-server
         displayName: 构建后端镜像
-        certificate: gitee-docker-registry
-        tag: ${NAMESPACE}/family-server:${GITEE_PIPELINE_BUILD_NUMBER}
-        dockerfile: ./server/Dockerfile
-        context: ./server
+        nodeVersion: 20.19.6
+        commands:
+          - echo "=== [1/4] 检查 docker ===" && docker --version && docker info --format '{{.ServerVersion}}'
+          - echo "=== [2/4] 登录镜像仓库 ${REGISTRY} ===" && echo "${REGISTRY_PASSWORD}" | docker login ${REGISTRY} -u "${REGISTRY_USERNAME}" --password-stdin
+          - echo "=== [3/4] 构建 server 镜像 ===" && cd server && docker build -f Dockerfile -t ${REGISTRY}/${NAMESPACE}/family-server:${GITEE_PIPELINE_BUILD_NUMBER} .
+          - echo "=== [4/4] 推送 server 镜像 ===" && docker push ${REGISTRY}/${NAMESPACE}/family-server:${GITEE_PIPELINE_BUILD_NUMBER}
 
-      - step: build@docker
+      # --- web-admin 镜像 ---
+      - step: build@nodejs
         name: build-web-admin
         displayName: 构建 web-admin 镜像
-        certificate: gitee-docker-registry
-        tag: ${NAMESPACE}/family-web-admin:${GITEE_PIPELINE_BUILD_NUMBER}
-        dockerfile: ./web-admin/Dockerfile
-        context: ./web-admin
+        nodeVersion: 20.19.6
+        commands:
+          - echo "=== [1/4] 检查 docker ===" && docker --version
+          - echo "=== [2/4] 登录镜像仓库 ${REGISTRY} ===" && echo "${REGISTRY_PASSWORD}" | docker login ${REGISTRY} -u "${REGISTRY_USERNAME}" --password-stdin
+          - echo "=== [3/4] 构建 web-admin 镜像 ===" && cd web-admin && docker build -f Dockerfile -t ${REGISTRY}/${NAMESPACE}/family-web-admin:${GITEE_PIPELINE_BUILD_NUMBER} .
+          - echo "=== [4/4] 推送 web-admin 镜像 ===" && docker push ${REGISTRY}/${NAMESPACE}/family-web-admin:${GITEE_PIPELINE_BUILD_NUMBER}
 
-      - step: build@docker
+      # --- tenant-web 镜像 ---
+      - step: build@nodejs
         name: build-tenant-web
         displayName: 构建 tenant-web 镜像
-        certificate: gitee-docker-registry
-        tag: ${NAMESPACE}/family-tenant-web:${GITEE_PIPELINE_BUILD_NUMBER}
-        dockerfile: ./tenant-web/Dockerfile
-        context: ./tenant-web
+        nodeVersion: 20.19.6
+        commands:
+          - echo "=== [1/4] 检查 docker ===" && docker --version
+          - echo "=== [2/4] 登录镜像仓库 ${REGISTRY} ===" && echo "${REGISTRY_PASSWORD}" | docker login ${REGISTRY} -u "${REGISTRY_USERNAME}" --password-stdin
+          - echo "=== [3/4] 构建 tenant-web 镜像 ===" && cd tenant-web && docker build -f Dockerfile -t ${REGISTRY}/${NAMESPACE}/family-tenant-web:${GITEE_PIPELINE_BUILD_NUMBER} .
+          - echo "=== [4/4] 推送 tenant-web 镜像 ===" && docker push ${REGISTRY}/${NAMESPACE}/family-tenant-web:${GITEE_PIPELINE_BUILD_NUMBER}
 
   # ============================================================
   # 阶段三：部署到 Staging（自动，无需审批）
