@@ -351,12 +351,19 @@ export class AiAssistantService {
 
   private async retrieveContext(intent: ContextType, question: string, familyId: number): Promise<string> {
     try {
-      if (intent === 'genealogy') {
-        return await this.retrieveFamilyContext(familyId, question);
-      }
+      const snippets: string[] = [];
+
+      // 【核心】不管什么意图，都先注入家族基本信息（家族场景默认知识）
+      const familyCtx = await this.retrieveFamilyContext(familyId, question);
+      if (familyCtx) snippets.push(familyCtx);
+
+      // 古籍域额外注入古籍知识
       if (intent === 'ancient') {
-        return await this.retrieveDocContext(question);
+        const docCtx = await this.retrieveDocContext(question);
+        if (docCtx) snippets.push(docCtx);
       }
+
+      return snippets.join('\n\n');
     } catch (err) {
       this.logger.warn('[ai] retrieveContext failed:', err);
     }
@@ -560,17 +567,28 @@ export class AiAssistantService {
     const base =
       '你是数字家谱平台的 AI 助手，擅长：① 家族谱系梳理与亲属关系推理 ' +
       '② 古籍阅读、断句、注释与白话翻译 ③ 字辈/堂号/家谱术语解读。';
-    const rules =
-      '回答要准确、严谨、有据可查；涉及家族成员时基于用户提供的上下文；' +
-      '涉及古籍时标注书名和原文；不确定时坦诚说明，不要臆造。';
+
+    // 【核心强制规则】只要 prompt 里有 [家族上下文]，就必须以它为第一依据
+    const familyMandatoryRule =
+      '\n\n⚠️ 强制规则（优先级最高）：' +
+      '\n- 你是为【当前家族成员】服务的专属 AI。' +
+      '\n- 如果 prompt 中提供了 [家族上下文] 数据：' +
+      '\n  · 所有涉及家族的问题（始祖、堂号、字辈、成员、关系、迁徙、家族事件等）必须基于这些真实数据回答，严禁编造家族信息。' +
+      '\n  · 明确引用，比如"根据您家族的记录…"、"您家族的字辈诗为…"、"本家族中没有找到…，但据我所知一般情况是…"。' +
+      '\n  · 如果家族上下文中没有相关信息，坦诚说明"本家族家谱暂未收录此信息"，再补充通用常识作为参考。' +
+      '\n- 如果 prompt 中没有 [家族上下文]，才可以使用通用知识回答。';
+
+    const generalRules =
+      '回答要准确、严谨、有据可查；涉及古籍时标注书名和原文；不确定时坦诚说明，不要臆造。';
 
     if (intent === 'genealogy') {
-      return base + '\n当前问题属于【家族谱系域】，请优先结合用户家族数据回答。\n' + rules;
+      return base + '\n当前问题属于【家族谱系域】，请优先结合用户家族数据回答。' + familyMandatoryRule + '\n' + generalRules;
     }
     if (intent === 'ancient') {
-      return base + '\n当前问题属于【古籍文化域】，请以古籍原文和传统注释为依据。\n' + rules;
+      return base + '\n当前问题属于【古籍文化域】，请以古籍原文和传统注释为依据。' + familyMandatoryRule + '\n' + generalRules;
     }
-    return base + '\n' + rules;
+    // general 也要加家族上下文强制规则（因为现在 retrieveContext 无论什么意图都会注入家族信息）
+    return base + familyMandatoryRule + '\n' + generalRules;
   }
 
   // =================================================================
