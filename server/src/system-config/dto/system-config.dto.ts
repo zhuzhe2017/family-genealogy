@@ -1,4 +1,4 @@
-import { IsArray, IsInt, IsOptional, IsString, Length, ValidateNested } from 'class-validator';
+import { IsArray, IsInt, IsOptional, IsString, Length, ValidateNested, Allow } from 'class-validator';
 import { Type } from 'class-transformer';
 
 /** 配置更新入参 */
@@ -36,6 +36,7 @@ export class SysConfigSaveItemDto {
   id: number;
 
   /** 配置值可以是任意类型（string/number/boolean），service 层统一 String() 入库 */
+  @Allow()
   configValue: string | number | boolean;
 }
 
