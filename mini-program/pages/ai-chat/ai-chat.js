@@ -102,7 +102,7 @@ Page({
     api.aiAssistant.createSession(familyId, {
       contextType: contextType || 'general'
     }).then(res => {
-      const sessionId = res.data.sessionId;
+      const sessionId = res.sessionId;
       this.setData({ sessionId, sessionTitle: '', messages: [], sessionReady: true, initRetries: 0 });
       this.persistSessionId(sessionId);
 
@@ -149,7 +149,7 @@ Page({
   loadHistory: function (sessionId) {
     const familyId = this.data.familyId;
     api.aiAssistant.getSessionHistory(familyId, sessionId).then(res => {
-      const list = res.data || [];
+      const list = res || [];
       // 只保留最后 20 条消息（避免首次加载过慢）
       const recent = list.slice(-20).map(m => ({
         id: m.id,
@@ -175,7 +175,7 @@ Page({
     const familyId = this.data.familyId;
     this.setData({ sessionsLoading: true });
     api.aiAssistant.getSessionList(familyId).then(res => {
-      const list = res.data || [];
+      const list = res || [];
       // 标记当前会话
       list.forEach(s => {
         s.isCurrent = s.id === this.data.sessionId;
@@ -256,8 +256,8 @@ Page({
       question,
       historyRounds: 10
     }).then(res => {
-      const reply = res.data.reply || '（AI 返回为空）';
-      const title = res.data.sessionTitle;
+      const reply = res.reply || '（AI 返回为空）';
+      const title = res.sessionTitle;
 
       // 替换 loading 气泡
       const replaced = newMessages.map(m =>
