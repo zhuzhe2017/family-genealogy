@@ -148,14 +148,16 @@ export class EntitlementService implements OnModuleInit {
 
     let view: SubscriptionView;
     if (!row || row.plan_code === 'free') {
+      // 免费版也从 subscription_plan 读取，quotaRules 由种子数据定义试用额度
+      const plan = await this.getPlan('free').catch(() => null);
       view = {
         familyId,
         planCode: 'free',
         planName: '免费版',
         status: 'active',
         capabilities: [],
-        storageLimit: FREE_STORAGE_LIMIT,
-        quotaRules: {},
+        storageLimit: plan?.storageLimit ?? FREE_STORAGE_LIMIT,
+        quotaRules: plan?.quotaRules ?? {},
         expireAt: null,
         graceUntil: null
       };
@@ -345,7 +347,7 @@ export class EntitlementService implements OnModuleInit {
 
     // 重置按次额度周期
     await this.dataSource.query(
-      'INSERT INTO `family_quota` (`family_id`, `ai_restore_used`, `worship_pro_used`, `quota_period_start`, `quota_period_end`) VALUES (?, 0, 0, CURDATE(), ?) ON DUPLICATE KEY UPDATE `ai_restore_used` = 0, `worship_pro_used` = 0, `quota_period_start` = CURDATE(), `quota_period_end` = ?',
+      'INSERT INTO `family_quota` (`family_id`, `ai_restore_used`, `worship_pro_used`, `ai_chat_used`, `ai_summary_used`, `annotate_used`, `quota_period_start`, `quota_period_end`) VALUES (?, 0, 0, 0, 0, 0, CURDATE(), ?) ON DUPLICATE KEY UPDATE `ai_restore_used` = 0, `worship_pro_used` = 0, `ai_chat_used` = 0, `ai_summary_used` = 0, `annotate_used` = 0, `quota_period_start` = CURDATE(), `quota_period_end` = ?',
       [familyId, periodEnd, periodEnd]
     );
 
@@ -429,6 +431,9 @@ export class EntitlementService implements OnModuleInit {
     storageUsed: number;
     aiRestoreUsed: number;
     worshipProUsed: number;
+    aiChatUsed: number;
+    aiSummaryUsed: number;
+    annotateUsed: number;
     quotaPeriodStart: string | null;
     quotaPeriodEnd: string | null;
   }> {
@@ -437,6 +442,9 @@ export class EntitlementService implements OnModuleInit {
       storageUsed: Number(quota?.storage_used) || 0,
       aiRestoreUsed: Number(quota?.ai_restore_used) || 0,
       worshipProUsed: Number(quota?.worship_pro_used) || 0,
+      aiChatUsed: Number(quota?.ai_chat_used) || 0,
+      aiSummaryUsed: Number(quota?.ai_summary_used) || 0,
+      annotateUsed: Number(quota?.annotate_used) || 0,
       quotaPeriodStart: this.toDateString(quota?.quota_period_start ?? null),
       quotaPeriodEnd: this.toDateString(quota?.quota_period_end ?? null)
     };
@@ -449,6 +457,12 @@ export class EntitlementService implements OnModuleInit {
         return 'ai_restore_used';
       case Capability.WorshipPro:
         return 'worship_pro_used';
+      case Capability.AiChat:
+        return 'ai_chat_used';
+      case Capability.AiSummary:
+        return 'ai_summary_used';
+      case Capability.Annotate:
+        return 'annotate_used';
       default:
         throw new EntitlementException(ENTITLEMENT_ERRORS.QUOTA_EXHAUSTED, '不支持的额度类型');
     }

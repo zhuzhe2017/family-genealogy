@@ -121,6 +121,9 @@ export interface FamilyQuotaRow {
   storage_used: number;
   ai_restore_used: number;
   worship_pro_used: number;
+  ai_chat_used: number;
+  ai_summary_used: number;
+  annotate_used: number;
   quota_period_start: string | null;
   quota_period_end: string | null;
 }

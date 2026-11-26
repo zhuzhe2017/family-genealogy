@@ -1038,6 +1038,9 @@ CREATE TABLE IF NOT EXISTS `family_quota` (
   `storage_used`       BIGINT UNSIGNED DEFAULT 0 COMMENT '已用存储(字节)，冗余列+定时对账',
   `ai_restore_used`    INT UNSIGNED DEFAULT 0 COMMENT 'AI修复已用张数（当前订阅周期）',
   `worship_pro_used`   INT UNSIGNED DEFAULT 0 COMMENT '祭祀增值已用次数（当前订阅周期）',
+  `ai_chat_used`       INT UNSIGNED DEFAULT 0 COMMENT 'AI对话已用次数（免费版试用/付费版周期额度）',
+  `ai_summary_used`    INT UNSIGNED DEFAULT 0 COMMENT 'AI摘要已用次数',
+  `annotate_used`      INT UNSIGNED DEFAULT 0 COMMENT 'AI古文注释已用次数',
   `quota_period_start` DATE DEFAULT NULL COMMENT '额度周期起点',
   `quota_period_end`   DATE DEFAULT NULL COMMENT '额度周期终点',
   `create_time`        DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -1072,17 +1075,17 @@ VALUES
   ('free',    '免费版', 0.00,
    JSON_ARRAY(),
    524288000,  -- 500MB
-   NULL,
+   JSON_OBJECT('ai_chat', 10, 'ai_summary', 3, 'annotate', 3),
    1, 1),
   ('family',  '家族版', 199.00,
-   JSON_ARRAY('backup', 'export', 'permission', 'reminder', 'digest', 'theme', 'badge', 'ai_restore', 'worship_pro'),
+   JSON_ARRAY('backup', 'export', 'permission', 'reminder', 'digest', 'theme', 'badge', 'ai_restore', 'worship_pro', 'ai_chat', 'ai_summary', 'annotate'),
    10737418240,  -- 10GB
-   JSON_OBJECT('ai_restore', 10, 'worship_pro', 50),
+   JSON_OBJECT('ai_restore', 10, 'worship_pro', 50, 'ai_chat', 200, 'ai_summary', 20, 'annotate', 20),
    2, 1),
   ('premium', '尊享版', 599.00,
-   JSON_ARRAY('backup', 'export', 'permission', 'reminder', 'digest', 'theme', 'badge', 'print', 'worship_pro', 'ai_restore', 'advisor', 'support', 'no_ads'),
+   JSON_ARRAY('backup', 'export', 'permission', 'reminder', 'digest', 'theme', 'badge', 'print', 'worship_pro', 'ai_restore', 'advisor', 'support', 'no_ads', 'ai_chat', 'ai_summary', 'annotate'),
    0,  -- 0=不限
-   JSON_OBJECT('ai_restore', 100, 'worship_pro', 999),
+   JSON_OBJECT('ai_restore', 100, 'worship_pro', 999, 'ai_chat', 1000, 'ai_summary', 100, 'annotate', 100),
    3, 1)
 ON DUPLICATE KEY UPDATE
   `name`          = VALUES(`name`),
