@@ -221,7 +221,7 @@ Page({
     console.log('[timeline-map] genMatch:', genMatch);
     console.log('[timeline-map] lat 类型:', typeof genMatch.lat, '值:', genMatch.lat);
 
-    // 2. 强制转 Number（后端 MySQL DECIMAL 返回字符串也能兜住）
+    // 2. 强制转 Number + 预先格式化成字符串（WXML 模板里调 .toFixed() 会静默输出空！）
     const rawLat = genMatch.lat ?? genMatch.latitude ?? null;
     const rawLng = genMatch.lng ?? genMatch.longitude ?? null;
     const memberLat = rawLat !== null && rawLat !== undefined && rawLat !== ''
@@ -229,7 +229,12 @@ Page({
     const memberLng = rawLng !== null && rawLng !== undefined && rawLng !== ''
       ? Number(rawLng) : null;
 
-    console.log('[timeline-map] 转换后:', { memberLat, memberLng });
+    // ✅ 关键：JS 里格式化成字符串，WXML 只输出 text，不做任何方法调用
+    const coordText = (memberLat !== null && memberLng !== null)
+      ? `${memberLat.toFixed(3)}, ${memberLng.toFixed(3)}`
+      : '';
+
+    console.log('[timeline-map] 转换后:', { memberLat, memberLng, coordText });
 
     // 3. 找迁徙点类型
     let migPoint = null;
@@ -247,8 +252,8 @@ Page({
       name: genMatch.placeName || (migPoint ? migPoint.name : '') || '位置不详',
       lat: memberLat,
       lng: memberLng,
-      latitude: memberLat,
-      longitude: memberLng,
+      coordinateText: coordText,          // ✅ 预格式化好的坐标字符串
+      hasCoord: coordText !== '',          // ✅ WXML 条件渲染用
       generation: genInfo.generation,
       year: genMatch.year || (migPoint ? migPoint.year : null),
       type: migPoint ? migPoint.type : (genInfo.generation === 1 ? 'ancestor' : 'birth'),

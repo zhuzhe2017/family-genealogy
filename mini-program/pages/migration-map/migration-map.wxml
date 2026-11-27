@@ -224,12 +224,7 @@
           <view class="info-ic">🧭</view>
           <view class="info-text">
             <text class="info-label">坐标</text>
-            <text class="info-value">
-              <block wx:if="{{selectedMember.lat}}">
-                {{selectedMember.lat.toFixed(3)}}, {{selectedMember.lng.toFixed(3)}}
-              </block>
-              <block wx:else>位置数据暂缺</block>
-            </text>
+            <text class="info-value">{{selectedMember.coordinateText || '位置数据暂缺'}}</text>
           </view>
         </view>
       </view>
