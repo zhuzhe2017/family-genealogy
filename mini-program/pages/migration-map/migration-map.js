@@ -21,13 +21,13 @@ const api = require('../../utils/api.js');
 const app = getApp();
 const LBS_KEY = (app.globalData && app.globalData.lbsKey) || '';
 
-/** marker 图标类型 */
+/** marker 图标类型（使用项目已有的 3 种 marker 图，按语义复用） */
 const MARKER_TYPES = {
-  ancestor:   { iconPath: '/images/marker-ancestor.png', width: 32, height: 40, calloutColor: '#8B1A1A' },
-  birth:      { iconPath: '/images/marker-birth.png',    width: 28, height: 36, calloutColor: '#2d6a4f' },
-  death:      { iconPath: '/images/marker-death.png',   width: 28, height: 36, calloutColor: '#5a4a3a' },
-  migration:  { iconPath: '/images/marker-migration.png', width: 32, height: 40, calloutColor: '#e07a5f' },
-  current:    { iconPath: '/images/marker-current.png', width: 40, height: 50, calloutColor: '#7b2cbf' }
+  ancestor:   { iconPath: '/images/marker-alive.png',      width: 32, height: 40, calloutColor: '#8B1A1A' },
+  birth:      { iconPath: '/images/marker-alive.png',      width: 28, height: 36, calloutColor: '#2d6a4f' },
+  death:      { iconPath: '/images/marker-deceased.png',  width: 28, height: 36, calloutColor: '#5a4a3a' },
+  migration:  { iconPath: '/images/marker-alive.png',      width: 32, height: 40, calloutColor: '#e07a5f' },
+  current:    { iconPath: '/images/marker-selected.png',  width: 40, height: 50, calloutColor: '#7b2cbf' }
 };
 
 const DEFAULT_CENTER = { latitude: 34.3, longitude: 108.9 }; // 西安（华夏原点）
@@ -63,7 +63,10 @@ Page({
     selectedMember: null,          // 点击 marker 后的成员详情
     showingHistory: false,         // 是否叠加历史事件侧栏
     historyEvents: [],
-    familyTimeline: null           // 家族事件 + 历史事件叠加
+    familyTimeline: null,          // 家族事件 + 历史事件叠加
+
+    // 卷轴沉浸型新增 UI 状态
+    activeDrawer: null             // 当前打开的抽屉：null / 'anim' / 'layer' / 'history'
   },
 
   // 动画定时器
@@ -173,15 +176,44 @@ Page({
     this.setData({ animating: false });
   },
 
-  /** marker 点击 → 显示成员详情 */
+  /** marker 点击 → 基于 member.id 匹配完整成员数据并展示详情 */
   onMarkerTap: function (e) {
-    const markerId = e.detail.markerId;
+    const markerId = String(e.detail.markerId);
+    const gens = this.data.generations;
     const mig = this.data.migration;
-    if (!mig) return;
-    const p = mig.points.find(pt => (pt.lat + ',' + pt.lng + pt.memberName) === markerId);
-    if (p) {
-      this.setData({ selectedMember: p });
+    if (!gens || gens.length === 0) return;
+
+    // 1. 在 generations 里找完整成员数据（带 generation/year/placeName）
+    let genMatch = null;
+    let genInfo = null;
+    for (const g of gens) {
+      const m = g.members.find(mem => String(mem.id) === markerId);
+      if (m) { genMatch = m; genInfo = g; break; }
     }
+    if (!genMatch) return;
+
+    // 2. 在 migration.points 里找迁徙点类型（精确匹配：名字 + 坐标 兜底）
+    let migPoint = null;
+    if (mig && mig.points) {
+      migPoint = mig.points.find(p =>
+        p.memberName === genMatch.name &&
+        Math.abs(p.lat - genMatch.lat) < 0.01 &&
+        Math.abs(p.lng - genMatch.lng) < 0.01
+      );
+    }
+
+    // 3. 合并两个数据源的信息
+    const member = {
+      memberName: genMatch.name,
+      name: genMatch.placeName || (migPoint ? migPoint.name : ''),
+      lat: genMatch.lat,
+      lng: genMatch.lng,
+      generation: genInfo.generation,
+      year: genMatch.year || (migPoint ? migPoint.year : null),
+      type: migPoint ? migPoint.type : (genInfo.generation === 1 ? 'ancestor' : 'birth'),
+      memberId: markerId
+    };
+    this.setData({ selectedMember: member });
   },
 
   closeMemberDetail: function () {
@@ -221,7 +253,7 @@ Page({
           const type = this.classifyMarkerType(m, mig);
           const tmpl = MARKER_TYPES[type] || MARKER_TYPES.birth;
           return {
-            id: m.id || (m.lat + ',' + m.lng + m.name),
+            id: m.id, // 统一用后端返回的 member.id 作为 markerId
             latitude: m.lat,
             longitude: m.lng,
             iconPath: tmpl.iconPath,
@@ -298,10 +330,52 @@ Page({
   },
 
   // ============================================================
+  // 卷轴沉浸型：抽屉开关
+  // ============================================================
+  /** 切换抽屉（点击浮动按钮） */
+  toggleDrawer: function (e) {
+    const name = e.currentTarget.dataset.drawer;
+    this.setData({
+      activeDrawer: this.data.activeDrawer === name ? null : name
+    });
+  },
+  /** 关闭抽屉 */
+  closeDrawer: function () {
+    this.setData({ activeDrawer: null });
+  },
+
+  // ============================================================
   // 工具
   // ============================================================
   getCurrentFamilyId: function () {
     try { const info = wx.getStorageSync('current_family'); return info ? Number(info.id) : null; }
     catch { return null; }
+  },
+
+  /** 回到全部标记的中心（重置 currentGen + 自动居中） */
+  recenterMap: function () {
+    this.setData({
+      currentGen: null,
+      renderMode: 'manual'
+    });
+    this.render(true); // allowMoveCenter = true：重新计算中心并居中
+  },
+
+  /** 重新拉取数据 */
+  reloadData: function () {
+    wx.showToast({ title: '刷新中...', icon: 'loading' });
+    this.loadAll();
+  },
+
+  /** 跳转添加成员 */
+  goAddMember: function () {
+    wx.navigateTo({
+      url: '/pages/add-member/add-member?familyId=' + this.data.familyId
+    });
+  },
+
+  /** 返回上一页 */
+  goBack: function () {
+    wx.navigateBack({ delta: 1 });
   }
 });

@@ -8,7 +8,18 @@
  *   4. 名人故居/祠堂位置标记
  *
  * 数据来源：
- *   family_members_{familyId} 表（location/lat/lng 字段）
+ *   family_members_{familyId} 表
+ *     真实字段（schema.sql）：
+ *       latitude    DECIMAL(10,7)  墓茔纬度
+ *       longitude   DECIMAL(10,7)  墓茔经度
+ *       birth_place VARCHAR(200)   出生地
+ *       death_place VARCHAR(200)   墓茔/安葬地点
+ *       birth_date  VARCHAR(30)    出生日期（'1990' / '1990-05' / '1990年5月'）
+ *       death_date  VARCHAR(30)    逝世日期
+ *       father_id   VARCHAR(32)    父亲成员 ID（不是名字）
+ *       generation  INT UNSIGNED   辈分/代数
+ *       status      TINYINT(1)     1-正常 0-已删除
+ *       create_time DATETIME       创建时间（schema 没有 update_time）
  *   内置历史事件表（硬编码，按朝代）
  *
  * 统一输出协议：后端固化稳定结构，前端只消费
@@ -16,31 +27,13 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import * as crypto from 'crypto';
-
-export interface MigrationPoint {
-  lat: number;
-  lng: number;
-  name: string;
-  year?: number;
-  generation?: number;
-  type: 'ancestor' | 'birth' | 'death' | 'migration';
-  memberName: string;
-}
-
-export interface GenerationGeo {
-  generation: number;
-  count: number;
-  centers: Array<{ lat: number; lng: number; placeName: string; count: number }>;
-  members: Array<{ id: string; name: string; lat: number; lng: number; placeName: string; year?: number }>;
-}
-
-export interface HistoryEvent {
-  year: number;
-  title: string;
-  dynasty: string;
-  description: string;
-  category: 'politics' | 'war' | 'culture' | 'economy' | 'science' | 'society';
-}
+import {
+  MigrationPoint, MigrationRoute, MigrationAggregate,
+  GenerationGeo, GenerationRangeQuery,
+  HistoryEvent, HistoryRangeQuery, HistoryCategory,
+  CombinedTimeline
+} from './types/timeline-map.types';
+import { HistoryQueryDto } from './dto/timeline-map.dto';
 
 /** 内置中国历史大事年表（精选，覆盖主要朝代关键事件） */
 const HISTORY_TIMELINE: HistoryEvent[] = [
@@ -69,6 +62,13 @@ const HISTORY_TIMELINE: HistoryEvent[] = [
   { year: 1949,  title: '中华人民共和国成立',   dynasty: '现代', description: '毛泽东在北京天安门宣布建国', category: 'politics' }
 ];
 
+/** 从 VARCHAR 日期字符串中解析年份（支持 '1990' / '1990-05-01' / '1990年5月' / '1990/05'） */
+function parseYear(dateStr: string | null | undefined): number | undefined {
+  if (!dateStr) return undefined;
+  const m = String(dateStr).match(/-?\d{3,4}/); // 允许前导负号（公元前情况虽然罕见但正则兼容）
+  return m ? Number(m[0]) : undefined;
+}
+
 @Injectable()
 export class TimelineMapService {
   private readonly logger = new Logger(TimelineMapService.name);
@@ -92,24 +92,25 @@ export class TimelineMapService {
     const cached: any = await this.getCacheObj(cacheKey);
     if (cached) return cached;
 
-    // 原逻辑
+    // schema.sql 真实字段：latitude / longitude / birth_place / death_place / birth_date / death_date
     const table = `family_members_${familyId}`;
     const where: string[] = [
-      '`lat` IS NOT NULL AND `lat` != 0',
-      '`lng` IS NOT NULL AND `lng` != 0'
+      '`status` != 0',                                   // 排除已删除
+      '`latitude` IS NOT NULL AND `latitude` != 0',
+      '`longitude` IS NOT NULL AND `longitude` != 0'
     ];
     const params: any[] = [];
     if (range?.minGen !== undefined) { where.push('`generation` >= ?'); params.push(range.minGen); }
     if (range?.maxGen !== undefined) { where.push('`generation` <= ?'); params.push(range.maxGen); }
 
     const rows = await this.dataSource.query<any[]>(
-      `SELECT \`id\`, \`name\`, \`generation\`, \`lat\`, \`lng\`,
-              COALESCE(\`birth_place\`, \`native_place\`, '') AS place_name,
-              \`birth_year\`, \`death_year\`,
-              COALESCE(\`father_name\`, '') AS father_name
+      `SELECT \`id\`, \`name\`, \`generation\`,
+              \`latitude\`, \`longitude\`,
+              COALESCE(\`birth_place\`, \`death_place\`, '') AS place_name,
+              \`birth_date\`, \`death_date\`
        FROM \`${table}\`
        WHERE ${where.join(' AND ')}
-       ORDER BY \`generation\` ASC, \`birth_year\` ASC`,
+       ORDER BY \`generation\` ASC, \`birth_date\` ASC`,
       params
     );
 
@@ -125,11 +126,11 @@ export class TimelineMapService {
     for (const [gen, members] of [...byGen.entries()].sort((a, b) => a[0] - b[0])) {
       const placeMap = new Map<string, { latSum: number; lngSum: number; count: number }>();
       for (const m of members) {
-        const key = m.place_name || `${m.lat},${m.lng}`;
+        const key = m.place_name || `${m.latitude},${m.longitude}`;
         if (!placeMap.has(key)) placeMap.set(key, { latSum: 0, lngSum: 0, count: 0 });
         const p = placeMap.get(key)!;
-        p.latSum += Number(m.lat);
-        p.lngSum += Number(m.lng);
+        p.latSum += Number(m.latitude);
+        p.lngSum += Number(m.longitude);
         p.count++;
       }
       const centers = [...placeMap.entries()].map(([name, p]) => ({
@@ -146,10 +147,10 @@ export class TimelineMapService {
         members: members.map(m => ({
           id: String(m.id),
           name: m.name,
-          lat: Number(m.lat),
-          lng: Number(m.lng),
+          lat: Number(m.latitude),
+          lng: Number(m.longitude),
           placeName: m.place_name,
-          year: m.birth_year || m.death_year || undefined
+          year: parseYear(m.birth_date) ?? parseYear(m.death_date)
         }))
       });
     }
@@ -165,7 +166,7 @@ export class TimelineMapService {
 
   async getMigration(
     familyId: number
-  ): Promise<{ points: MigrationPoint[]; routes: Array<{ from: MigrationPoint; to: MigrationPoint }> }> {
+  ): Promise<MigrationAggregate> {
     const fp = await this.getFamilyFingerprint(familyId);
     const cacheKey = this.hash(`migration|${familyId}|${fp}`);
 
@@ -174,13 +175,14 @@ export class TimelineMapService {
 
     const table = `family_members_${familyId}`;
     const rows = await this.dataSource.query<any[]>(
-      `SELECT \`id\`, \`name\`, \`generation\`, \`father_name\`,
-              \`lat\`, \`lng\`,
-              COALESCE(\`birth_place\`, \`native_place\`, '') AS place_name,
-              \`birth_year\`, \`death_year\`
+      `SELECT \`id\`, \`name\`, \`generation\`,
+              \`latitude\`, \`longitude\`,
+              COALESCE(\`birth_place\`, \`death_place\`, '') AS place_name,
+              \`birth_date\`, \`death_date\`
        FROM \`${table}\`
-       WHERE \`lat\` IS NOT NULL AND \`lat\` != 0
-         AND \`lng\` IS NOT NULL AND \`lng\` != 0
+       WHERE \`status\` != 0
+         AND \`latitude\` IS NOT NULL AND \`latitude\` != 0
+         AND \`longitude\` IS NOT NULL AND \`longitude\` != 0
        ORDER BY \`generation\` ASC`,
       []
     );
@@ -195,10 +197,10 @@ export class TimelineMapService {
     for (const row of rows) {
       const gen = Number(row.generation || 0);
       const p: MigrationPoint = {
-        lat: Number(row.lat),
-        lng: Number(row.lng),
-        name: row.place_name || `${row.lat},${row.lng}`,
-        year: row.birth_year || row.death_year || undefined,
+        lat: Number(row.latitude),
+        lng: Number(row.longitude),
+        name: row.place_name || `${row.latitude},${row.longitude}`,
+        year: parseYear(row.birth_date) ?? parseYear(row.death_date),
         generation: gen,
         type: gen === 1 ? 'ancestor' : 'birth',
         memberName: row.name
@@ -226,7 +228,7 @@ export class TimelineMapService {
     }
 
     // 构造迁徙路线
-    const routes: Array<{ from: MigrationPoint; to: MigrationPoint }> = [];
+    const routes: MigrationRoute[] = [];
     const sortedGens = [...genMap.keys()].sort((a, b) => a - b);
     for (let i = 0; i < sortedGens.length - 1; i++) {
       const fromPoints = genMap.get(sortedGens[i])!;
@@ -236,7 +238,7 @@ export class TimelineMapService {
       }
     }
 
-    const result = { points, routes };
+    const result: MigrationAggregate = { points, routes };
     await this.setCacheObj(cacheKey, result);
     return result;
   }
@@ -246,8 +248,8 @@ export class TimelineMapService {
   // =================================================================
 
   getHistoryEvents(
-    yearRange?: { start?: number; end?: number },
-    categories?: HistoryEvent['category'][]
+    yearRange?: HistoryRangeQuery,
+    categories?: HistoryCategory[]
   ): HistoryEvent[] {
     let out = [...HISTORY_TIMELINE];
     if (yearRange?.start !== undefined) out = out.filter(e => e.year >= yearRange.start!);
@@ -260,10 +262,7 @@ export class TimelineMapService {
   // 4. 家族事件 + 历史事件叠加（带缓存）
   // =================================================================
 
-  async getCombinedTimeline(familyId: number): Promise<{
-    familyEvents: Array<{ year: number; title: string; memberName: string; event: string }>;
-    historyEvents: HistoryEvent[];
-  }> {
+  async getCombinedTimeline(familyId: number): Promise<CombinedTimeline> {
     const fp = await this.getFamilyFingerprint(familyId);
     const cacheKey = this.hash(`timeline|${familyId}|${fp}`);
 
@@ -272,26 +271,30 @@ export class TimelineMapService {
 
     const table = `family_members_${familyId}`;
     const rows = await this.dataSource.query<any[]>(
-      `SELECT \`name\`, \`birth_year\`, \`death_year\`, \`generation\`
+      `SELECT \`name\`, \`birth_date\`, \`death_date\`, \`generation\`
        FROM \`${table}\`
-       WHERE \`birth_year\` IS NOT NULL OR \`death_year\` IS NOT NULL
-       ORDER BY COALESCE(\`birth_year\`, \`death_year\`) ASC`,
+       WHERE \`status\` != 0
+         AND (\`birth_date\` IS NOT NULL AND \`birth_date\` != ''
+              OR \`death_date\` IS NOT NULL AND \`death_date\` != '')
+       ORDER BY COALESCE(\`birth_date\`, \`death_date\`) ASC`,
       []
     );
 
-    const familyEvents: Array<{ year: number; title: string; memberName: string; event: string }> = [];
+    const familyEvents: CombinedTimeline['familyEvents'] = [];
     for (const row of rows) {
-      if (row.birth_year) {
+      const birthYear = parseYear(row.birth_date);
+      const deathYear = parseYear(row.death_date);
+      if (birthYear) {
         familyEvents.push({
-          year: Number(row.birth_year),
+          year: birthYear,
           title: '出生',
           memberName: row.name,
           event: `${row.name}（第 ${row.generation || '?'} 代）出生`
         });
       }
-      if (row.death_year) {
+      if (deathYear) {
         familyEvents.push({
-          year: Number(row.death_year),
+          year: deathYear,
           title: '逝世',
           memberName: row.name,
           event: `${row.name} 逝世`
@@ -307,7 +310,7 @@ export class TimelineMapService {
       historyEvents = this.getHistoryEvents({ start: minYear, end: maxYear });
     }
 
-    const result = { familyEvents, historyEvents };
+    const result: CombinedTimeline = { familyEvents, historyEvents };
     await this.setCacheObj(cacheKey, result);
     return result;
   }
@@ -333,17 +336,21 @@ export class TimelineMapService {
   }
 
   /**
-   * 家族数据指纹：成员总数 + 最新 update_time
-   * 成员新增/修改/删除后 fingerprint 变化 → 缓存 key 自然不同 → 自动失效
+   * 家族数据指纹：成员总数 + 最新 create_time
+   * schema 没有 update_time 字段，用 create_time 近似代表最后修改时间。
+   * 成员新增后 fingerprint 变化 → 缓存 key 自然不同 → 自动失效。
    */
   private async getFamilyFingerprint(familyId: number): Promise<string> {
     const table = `family_members_${familyId}`;
     try {
       const rows = await this.dataSource.query<any[]>(
-        `SELECT COUNT(*) AS cnt, COALESCE(MAX(\`update_time\`), '1970-01-01') AS last_update FROM \`${table}\``
+        `SELECT COUNT(*) AS cnt,
+                COALESCE(MAX(\`create_time\`), '1970-01-01') AS last_create
+         FROM \`${table}\`
+         WHERE \`status\` != 0`
       );
       const cnt = Number(rows[0]?.cnt || 0);
-      const last = rows[0]?.last_update || '1970-01-01';
+      const last = rows[0]?.last_create || '1970-01-01';
       return `${cnt}|${last}`;
     } catch {
       return 'unknown';

@@ -1,5 +1,7 @@
 {
   "navigationBarTitleText": "家族时空地图",
-  "navigationBarBackgroundColor": "#8B1A1A",
-  "navigationBarTextStyle": "white"
+  "navigationBarBackgroundColor": "#f4ead5",
+  "navigationBarTextStyle": "black",
+  "backgroundColor": "#f4ead5",
+  "backgroundTextStyle": "dark"
 }

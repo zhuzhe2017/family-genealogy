@@ -1,7 +1,7 @@
-<!--pages/migration-map/migration-map.wxml-->
+<!--pages/migration-map/migration-map.wxml— 古籍卷轴沉浸型 v2.0-->
 <view class="map-wrap">
 
-  <!-- 地图主体 -->
+  <!-- 地图主体（全屏，不再被面板挤压） -->
   <map
     id="migrationMap"
     class="map-body"
@@ -11,115 +11,164 @@
     markers="{{markers}}"
     polyline="{{polyline}}"
     show-location="{{false}}"
+    show-compass="{{true}}"
+    enable-3D="{{true}}"
+    enable-overlooking="{{true}}"
     bindmarkertap="onMarkerTap"
   ></map>
 
-  <!-- ============ 顶部世代时间轴 ============ -->
-  <view class="gen-timeline top-bar">
-    <scroll-view scroll-x class="gen-scroll">
-      <view class="gen-track">
-        <view
-          wx:for="{{generationsList}}"
-          wx:key="*this"
-          class="gen-node {{currentGen === item ? 'active' : ''}}"
-          data-gen="{{item}}"
-          bindtap="onGenSelect"
-        >
-          <view class="gen-dot"></view>
-          <text class="gen-label">第{{item}}代</text>
-        </view>
+  <!-- ============================================================ -->
+  <!--            顶部卷轴横幅（古籍卷轴沉浸风格）               -->
+  <!-- ============================================================ -->
+  <view class="scroll-banner" wx:if="{{markers.length > 0}}">
+    <!-- 卷轴两端的轴头装饰 -->
+    <view class="scroll-rod scroll-rod-left"></view>
+    <view class="scroll-rod scroll-rod-right"></view>
+
+    <!-- 卷轴内容区 -->
+    <view class="scroll-content">
+      <!-- 主标题（卷轴顶栏） -->
+      <view class="scroll-header">
+        <view class="seal-stamp">谱</view>
+        <text class="scroll-title">家族世系迁徙</text>
+        <text class="scroll-sub">· 时空地图 ·</text>
+        <view class="seal-stamp">迁</view>
       </view>
-    </scroll-view>
-    <view class="timeline-title">家族世系迁徙 · 时空地图</view>
+
+      <!-- 世代时间轴（卷轴下半部） -->
+      <scroll-view
+        scroll-x
+        scroll-into-view="{{currentGen !== null ? 'gen-' + currentGen : ''}}"
+        scroll-with-animation
+        class="gen-scroll"
+      >
+        <view class="gen-track">
+          <!-- "全部" 节点（第 0 个） -->
+          <view
+            class="gen-node {{currentGen === null ? 'active' : ''}}"
+            data-gen="{{null}}"
+            bindtap="onGenSelect"
+          >
+            <view class="gen-dot"></view>
+            <text class="gen-label">全貌</text>
+          </view>
+          <view class="gen-node-sep"></view>
+          <view
+            wx:for="{{generationsList}}"
+            wx:key="*this"
+            id="gen-{{item}}"
+            class="gen-node {{currentGen === item ? 'active' : ''}}"
+            data-gen="{{item}}"
+            bindtap="onGenSelect"
+          >
+            <view class="gen-dot"></view>
+            <text class="gen-label">第{{item}}代</text>
+          </view>
+        </view>
+      </scroll-view>
+    </view>
   </view>
 
-  <!-- ============ 右侧控制面板 ============ -->
-  <view class="control-panel side-bar">
-    <!-- 动画控制 -->
-    <view class="panel-section">
-      <view class="section-title">🎬 迁徙动画</view>
+  <!-- ============================================================ -->
+  <!--            右下浮动按钮组（空态时隐藏）                   -->
+  <!-- ============================================================ -->
+  <view class="fab-group" wx:if="{{markers.length > 0}}">
+    <!-- 回到全貌（常驻） -->
+    <view class="fab fab-primary" bindtap="recenterMap" hover-class="fab-press">
+      <text class="fab-ic">🎯</text>
+    </view>
+    <!-- 刷新数据（常驻） -->
+    <view class="fab" bindtap="reloadData" hover-class="fab-press">
+      <text class="fab-ic">🔄</text>
+    </view>
+    <!-- 动画（展开态） -->
+    <view class="fab {{activeDrawer === 'anim' ? 'fab-active' : ''}}"
+          bindtap="toggleDrawer" data-drawer="anim" hover-class="fab-press">
+      <text class="fab-ic">🎬</text>
+    </view>
+    <!-- 图层（展开态） -->
+    <view class="fab {{activeDrawer === 'layer' ? 'fab-active' : ''}}"
+          bindtap="toggleDrawer" data-drawer="layer" hover-class="fab-press">
+      <text class="fab-ic">🗺️</text>
+    </view>
+    <!-- 历史（展开态） -->
+    <view class="fab {{activeDrawer === 'history' ? 'fab-active' : ''}}"
+          bindtap="toggleDrawer" data-drawer="history" hover-class="fab-press">
+      <text class="fab-ic">📜</text>
+    </view>
+  </view>
+
+  <!-- ============================================================ -->
+  <!--            右侧抽屉面板（从右滑出）                         -->
+  <!-- ============================================================ -->
+  <view class="drawer-mask {{activeDrawer ? 'show' : ''}}" bindtap="closeDrawer" wx:if="{{markers.length > 0}}"></view>
+
+  <!-- 动画控制抽屉 -->
+  <view class="drawer {{activeDrawer === 'anim' ? 'drawer-open' : ''}}" wx:if="{{markers.length > 0}}">
+    <view class="drawer-head">
+      <view class="drawer-title">🎬 迁徙动画</view>
+      <view class="drawer-close" bindtap="closeDrawer">✕</view>
+    </view>
+    <view class="drawer-body">
       <view class="anim-btn {{animating ? 'active' : ''}}" bindtap="playAnimation">
-        <text wx:if="{{animating}}">⏸ 暂停</text>
+        <text wx:if="{{animating}}">⏸ 暂停播放</text>
         <text wx:else>▶ 播放迁徙路线</text>
       </view>
       <view wx:if="{{animating}}" class="anim-progress">
-        第 {{animStep + 1}} / {{generationsList.length}} 阶段
-      </view>
-    </view>
-
-    <!-- 图层控制 -->
-    <view class="panel-section">
-      <view class="section-title">🗺️ 图层</view>
-      <view class="toggle-item" bindtap="toggleMigration">
-        <text class="toggle-label">迁徙路线</text>
-        <view class="toggle-switch {{showMigration ? 'on' : ''}}">
-          <view class="toggle-dot"></view>
+        <view class="anim-bar-bg">
+          <view class="anim-bar-fill" style="width:{{(animStep + 1) / generationsList.length * 100}}%"></view>
         </view>
+        <text class="anim-text">第 {{animStep + 1}} / {{generationsList.length}} 阶段</text>
+      </view>
+      <view wx:else class="anim-hint">点击播放，世代迁徙路线将依次浮现</view>
+    </view>
+  </view>
+
+  <!-- 图层控制抽屉 -->
+  <view class="drawer {{activeDrawer === 'layer' ? 'drawer-open' : ''}}" wx:if="{{markers.length > 0}}">
+    <view class="drawer-head">
+      <view class="drawer-title">🗺️ 图层</view>
+      <view class="drawer-close" bindtap="closeDrawer">✕</view>
+    </view>
+    <view class="drawer-body">
+      <view class="toggle-item" bindtap="toggleMigration">
+        <view class="toggle-info">
+          <text class="toggle-label">迁徙路线</text>
+          <text class="toggle-sub">相邻世代的迁徙轨迹</text>
+        </view>
+        <view class="toggle-switch {{showMigration ? 'on' : ''}}"><view class="toggle-dot"></view></view>
       </view>
       <view class="toggle-item" bindtap="toggleHistoryPanel">
-        <text class="toggle-label">历史事件</text>
-        <view class="toggle-switch {{showingHistory ? 'on' : ''}}">
-          <view class="toggle-dot"></view>
+        <view class="toggle-info">
+          <text class="toggle-label">历史事件</text>
+          <text class="toggle-sub">同期朝代事件对照</text>
         </view>
+        <view class="toggle-switch {{showingHistory ? 'on' : ''}}"><view class="toggle-dot"></view></view>
       </view>
     </view>
-
-    <!-- 当前状态 -->
-    <view class="panel-section status">
-      <view class="status-item">
+    <view class="drawer-footer">
+      <view class="status-row">
         <text class="status-label">当前世代</text>
-        <text class="status-value">{{currentGen !== null ? '第' + currentGen + '代' : '全部'}}</text>
+        <text class="status-value">{{currentGen !== null ? '第' + currentGen + '代' : '全部世代'}}</text>
       </view>
-      <view class="status-item">
+      <view class="status-row">
         <text class="status-label">标记点</text>
         <text class="status-value">{{markers.length}} 个</text>
       </view>
-      <view class="status-item">
+      <view class="status-row">
         <text class="status-label">迁徙段</text>
         <text class="status-value">{{polyline.length}} 段</text>
       </view>
     </view>
   </view>
 
-  <!-- ============ 成员详情弹窗 ============ -->
-  <view wx:if="{{selectedMember}}" class="member-sheet">
-    <view class="member-card">
-      <view class="member-header">
-        <text class="member-name">{{selectedMember.memberName}}</text>
-        <text class="close-ic" bindtap="closeMemberDetail">✕</text>
-      </view>
-      <view class="member-rows">
-        <view class="member-row">
-          <text class="row-label">类型</text>
-          <text class="row-value type-{{selectedMember.type}}">{{selectedMember.type}}</text>
-        </view>
-        <view class="member-row" wx:if="{{selectedMember.generation}}">
-          <text class="row-label">世代</text>
-          <text class="row-value">第 {{selectedMember.generation}} 代</text>
-        </view>
-        <view class="member-row" wx:if="{{selectedMember.year}}">
-          <text class="row-label">年份</text>
-          <text class="row-value">{{selectedMember.year}}</text>
-        </view>
-        <view class="member-row">
-          <text class="row-label">地点</text>
-          <text class="row-value">{{selectedMember.name}}</text>
-        </view>
-        <view class="member-row">
-          <text class="row-label">坐标</text>
-          <text class="row-value">{{selectedMember.lat.toFixed(4)}}, {{selectedMember.lng.toFixed(4)}}</text>
-        </view>
-      </view>
+  <!-- 历史事件抽屉 -->
+  <view class="drawer drawer-history {{activeDrawer === 'history' ? 'drawer-open' : ''}}" wx:if="{{markers.length > 0}}">
+    <view class="drawer-head">
+      <view class="drawer-title">📜 同期历史事件</view>
+      <view class="drawer-close" bindtap="closeDrawer">✕</view>
     </view>
-  </view>
-
-  <!-- ============ 历史事件侧栏 ============ -->
-  <view wx:if="{{showingHistory}}" class="history-panel">
-    <view class="hp-head">
-      <text class="hp-title">📜 同期历史事件</text>
-      <text class="hp-close" bindtap="toggleHistoryPanel">✕</text>
-    </view>
-    <scroll-view scroll-y class="hp-list">
+    <scroll-view scroll-y class="drawer-body drawer-scroll">
       <block wx:for="{{historyEvents}}" wx:key="year">
         <view class="he-item">
           <view class="he-year">{{item.year < 0 ? '公元前' + (-item.year) + '年' : item.year + '年'}}</view>
@@ -134,11 +183,85 @@
     </scroll-view>
   </view>
 
-  <!-- ============ 空态 ============ -->
-  <view wx:if="{{!loading && markers.length === 0}}" class="empty-state">
-    <text class="empty-emoji">🗺️</text>
-    <view class="empty-title">暂无坐标数据</view>
-    <view class="empty-hint">请在成员管理中为成员填写出生地/安葬地坐标</view>
+  <!-- ============================================================ -->
+  <!--            成员详情 Sheet（底部弹出）                       -->
+  <!-- ============================================================ -->
+  <view wx:if="{{selectedMember}}" class="member-sheet-mask" bindtap="closeMemberDetail"></view>
+  <view wx:if="{{selectedMember}}" class="member-sheet">
+    <view class="member-card">
+      <view class="member-card-handle"></view>
+      <view class="member-header">
+        <view class="member-avatar type-{{selectedMember.type}}">{{selectedMember.memberName[0]}}</view>
+        <view class="member-title-area">
+          <text class="member-name">{{selectedMember.memberName}}</text>
+          <text class="member-type-tag type-{{selectedMember.type}}">{{selectedMember.type}}</text>
+        </view>
+        <text class="close-ic" bindtap="closeMemberDetail">✕</text>
+      </view>
+      <view class="member-info-grid">
+        <view class="info-cell" wx:if="{{selectedMember.generation}}">
+          <view class="info-ic">👤</view>
+          <view class="info-text">
+            <text class="info-label">世代</text>
+            <text class="info-value">第 {{selectedMember.generation}} 代</text>
+          </view>
+        </view>
+        <view class="info-cell" wx:if="{{selectedMember.year}}">
+          <view class="info-ic">📅</view>
+          <view class="info-text">
+            <text class="info-label">年份</text>
+            <text class="info-value">{{selectedMember.year}}</text>
+          </view>
+        </view>
+        <view class="info-cell">
+          <view class="info-ic">📍</view>
+          <view class="info-text">
+            <text class="info-label">地点</text>
+            <text class="info-value">{{selectedMember.name}}</text>
+          </view>
+        </view>
+        <view class="info-cell">
+          <view class="info-ic">🧭</view>
+          <view class="info-text">
+            <text class="info-label">坐标</text>
+            <text class="info-value">{{selectedMember.lat.toFixed(3)}}, {{selectedMember.lng.toFixed(3)}}</text>
+          </view>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <!-- ============================================================ -->
+  <!--            空态（全屏居中，卷轴横幅也隐藏）                 -->
+  <!-- ============================================================ -->
+  <view wx:if="{{!loading && markers.length === 0}}" class="empty-screen">
+    <view class="scroll-banner empty-banner">
+      <view class="scroll-rod scroll-rod-left"></view>
+      <view class="scroll-rod scroll-rod-right"></view>
+      <view class="scroll-content">
+        <view class="scroll-header">
+          <view class="seal-stamp">谱</view>
+          <text class="scroll-title">家族世系迁徙</text>
+          <text class="scroll-sub">· 时空地图 ·</text>
+          <view class="seal-stamp">迁</view>
+        </view>
+      </view>
+    </view>
+
+    <view class="empty-center">
+      <view class="empty-seal">谱</view>
+      <view class="empty-title">暂无坐标数据</view>
+      <view class="empty-divider"><view class="div-line"></view><text class="div-ic">❖</text><view class="div-line"></view></view>
+      <view class="empty-hint">请在成员管理中<br/>为成员填写出生地/安葬地坐标</view>
+      <view class="empty-actions">
+        <view class="empty-btn primary" bindtap="goAddMember">前往添加成员</view>
+        <view class="empty-btn ghost" bindtap="goBack">返回</view>
+      </view>
+    </view>
+
+    <view class="empty-footer">
+      <text class="footer-text">录坐标 · 叙迁徙 · 承族谱</text>
+    </view>
   </view>
 
 </view>

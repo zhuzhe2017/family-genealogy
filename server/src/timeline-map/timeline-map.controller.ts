@@ -4,6 +4,8 @@ import {
 import { AuthGuard } from '@nestjs/passport';
 import { TimelineMapService } from './timeline-map.service';
 import { Public } from '../common/decorators/public.decorator';
+import { HistoryQueryDto } from './dto/timeline-map.dto';
+import type { GenerationRangeQuery } from './types/timeline-map.types';
 
 /**
  * 时空地图端点（识典古籍对标 · 阶段 6）
@@ -29,10 +31,11 @@ export class TimelineMapController {
     @Query('minGen') minGen?: string,
     @Query('maxGen') maxGen?: string
   ) {
-    return this.svc.getGenerations(familyId, {
+    const range: GenerationRangeQuery = {
       minGen: minGen ? Number(minGen) : undefined,
       maxGen: maxGen ? Number(maxGen) : undefined
-    });
+    };
+    return this.svc.getGenerations(familyId, range);
   }
 
   /** 家族迁徙路线 */
@@ -45,16 +48,9 @@ export class TimelineMapController {
   /** 同期历史事件（公开，无需家族） */
   @Public()
   @Get('history')
-  history(
-    @Query('start') start?: string,
-    @Query('end') end?: string,
-    @Query('cat') cat?: string
-  ) {
-    const categories = cat ? cat.split(',').filter(Boolean) : undefined;
-    return this.svc.getHistoryEvents(
-      { start: start ? Number(start) : undefined, end: end ? Number(end) : undefined },
-      categories as any
-    );
+  history(dto: HistoryQueryDto) {
+    const range = { start: dto.start, end: dto.end };
+    return this.svc.getHistoryEvents(range, dto.cat);
   }
 
   /** 家族事件 + 历史事件叠加 */
