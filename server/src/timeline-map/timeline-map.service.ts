@@ -355,18 +355,59 @@ export class TimelineMapService {
   }
 
   // =================================================================
-  // 3. 同期历史事件时间线（内置）
+  // 3. 同期历史事件时间线（先查 history_events 表，表空 fallback 常量）
   // =================================================================
 
-  getHistoryEvents(
+  /**
+   * 获取同期历史事件。
+   * 数据源优先级：history_events 表 > 内置 HISTORY_TIMELINE 常量。
+   * 这样既有数据库表可后台编辑的灵活性，又有零配置 fallback 保证立即可用。
+   */
+  async getHistoryEvents(
     yearRange?: HistoryRangeQuery,
     categories?: HistoryCategory[]
-  ): HistoryEvent[] {
-    let out = [...HISTORY_TIMELINE];
-    if (yearRange?.start !== undefined) out = out.filter(e => e.year >= yearRange.start!);
-    if (yearRange?.end !== undefined) out = out.filter(e => e.year <= yearRange.end!);
-    if (categories && categories.length > 0) out = out.filter(e => categories.includes(e.category));
-    return out.sort((a, b) => a.year - b.year);
+  ): Promise<HistoryEvent[]> {
+    // 1. 尝试查表
+    let dbEvents: HistoryEvent[] | null = null;
+    try {
+      const clauses: string[] = ['`status` = 1'];
+      const params: any[] = [];
+      if (yearRange?.start !== undefined) { clauses.push('`year` >= ?'); params.push(yearRange.start); }
+      if (yearRange?.end !== undefined)   { clauses.push('`year` <= ?'); params.push(yearRange.end); }
+      if (categories && categories.length > 0) {
+        clauses.push(`\`category\` IN (${categories.map(() => '?').join(',')})`);
+        params.push(...categories);
+      }
+      const rows = await this.dataSource.query<any[]>(
+        `SELECT \`year\`, \`title\`, \`dynasty\`, \`description\`, \`category\`
+         FROM \`history_events\`
+         WHERE ${clauses.join(' AND ')}
+         ORDER BY \`year\` ASC, \`sort_order\` DESC`,
+        params
+      );
+      if (rows.length > 0) {
+        dbEvents = rows.map(r => ({
+          year: Number(r.year),
+          title: r.title,
+          dynasty: r.dynasty || '',
+          description: r.description || '',
+          category: (r.category || 'society') as HistoryCategory
+        }));
+      }
+    } catch (err: any) {
+      // 表不存在或查询失败 → fallback 常量
+      this.logger.warn(`[history_events] 查表失败（可能表不存在），fallback 常量: ${err?.message}`);
+    }
+
+    // 2. 表有数据 → 直接用；表空/表不存在 → 过滤常量
+    let out = dbEvents ?? [...HISTORY_TIMELINE];
+    if (!dbEvents) {
+      if (yearRange?.start !== undefined) out = out.filter(e => e.year >= yearRange.start!);
+      if (yearRange?.end !== undefined)   out = out.filter(e => e.year <= yearRange.end!);
+      if (categories && categories.length > 0) out = out.filter(e => categories.includes(e.category));
+      out = out.sort((a, b) => a.year - b.year);
+    }
+    return out;
   }
 
   // =================================================================
@@ -418,7 +459,7 @@ export class TimelineMapService {
     if (allYears.length > 0) {
       const minYear = Math.min(...allYears) - 20;
       const maxYear = Math.max(...allYears) + 20;
-      historyEvents = this.getHistoryEvents({ start: minYear, end: maxYear });
+      historyEvents = await this.getHistoryEvents({ start: minYear, end: maxYear });
     }
 
     const result: CombinedTimeline = { familyEvents, historyEvents };

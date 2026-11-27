@@ -34,6 +34,7 @@ declare module "@elegant-router/types" {
     "mini-program_gathering": "/mini-program/gathering";
     "mini-program_genealogy-book": "/mini-program/genealogy-book";
     "mini-program_generation-table": "/mini-program/generation-table";
+    "mini-program_history-events": "/mini-program/history-events";
     "mini-program_member": "/mini-program/member";
     "mini-program_members": "/mini-program/members";
     "mini-program_overview": "/mini-program/overview";
@@ -118,6 +119,7 @@ declare module "@elegant-router/types" {
     | "mini-program_gathering"
     | "mini-program_genealogy-book"
     | "mini-program_generation-table"
+    | "mini-program_history-events"
     | "mini-program_member"
     | "mini-program_members"
     | "mini-program_overview"

@@ -122,14 +122,14 @@ describe('TimelineMapService', () => {
   // ============================================================
 
   describe('getHistoryEvents', () => {
-    it('无参数时返回全部历史事件并按年份升序', () => {
-      const result = service.getHistoryEvents();
+    it('无参数时返回全部历史事件并按年份升序', async () => {
+      const result = await service.getHistoryEvents();
       expect(result.length).toBeGreaterThan(0);
       expect(result[0].year).toBeLessThanOrEqual(result[result.length - 1].year);
     });
 
-    it('按年份范围过滤', () => {
-      const result = service.getHistoryEvents({ start: 600, end: 800 });
+    it('按年份范围过滤', async () => {
+      const result = await service.getHistoryEvents({ start: 600, end: 800 });
       expect(result.length).toBeGreaterThan(0);
       result.forEach((e) => {
         expect(e.year).toBeGreaterThanOrEqual(600);
@@ -137,14 +137,14 @@ describe('TimelineMapService', () => {
       });
     });
 
-    it('按分类过滤', () => {
-      const result = service.getHistoryEvents(undefined, ['war']);
+    it('按分类过滤', async () => {
+      const result = await service.getHistoryEvents(undefined, ['war']);
       expect(result.length).toBeGreaterThan(0);
       result.forEach((e) => expect(e.category).toBe('war'));
     });
 
-    it('公元前年份正确处理（负数）', () => {
-      const qin = service.getHistoryEvents({ start: -230, end: -200 });
+    it('公元前年份正确处理（负数）', async () => {
+      const qin = await service.getHistoryEvents({ start: -230, end: -200 });
       expect(qin.find((e) => e.year === -221)).toBeTruthy();
     });
   });
