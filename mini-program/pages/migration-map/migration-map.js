@@ -97,28 +97,46 @@ Page({
   async loadAll() {
     this.setData({ loading: true });
     try {
-      // 并行加载 3 个数据源
-      const [genRes, migRes, tlRes] = await Promise.all([
-        api.timelineMap.getGenerations(this.data.familyId).catch(() => ({ data: [] })),
-        api.timelineMap.getMigration(this.data.familyId).catch(() => ({ data: { points: [], routes: [] } })),
-        api.timelineMap.getCombinedTimeline(this.data.familyId).catch(() => ({ data: { familyEvents: [], historyEvents: [] } }))
+      // request.js 已经把后端 {code, data, msg} 包装拆掉了，直接 resolve(data.data)
+      // 所以 genRes 就是后端 generations 接口的 data.data（数组），不需要再取 .data
+      const [gens, mig, tl] = await Promise.all([
+        api.timelineMap.getGenerations(this.data.familyId).catch(err => {
+          console.warn('[timeline-map] getGenerations 失败:', err);
+          return [];
+        }),
+        api.timelineMap.getMigration(this.data.familyId).catch(err => {
+          console.warn('[timeline-map] getMigration 失败:', err);
+          return { points: [], routes: [] };
+        }),
+        api.timelineMap.getCombinedTimeline(this.data.familyId).catch(err => {
+          console.warn('[timeline-map] getCombinedTimeline 失败:', err);
+          return { familyEvents: [], historyEvents: [] };
+        })
       ]);
 
-      const gens = genRes.data || [];
-      const mig = migRes.data || { points: [], routes: [] };
-      const tl = tlRes.data || { familyEvents: [], historyEvents: [] };
+      console.log('[timeline-map] 收到数据:', {
+        generationsCount: Array.isArray(gens) ? gens.length : -1,
+        migrationPoints: mig && mig.points ? mig.points.length : -1,
+        familyId: this.data.familyId,
+        sample: Array.isArray(gens) && gens[0] ? gens[0] : null
+      });
+
+      if (!Array.isArray(gens) || gens.length === 0) {
+        console.warn('[timeline-map] generations 为空！请检查后端是否已部署修复后的字段名。familyId =', this.data.familyId);
+      }
 
       this.setData({
-        generations: gens,
-        generationsList: gens.map(g => g.generation),
-        migration: mig,
-        historyEvents: tl.historyEvents || [],
+        generations: Array.isArray(gens) ? gens : [],
+        generationsList: Array.isArray(gens) ? gens.map(g => g.generation) : [],
+        migration: mig || { points: [], routes: [] },
+        historyEvents: tl && tl.historyEvents ? tl.historyEvents : [],
         familyTimeline: tl
       });
 
       // 渲染（首次加载允许移动 center）
       this.render(true);
     } catch (err) {
+      console.error('[timeline-map] loadAll 最终异常:', err);
       wx.showToast({ title: err.msg || '加载失败', icon: 'none' });
     } finally {
       this.setData({ loading: false });
@@ -127,13 +145,23 @@ Page({
 
   /** 时间轴点击某个世代 —— 业务只改 currentGen，render 负责渲染 */
   onGenSelect: function (e) {
-    const gen = Number(e.currentTarget.dataset.gen);
-    const newVal = this.data.currentGen === gen ? null : gen; // 再次点取消
+    // 微信 dataset 会把所有值转成字符串，所以 {{null}} 传过来是 "null" 或 undefined
+    const raw = e.currentTarget.dataset.gen;
+    const gen = (raw === null || raw === undefined || raw === 'null' || raw === '')
+      ? null                          // 全貌节点 → 全选
+      : Number(raw);                  // 具体世代 → 转数字
+
+    // 如果点的是当前已选中的 → 回到全貌（toggle）
+    const newVal = (this.data.currentGen !== null && this.data.currentGen === gen)
+      ? null
+      : gen;
+
     this.setData({
       currentGen: newVal,
-      renderMode: 'manual'  // 用户交互 → 手动模式锁定
+      renderMode: 'manual'
     });
-    this.render(false); // 手动模式：不移动 center
+    // 点全貌 / 点切换世代都允许重新居中
+    this.render(true);
   },
 
   /** 显示/隐藏迁徙路线 */
@@ -176,43 +204,57 @@ Page({
     this.setData({ animating: false });
   },
 
-  /** marker 点击 → 基于 member.id 匹配完整成员数据并展示详情 */
+  /** marker 点击 → 从私有映射表查完整成员数据 */
   onMarkerTap: function (e) {
-    const markerId = String(e.detail.markerId);
-    const gens = this.data.generations;
-    const mig = this.data.migration;
-    if (!gens || gens.length === 0) return;
+    const markerId = Number(e.detail.markerId);  // ⚠️ 微信返回的 markerId 已经是 number
+    console.log('[timeline-map] onMarkerTap markerId:', markerId, '类型:', typeof markerId);
 
-    // 1. 在 generations 里找完整成员数据（带 generation/year/placeName）
-    let genMatch = null;
-    let genInfo = null;
-    for (const g of gens) {
-      const m = g.members.find(mem => String(mem.id) === markerId);
-      if (m) { genMatch = m; genInfo = g; break; }
+    // 1. 从 render 维护的私有映射表查（完整 member + generation 信息）
+    const info = this._markerIndexMap && this._markerIndexMap.get(markerId);
+    if (!info) {
+      console.warn('[timeline-map] onMarkerTap 找不到 markerId =', markerId);
+      return;
     }
-    if (!genMatch) return;
+    const genMatch = info.member;
+    const genInfo = info.gen;
 
-    // 2. 在 migration.points 里找迁徙点类型（精确匹配：名字 + 坐标 兜底）
+    console.log('[timeline-map] genMatch:', genMatch);
+    console.log('[timeline-map] lat 类型:', typeof genMatch.lat, '值:', genMatch.lat);
+
+    // 2. 强制转 Number（后端 MySQL DECIMAL 返回字符串也能兜住）
+    const rawLat = genMatch.lat ?? genMatch.latitude ?? null;
+    const rawLng = genMatch.lng ?? genMatch.longitude ?? null;
+    const memberLat = rawLat !== null && rawLat !== undefined && rawLat !== ''
+      ? Number(rawLat) : null;
+    const memberLng = rawLng !== null && rawLng !== undefined && rawLng !== ''
+      ? Number(rawLng) : null;
+
+    console.log('[timeline-map] 转换后:', { memberLat, memberLng });
+
+    // 3. 找迁徙点类型
     let migPoint = null;
-    if (mig && mig.points) {
+    const mig = this.data.migration;
+    if (mig && mig.points && memberLat !== null && memberLng !== null) {
       migPoint = mig.points.find(p =>
         p.memberName === genMatch.name &&
-        Math.abs(p.lat - genMatch.lat) < 0.01 &&
-        Math.abs(p.lng - genMatch.lng) < 0.01
+        Math.abs(Number(p.lat) - memberLat) < 0.01 &&
+        Math.abs(Number(p.lng) - memberLng) < 0.01
       );
     }
 
-    // 3. 合并两个数据源的信息
     const member = {
       memberName: genMatch.name,
-      name: genMatch.placeName || (migPoint ? migPoint.name : ''),
-      lat: genMatch.lat,
-      lng: genMatch.lng,
+      name: genMatch.placeName || (migPoint ? migPoint.name : '') || '位置不详',
+      lat: memberLat,
+      lng: memberLng,
+      latitude: memberLat,
+      longitude: memberLng,
       generation: genInfo.generation,
       year: genMatch.year || (migPoint ? migPoint.year : null),
       type: migPoint ? migPoint.type : (genInfo.generation === 1 ? 'ancestor' : 'birth'),
-      memberId: markerId
+      memberId: String(genMatch.id)
     };
+    console.log('[timeline-map] selectedMember:', member);
     this.setData({ selectedMember: member });
   },
 
@@ -240,22 +282,27 @@ Page({
     const showMig = this.data.showMigration;
 
     // ========= 1. 构建 marker 列表 =========
+    // ⚠️ 微信 map 组件 3.16.2 要求 marker.id 必须是 number！
+    //    后端 member.id 是 VARCHAR(32)，所以用连续数字索引当 id
+    //    同时维护一个私有映射表 _markerIndexMap：markerId(number) → { gen, member }
     let markers = [];
+    const markerIndexMap = new Map();   // 私有映射（同步写 data）
+    let markerSeq = 0;
 
     if (gens.length > 0) {
-      // 按世代过滤
       const targetGens = currentGen !== null
         ? gens.filter(g => g.generation === currentGen)
         : gens;
 
-      markers = targetGens.flatMap(g =>
-        g.members.map(m => {
+      for (const g of targetGens) {
+        for (const m of g.members) {
           const type = this.classifyMarkerType(m, mig);
           const tmpl = MARKER_TYPES[type] || MARKER_TYPES.birth;
-          return {
-            id: m.id, // 统一用后端返回的 member.id 作为 markerId
-            latitude: m.lat,
-            longitude: m.lng,
+          const markerId = markerSeq++;   // ✅ number！
+          markers.push({
+            id: markerId,
+            latitude: Number(m.lat),
+            longitude: Number(m.lng),
             iconPath: tmpl.iconPath,
             width: tmpl.width,
             height: tmpl.height,
@@ -268,18 +315,19 @@ Page({
               fontSize: 11,
               display: 'BYCLICK'
             }
-          };
-        })
-      );
+          });
+          markerIndexMap.set(markerId, { gen: g, member: m });
+        }
+      }
     }
 
-    // ========= 2. 构建 polyline（迁徙路线） =========
+    // ========= 2. 构建 polyline =========
     let polyline = [];
     if (showMig && mig && mig.routes && mig.routes.length > 0) {
       polyline = mig.routes.map((route, idx) => ({
         points: [
-          { latitude: route.from.lat, longitude: route.from.lng },
-          { latitude: route.to.lat, longitude: route.to.lng }
+          { latitude: Number(route.from.lat), longitude: Number(route.from.lng) },
+          { latitude: Number(route.to.lat), longitude: Number(route.to.lng) }
         ],
         color: idx === this.data.animStep && this.data.renderMode === 'auto' ? '#7b2cbf' : '#e07a5f',
         width: 3,
@@ -288,17 +336,15 @@ Page({
       }));
     }
 
-    // ========= 3. 确定 center（manual 模式保护） =========
+    // ========= 3. center =========
     let center = this.data.mapCenter;
     let scale = this.data.scale;
     if (allowMoveCenter && markers.length > 0) {
-      // auto 模式：计算所有点的中心
       const lats = markers.map(m => m.latitude);
       const lngs = markers.map(m => m.longitude);
       const avgLat = lats.reduce((a, b) => a + b, 0) / lats.length;
       const avgLng = lngs.reduce((a, b) => a + b, 0) / lngs.length;
       center = { latitude: avgLat, longitude: avgLng };
-      // 根据点分布估算缩放级别
       const latRange = Math.max(...lats) - Math.min(...lats);
       const lngRange = Math.max(...lngs) - Math.min(...lngs);
       const maxRange = Math.max(latRange, lngRange);
@@ -310,11 +356,28 @@ Page({
     }
 
     // ========= 4. 统一 setData =========
+    // 映射表转成数组存 data（onMarkerTap 需要读）
+    const markerMapArr = Array.from(markerIndexMap.entries()).map(([markerId, info]) => ({
+      markerId,
+      memberId: String(info.member.id),
+      generation: info.gen.generation
+    }));
+
     this.setData({
       markers,
       polyline,
       mapCenter: center,
-      scale
+      scale,
+      _markerMap: markerMapArr   // 供 onMarkerTap 回查
+    });
+
+    // 私有实例变量保留完整映射（onMarkerTap 直接查，不走 data）
+    this._markerIndexMap = markerIndexMap;
+
+    console.log('[timeline-map] render 完成:', {
+      markersCount: markers.length,
+      polylineCount: polyline.length,
+      center, scale
     });
   },
 
